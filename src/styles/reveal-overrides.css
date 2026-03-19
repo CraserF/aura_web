@@ -1,0 +1,42 @@
+/* ============================================
+   reveal.js overrides for Aura edit mode
+   ============================================ */
+
+/* In edit mode, the reveal container is embedded (not fullscreen).
+   Override reveal defaults so it plays nicely inside the layout. */
+
+.aura-edit-mode .reveal {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Remove reveal's default margin/padding in embedded mode */
+.aura-edit-mode .reveal .slides {
+  text-align: left;
+}
+
+/* In present mode (browser fullscreen), reveal takes over */
+.aura-present-mode {
+  background: #000;
+}
+
+.aura-present-mode .reveal {
+  width: 100%;
+  height: 100%;
+}
+
+/* Show controls and progress only in present mode */
+.aura-edit-mode .reveal .controls,
+.aura-edit-mode .reveal .progress,
+.aura-edit-mode .reveal .slide-number {
+  display: none;
+}
+
+.aura-present-mode .reveal .controls {
+  display: block;
+}
+
+.aura-present-mode .reveal .progress {
+  display: block;
+}
