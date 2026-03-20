@@ -19,6 +19,20 @@ import { cn } from '@/lib/utils';
 /** Fetch models from the Gemini ListModels API that support generateContent */
 const GEMINI_LISTMODELS_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
+/** Models that are deprecated / unavailable for new API keys */
+const DEPRECATED_GEMINI_MODELS = new Set([
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-8b',
+  'gemini-1.5-pro',
+  'gemini-1.0-pro',
+  'gemini-1.0-pro-001',
+  'gemini-1.0-pro-latest',
+  'gemini-1.0-pro-vision-latest',
+  'gemini-pro',
+  'gemini-pro-vision',
+]);
+
 async function fetchGeminiModels(
   apiKey: string,
 ): Promise<Array<{ id: string; name: string }>> {
@@ -36,22 +50,20 @@ async function fetchGeminiModels(
   };
 
   return (data.models ?? [])
-    // Filter to models that support streaming generation (what the SDK actually uses)
     .filter((m) => m.supportedGenerationMethods?.includes('streamGenerateContent'))
-    // Only include gemini- generation models, exclude embeddings / vision-only / tuned models
     .filter((m) => /^models\/gemini-/.test(m.name))
     .map((m) => ({
       id: m.name.replace(/^models\//, ''),
       name: m.displayName ?? m.name.replace(/^models\//, ''),
     }))
+    // Exclude deprecated models that return 404 for new API keys
+    .filter((m) => !DEPRECATED_GEMINI_MODELS.has(m.id))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 const GEMINI_FALLBACK_MODELS = [
-  { id: 'gemini-2.5-pro-preview-03-25', name: 'Gemini 2.5 Pro Preview' },
-  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
-  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
-  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
 ];
 
 export function ProviderModal() {

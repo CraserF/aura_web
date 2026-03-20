@@ -22,7 +22,7 @@ export class GeminiProvider implements AIProvider {
     
     // Initial configuration
     const model = genAI.getGenerativeModel({
-      model: modelId || 'gemini-1.5-flash',
+      model: modelId || 'gemini-2.5-flash',
       systemInstruction: systemMessage?.content,
     });
 

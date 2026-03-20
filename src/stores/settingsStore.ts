@@ -34,7 +34,7 @@ const defaultProviders: Record<ProviderId, ProviderConfig> = {
     name: 'Google Gemini',
     apiKey: '',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
   },
   deepseek: {
     id: 'deepseek',
@@ -99,10 +99,25 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'aura-settings',
+      version: 1,
       partialize: (state) => ({
         providerId: state.providerId,
         providers: state.providers,
       }),
+      migrate: (persisted: unknown, version: number) => {
+        const state = persisted as Record<string, unknown>;
+        if (version === 0) {
+          // Migrate deprecated Gemini models to gemini-2.5-flash
+          const providers = state.providers as Record<string, ProviderConfig> | undefined;
+          if (providers?.gemini) {
+            const deprecated = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro'];
+            if (!providers.gemini.model || deprecated.includes(providers.gemini.model)) {
+              providers.gemini.model = 'gemini-2.5-flash';
+            }
+          }
+        }
+        return state;
+      },
     },
   ),
 );
