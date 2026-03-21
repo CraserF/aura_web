@@ -23,6 +23,11 @@ export const ANTI_PATTERNS = [
   'Never use pure black (#000) on pure white (#fff) — too harsh. Use #0f172a or #1e293b.',
   'Accent colors must have ≥ 4.5:1 contrast ratio against their background.',
   'Do NOT use more than 2 accent colors per slide. One primary, one secondary.',
+  'Do NOT use the same opacity for surface and border — border must be visibly distinct from surface fill.',
+  'Never apply backdrop-filter:blur on LIGHT mode slides — use solid surfaces with box-shadow instead.',
+  'Do NOT use bright accent colors as large background fills. Accents are for SMALL elements: icons, badges, dividers.',
+  'Never pair two saturated colors adjacently (e.g., bright red card next to bright blue card). One saturated + one neutral.',
+  'Do NOT use the primary color as body text. Primary is for accent elements ONLY (icons, metrics, buttons, dividers).',
 
   // Spatial Design
   'Do NOT nest cards inside cards — creates visual noise.',
@@ -64,7 +69,14 @@ export const DESIGN_PRINCIPLES = {
     'Build from a single background color. Surface = bg + subtle lightness shift.',
     'Borders should be near-invisible: 6-10% opacity of the heading color.',
     'Use color temperature intentionally: cool = professional, warm = approachable.',
-    'Gradient text for hero titles only — never on body or small text.',
+    'Gradient text for hero titles only — never on body or small text. NEVER on light backgrounds.',
+  ],
+  colorSystem: [
+    'Apply 60-30-10 rule: 60% background, 30% surface/cards, 10% primary accent color.',
+    'Every color has a role: bg=canvas, surface=containers, primary=emphasis, accent=highlights.',
+    'Light themes: depth via shadows (not transparency). Dark themes: depth via layered translucency.',
+    'Tint technique: primary color at 8-12% opacity for subtle icon/badge backgrounds.',
+    'Contrast hierarchy: heading=highest contrast, body=high, muted=medium, border=low.',
   ],
   spatial: [
     'Whitespace is design. 40% of each slide should be empty.',

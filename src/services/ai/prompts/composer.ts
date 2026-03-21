@@ -16,6 +16,7 @@ import { buildNarrativeSection } from './sections/narrative';
 import { buildQualitySection } from './sections/quality';
 import { buildAntiPatternsSection } from './sections/anti-patterns';
 import { buildTemplateExamplesSection } from './sections/template-examples';
+import { buildModernPatternsSection } from './sections/modern-patterns';
 import { getRelevantKnowledge } from '../knowledge';
 
 export class PromptComposer {
@@ -39,6 +40,13 @@ export class PromptComposer {
   /** Add layout system and glassmorphism patterns */
   addLayout(): this {
     this.sections.push(buildLayoutSection(this._palette));
+    return this;
+  }
+
+  /** Add modern CSS patterns (mode-aware card recipes, layout recipes) */
+  addModernPatterns(): this {
+    const mode = this._palette?.mode ?? 'dark';
+    this.sections.push(buildModernPatternsSection(mode));
     return this;
   }
 
@@ -115,6 +123,7 @@ export function buildDesignerPrompt(
     .addBase(blueprint.palette)
     .addTypography()
     .addLayout()
+    .addModernPatterns()
     .addDecorative()
     .addAnimation(animLevel)
     .addNarrative()

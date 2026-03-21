@@ -1,40 +1,59 @@
 /**
- * Decorative elements section — gradient text, accent dividers, SVG icons.
+ * Decorative elements section — mode-aware gradient text, accent dividers, SVG icons.
  */
 import type { TemplatePalette } from '../../templates';
 
 export function buildDecorativeSection(pal?: TemplatePalette): string {
+  const mode = pal?.mode ?? 'dark';
+
+  const heroTextRecipe = mode === 'dark'
+    ? `### Gradient Text (for hero titles on DARK backgrounds only):
+\`\`\`html
+<h1 style="background:linear-gradient(135deg,${pal?.heading ?? '#fff'},${pal?.primary ?? '#3b82f6'}); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;">
+\`\`\``
+    : `### Hero Title (LIGHT mode — solid color, NO gradient text):
+\`\`\`html
+<h1 style="color:${pal?.heading ?? '#0f172a'}; font-weight:700;">Title Here</h1>
+<div style="width:48px; height:3px; background:${pal?.primary ?? '#3b82f6'}; border-radius:2px; margin:0.8rem 0;"></div>
+\`\`\`
+**IMPORTANT:** Do NOT use gradient text on light backgrounds. The contrast is too low and it looks washed out. Use solid heading color with a colored accent divider instead.`;
+
+  const geometricDecoration = mode === 'dark'
+    ? `### Geometric Decorations (floating glow shapes for dark mode):
+\`\`\`html
+<div style="position:absolute; top:-80px; right:-60px; width:200px; height:200px; border-radius:50%; background:radial-gradient(circle,${pal?.primary ?? '#3b82f6'}15,transparent 70%); pointer-events:none;"></div>
+\`\`\``
+    : `### Geometric Decorations (subtle shapes for light mode):
+\`\`\`html
+<div style="position:absolute; top:-80px; right:-60px; width:200px; height:200px; border-radius:50%; background:radial-gradient(circle,${pal?.primary ?? '#3b82f6'}08,transparent 70%); pointer-events:none;"></div>
+\`\`\`
+Use very subtle opacity (08 hex = 3%) for geometric shapes on light backgrounds.`;
+
   return `## DECORATIVE ELEMENTS — CSS-Only Visual Richness
 
 Instead of images, use these techniques to make slides visually stunning:
 
-### Gradient Text (for hero titles):
+${heroTextRecipe}
+
+### Accent Dividers (place below every h2):
 \`\`\`html
-<h1 style="background:linear-gradient(135deg,${pal?.heading ?? '#fff'},${pal?.primary ?? '#3b82f6'}); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;">
+<div style="width:48px; height:3px; background:var(--primary); border-radius:2px; margin:0.8rem 0 1.5rem;"></div>
 \`\`\`
 
-### Accent Dividers:
+### Icon Containers (solid tinted background + inline SVG):
 \`\`\`html
-<div style="width:60px; height:4px; background:linear-gradient(90deg,var(--primary),var(--accent)); border-radius:2px; margin:1rem auto;"></div>
-\`\`\`
-
-### Icon Containers (gradient background + inline SVG):
-\`\`\`html
-<div style="width:48px; height:48px; border-radius:12px; background:linear-gradient(135deg,${pal?.primary ?? '#3b82f6'}20,${pal?.accent ?? '#8b5cf6'}20); display:flex; align-items:center; justify-content:center;">
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${pal?.primary ?? '#3b82f6'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">...</svg>
+<div style="width:44px; height:44px; border-radius:10px; background:rgba(${pal?.primary ?? '59,130,246'}${mode === 'dark' ? ',0.10' : ',0.08'}); display:flex; align-items:center; justify-content:center;">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${pal?.primary ?? '#3b82f6'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">...</svg>
 </div>
 \`\`\`
 
-### Geometric Decorations (floating shapes):
-\`\`\`html
-<div style="position:absolute; top:-80px; right:-60px; width:200px; height:200px; border-radius:50%; background:radial-gradient(circle,${pal?.primary ?? '#3b82f6'}15,transparent 70%); pointer-events:none;"></div>
-\`\`\`
+${geometricDecoration}
 
 ### CSS-Only Illustrations (abstract shapes):
 \`\`\`html
 <div style="width:300px; height:300px; position:relative;">
-  <div style="position:absolute; inset:20%; border-radius:30% 70% 70% 30% / 30% 30% 70% 70%; background:linear-gradient(135deg,var(--primary),var(--accent)); opacity:0.2;"></div>
-  <div style="position:absolute; inset:10%; border:2px solid ${pal?.border ?? 'rgba(255,255,255,0.1)'}; border-radius:50%; "></div>
+  <div style="position:absolute; inset:20%; border-radius:30% 70% 70% 30% / 30% 30% 70% 70%; background:linear-gradient(135deg,var(--primary),var(--accent)); opacity:${mode === 'dark' ? '0.2' : '0.08'};"></div>
+  <div style="position:absolute; inset:10%; border:2px solid ${pal?.border ?? 'rgba(255,255,255,0.1)'}; border-radius:50%;"></div>
 </div>
 \`\`\`
 
