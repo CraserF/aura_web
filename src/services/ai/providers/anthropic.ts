@@ -31,7 +31,7 @@ export class AnthropicProvider implements AIProvider {
       },
       body: JSON.stringify({
         model: modelId || 'claude-3-5-sonnet-20241022',
-        max_tokens: 8192,
+        max_tokens: 16384,
         system: systemMessage?.content ?? '',
         messages: conversationMessages,
         stream: true,

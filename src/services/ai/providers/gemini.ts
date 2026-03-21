@@ -50,7 +50,7 @@ export class GeminiProvider implements AIProvider {
       history: chatHistory,
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 16384,
       },
     });
 

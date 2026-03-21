@@ -1,13 +1,14 @@
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import type { AuraManifest, PresentationData, ChatMessage } from '@/types';
+import { countSlides } from '@/services/ai/utils/extractHtml';
 
 const FORMAT_VERSION = '1.0';
 
 /** Pack presentation data into a .aura zip file and trigger download */
 export async function downloadAuraFile(data: PresentationData): Promise<void> {
   const zip = new JSZip();
-  const slideCount = (data.slidesHtml.match(/<section[\s>]/g) ?? []).length;
+  const slideCount = countSlides(data.slidesHtml);
 
   const manifest: AuraManifest = {
     version: FORMAT_VERSION,
