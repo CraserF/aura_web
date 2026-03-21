@@ -25,8 +25,8 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
   if (!open) return null;
 
   return (
-    <aside className="flex w-80 shrink-0 flex-col border-l border-border bg-background lg:w-96">
-      <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
+    <aside className="flex min-h-0 w-80 shrink-0 flex-col overflow-hidden border-l border-border bg-background lg:w-96">
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-2.5">
         <h2 className="text-sm font-medium text-foreground">Chat History</h2>
         <Button
           variant="ghost"
@@ -38,7 +38,7 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
         </Button>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="min-h-0 flex-1">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
             <p className="text-sm text-muted-foreground">
