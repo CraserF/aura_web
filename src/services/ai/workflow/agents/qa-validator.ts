@@ -132,6 +132,37 @@ export function validateSlides(html: string): QAResult {
         detail: `${textWithoutColor} text elements missing inline color style.`,
       });
     }
+
+    // Rule: detect potential contrast issues — light text on light backgrounds
+    const bgColorMatch = section.match(/data-background-color=["']([^"']+)["']/);
+    if (bgColorMatch) {
+      const bgColor = bgColorMatch[1] ?? '';
+      const isLightBg = isLightColor(bgColor);
+
+      // Check for light-colored text on light backgrounds
+      const colorMatches = section.matchAll(/color:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|white|#fff(?:fff)?)\s*[;"]/gi);
+      for (const cm of colorMatches) {
+        const textColor = cm[1] ?? '';
+        if (isLightBg && isLightColor(textColor)) {
+          violations.push({
+            slide: slideNum,
+            rule: 'contrast',
+            severity: 'warning',
+            detail: `Possible low contrast: light text (${textColor}) on light background (${bgColor}).`,
+          });
+          break; // One warning per slide is enough
+        }
+        if (!isLightBg && isDarkColor(textColor)) {
+          violations.push({
+            slide: slideNum,
+            rule: 'contrast',
+            severity: 'warning',
+            detail: `Possible low contrast: dark text (${textColor}) on dark background (${bgColor}).`,
+          });
+          break;
+        }
+      }
+    }
   }
 
   // Rule: Google Fonts link should be present
@@ -150,4 +181,72 @@ export function validateSlides(html: string): QAResult {
     passed: errorCount === 0,
     violations,
   };
+}
+
+/**
+ * Rough lightness check: returns true if a color is likely "light" (high luminance).
+ * Handles hex (#fff, #ffffff, #F2F2F2), rgba(), and named colors.
+ */
+function isLightColor(color: string): boolean {
+  const c = color.trim().toLowerCase();
+  if (c === 'white' || c === '#fff' || c === '#ffffff') return true;
+
+  // Hex colors
+  const hexMatch = c.match(/^#([0-9a-f]{3,8})$/);
+  if (hexMatch) {
+    let hex = hexMatch[1]!;
+    if (hex.length === 3) hex = hex[0]! + hex[0]! + hex[1]! + hex[1]! + hex[2]! + hex[2]!;
+    if (hex.length >= 6) {
+      const r = parseInt(hex.substring(0, 2), 16);
+      const g = parseInt(hex.substring(2, 4), 16);
+      const b = parseInt(hex.substring(4, 6), 16);
+      // Relative luminance approximation
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      return luminance > 0.65;
+    }
+  }
+
+  // rgba/rgb
+  const rgbaMatch = c.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (rgbaMatch) {
+    const r = parseInt(rgbaMatch[1]!, 10);
+    const g = parseInt(rgbaMatch[2]!, 10);
+    const b = parseInt(rgbaMatch[3]!, 10);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.65;
+  }
+
+  return false;
+}
+
+/**
+ * Rough darkness check: returns true if a color is likely "dark" (low luminance).
+ */
+function isDarkColor(color: string): boolean {
+  const c = color.trim().toLowerCase();
+  if (c === 'black' || c === '#000' || c === '#000000') return true;
+
+  const hexMatch = c.match(/^#([0-9a-f]{3,8})$/);
+  if (hexMatch) {
+    let hex = hexMatch[1]!;
+    if (hex.length === 3) hex = hex[0]! + hex[0]! + hex[1]! + hex[1]! + hex[2]! + hex[2]!;
+    if (hex.length >= 6) {
+      const r = parseInt(hex.substring(0, 2), 16);
+      const g = parseInt(hex.substring(2, 4), 16);
+      const b = parseInt(hex.substring(4, 6), 16);
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      return luminance < 0.35;
+    }
+  }
+
+  const rgbaMatch = c.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (rgbaMatch) {
+    const r = parseInt(rgbaMatch[1]!, 10);
+    const g = parseInt(rgbaMatch[2]!, 10);
+    const b = parseInt(rgbaMatch[3]!, 10);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance < 0.35;
+  }
+
+  return false;
 }

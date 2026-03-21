@@ -1,19 +1,30 @@
 <!doctype html>
 <!--
-  CORPORATE TEMPLATE
-  Purpose: Professional business presentations, board meetings, company overviews
+  CORPORATE TEMPLATE — Light Mode
+  Purpose: Professional business presentations, board meetings, quarterly reviews, company overviews
   Animation Level: Subtle (Level 1-2)
   Best For: Executives, stakeholders, formal business settings
-  
-  CUSTOMIZATION POINTS:
-  - {{TITLE}}           → Presentation title
-  - {{SUBTITLE}}        → Subtitle
-  - {{COMPANY}}         → Company name
-  - {{COMPANY_LOGO}}    → Path to logo image
-  - {{DATE}}            → Date
-  - {{PRESENTER}}       → Presenter name
-  - {{PRIMARY_COLOR}}   → Brand primary (default: #1a365d)
-  - {{ACCENT_COLOR}}    → Brand accent (default: #4299e1)
+  Design: Clean light-mode inspired by shadcn/ui, Radix Themes, Tailwind
+
+  CUSTOMIZATION POINTS (search & replace in HTML content only):
+  - {{TITLE}}               Main presentation title
+  - {{SUBTITLE}}            Subtitle or tagline
+  - {{COMPANY}}             Company name
+  - {{DATE}}                Presentation date
+  - {{PRESENTER}}           Presenter name
+  - {{PRESENTER_ROLE}}      Presenter role / title
+  - {{CONTACT_INFO}}        Email or contact details
+  - {{EXEC_SUMMARY_TEXT}}   Executive summary paragraph
+  - {{KEY_POINT_1..3}}      Key bullet points
+  - {{KPI_*}}               KPI values, labels, changes
+  - {{TABLE_TITLE}}         Data table heading
+  - {{COL_1..4}}            Table column headers
+  - {{ROW_*_C*}}            Table cell values
+  - {{CARD_*_TITLE/DESC}}   Content card titles and descriptions
+  - {{NEXT_STEP_*}}         Next step items
+  - {{DECISION_TEXT}}       Key decision callout
+  - {{TIMELINE_*}}          Timeline entries
+  - {{CLOSING_MESSAGE}}     Closing slide message
 -->
 <html lang="en">
 
@@ -22,39 +33,46 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{TITLE}} — {{COMPANY}}</title>
 
+  <!-- Reveal.js 5 Core -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/white.css">
+
+  <!-- Animation Library -->
   <link rel="stylesheet" href="../animations/core-animations.css">
 
+  <!-- Inter Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
   <style>
+    /* =========================================================================
+       CSS CUSTOM PROPERTIES — Light Corporate Palette
+       ========================================================================= */
     :root {
-      --brand-primary: {
-          {
-          PRIMARY_COLOR
-        }
-      }
-
-      ;
-
-      --brand-accent: {
-          {
-          ACCENT_COLOR
-        }
-      }
-
-      ;
+      --primary: #065A82;
+      --accent: #1C7293;
       --bg-main: #ffffff;
       --bg-section: #f7fafc;
-      --bg-dark: #1a202c;
-      --text-dark: #1a202c;
+      --bg-divider: #065A82;
+      --text-heading: #0f172a;
       --text-body: #4a5568;
-      --text-muted: #a0aec0;
+      --text-muted: #94a3b8;
       --border: #e2e8f0;
+      --border-light: #f1f5f9;
+      --success: #059669;
+      --danger: #dc2626;
+      --warning: #d97706;
+      --card-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+      --card-shadow-hover: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.05);
     }
 
+    /* =========================================================================
+       BASE TYPOGRAPHY & LAYOUT
+       ========================================================================= */
     .reveal {
-      font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
-      color: var(--text-dark);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      color: var(--text-body);
+      font-size: 28px;
+      line-height: 1.6;
     }
 
     .reveal .slides {
@@ -62,240 +80,555 @@
     }
 
     .reveal .slides section {
-      padding: 50px 70px;
+      padding: 60px 80px;
+      box-sizing: border-box;
     }
 
-    .reveal h1,
-    .reveal h2,
-    .reveal h3 {
-      color: var(--brand-primary);
+    .reveal h1, .reveal h2, .reveal h3, .reveal h4 {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      color: var(--text-heading);
       font-weight: 700;
+      text-transform: none;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      margin-bottom: 0;
     }
 
-    /* Header bar */
-    .slide-header {
+    .reveal h1 { font-size: 2.6em; font-weight: 800; }
+    .reveal h2 { font-size: 1.75em; }
+    .reveal h3 { font-size: 1.1em; font-weight: 600; }
+
+    .reveal p {
+      color: var(--text-body);
+      line-height: 1.7;
+      margin-bottom: 0;
+    }
+
+    /* =========================================================================
+       ACCENT DIVIDER — solid primary, 48px wide, 3px tall
+       ========================================================================= */
+    .heading-divider {
+      width: 48px;
+      height: 3px;
+      background: var(--primary);
+      border-radius: 2px;
+      margin: 16px 0 24px 0;
+    }
+
+    /* =========================================================================
+       TOP ACCENT BAR — thin colored stripe at top of content slides
+       ========================================================================= */
+    .slide-accent-bar {
       position: absolute;
       top: 0;
       left: 0;
       right: 0;
-      height: 4px;
-      background: linear-gradient(90deg, var(--brand-primary), var(--brand-accent));
+      height: 3px;
+      background: var(--primary);
     }
 
-    /* Footer */
+    /* =========================================================================
+       SLIDE FOOTER
+       ========================================================================= */
     .slide-footer {
       position: absolute;
-      bottom: 20px;
-      left: 70px;
-      right: 70px;
+      bottom: 28px;
+      left: 80px;
+      right: 80px;
       display: flex;
       justify-content: space-between;
-      font-size: 0.65em;
+      align-items: center;
+      font-size: 0.5em;
       color: var(--text-muted);
+      font-weight: 400;
+      letter-spacing: 0.01em;
     }
 
-    /* Title slide */
-    .corp-title {
-      font-size: 2.8em;
-      font-weight: 800;
-      line-height: 1.15;
-      color: var(--brand-primary);
+    .slide-footer-divider {
+      position: absolute;
+      bottom: 52px;
+      left: 80px;
+      right: 80px;
+      height: 1px;
+      background: var(--border);
     }
 
-    .corp-subtitle {
-      font-size: 1.2em;
-      color: var(--text-body);
-      margin-top: 0.5em;
-      font-weight: 300;
+    /* =========================================================================
+       PILL BADGE
+       ========================================================================= */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      border-radius: 100px;
+      font-size: 0.48em;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
     }
 
-    .corp-divider {
-      width: 60px;
-      height: 3px;
-      background: var(--brand-accent);
-      margin: 20px 0;
+    .pill-primary {
+      background: #EBF5FB;
+      color: var(--primary);
     }
 
-    /* Section divider slide */
-    .section-divider {
+    .pill-accent {
+      background: #E8F4F8;
+      color: var(--accent);
+    }
+
+    .pill-success {
+      background: #ECFDF5;
+      color: var(--success);
+    }
+
+    .pill-danger {
+      background: #FEF2F2;
+      color: var(--danger);
+    }
+
+    .pill-warning {
+      background: #FFFBEB;
+      color: var(--warning);
+    }
+
+    .pill-white {
+      background: rgba(255,255,255,0.2);
+      color: #ffffff;
+    }
+
+    /* =========================================================================
+       CARDS — solid white + border + clean shadow
+       ========================================================================= */
+    .card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      box-shadow: var(--card-shadow);
+      transition: box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    .card-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
       display: flex;
       align-items: center;
-      height: 100%;
+      justify-content: center;
+      margin-bottom: 16px;
     }
 
-    .section-divider h2 {
-      font-size: 2.5em;
-      font-weight: 800;
-      border-left: 5px solid var(--brand-accent);
-      padding-left: 30px;
+    .card-icon svg {
+      width: 22px;
+      height: 22px;
     }
 
-    /* Content cards */
-    .content-grid {
-      display: grid;
-      gap: 20px;
-      margin-top: 30px;
+    .card-icon-primary {
+      background: #EBF5FB;
+      color: var(--primary);
     }
 
-    .content-grid.cols-2 {
-      grid-template-columns: 1fr 1fr;
+    .card-icon-accent {
+      background: #E8F4F8;
+      color: var(--accent);
     }
 
-    .content-grid.cols-3 {
-      grid-template-columns: 1fr 1fr 1fr;
+    .card-icon-success {
+      background: #ECFDF5;
+      color: var(--success);
     }
 
-    .content-grid.cols-4 {
-      grid-template-columns: 1fr 1fr 1fr 1fr;
-    }
-
-    .card {
-      background: var(--bg-section);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 25px;
+    .card-icon-warning {
+      background: #FFFBEB;
+      color: var(--warning);
     }
 
     .card h3 {
-      font-size: 1em;
+      font-size: 0.85em;
+      font-weight: 600;
+      color: var(--text-heading);
       margin: 0 0 8px 0;
-      color: var(--brand-primary);
     }
 
     .card p {
-      font-size: 0.85em;
+      font-size: 0.72em;
       color: var(--text-body);
       margin: 0;
-      line-height: 1.5;
+      line-height: 1.6;
     }
 
-    .card-accent {
-      border-top: 3px solid var(--brand-accent);
-    }
+    /* =========================================================================
+       GRID LAYOUTS
+       ========================================================================= */
+    .grid { display: grid; gap: 20px; }
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+    .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
 
-    /* Data table */
-    .data-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-      font-size: 0.85em;
-    }
-
-    .data-table th {
-      background: var(--brand-primary);
-      color: #fff;
-      padding: 10px 15px;
-      text-align: left;
-      font-weight: 600;
-    }
-
-    .data-table td {
-      padding: 10px 15px;
-      border-bottom: 1px solid var(--border);
-      color: var(--text-body);
-    }
-
-    .data-table tr:nth-child(even) {
-      background: var(--bg-section);
-    }
-
-    /* KPI row */
-    .kpi-row {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 15px;
-      margin-top: 30px;
-    }
-
-    .kpi-item {
-      text-align: center;
-      padding: 20px;
-      background: var(--bg-section);
-      border-radius: 8px;
-    }
-
-    .kpi-value {
-      font-size: 2.2em;
-      font-weight: 800;
-      color: var(--brand-primary);
-    }
-
-    .kpi-label {
-      font-size: 0.75em;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-top: 5px;
-    }
-
-    .kpi-change {
-      font-size: 0.8em;
-      margin-top: 4px;
-    }
-
-    .kpi-change.up {
-      color: #38a169;
-    }
-
-    .kpi-change.down {
-      color: #e53e3e;
-    }
-
-    /* Two-column */
     .two-col {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 50px;
+      gap: 48px;
       align-items: start;
     }
 
-    /* Bullet list */
+    /* =========================================================================
+       KPI METRIC CARDS
+       ========================================================================= */
+    .kpi-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px 20px;
+      box-shadow: var(--card-shadow);
+      text-align: center;
+    }
+
+    .kpi-label {
+      font-size: 0.5em;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+
+    .kpi-value {
+      font-size: 2em;
+      font-weight: 800;
+      color: var(--text-heading);
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+    }
+
+    .kpi-change {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.55em;
+      font-weight: 600;
+      margin-top: 8px;
+      padding: 2px 10px;
+      border-radius: 100px;
+    }
+
+    .kpi-change.up {
+      color: var(--success);
+      background: #ECFDF5;
+    }
+
+    .kpi-change.down {
+      color: var(--danger);
+      background: #FEF2F2;
+    }
+
+    /* =========================================================================
+       DATA TABLE
+       ========================================================================= */
+    .data-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 0.72em;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: var(--card-shadow);
+    }
+
+    .data-table th {
+      background: var(--bg-section);
+      color: var(--text-heading);
+      padding: 14px 20px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.9em;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .data-table td {
+      padding: 14px 20px;
+      color: var(--text-body);
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .data-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .data-table tbody tr:hover {
+      background: #f8fafc;
+    }
+
+    /* =========================================================================
+       BULLET LIST
+       ========================================================================= */
     .bullet-list {
       list-style: none;
       padding: 0;
+      margin: 0;
     }
 
     .bullet-list li {
-      padding: 8px 0;
-      padding-left: 25px;
+      padding: 10px 0;
+      padding-left: 28px;
       position: relative;
       color: var(--text-body);
-      font-size: 0.9em;
-      line-height: 1.5;
+      font-size: 0.82em;
+      line-height: 1.6;
     }
 
     .bullet-list li::before {
       content: '';
       position: absolute;
       left: 0;
-      top: 14px;
-      width: 10px;
-      height: 10px;
-      background: var(--brand-accent);
+      top: 18px;
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
       border-radius: 2px;
     }
 
-    /* Progress indicator */
+    /* =========================================================================
+       TIMELINE
+       ========================================================================= */
+    .timeline {
+      position: relative;
+      padding-left: 0;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 18px;
+      top: 8px;
+      bottom: 8px;
+      width: 2px;
+      background: var(--border);
+    }
+
+    .timeline-item {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      margin-bottom: 28px;
+      position: relative;
+    }
+
+    .timeline-dot {
+      flex-shrink: 0;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 2px solid var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+    }
+
+    .timeline-dot svg {
+      width: 16px;
+      height: 16px;
+      color: var(--primary);
+    }
+
+    .timeline-dot.completed {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .timeline-dot.completed svg {
+      color: #ffffff;
+    }
+
+    .timeline-content {
+      flex: 1;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 22px;
+      box-shadow: var(--card-shadow);
+    }
+
+    .timeline-content h4 {
+      font-size: 0.78em;
+      font-weight: 600;
+      color: var(--text-heading);
+      margin: 0 0 4px 0;
+    }
+
+    .timeline-content p {
+      font-size: 0.65em;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .timeline-date {
+      font-size: 0.55em;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 2px;
+    }
+
+    /* =========================================================================
+       CALLOUT / HIGHLIGHT BOX
+       ========================================================================= */
+    .callout {
+      background: var(--primary);
+      color: #ffffff;
+      border-radius: 12px;
+      padding: 28px;
+    }
+
+    .callout h3 {
+      color: #ffffff;
+      font-size: 0.85em;
+      margin: 0 0 10px 0;
+    }
+
+    .callout p {
+      color: rgba(255,255,255,0.85);
+      font-size: 0.72em;
+      margin: 0;
+      line-height: 1.6;
+    }
+
+    /* =========================================================================
+       SECTION DIVIDER SLIDES — primary bg, white text
+       ========================================================================= */
+    .section-divider-content {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      height: 100%;
+      text-align: left;
+    }
+
+    .section-divider-content h2 {
+      color: #ffffff;
+      font-size: 2.4em;
+      font-weight: 800;
+      margin-bottom: 16px;
+    }
+
+    .section-divider-content p {
+      color: rgba(255,255,255,0.75);
+      font-size: 0.9em;
+      max-width: 600px;
+    }
+
+    .section-divider-content .heading-divider {
+      background: rgba(255,255,255,0.4);
+    }
+
+    .section-divider-number {
+      font-size: 6em;
+      font-weight: 900;
+      color: rgba(255,255,255,0.08);
+      position: absolute;
+      right: 80px;
+      bottom: 60px;
+      line-height: 1;
+    }
+
+    /* =========================================================================
+       TITLE SLIDE SPECIFICS
+       ========================================================================= */
+    .title-company {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.65em;
+      font-weight: 600;
+      color: var(--primary);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .title-company svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .title-main {
+      font-size: 2.8em;
+      font-weight: 800;
+      color: var(--text-heading);
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      margin-top: 20px;
+    }
+
+    .title-subtitle {
+      font-size: 1.05em;
+      color: var(--text-body);
+      font-weight: 400;
+      margin-top: 12px;
+      max-width: 700px;
+    }
+
+    .title-meta {
+      margin-top: 32px;
+      display: flex;
+      gap: 32px;
+      align-items: center;
+    }
+
+    .title-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.65em;
+      color: var(--text-muted);
+    }
+
+    .title-meta-item svg {
+      width: 16px;
+      height: 16px;
+      color: var(--accent);
+    }
+
+    .title-meta-item strong {
+      color: var(--text-heading);
+      font-weight: 600;
+    }
+
+    /* =========================================================================
+       PROGRESS BAR
+       ========================================================================= */
     .progress-item {
       display: flex;
       align-items: center;
-      gap: 15px;
-      margin-bottom: 12px;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .progress-label {
+      font-size: 0.65em;
+      color: var(--text-body);
+      min-width: 140px;
+      font-weight: 500;
     }
 
     .progress-bar {
       flex: 1;
       height: 8px;
-      background: var(--border);
+      background: var(--border-light);
       border-radius: 4px;
       overflow: hidden;
     }
 
     .progress-fill {
       height: 100%;
-      background: var(--brand-accent);
+      background: var(--primary);
       border-radius: 4px;
-      transition: width 1.5s ease;
+      transition: width 1.2s ease;
       width: 0;
     }
 
@@ -303,18 +636,105 @@
       width: var(--progress, 0%);
     }
 
-    .progress-label {
-      font-size: 0.8em;
-      color: var(--text-body);
-      min-width: 120px;
+    .progress-value {
+      font-size: 0.65em;
+      color: var(--text-heading);
+      font-weight: 700;
+      min-width: 44px;
+      text-align: right;
     }
 
-    .progress-value {
-      font-size: 0.8em;
-      color: var(--brand-primary);
+    /* =========================================================================
+       CLOSING SLIDE
+       ========================================================================= */
+    .closing-content {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+    }
+
+    .closing-content h2 {
+      color: #ffffff;
+      font-size: 2.8em;
+      font-weight: 800;
+    }
+
+    .closing-content p {
+      color: rgba(255,255,255,0.8);
+      font-size: 0.95em;
+      max-width: 550px;
+      margin-top: 16px;
+    }
+
+    .closing-meta {
+      margin-top: 40px;
+      padding-top: 28px;
+      border-top: 1px solid rgba(255,255,255,0.15);
+    }
+
+    .closing-meta .name {
+      font-size: 0.85em;
+      font-weight: 600;
+      color: #ffffff;
+    }
+
+    .closing-meta .role {
+      font-size: 0.7em;
+      color: rgba(255,255,255,0.6);
+      margin-top: 4px;
+    }
+
+    .closing-meta .contact {
+      font-size: 0.65em;
+      color: rgba(255,255,255,0.5);
+      margin-top: 8px;
+    }
+
+    /* =========================================================================
+       NEXT STEP NUMBERED ITEMS
+       ========================================================================= */
+    .step-item {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 18px;
+    }
+
+    .step-number {
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: #EBF5FB;
+      color: var(--primary);
+      font-size: 0.6em;
       font-weight: 700;
-      min-width: 40px;
-      text-align: right;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .step-text {
+      flex: 1;
+      font-size: 0.78em;
+      color: var(--text-body);
+      line-height: 1.5;
+      padding-top: 4px;
+    }
+
+    .step-text strong {
+      color: var(--text-heading);
+    }
+
+    /* =========================================================================
+       UTILITY — ensure slide content sits above decorations
+       ========================================================================= */
+    .slide-content {
+      position: relative;
+      z-index: 1;
     }
   </style>
 </head>
@@ -323,262 +743,534 @@
   <div class="reveal">
     <div class="slides">
 
-      <!-- SLIDE 1: TITLE -->
-      <section data-background-color="var(--bg-main)">
-        <div class="slide-header"></div>
-        <div style="margin-top: 60px;">
-          <!-- Logo placeholder -->
-          <div class="anim-fade-in-up"
-            style="margin-bottom: 40px; color: var(--brand-primary); font-weight: 700; font-size: 1.1em;">
+      <!-- ===================================================================
+           SLIDE 1: TITLE
+           =================================================================== -->
+      <section data-background-color="#ffffff">
+        <div class="slide-accent-bar"></div>
+        <div class="slide-content" style="margin-top: 40px;">
+
+          <!-- Company identifier -->
+          <div class="title-company anim-fade-in-up">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
             {{COMPANY}}
           </div>
 
-          <h1 class="corp-title anim-fade-in-up delay-200">{{TITLE}}</h1>
-          <p class="corp-subtitle anim-fade-in-up delay-400">{{SUBTITLE}}</p>
-          <div class="corp-divider anim-reveal-wipe-right delay-500"></div>
+          <!-- Main title -->
+          <h1 class="title-main anim-fade-in-up delay-200">{{TITLE}}</h1>
 
-          <div class="anim-fade-in-up delay-600" style="margin-top: 30px;">
-            <div style="color: var(--text-body);">{{PRESENTER}}</div>
-            <div style="color: var(--text-muted); font-size: 0.85em;">{{DATE}}</div>
+          <!-- Subtitle -->
+          <p class="title-subtitle anim-fade-in-up delay-300">{{SUBTITLE}}</p>
+
+          <!-- Accent divider -->
+          <div class="heading-divider anim-reveal-wipe-right delay-400"></div>
+
+          <!-- Presenter + Date meta -->
+          <div class="title-meta anim-fade-in-up delay-500">
+            <div class="title-meta-item">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <strong>{{PRESENTER}}</strong>
+            </div>
+            <div class="title-meta-item">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              {{DATE}}
+            </div>
           </div>
+
         </div>
+
+        <div class="slide-footer-divider"></div>
         <div class="slide-footer">
-          <span>{{COMPANY}} · Confidential</span>
+          <span>{{COMPANY}} &middot; Confidential</span>
           <span>{{DATE}}</span>
         </div>
+
+        <aside class="notes">
+          Welcome the audience. Introduce yourself and state the purpose of today's presentation.
+          Set expectations for the session duration and key topics that will be covered.
+        </aside>
       </section>
 
 
-      <!-- SLIDE 2: EXECUTIVE SUMMARY -->
-      <section data-background-color="var(--bg-main)">
-        <div class="slide-header"></div>
-        <h2 class="anim-fade-in-up" style="font-size: 1.8em;">Executive Summary</h2>
-        <div class="corp-divider anim-reveal-wipe-right delay-200"></div>
+      <!-- ===================================================================
+           SLIDE 2: EXECUTIVE SUMMARY
+           =================================================================== -->
+      <section data-background-color="#f7fafc">
+        <div class="slide-accent-bar"></div>
+        <div class="slide-content">
 
-        <div class="two-col" style="margin-top: 30px;">
-          <div>
-            <p style="color: var(--text-body); line-height: 1.7; font-size: 0.9em;" class="fragment fade-in">
-              {{EXEC_SUMMARY_TEXT}}
-            </p>
-            <ul class="bullet-list" style="margin-top: 15px;">
-              <li class="fragment slide-up">{{KEY_POINT_1}}</li>
-              <li class="fragment slide-up">{{KEY_POINT_2}}</li>
-              <li class="fragment slide-up">{{KEY_POINT_3}}</li>
-            </ul>
-          </div>
-          <div>
-            <div class="kpi-row" style="grid-template-columns: 1fr 1fr;">
-              <div class="kpi-item fragment fade-in">
-                <div class="kpi-value">{{KPI_1_VALUE}}</div>
-                <div class="kpi-label">{{KPI_1_LABEL}}</div>
-                <div class="kpi-change up">{{KPI_1_CHANGE}}</div>
+          <span class="pill pill-primary anim-fade-in-up">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Overview
+          </span>
+
+          <h2 class="anim-fade-in-up delay-100" style="margin-top: 16px;">Executive Summary</h2>
+          <div class="heading-divider anim-reveal-wipe-right delay-200"></div>
+
+          <div class="two-col" style="margin-top: 20px;">
+            <div>
+              <p style="font-size: 0.82em;" class="fragment fade-in">
+                {{EXEC_SUMMARY_TEXT}}
+              </p>
+              <ul class="bullet-list" style="margin-top: 18px;">
+                <li class="fragment slide-up">{{KEY_POINT_1}}</li>
+                <li class="fragment slide-up">{{KEY_POINT_2}}</li>
+                <li class="fragment slide-up">{{KEY_POINT_3}}</li>
+              </ul>
+            </div>
+            <div>
+              <div class="grid grid-2" style="gap: 14px;">
+                <div class="kpi-card fragment fade-in">
+                  <div class="kpi-label">{{KPI_1_LABEL}}</div>
+                  <div class="kpi-value">{{KPI_1_VALUE}}</div>
+                  <div class="kpi-change up">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                    {{KPI_1_CHANGE}}
+                  </div>
+                </div>
+                <div class="kpi-card fragment fade-in">
+                  <div class="kpi-label">{{KPI_2_LABEL}}</div>
+                  <div class="kpi-value">{{KPI_2_VALUE}}</div>
+                  <div class="kpi-change up">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                    {{KPI_2_CHANGE}}
+                  </div>
+                </div>
               </div>
-              <div class="kpi-item fragment fade-in">
-                <div class="kpi-value">{{KPI_2_VALUE}}</div>
-                <div class="kpi-label">{{KPI_2_LABEL}}</div>
-                <div class="kpi-change up">{{KPI_2_CHANGE}}</div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="slide-footer-divider"></div>
+        <div class="slide-footer">
+          <span>{{COMPANY}} &middot; Confidential</span>
+          <span>{{DATE}}</span>
+        </div>
+
+        <aside class="notes">
+          Walk through the executive summary at a high level. Highlight the key points
+          and reference the KPI snapshots on the right. These numbers will be explored
+          in greater detail on upcoming slides.
+        </aside>
+      </section>
+
+
+      <!-- ===================================================================
+           SLIDE 3: SECTION DIVIDER — Performance
+           =================================================================== -->
+      <section data-background-color="#065A82">
+        <div class="section-divider-content">
+          <span class="pill pill-white anim-fade-in-up">Section 01</span>
+          <h2 class="anim-fade-in-up delay-200">{{SECTION_1_TITLE}}</h2>
+          <div class="heading-divider anim-reveal-wipe-right delay-300"></div>
+          <p class="anim-fade-in-up delay-400">{{SECTION_1_SUBTITLE}}</p>
+        </div>
+        <div class="section-divider-number">01</div>
+
+        <aside class="notes">
+          Transition into the first major section of the presentation.
+          Use this moment to reset the audience's focus and preview what is coming next.
+        </aside>
+      </section>
+
+
+      <!-- ===================================================================
+           SLIDE 4: KPI DASHBOARD — 4 metric cards + progress bars
+           =================================================================== -->
+      <section data-background-color="#ffffff">
+        <div class="slide-accent-bar"></div>
+        <div class="slide-content">
+
+          <span class="pill pill-primary anim-fade-in-up">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+            Key Metrics
+          </span>
+
+          <h2 class="anim-fade-in-up delay-100" style="margin-top: 16px;">Key Performance Indicators</h2>
+          <div class="heading-divider anim-reveal-wipe-right delay-200"></div>
+
+          <!-- 4 KPI Cards -->
+          <div class="grid grid-4 anim-stagger" style="margin-top: 16px;">
+            <div class="kpi-card anim-fade-in-up">
+              <div class="kpi-label">{{KPI_A_LABEL}}</div>
+              <div class="kpi-value" style="color: var(--primary);">{{KPI_A_VALUE}}</div>
+              <div class="kpi-change up">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                {{KPI_A_CHANGE}}
+              </div>
+            </div>
+            <div class="kpi-card anim-fade-in-up">
+              <div class="kpi-label">{{KPI_B_LABEL}}</div>
+              <div class="kpi-value" style="color: var(--primary);">{{KPI_B_VALUE}}</div>
+              <div class="kpi-change up">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                {{KPI_B_CHANGE}}
+              </div>
+            </div>
+            <div class="kpi-card anim-fade-in-up">
+              <div class="kpi-label">{{KPI_C_LABEL}}</div>
+              <div class="kpi-value" style="color: var(--primary);">{{KPI_C_VALUE}}</div>
+              <div class="kpi-change down">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+                {{KPI_C_CHANGE}}
+              </div>
+            </div>
+            <div class="kpi-card anim-fade-in-up">
+              <div class="kpi-label">{{KPI_D_LABEL}}</div>
+              <div class="kpi-value" style="color: var(--primary);">{{KPI_D_VALUE}}</div>
+              <div class="kpi-change up">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                {{KPI_D_CHANGE}}
               </div>
             </div>
           </div>
-        </div>
 
-        <div class="slide-footer">
-          <span>{{COMPANY}} · Confidential</span>
-          <span>{{DATE}}</span>
-        </div>
-      </section>
-
-
-      <!-- SLIDE 3: SECTION DIVIDER -->
-      <section data-background-color="var(--brand-primary)">
-        <div class="section-divider">
-          <h2 style="color: #fff; border-left-color: var(--brand-accent);" class="anim-fade-in-left">
-            {{SECTION_1_TITLE}}
-          </h2>
-        </div>
-      </section>
-
-
-      <!-- SLIDE 4: KPI DASHBOARD -->
-      <section data-background-color="var(--bg-main)">
-        <div class="slide-header"></div>
-        <h2 class="anim-fade-in-up" style="font-size: 1.8em;">Key Performance Indicators</h2>
-        <div class="corp-divider anim-reveal-wipe-right delay-200"></div>
-
-        <div class="kpi-row">
-          <div class="kpi-item fragment fade-in">
-            <div class="kpi-value">{{KPI_A_VALUE}}</div>
-            <div class="kpi-label">{{KPI_A_LABEL}}</div>
-            <div class="kpi-change up">{{KPI_A_CHANGE}}</div>
-          </div>
-          <div class="kpi-item fragment fade-in">
-            <div class="kpi-value">{{KPI_B_VALUE}}</div>
-            <div class="kpi-label">{{KPI_B_LABEL}}</div>
-            <div class="kpi-change up">{{KPI_B_CHANGE}}</div>
-          </div>
-          <div class="kpi-item fragment fade-in">
-            <div class="kpi-value">{{KPI_C_VALUE}}</div>
-            <div class="kpi-label">{{KPI_C_LABEL}}</div>
-            <div class="kpi-change down">{{KPI_C_CHANGE}}</div>
-          </div>
-          <div class="kpi-item fragment fade-in">
-            <div class="kpi-value">{{KPI_D_VALUE}}</div>
-            <div class="kpi-label">{{KPI_D_LABEL}}</div>
-            <div class="kpi-change up">{{KPI_D_CHANGE}}</div>
-          </div>
-        </div>
-
-        <!-- Progress bars -->
-        <div style="margin-top: 40px;">
-          <div class="progress-item fragment fade-in">
-            <span class="progress-label">{{PROGRESS_1_LABEL}}</span>
-            <div class="progress-bar">
-              <div class="progress-fill" style="--progress: {{PROGRESS_1_VALUE}};"></div>
+          <!-- Progress Bars -->
+          <div style="margin-top: 32px;">
+            <div class="progress-item fragment fade-in">
+              <span class="progress-label">{{PROGRESS_1_LABEL}}</span>
+              <div class="progress-bar"><div class="progress-fill" style="--progress: {{PROGRESS_1_VALUE}};"></div></div>
+              <span class="progress-value">{{PROGRESS_1_VALUE}}</span>
             </div>
-            <span class="progress-value">{{PROGRESS_1_VALUE}}</span>
-          </div>
-          <div class="progress-item fragment fade-in">
-            <span class="progress-label">{{PROGRESS_2_LABEL}}</span>
-            <div class="progress-bar">
-              <div class="progress-fill" style="--progress: {{PROGRESS_2_VALUE}};"></div>
+            <div class="progress-item fragment fade-in">
+              <span class="progress-label">{{PROGRESS_2_LABEL}}</span>
+              <div class="progress-bar"><div class="progress-fill" style="--progress: {{PROGRESS_2_VALUE}};"></div></div>
+              <span class="progress-value">{{PROGRESS_2_VALUE}}</span>
             </div>
-            <span class="progress-value">{{PROGRESS_2_VALUE}}</span>
-          </div>
-          <div class="progress-item fragment fade-in">
-            <span class="progress-label">{{PROGRESS_3_LABEL}}</span>
-            <div class="progress-bar">
-              <div class="progress-fill" style="--progress: {{PROGRESS_3_VALUE}};"></div>
-            </div>
-            <span class="progress-value">{{PROGRESS_3_VALUE}}</span>
-          </div>
-        </div>
-
-        <div class="slide-footer">
-          <span>{{COMPANY}} · Confidential</span>
-          <span>{{DATE}}</span>
-        </div>
-      </section>
-
-
-      <!-- SLIDE 5: DATA TABLE -->
-      <section data-background-color="var(--bg-main)">
-        <div class="slide-header"></div>
-        <h2 class="anim-fade-in-up" style="font-size: 1.8em;">{{TABLE_TITLE}}</h2>
-        <div class="corp-divider anim-reveal-wipe-right delay-200"></div>
-
-        <table class="data-table fragment fade-in">
-          <thead>
-            <tr>
-              <th>{{COL_1}}</th>
-              <th>{{COL_2}}</th>
-              <th>{{COL_3}}</th>
-              <th>{{COL_4}}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>{{ROW_1_C1}}</td>
-              <td>{{ROW_1_C2}}</td>
-              <td>{{ROW_1_C3}}</td>
-              <td>{{ROW_1_C4}}</td>
-            </tr>
-            <tr>
-              <td>{{ROW_2_C1}}</td>
-              <td>{{ROW_2_C2}}</td>
-              <td>{{ROW_2_C3}}</td>
-              <td>{{ROW_2_C4}}</td>
-            </tr>
-            <tr>
-              <td>{{ROW_3_C1}}</td>
-              <td>{{ROW_3_C2}}</td>
-              <td>{{ROW_3_C3}}</td>
-              <td>{{ROW_3_C4}}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div class="slide-footer">
-          <span>{{COMPANY}} · Confidential</span>
-          <span>{{DATE}}</span>
-        </div>
-      </section>
-
-
-      <!-- SLIDE 6: CONTENT CARDS -->
-      <section data-background-color="var(--bg-main)">
-        <div class="slide-header"></div>
-        <h2 class="anim-fade-in-up" style="font-size: 1.8em;">{{CARDS_TITLE}}</h2>
-        <div class="corp-divider anim-reveal-wipe-right delay-200"></div>
-
-        <div class="content-grid cols-3">
-          <div class="card card-accent fragment slide-up">
-            <h3>{{CARD_1_TITLE}}</h3>
-            <p>{{CARD_1_DESC}}</p>
-          </div>
-          <div class="card card-accent fragment slide-up">
-            <h3>{{CARD_2_TITLE}}</h3>
-            <p>{{CARD_2_DESC}}</p>
-          </div>
-          <div class="card card-accent fragment slide-up">
-            <h3>{{CARD_3_TITLE}}</h3>
-            <p>{{CARD_3_DESC}}</p>
-          </div>
-        </div>
-
-        <div class="slide-footer">
-          <span>{{COMPANY}} · Confidential</span>
-          <span>{{DATE}}</span>
-        </div>
-      </section>
-
-
-      <!-- SLIDE 7: NEXT STEPS -->
-      <section data-background-color="var(--bg-main)">
-        <div class="slide-header"></div>
-        <h2 class="anim-fade-in-up" style="font-size: 1.8em;">Next Steps</h2>
-        <div class="corp-divider anim-reveal-wipe-right delay-200"></div>
-
-        <div class="content-grid cols-2" style="margin-top: 30px;">
-          <div>
-            <ul class="bullet-list">
-              <li class="fragment slide-up">{{NEXT_STEP_1}}</li>
-              <li class="fragment slide-up">{{NEXT_STEP_2}}</li>
-              <li class="fragment slide-up">{{NEXT_STEP_3}}</li>
-              <li class="fragment slide-up">{{NEXT_STEP_4}}</li>
-            </ul>
-          </div>
-          <div>
-            <div class="card" style="background: var(--brand-primary); color: #fff;">
-              <h3 style="color: #fff;">Key Decision Required</h3>
-              <p style="color: rgba(255,255,255,0.8);">{{DECISION_TEXT}}</p>
+            <div class="progress-item fragment fade-in">
+              <span class="progress-label">{{PROGRESS_3_LABEL}}</span>
+              <div class="progress-bar"><div class="progress-fill" style="--progress: {{PROGRESS_3_VALUE}};"></div></div>
+              <span class="progress-value">{{PROGRESS_3_VALUE}}</span>
             </div>
           </div>
+
         </div>
 
+        <div class="slide-footer-divider"></div>
         <div class="slide-footer">
-          <span>{{COMPANY}} · Confidential</span>
+          <span>{{COMPANY}} &middot; Confidential</span>
           <span>{{DATE}}</span>
         </div>
+
+        <aside class="notes">
+          Present each KPI with context. Explain what drives the numbers and call out
+          any metrics that need attention. The progress bars show completion toward
+          quarterly or annual targets.
+        </aside>
       </section>
 
 
-      <!-- SLIDE 8: CLOSING -->
-      <section data-background-color="var(--brand-primary)">
-        <div style="text-align: center; color: #fff;">
-          <h2 class="anim-fade-in-up" style="font-size: 2.5em; color: #fff;">Thank You</h2>
-          <p class="anim-fade-in-up delay-300" style="color: rgba(255,255,255,0.8); font-size: 1.1em;">
+      <!-- ===================================================================
+           SLIDE 5: DATA TABLE
+           =================================================================== -->
+      <section data-background-color="#f7fafc">
+        <div class="slide-accent-bar"></div>
+        <div class="slide-content">
+
+          <span class="pill pill-accent anim-fade-in-up">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+            Detailed View
+          </span>
+
+          <h2 class="anim-fade-in-up delay-100" style="margin-top: 16px;">{{TABLE_TITLE}}</h2>
+          <div class="heading-divider anim-reveal-wipe-right delay-200"></div>
+
+          <table class="data-table fragment fade-in" style="margin-top: 16px;">
+            <thead>
+              <tr>
+                <th>{{COL_1}}</th>
+                <th>{{COL_2}}</th>
+                <th>{{COL_3}}</th>
+                <th>{{COL_4}}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong style="color: var(--text-heading);">{{ROW_1_C1}}</strong></td>
+                <td>{{ROW_1_C2}}</td>
+                <td>{{ROW_1_C3}}</td>
+                <td>{{ROW_1_C4}}</td>
+              </tr>
+              <tr>
+                <td><strong style="color: var(--text-heading);">{{ROW_2_C1}}</strong></td>
+                <td>{{ROW_2_C2}}</td>
+                <td>{{ROW_2_C3}}</td>
+                <td>{{ROW_2_C4}}</td>
+              </tr>
+              <tr>
+                <td><strong style="color: var(--text-heading);">{{ROW_3_C1}}</strong></td>
+                <td>{{ROW_3_C2}}</td>
+                <td>{{ROW_3_C3}}</td>
+                <td>{{ROW_3_C4}}</td>
+              </tr>
+              <tr>
+                <td><strong style="color: var(--text-heading);">{{ROW_4_C1}}</strong></td>
+                <td>{{ROW_4_C2}}</td>
+                <td>{{ROW_4_C3}}</td>
+                <td>{{ROW_4_C4}}</td>
+              </tr>
+            </tbody>
+          </table>
+
+        </div>
+
+        <div class="slide-footer-divider"></div>
+        <div class="slide-footer">
+          <span>{{COMPANY}} &middot; Confidential</span>
+          <span>{{DATE}}</span>
+        </div>
+
+        <aside class="notes">
+          Walk through the table row by row if time permits, or highlight the most
+          important rows. Point out trends or anomalies in the data that warrant
+          further discussion.
+        </aside>
+      </section>
+
+
+      <!-- ===================================================================
+           SLIDE 6: CONTENT CARDS — 3-column layout
+           =================================================================== -->
+      <section data-background-color="#ffffff">
+        <div class="slide-accent-bar"></div>
+        <div class="slide-content">
+
+          <span class="pill pill-primary anim-fade-in-up">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+            Strategic Focus
+          </span>
+
+          <h2 class="anim-fade-in-up delay-100" style="margin-top: 16px;">{{CARDS_TITLE}}</h2>
+          <div class="heading-divider anim-reveal-wipe-right delay-200"></div>
+
+          <div class="grid grid-3 anim-stagger" style="margin-top: 20px;">
+
+            <!-- Card 1 -->
+            <div class="card anim-fade-in-up">
+              <div class="card-icon card-icon-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <h3>{{CARD_1_TITLE}}</h3>
+              <p>{{CARD_1_DESC}}</p>
+            </div>
+
+            <!-- Card 2 -->
+            <div class="card anim-fade-in-up">
+              <div class="card-icon card-icon-accent">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <h3>{{CARD_2_TITLE}}</h3>
+              <p>{{CARD_2_DESC}}</p>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="card anim-fade-in-up">
+              <div class="card-icon card-icon-success">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              </div>
+              <h3>{{CARD_3_TITLE}}</h3>
+              <p>{{CARD_3_DESC}}</p>
+            </div>
+
+          </div>
+
+        </div>
+
+        <div class="slide-footer-divider"></div>
+        <div class="slide-footer">
+          <span>{{COMPANY}} &middot; Confidential</span>
+          <span>{{DATE}}</span>
+        </div>
+
+        <aside class="notes">
+          Explain each strategic area and how they interconnect. Emphasize the most
+          critical initiative and how it aligns with the company's broader goals.
+        </aside>
+      </section>
+
+
+      <!-- ===================================================================
+           SLIDE 7: NEXT STEPS — numbered steps + callout
+           =================================================================== -->
+      <section data-background-color="#f7fafc">
+        <div class="slide-accent-bar"></div>
+        <div class="slide-content">
+
+          <span class="pill pill-accent anim-fade-in-up">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            Action Items
+          </span>
+
+          <h2 class="anim-fade-in-up delay-100" style="margin-top: 16px;">Next Steps</h2>
+          <div class="heading-divider anim-reveal-wipe-right delay-200"></div>
+
+          <div class="two-col" style="margin-top: 20px;">
+            <div>
+              <div class="step-item fragment slide-up">
+                <div class="step-number">1</div>
+                <div class="step-text">{{NEXT_STEP_1}}</div>
+              </div>
+              <div class="step-item fragment slide-up">
+                <div class="step-number">2</div>
+                <div class="step-text">{{NEXT_STEP_2}}</div>
+              </div>
+              <div class="step-item fragment slide-up">
+                <div class="step-number">3</div>
+                <div class="step-text">{{NEXT_STEP_3}}</div>
+              </div>
+              <div class="step-item fragment slide-up">
+                <div class="step-number">4</div>
+                <div class="step-text">{{NEXT_STEP_4}}</div>
+              </div>
+            </div>
+            <div class="fragment fade-in">
+              <div class="callout">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: rgba(255,255,255,0.9);"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  <h3 style="margin: 0;">Key Decision Required</h3>
+                </div>
+                <p>{{DECISION_TEXT}}</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="slide-footer-divider"></div>
+        <div class="slide-footer">
+          <span>{{COMPANY}} &middot; Confidential</span>
+          <span>{{DATE}}</span>
+        </div>
+
+        <aside class="notes">
+          Walk through each next step in order. Be clear about owners, deadlines,
+          and dependencies. The callout box highlights a decision that requires
+          stakeholder input before proceeding.
+        </aside>
+      </section>
+
+
+      <!-- ===================================================================
+           SLIDE 8: TIMELINE
+           =================================================================== -->
+      <section data-background-color="#ffffff">
+        <div class="slide-accent-bar"></div>
+        <div class="slide-content">
+
+          <span class="pill pill-primary anim-fade-in-up">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Roadmap
+          </span>
+
+          <h2 class="anim-fade-in-up delay-100" style="margin-top: 16px;">Timeline</h2>
+          <div class="heading-divider anim-reveal-wipe-right delay-200"></div>
+
+          <div class="timeline" style="margin-top: 20px;">
+
+            <!-- Milestone 1 — completed -->
+            <div class="timeline-item fragment slide-up">
+              <div class="timeline-dot completed">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="timeline-content">
+                <div class="timeline-date">{{TIMELINE_1_DATE}}</div>
+                <h4>{{TIMELINE_1_TITLE}}</h4>
+                <p>{{TIMELINE_1_DESC}}</p>
+              </div>
+            </div>
+
+            <!-- Milestone 2 — completed -->
+            <div class="timeline-item fragment slide-up">
+              <div class="timeline-dot completed">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="timeline-content">
+                <div class="timeline-date">{{TIMELINE_2_DATE}}</div>
+                <h4>{{TIMELINE_2_TITLE}}</h4>
+                <p>{{TIMELINE_2_DESC}}</p>
+              </div>
+            </div>
+
+            <!-- Milestone 3 — current -->
+            <div class="timeline-item fragment slide-up">
+              <div class="timeline-dot">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/></svg>
+              </div>
+              <div class="timeline-content" style="border-color: var(--primary); border-width: 2px;">
+                <div class="timeline-date">{{TIMELINE_3_DATE}}</div>
+                <h4>{{TIMELINE_3_TITLE}}</h4>
+                <p>{{TIMELINE_3_DESC}}</p>
+              </div>
+            </div>
+
+            <!-- Milestone 4 — upcoming -->
+            <div class="timeline-item fragment slide-up">
+              <div class="timeline-dot" style="border-color: var(--border); border-style: dashed;">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted);"><circle cx="12" cy="12" r="1"/></svg>
+              </div>
+              <div class="timeline-content" style="opacity: 0.7;">
+                <div class="timeline-date">{{TIMELINE_4_DATE}}</div>
+                <h4>{{TIMELINE_4_TITLE}}</h4>
+                <p>{{TIMELINE_4_DESC}}</p>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <div class="slide-footer-divider"></div>
+        <div class="slide-footer">
+          <span>{{COMPANY}} &middot; Confidential</span>
+          <span>{{DATE}}</span>
+        </div>
+
+        <aside class="notes">
+          Walk through the timeline from completed milestones to upcoming ones.
+          Highlight the current phase and any risks or dependencies that could
+          affect the projected dates.
+        </aside>
+      </section>
+
+
+      <!-- ===================================================================
+           SLIDE 9: CLOSING — primary bg, centered
+           =================================================================== -->
+      <section data-background-color="#065A82">
+        <div class="closing-content">
+
+          <span class="pill pill-white anim-fade-in-up" style="margin-bottom: 20px;">
+            {{COMPANY}}
+          </span>
+
+          <h2 class="anim-fade-in-up delay-200">Thank You</h2>
+
+          <div class="heading-divider anim-reveal-wipe-right delay-300" style="background: rgba(255,255,255,0.4); margin: 16px auto;"></div>
+
+          <p class="anim-fade-in-up delay-400">
             {{CLOSING_MESSAGE}}
           </p>
-          <div class="anim-fade-in-up delay-500" style="margin-top: 40px;">
-            <div style="font-weight: 600;">{{PRESENTER}}</div>
-            <div style="color: rgba(255,255,255,0.6); font-size: 0.9em;">{{CONTACT_INFO}}</div>
+
+          <div class="closing-meta anim-fade-in-up delay-500">
+            <div class="name">{{PRESENTER}}</div>
+            <div class="role">{{PRESENTER_ROLE}}</div>
+            <div class="contact">{{CONTACT_INFO}}</div>
           </div>
+
         </div>
+
+        <aside class="notes">
+          Thank the audience for their time. Summarize one or two key takeaways,
+          then open the floor for questions and discussion. Share contact information
+          for follow-up conversations.
+        </aside>
       </section>
 
     </div>
   </div>
 
+  <!-- Reveal.js 5 -->
   <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
   <script>
     Reveal.initialize({
@@ -586,13 +1278,14 @@
       transition: 'fade',
       transitionSpeed: 'slow',
       backgroundTransition: 'fade',
-      center: true,
+      center: false,
       width: 1920,
       height: 1080,
       margin: 0.04,
       controls: true,
       progress: true,
       slideNumber: 'c/t',
+      showNotes: false,
     });
   </script>
 </body>

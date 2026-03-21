@@ -89,5 +89,8 @@ Output ONLY a single HTML code block. First line: Google Fonts \`<link>\`. Then 
 6. **No \`<img>\` tags with placeholder or stock URLs.** If you need a visual, create it with CSS or SVG.
 7. **Primary color is for accents only.** NEVER use the primary color as body text. Body text uses the body token. Primary is for icons, badges, metric numbers, buttons, and dividers.
 8. **Heading color is for headings only.** Body paragraphs use the body text token, NOT the heading color.
+9. **CONTRAST IS NON-NEGOTIABLE.** Dark backgrounds MUST have light text. Light backgrounds MUST have dark text. NEVER place dark text (#1a1a1a, #333, #2d2d2d) on a dark background (#0a0a1a, #1e2761, #041c20). NEVER place light text (#fff, #f5f5f5, #e0e0e0) on a light background (#ffffff, #f2f2f2, #f7faf8). Every text element must be clearly legible.
+10. **Match text colors to the palette mode.** On dark-mode palettes: headings use the heading token (a light color), body uses the body token (a light translucent color), muted uses the muted token (a dimmer light color). On light-mode palettes: headings use the heading token (a dark color), body uses the body token (a dark gray), muted uses the muted token (a medium gray). If you introduce any custom-colored section or card with a non-standard background, manually verify that ALL text on it is the correct contrast direction.
+11. **Minimum text opacity.** Never set text to less than 0.55 opacity. Muted labels at 0.4 are unreadable. Use the muted token from the palette (which is pre-tuned for readability) instead of arbitrary rgba values.
 ${paletteRef}`;
 }

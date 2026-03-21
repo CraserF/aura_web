@@ -31,6 +31,31 @@ box-shadow: 0 0 30px rgba(PRIMARY_RGB, 0.08);
   <div style="position:absolute; top:20%; left:10%; width:40%; height:40%; border-radius:50%; background:radial-gradient(circle, rgba(PRIMARY_RGB,0.12) 0%, transparent 70%); filter:blur(60px);"></div>
   <div style="position:absolute; bottom:20%; right:10%; width:30%; height:30%; border-radius:50%; background:radial-gradient(circle, rgba(ACCENT_RGB,0.08) 0%, transparent 70%); filter:blur(60px);"></div>
 </div>
+\`\`\`
+
+**Gradient Text Title (dark mode hero slides only):**
+\`\`\`css
+background: linear-gradient(135deg, PRIMARY_TOKEN 0%, ACCENT_TOKEN 100%);
+-webkit-background-clip: text;
+-webkit-text-fill-color: transparent;
+background-clip: text;
+font-size: 3.5em;
+font-weight: 800;
+line-height: 1.1;
+\`\`\`
+
+**Elevated Dark Section (for visual break slides):**
+\`\`\`css
+data-background-color: /* slightly lighter or darker shade of main bg */
+background: linear-gradient(180deg, rgba(PRIMARY_RGB, 0.04) 0%, transparent 100%);
+\`\`\`
+
+**Frosted Sidebar (for split layouts):**
+\`\`\`css
+background: rgba(255, 255, 255, 0.03);
+border-left: 1px solid rgba(255, 255, 255, 0.06);
+padding: 2rem;
+backdrop-filter: blur(8px);
 \`\`\``;
 
   const lightPatterns = `### Light Mode Component Recipes:
@@ -55,6 +80,46 @@ padding: 1.5rem;
 **Subtle Gradient Background (for hero/title slides — NOT gradient text):**
 \`\`\`css
 background: linear-gradient(135deg, BG_TOKEN 0%, BG_SUBTLE_TOKEN 100%);
+\`\`\`
+
+**Elevated Card (for callouts or important content):**
+\`\`\`css
+background: SURFACE_TOKEN;
+border: 1px solid BORDER_TOKEN;
+border-radius: 12px;
+padding: 1.5rem;
+box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
+border-left: 3px solid PRIMARY_TOKEN;
+\`\`\`
+
+**Soft Colored Banner (for section intros or tips):**
+\`\`\`css
+background: rgba(PRIMARY_RGB, 0.06);
+border-radius: 8px;
+padding: 1.25rem 1.5rem;
+border: 1px solid rgba(PRIMARY_RGB, 0.10);
+\`\`\`
+
+**Clean Table Row Stripe (for data tables):**
+\`\`\`css
+/* Even rows */
+background: rgba(0, 0, 0, 0.02);
+/* Header */
+border-bottom: 2px solid rgba(0, 0, 0, 0.08);
+font-weight: 600;
+text-transform: uppercase;
+font-size: 0.75em;
+letter-spacing: 0.05em;
+color: MUTED_TOKEN;
+\`\`\`
+
+**Light Mode Hero Title (NEVER use gradient text on light modes):**
+\`\`\`css
+color: HEADING_TOKEN;
+font-size: 3.5em;
+font-weight: 800;
+line-height: 1.1;
+letter-spacing: -0.02em;
 \`\`\``;
 
   return `## MODERN CSS PATTERNS
@@ -97,6 +162,83 @@ ${mode === 'dark' ? darkPatterns : lightPatterns}
   <div><!-- visual / cards / graphic --></div>
 </div>
 \`\`\`
+
+**Progress Bar (for goals, skill levels, completion):**
+\`\`\`html
+<div style="width:100%;">
+  <div style="display:flex; justify-content:space-between; font-size:0.75em; margin-bottom:0.3em;">
+    <span style="color:BODY_TOKEN;">Label</span>
+    <span style="font-weight:600; color:PRIMARY_TOKEN;">75%</span>
+  </div>
+  <div style="height:6px; background:rgba(PRIMARY_RGB,0.10); border-radius:3px; overflow:hidden;">
+    <div style="width:75%; height:100%; background:PRIMARY_TOKEN; border-radius:3px;"></div>
+  </div>
+</div>
+\`\`\`
+
+**Step/Process Indicator (for numbered workflows):**
+\`\`\`html
+<div style="display:flex; align-items:center; gap:0.75em;">
+  <div style="width:32px; height:32px; border-radius:50%; background:PRIMARY_TOKEN; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85em;">1</div>
+  <div>
+    <div style="font-weight:600; color:HEADING_TOKEN; font-size:1em;">Step Title</div>
+    <div style="font-size:0.8em; color:MUTED_TOKEN;">Description text</div>
+  </div>
+</div>
+\`\`\`
+
+**Comparison Row (for before/after or vs layouts):**
+\`\`\`html
+<div style="display:grid; grid-template-columns:1fr auto 1fr; gap:1.5rem; align-items:center;">
+  <div style="padding:1.5rem; border-radius:12px; text-align:center; border:1px solid rgba(239,68,68,0.15); background:rgba(239,68,68,0.04);">
+    <!-- Before -->
+  </div>
+  <div style="font-size:1.5em; color:MUTED_TOKEN;">→</div>
+  <div style="padding:1.5rem; border-radius:12px; text-align:center; border:1px solid rgba(34,197,94,0.15); background:rgba(34,197,94,0.04);">
+    <!-- After -->
+  </div>
+</div>
+\`\`\`
+
+**Quote Block (centered emphasis):**
+\`\`\`html
+<blockquote style="font-size:1.6em; font-weight:300; line-height:1.6; max-width:20em; margin:0 auto; text-align:center; color:HEADING_TOKEN; border:none; padding:0;">
+  "The quote text goes here with <span style="color:PRIMARY_TOKEN; font-weight:600;">emphasis words</span> highlighted."
+</blockquote>
+<p style="text-align:center; margin-top:1em; font-size:0.85em; color:MUTED_TOKEN;">— Attribution</p>
+\`\`\`
+
+**Feature List Item (icon + text rows):**
+\`\`\`html
+<div style="display:flex; gap:1em; align-items:flex-start; margin-bottom:1.25em;">
+  <div style="width:36px; height:36px; border-radius:8px; background:rgba(PRIMARY_RGB,0.10); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="PRIMARY_TOKEN" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">...</svg>
+  </div>
+  <div>
+    <div style="font-weight:600; color:HEADING_TOKEN; margin-bottom:0.2em;">Feature Title</div>
+    <div style="font-size:0.85em; color:BODY_TOKEN; line-height:1.5;">Description of this feature point.</div>
+  </div>
+</div>
+\`\`\`
+
+**CTA Button (for closing/action slides):**
+\`\`\`html
+<a style="display:inline-flex; align-items:center; gap:0.5em; padding:0.75em 2em; background:PRIMARY_TOKEN; color:#fff; border-radius:8px; font-weight:600; font-size:0.9em; text-decoration:none; letter-spacing:0.01em;">
+  Get Started
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+</a>
+\`\`\`
+
+### Tailwind-Inspired Spacing & Typography Scale:
+
+Use these spacing values for consistency (Tailwind's 4px base):
+- **Padding:** cards=1.5rem (p-6), pills=0.25rem 0.75rem (py-1 px-3), sections=2rem (p-8)
+- **Gaps:** card grids=1.5rem (gap-6), tight lists=0.75rem (gap-3), loose grids=2.5rem (gap-10)
+- **Margins:** heading-to-divider=0.8rem, divider-to-content=1.5rem, between-sections=2rem
+- **Border radius:** cards=12px (rounded-xl), pills=999px (rounded-full), buttons=8px (rounded-lg), icons=10px (rounded-lg)
+- **Font sizes:** hero=3.5em, h2=2.2em, h3-card-title=1.1em, body=1em, labels=0.75em, badges=0.7em
+- **Font weights:** hero=800, headings=700, card-titles=600, body=400, labels=600
+- **Letter spacing:** labels/badges=0.03-0.05em, headings=-0.02em, body=normal
 
 ### Layout Variety Mandate:
 You MUST use at least 4 different layout patterns across a deck. Choose from:

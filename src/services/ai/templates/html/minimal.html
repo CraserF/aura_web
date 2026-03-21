@@ -1,10 +1,18 @@
 <!doctype html>
 <!--
-  MINIMAL TEMPLATE — Reveal.js
-  Purpose: Quick updates, simple briefs, documentation reviews
-  Animation Level: Subtle (Level 1)
-  Features: Clean typography, maximum readability, minimal distractions
-  
+  MINIMAL TEMPLATE — Reveal.js 5
+  Purpose: Clean updates, briefs, documentation, internal comms
+  Animation Level: 1 (Subtle — anim-fade-in-up only)
+  Design: Swiss-inspired, ultra-clean light mode, WCAG-compliant contrast
+
+  Color System:
+    --bg:      #F7FAF8  (sage-tinted white)
+    --primary: #84B59F  (muted sage)
+    --accent:  #50808E  (deep teal)
+    Heading:   #2D4A3E  (deep forest green)
+    Body:      #4A665A  (medium green-gray)
+    Muted:     #7E9A8E  (passes WCAG AA on #F7FAF8 and #FFFFFF)
+
   CUSTOMIZATION POINTS (search for "CUSTOMIZE")
 -->
 <html lang="en">
@@ -12,37 +20,43 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><!-- CUSTOMIZE --></title>
+  <title><!-- CUSTOMIZE: Presentation Title --></title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/white.css">
   <link rel="stylesheet" href="../animations/core-animations.css">
 
   <style>
+    /* ── Design Tokens ────────────────────────────────── */
     :root {
-      --r-background-color: #ffffff;
-      --r-main-color: #374151;
-      --r-heading-color: #111827;
-      --accent: #3b82f6;
-      --border: #e5e7eb;
-      --muted: #9ca3af;
+      --primary: #84B59F;
+      --accent: #50808E;
+      --bg: #F7FAF8;
+      --heading: #2D4A3E;
+      --body: #4A665A;
+      --muted: #7E9A8E;
+      --card-bg: #FFFFFF;
+      --card-border: #D4E4DA;
+      --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      --pill-bg: rgba(132, 181, 159, 0.08);
+      --pill-border: rgba(132, 181, 159, 0.15);
+      --divider-width: 48px;
+      --divider-height: 3px;
+      --font: 'Plus Jakarta Sans', sans-serif;
+      --r-background-color: #F7FAF8;
+      --r-main-color: #4A665A;
+      --r-heading-color: #2D4A3E;
     }
 
+    /* ── Base ─────────────────────────────────────────── */
     .reveal {
-      font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+      font-family: var(--font);
       font-size: 28px;
-    }
-
-    .reveal h1 {
-      font-size: 2.5em;
-      font-weight: 800;
-      line-height: 1.1;
-      letter-spacing: -0.02em;
-    }
-
-    .reveal h2 {
-      font-size: 1.8em;
-      font-weight: 700;
+      color: var(--body);
     }
 
     .reveal .slides {
@@ -50,46 +64,193 @@
     }
 
     .reveal .slides section {
-      padding: 2em 3em;
+      padding: 80px 120px;
+      box-sizing: border-box;
     }
 
-    .reveal ul {
-      font-size: 0.9em;
-      line-height: 1.8;
+    /* ── Typography ───────────────────────────────────── */
+    .reveal h1,
+    .reveal h2,
+    .reveal h3 {
+      font-family: var(--font);
+      color: var(--heading);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      margin-bottom: 0;
     }
 
-    .reveal li {
-      margin-bottom: 0.3em;
+    .reveal h1 {
+      font-size: 72px;
+      font-weight: 700;
     }
 
-    .subtle-divider {
-      width: 50px;
+    .reveal h2 {
+      font-size: 48px;
+    }
+
+    .reveal h3 {
+      font-size: 28px;
+      font-weight: 600;
+    }
+
+    .reveal p {
+      font-family: var(--font);
+      color: var(--body);
+      font-size: 24px;
+      line-height: 1.7;
+      margin-top: 0;
+    }
+
+    /* ── Divider ──────────────────────────────────────── */
+    .divider {
+      width: 48px;
       height: 3px;
-      background: var(--accent);
-      margin: 0.8em 0;
+      background: var(--primary);
+      border: none;
+      border-radius: 2px;
+      margin: 32px 0;
     }
 
-    .meta {
-      font-size: 0.75em;
+    /* ── Pill Badge ───────────────────────────────────── */
+    .pill {
+      display: inline-block;
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 600;
+      color: #84B59F;
+      background: rgba(132, 181, 159, 0.08);
+      border: 1px solid rgba(132, 181, 159, 0.15);
+      border-radius: 100px;
+      padding: 6px 18px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      line-height: 1;
+    }
+
+    /* ── List ─────────────────────────────────────────── */
+    .reveal ul.clean-list {
+      list-style: none;
+      padding: 0;
+      margin: 40px 0 0 0;
+    }
+
+    .reveal ul.clean-list li {
+      font-family: var(--font);
+      font-size: 26px;
+      color: var(--body);
+      line-height: 1.6;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .reveal ul.clean-list li:last-child {
+      border-bottom: none;
+    }
+
+    .reveal ul.clean-list li strong {
+      font-family: var(--font);
+      color: var(--heading);
+      font-weight: 600;
+    }
+
+    /* ── Cards ────────────────────────────────────────── */
+    .card-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      margin-top: 48px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 48px;
+      box-shadow: var(--card-shadow);
+    }
+
+    .card h3 {
+      font-family: var(--font);
+      font-size: 28px;
+      font-weight: 600;
+      color: var(--heading);
+      margin: 0 0 12px 0;
+    }
+
+    .card p {
+      font-family: var(--font);
+      font-size: 22px;
+      color: var(--body);
+      line-height: 1.7;
+      margin: 0;
+    }
+
+    .card .card-number {
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--primary);
+      letter-spacing: 0.04em;
+      margin-bottom: 20px;
+      display: block;
+    }
+
+    /* ── Quote / Key Statement ────────────────────────── */
+    .statement {
+      max-width: 900px;
+    }
+
+    .statement blockquote {
+      font-family: var(--font);
+      font-size: 40px;
+      font-weight: 600;
+      color: var(--heading);
+      line-height: 1.4;
+      letter-spacing: -0.01em;
+      border: none;
+      padding: 0;
+      margin: 0;
+      background: none;
+      box-shadow: none;
+    }
+
+    .statement .attribution {
+      font-family: var(--font);
+      font-size: 20px;
+      color: var(--muted);
+      margin-top: 32px;
+    }
+
+    /* ── Closing ──────────────────────────────────────── */
+    .closing {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .closing h2 {
+      font-family: var(--font);
+      font-size: 56px;
+      color: var(--heading);
+    }
+
+    .closing p {
+      font-family: var(--font);
+      font-size: 22px;
       color: var(--muted);
     }
 
-    .card-minimal {
-      background: #f9fafb;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1.5em;
+    .closing .divider {
+      margin: 32px auto;
     }
 
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 2em;
-    }
-
-    .center {
-      text-align: center;
-    }
+    /* ── Utility ──────────────────────────────────────── */
+    .spacer-sm { height: 16px; }
+    .spacer-md { height: 32px; }
+    .spacer-lg { height: 48px; }
   </style>
 </head>
 
@@ -97,50 +258,76 @@
   <div class="reveal">
     <div class="slides">
 
-      <!-- SLIDE 1 -->
-      <section>
-        <h1 class="anim-fade-in-up"><!-- CUSTOMIZE: Title --></h1>
-        <div class="subtle-divider anim-reveal-wipe-right delay-200"></div>
-        <p class="meta anim-fade-in-up delay-300"><!-- CUSTOMIZE: Author · Date --></p>
+      <!-- ════════════════════════════════════════════════
+           SLIDE 1 — Title
+           ════════════════════════════════════════════════ -->
+      <section data-background-color="#F7FAF8">
+        <div class="spacer-lg"></div>
+        <span class="pill anim-fade-in-up" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; color: #84B59F;"><!-- CUSTOMIZE: Badge label e.g. "Q1 2026 Update" --></span>
+        <div class="spacer-md"></div>
+        <h1 class="anim-fade-in-up delay-200" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 72px; color: #2D4A3E;"><!-- CUSTOMIZE: Presentation Title --></h1>
+        <div class="divider anim-fade-in-up delay-300"></div>
+        <p class="anim-fade-in-up delay-400" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 22px; color: #7E9A8E;"><!-- CUSTOMIZE: Subtitle or Author · Date --></p>
       </section>
 
-      <!-- SLIDE 2 -->
-      <section>
-        <h2><!-- CUSTOMIZE: Section title --></h2>
-        <ul>
-          <li class="fragment fade-in"><!-- CUSTOMIZE --></li>
-          <li class="fragment fade-in"><!-- CUSTOMIZE --></li>
-          <li class="fragment fade-in"><!-- CUSTOMIZE --></li>
+      <!-- ════════════════════════════════════════════════
+           SLIDE 2 — Bullet List
+           ════════════════════════════════════════════════ -->
+      <section data-background-color="#F7FAF8">
+        <span class="pill anim-fade-in-up" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; color: #84B59F;"><!-- CUSTOMIZE: Section label e.g. "Overview" --></span>
+        <div class="spacer-sm"></div>
+        <h2 class="anim-fade-in-up delay-200" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 48px; color: #2D4A3E;"><!-- CUSTOMIZE: Section Title --></h2>
+        <ul class="clean-list anim-fade-in-up delay-300">
+          <li style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 26px; color: #4A665A;"><strong style="font-family: 'Plus Jakarta Sans', sans-serif; color: #2D4A3E;"><!-- CUSTOMIZE: Point title --></strong> — <!-- CUSTOMIZE: Point description --></li>
+          <li style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 26px; color: #4A665A;"><strong style="font-family: 'Plus Jakarta Sans', sans-serif; color: #2D4A3E;"><!-- CUSTOMIZE: Point title --></strong> — <!-- CUSTOMIZE: Point description --></li>
+          <li style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 26px; color: #4A665A;"><strong style="font-family: 'Plus Jakarta Sans', sans-serif; color: #2D4A3E;"><!-- CUSTOMIZE: Point title --></strong> — <!-- CUSTOMIZE: Point description --></li>
+          <li style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 26px; color: #4A665A;"><strong style="font-family: 'Plus Jakarta Sans', sans-serif; color: #2D4A3E;"><!-- CUSTOMIZE: Point title --></strong> — <!-- CUSTOMIZE: Point description --></li>
         </ul>
       </section>
 
-      <!-- SLIDE 3 -->
-      <section>
-        <h2><!-- CUSTOMIZE --></h2>
-        <div class="grid-2">
-          <div class="card-minimal fragment fade-in">
-            <h3><!-- CUSTOMIZE --></h3>
-            <p style="font-size: 0.85em; color: var(--r-main-color);"><!-- CUSTOMIZE --></p>
+      <!-- ════════════════════════════════════════════════
+           SLIDE 3 — Two-Column Cards
+           ════════════════════════════════════════════════ -->
+      <section data-background-color="#F7FAF8">
+        <span class="pill anim-fade-in-up" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; color: #84B59F;"><!-- CUSTOMIZE: Section label e.g. "Key Areas" --></span>
+        <div class="spacer-sm"></div>
+        <h2 class="anim-fade-in-up delay-200" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 48px; color: #2D4A3E;"><!-- CUSTOMIZE: Section Title --></h2>
+        <div class="card-grid anim-fade-in-up delay-300">
+          <div class="card">
+            <span class="card-number" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; color: #84B59F;">01</span>
+            <h3 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 28px; color: #2D4A3E;"><!-- CUSTOMIZE: Card Title --></h3>
+            <p style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 22px; color: #4A665A;"><!-- CUSTOMIZE: Card description. Keep it to 1-2 sentences. --></p>
           </div>
-          <div class="card-minimal fragment fade-in">
-            <h3><!-- CUSTOMIZE --></h3>
-            <p style="font-size: 0.85em; color: var(--r-main-color);"><!-- CUSTOMIZE --></p>
+          <div class="card">
+            <span class="card-number" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; color: #84B59F;">02</span>
+            <h3 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 28px; color: #2D4A3E;"><!-- CUSTOMIZE: Card Title --></h3>
+            <p style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 22px; color: #4A665A;"><!-- CUSTOMIZE: Card description. Keep it to 1-2 sentences. --></p>
           </div>
         </div>
       </section>
 
-      <!-- SLIDE 4 -->
-      <section>
-        <h2><!-- CUSTOMIZE --></h2>
-        <p style="font-size: 0.9em; line-height: 1.8; max-width: 700px;">
-          <!-- CUSTOMIZE: Paragraph content -->
-        </p>
+      <!-- ════════════════════════════════════════════════
+           SLIDE 4 — Key Statement / Quote
+           ════════════════════════════════════════════════ -->
+      <section data-background-color="#F7FAF8">
+        <div class="statement">
+          <span class="pill anim-fade-in-up" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; color: #84B59F;"><!-- CUSTOMIZE: Label e.g. "Key Insight" --></span>
+          <div class="spacer-md"></div>
+          <blockquote class="anim-fade-in-up delay-200" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 40px; color: #2D4A3E;"><!-- CUSTOMIZE: A single powerful statement or quote. --></blockquote>
+          <div class="divider anim-fade-in-up delay-300"></div>
+          <p class="attribution anim-fade-in-up delay-400" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 20px; color: #7E9A8E;"><!-- CUSTOMIZE: Attribution e.g. "— Author Name, Role" --></p>
+        </div>
       </section>
 
-      <!-- SLIDE 5 -->
-      <section class="center">
-        <h2 class="anim-fade-in-up">Thank You</h2>
-        <p class="meta anim-fade-in-up delay-200">Questions?</p>
+      <!-- ════════════════════════════════════════════════
+           SLIDE 5 — Thank You / Closing
+           ════════════════════════════════════════════════ -->
+      <section data-background-color="#F7FAF8">
+        <div class="closing">
+          <h2 class="anim-fade-in-up" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 56px; color: #2D4A3E;"><!-- CUSTOMIZE: e.g. "Thank You" --></h2>
+          <div class="divider anim-fade-in-up delay-200"></div>
+          <p class="anim-fade-in-up delay-300" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 22px; color: #7E9A8E;"><!-- CUSTOMIZE: e.g. "Questions? Reach out at hello@company.com" --></p>
+        </div>
       </section>
 
     </div>
@@ -151,10 +338,14 @@
     Reveal.initialize({
       hash: true,
       transition: 'fade',
+      transitionSpeed: 'slow',
       center: true,
       width: 1920,
       height: 1080,
-      margin: 0.08
+      margin: 0.08,
+      controls: false,
+      progress: true,
+      slideNumber: false
     });
   </script>
 </body>

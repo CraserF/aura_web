@@ -1,273 +1,435 @@
 <!doctype html>
 <!--
-  EDUCATIONAL TEMPLATE — Reveal.js
-  Purpose: Lectures, courses, training, onboarding
-  Animation Level: Moderate (Level 2)
-  Features: Structured reveals, highlight fragments, quiz-style interactions
-  
-  CUSTOMIZATION POINTS (search for "CUSTOMIZE")
+  EDUCATIONAL TEMPLATE — Warm Terracotta
+  Purpose: Lectures, courses, training, onboarding, teaching presentations
+  Animation Level: Moderate (Level 2) — fade-in-up, stagger, basic fragments
+  Palette: Warm Terracotta (#B85042) + Sage Green (#A7BEAE) on warm linen (#F5F0EB)
+
+  DESIGN RULES:
+  - Light mode only, NO gradient text, NO backdrop-filter:blur
+  - All text has explicit color, font-size, font-family in inline styles
+  - Cards: white #FFFFFF with border #E0D5C8 and subtle shadow
+  - Terracotta for primary emphasis, sage green for interactive/secondary
+  - Callout boxes use left-border accent pattern
+  - data-background-color on every <section>
+
+  CUSTOMIZATION POINTS (search for "CUSTOMIZE"):
+  - {{TITLE}}             -> Lesson/course title
+  - {{SUBTITLE}}          -> Course info line
+  - {{LESSON_NUMBER}}     -> e.g. "Lesson 01"
+  - {{INSTRUCTOR}}        -> Instructor name
+  - Slide content         -> Replace placeholder text
 -->
 <html lang="en">
 
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><!-- CUSTOMIZE --></title>
+  <title>{{TITLE}} — Educational</title>
 
+  <!-- Reveal.js v5 Core -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/white.css">
+
+  <!-- Animation Library -->
   <link rel="stylesheet" href="../animations/core-animations.css">
 
+  <!-- Fonts: Plus Jakarta Sans (headings) + Inter (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
   <style>
+    /* ── Design Tokens ── */
     :root {
-      --r-background-color: #fafafa;
-      --r-main-color: #334155;
-      --r-heading-color: #0f172a;
-      --edu-primary: #2563eb;
-      --edu-secondary: #7c3aed;
-      --edu-green: #16a34a;
-      --edu-orange: #ea580c;
-      --edu-bg: #f1f5f9;
-      --edu-border: #e2e8f0;
+      --primary: #B85042;
+      --primary-light: rgba(184, 80, 66, 0.08);
+      --primary-border: rgba(184, 80, 66, 0.18);
+      --accent: #A7BEAE;
+      --accent-light: rgba(167, 190, 174, 0.12);
+      --accent-border: rgba(167, 190, 174, 0.30);
+      --accent-dark: #7A9882;
+      --bg: #F5F0EB;
+      --bg-white: #FFFFFF;
+      --heading-color: #3D2C2C;
+      --body-color: #5A4545;
+      --muted-color: #8A7575;
+      --border-color: #E0D5C8;
+      --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+      --heading-font: 'Plus Jakarta Sans', sans-serif;
+      --body-font: 'Inter', sans-serif;
     }
 
+    /* ── Base Reveal Overrides ── */
     .reveal {
+      font-family: var(--body-font);
+      color: var(--body-color);
       font-size: 28px;
-      font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
     }
 
-    .reveal h1 {
-      font-size: 2.5em;
-      font-weight: 800;
-      color: var(--edu-primary);
+    .reveal .slides {
+      text-align: left;
     }
 
-    .reveal h2 {
-      font-size: 1.8em;
-      font-weight: 700;
-      color: var(--r-heading-color);
+    .reveal .slides section {
+      padding: 60px 80px;
     }
 
+    .reveal h1,
+    .reveal h2,
     .reveal h3 {
-      font-size: 1.3em;
-      font-weight: 600;
-      color: var(--edu-primary);
+      font-family: var(--heading-font);
+      color: var(--heading-color);
+      text-transform: none;
+      letter-spacing: -0.01em;
+      line-height: 1.2;
     }
 
-    /* Lesson header */
-    .lesson-header {
-      display: flex;
+    .reveal h1 { font-size: 2.6em; font-weight: 800; }
+    .reveal h2 { font-size: 1.8em; font-weight: 700; }
+    .reveal h3 { font-size: 1.25em; font-weight: 600; }
+
+    /* ── Pill Badges ── */
+    .edu-badge {
+      display: inline-flex;
       align-items: center;
-      gap: 1em;
-      margin-bottom: 1em;
-    }
-
-    .lesson-badge {
-      background: var(--edu-primary);
-      color: white;
-      padding: 0.3em 0.8em;
-      border-radius: 6px;
-      font-size: 0.7em;
+      gap: 0.4em;
+      padding: 0.3em 1em;
+      border-radius: 100px;
+      font-family: var(--body-font);
+      font-size: 0.6em;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.06em;
     }
 
-    .lesson-badge.advanced {
-      background: var(--edu-secondary);
+    .edu-badge.lesson {
+      background: var(--primary);
+      color: #FFFFFF;
     }
 
-    .lesson-badge.exercise {
-      background: var(--edu-green);
+    .edu-badge.concept {
+      background: var(--primary-light);
+      color: var(--primary);
+      border: 1px solid var(--primary-border);
     }
 
-    .lesson-badge.warning {
-      background: var(--edu-orange);
+    .edu-badge.exercise {
+      background: var(--accent);
+      color: #2D3B32;
     }
 
-    /* Learning objective box */
-    .objectives-box {
-      background: rgba(37, 99, 235, 0.05);
-      border: 1px solid rgba(37, 99, 235, 0.15);
-      border-left: 4px solid var(--edu-primary);
+    .edu-badge.tip {
+      background: var(--accent-light);
+      color: var(--accent-dark);
+      border: 1px solid var(--accent-border);
+    }
+
+    /* ── Callout Box (left-border accent) ── */
+    .callout {
+      background: var(--bg-white);
+      border: 1px solid var(--border-color);
+      border-left: 4px solid var(--primary);
       border-radius: 8px;
       padding: 1.2em 1.5em;
       text-align: left;
-      margin-top: 1em;
+      box-shadow: var(--card-shadow);
     }
 
-    .objectives-box h4 {
-      color: var(--edu-primary);
-      margin: 0 0 0.5em 0;
-      font-size: 0.9em;
+    .callout.sage {
+      border-left-color: var(--accent);
+    }
+
+    .callout-label {
+      display: flex;
+      align-items: center;
+      gap: 0.4em;
+      font-family: var(--heading-font);
+      font-weight: 700;
+      font-size: 0.85em;
+      color: var(--primary);
+      margin-bottom: 0.4em;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
     }
 
-    .objectives-box li {
-      padding: 0.3em 0;
+    .callout.sage .callout-label {
+      color: var(--accent-dark);
+    }
+
+    .callout p {
       font-size: 0.9em;
+      color: var(--body-color);
+      line-height: 1.65;
+      margin: 0;
     }
 
-    /* Info callout boxes */
-    .callout {
-      border-radius: 8px;
-      padding: 1em 1.2em;
-      margin: 1em 0;
+    /* ── Card ── */
+    .edu-card {
+      background: var(--bg-white);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1.4em 1.5em;
+      box-shadow: var(--card-shadow);
       text-align: left;
-      font-size: 0.9em;
     }
 
-    .callout.info {
-      background: rgba(37, 99, 235, 0.05);
-      border-left: 4px solid var(--edu-primary);
+    .edu-card h3 {
+      margin: 0 0 0.4em;
+      font-size: 1em;
+      color: var(--heading-color);
     }
 
-    .callout.success {
-      background: rgba(22, 163, 74, 0.05);
-      border-left: 4px solid var(--edu-green);
-    }
-
-    .callout.warning {
-      background: rgba(234, 88, 12, 0.05);
-      border-left: 4px solid var(--edu-orange);
-    }
-
-    .callout-title {
-      font-weight: 700;
-      margin-bottom: 0.3em;
-    }
-
-    /* Definition box */
-    .definition {
-      background: var(--edu-bg);
-      border-radius: 8px;
-      padding: 1.2em;
-      text-align: left;
-      margin: 0.8em 0;
-    }
-
-    .definition-term {
-      font-weight: 700;
-      color: var(--edu-primary);
-      font-size: 1.1em;
-    }
-
-    .definition-text {
-      color: var(--r-main-color);
-      font-size: 0.9em;
-      margin-top: 0.3em;
+    .edu-card p {
+      margin: 0;
+      font-size: 0.85em;
+      color: var(--body-color);
       line-height: 1.6;
     }
 
-    /* Step-by-step */
+    /* ── Definition Box ── */
+    .definition-box {
+      background: var(--bg-white);
+      border: 1px solid var(--border-color);
+      border-left: 4px solid var(--primary);
+      border-radius: 8px;
+      padding: 1.5em 1.8em;
+      box-shadow: var(--card-shadow);
+      text-align: left;
+    }
+
+    .definition-term {
+      font-family: var(--heading-font);
+      font-weight: 700;
+      font-size: 1.15em;
+      color: var(--primary);
+      margin-bottom: 0.3em;
+    }
+
+    .definition-text {
+      font-family: var(--body-font);
+      font-size: 0.92em;
+      color: var(--body-color);
+      line-height: 1.7;
+    }
+
+    /* ── Numbered List (Learning Objectives) ── */
+    .numbered-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      counter-reset: obj;
+    }
+
+    .numbered-list li {
+      counter-increment: obj;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.8em;
+      padding: 0.65em 0;
+      border-bottom: 1px solid var(--border-color);
+      font-family: var(--body-font);
+      font-size: 0.92em;
+      color: var(--body-color);
+      line-height: 1.5;
+    }
+
+    .numbered-list li:last-child {
+      border-bottom: none;
+    }
+
+    .numbered-list li::before {
+      content: counter(obj);
+      flex-shrink: 0;
+      width: 1.8em;
+      height: 1.8em;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--heading-font);
+      font-weight: 700;
+      font-size: 0.85em;
+    }
+
+    /* ── Step List (Process) ── */
     .step-list {
       list-style: none;
       padding: 0;
+      margin: 0;
       counter-reset: step;
     }
 
     .step-list li {
       counter-increment: step;
-      padding: 0.8em 0 0.8em 3em;
-      position: relative;
-      border-bottom: 1px solid var(--edu-border);
-      text-align: left;
+      display: flex;
+      align-items: flex-start;
+      gap: 1em;
+      padding: 0.9em 0;
+      border-bottom: 1px solid var(--border-color);
+      font-family: var(--body-font);
+      font-size: 0.9em;
+      color: var(--body-color);
+      line-height: 1.55;
+    }
+
+    .step-list li:last-child {
+      border-bottom: none;
     }
 
     .step-list li::before {
       content: counter(step);
-      position: absolute;
-      left: 0;
-      top: 0.6em;
-      width: 2em;
-      height: 2em;
+      flex-shrink: 0;
+      width: 2.2em;
+      height: 2.2em;
       border-radius: 50%;
-      background: var(--edu-primary);
-      color: white;
+      background: var(--primary);
+      color: #FFFFFF;
       display: flex;
       align-items: center;
       justify-content: center;
+      font-family: var(--heading-font);
       font-weight: 700;
       font-size: 0.85em;
     }
 
-    /* Quiz/question card */
-    .quiz-card {
-      background: var(--edu-bg);
-      border: 2px solid var(--edu-border);
-      border-radius: 12px;
-      padding: 1.5em;
+    /* ── Comparison Table ── */
+    .edu-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--body-font);
+      font-size: 0.82em;
+    }
+
+    .edu-table thead tr {
+      border-bottom: 2px solid var(--primary);
+    }
+
+    .edu-table th {
       text-align: left;
-      max-width: 700px;
-      margin: 1em auto;
+      padding: 0.7em 0.8em;
+      font-family: var(--heading-font);
+      font-weight: 700;
+      font-size: 0.95em;
+      color: var(--heading-color);
+    }
+
+    .edu-table td {
+      padding: 0.6em 0.8em;
+      color: var(--body-color);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .edu-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .edu-table tbody tr:nth-child(even) {
+      background: rgba(245, 240, 235, 0.5);
+    }
+
+    /* ── Quiz Card ── */
+    .quiz-card {
+      background: var(--bg-white);
+      border: 2px solid var(--accent);
+      border-radius: 12px;
+      padding: 1.8em 2em;
+      text-align: left;
+      max-width: 760px;
+      margin: 0 auto;
+      box-shadow: var(--card-shadow);
     }
 
     .quiz-question {
+      font-family: var(--heading-font);
       font-size: 1.1em;
-      font-weight: 600;
-      color: var(--r-heading-color);
-      margin-bottom: 0.8em;
+      font-weight: 700;
+      color: var(--heading-color);
+      margin-bottom: 1em;
+      line-height: 1.4;
     }
 
     .quiz-option {
-      padding: 0.5em 1em;
-      margin: 0.3em 0;
-      border-radius: 6px;
-      font-size: 0.9em;
-      border: 1px solid var(--edu-border);
-      background: white;
+      padding: 0.55em 1em;
+      margin: 0.35em 0;
+      border-radius: 8px;
+      font-family: var(--body-font);
+      font-size: 0.88em;
+      color: var(--body-color);
+      border: 1px solid var(--border-color);
+      background: var(--bg);
     }
 
     .quiz-option.correct {
-      border-color: var(--edu-green);
-      background: rgba(22, 163, 74, 0.08);
+      border-color: var(--accent-dark);
+      background: var(--accent-light);
+      color: #2D3B32;
       font-weight: 600;
     }
 
-    /* Progress tracker */
+    /* ── Progress Dots ── */
     .progress-dots {
       display: flex;
-      gap: 6px;
-      justify-content: center;
+      gap: 8px;
+      align-items: center;
       margin-bottom: 1em;
     }
 
     .progress-dots .dot {
-      width: 10px;
-      height: 10px;
+      width: 12px;
+      height: 12px;
       border-radius: 50%;
-      background: var(--edu-border);
+      background: var(--border-color);
     }
 
     .progress-dots .dot.active {
-      background: var(--edu-primary);
+      background: var(--primary);
+      box-shadow: 0 0 0 3px rgba(184, 80, 66, 0.2);
     }
 
-    .progress-dots .dot.completed {
-      background: var(--edu-green);
+    .progress-dots .dot.done {
+      background: var(--accent-dark);
     }
 
-    /* Layout */
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 2em;
-      align-items: start;
+    /* ── Grid Layouts ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5em; align-items: start; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5em; align-items: start; }
+
+    /* ── Accent Line ── */
+    .accent-line {
+      width: 60px;
+      height: 3px;
+      background: var(--primary);
+      border-radius: 2px;
+      margin: 12px 0 0;
     }
 
-    .grid-3 {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 1.5em;
-    }
-
-    .text-left {
+    /* ── Answer reveal card ── */
+    .answer-card {
+      background: var(--accent-light);
+      border: 1px solid var(--accent-border);
+      border-left: 4px solid var(--accent-dark);
+      border-radius: 8px;
+      padding: 1.2em 1.5em;
+      max-width: 760px;
+      margin: 1em auto 0;
       text-align: left;
     }
 
-    .text-center {
-      text-align: center;
+    /* ── Inline SVG icon sizing ── */
+    .icon-inline {
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      vertical-align: -0.1em;
+    }
+
+    .icon-inline.lg {
+      width: 1.3em;
+      height: 1.3em;
+      vertical-align: -0.15em;
     }
   </style>
 </head>
@@ -276,206 +438,481 @@
   <div class="reveal">
     <div class="slides">
 
-      <!-- SLIDE 1: Title -->
-      <section data-background-color="#fff">
-        <div class="text-center">
-          <div class="lesson-badge anim-fade-in-up">Lesson 01</div>
-          <h1 class="anim-fade-in-up delay-200">
-            <!-- CUSTOMIZE: Course/Lesson title -->
+      <!-- ================================================================
+           SLIDE 1: TITLE
+           ================================================================ -->
+      <section data-background-color="#F5F0EB">
+        <div style="text-align: center; padding-top: 40px;">
+          <!-- Lesson badge -->
+          <div class="anim-fade-in-up">
+            <span class="edu-badge lesson" style="font-family: 'Inter', sans-serif; font-size: 16px; color: #FFFFFF;">
+              <!-- CUSTOMIZE: Lesson number -->
+              {{LESSON_NUMBER}}
+            </span>
+          </div>
+
+          <!-- Title -->
+          <h1 class="anim-fade-in-up delay-200" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 72px; font-weight: 800; color: #3D2C2C; margin-top: 0.4em; line-height: 1.15;">
+            <!-- CUSTOMIZE: Lesson/course title -->
             Introduction to<br>Data Structures
           </h1>
-          <p class="anim-fade-in-up delay-400" style="color: var(--r-main-color); font-size: 1em;">
+
+          <!-- Accent line -->
+          <div class="accent-line anim-reveal-wipe-right delay-400" style="margin: 20px auto 0; width: 60px;"></div>
+
+          <!-- Subtitle / course info -->
+          <p class="anim-fade-in-up delay-500" style="font-family: 'Inter', sans-serif; font-size: 22px; color: #8A7575; margin-top: 1em; font-weight: 400;">
             <!-- CUSTOMIZE: Course info -->
-            Computer Science 101 · Professor Smith
+            Computer Science 101 &middot; {{INSTRUCTOR}}
           </p>
-        </div>
-      </section>
 
-      <!-- SLIDE 2: Learning Objectives -->
-      <section data-background-color="#fff">
-        <h2 class="anim-fade-in-up">🎯 Learning Objectives</h2>
-        <div class="objectives-box anim-fade-in-up delay-200">
-          <h4>By the end of this lesson, you will be able to:</h4>
-          <ul>
-            <!-- CUSTOMIZE -->
-            <li class="fragment slide-up">Define what data structures are and why they matter</li>
-            <li class="fragment slide-up">Compare arrays, linked lists, and hash tables</li>
-            <li class="fragment slide-up">Analyze time complexity using Big-O notation</li>
-            <li class="fragment slide-up">Choose the right data structure for common scenarios</li>
-          </ul>
-        </div>
-      </section>
-
-      <!-- SLIDE 3: Definition Slide -->
-      <section data-background-color="#fff">
-        <h2 class="anim-fade-in-up">What is a Data Structure?</h2>
-        <div class="definition fragment fade-in" style="margin-top: 1em;">
-          <div class="definition-term">Data Structure</div>
-          <div class="definition-text">
-            <!-- CUSTOMIZE -->
-            A specialized format for organizing, processing, retrieving, and storing data. It defines both the logical
-            arrangement and the physical storage in memory.
+          <!-- Inline book icon decoration -->
+          <div class="anim-fade-in-up delay-600" style="margin-top: 2em; opacity: 0.25;">
+            <svg class="icon-inline" style="width: 48px; height: 48px;" viewBox="0 0 24 24" fill="none" stroke="#B85042" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+              <line x1="12" y1="6" x2="12" y2="13"/>
+              <line x1="9" y1="9.5" x2="15" y2="9.5"/>
+            </svg>
           </div>
         </div>
-        <div class="callout info fragment slide-up" style="margin-top: 1em;">
-          <div class="callout-title">💡 Key Insight</div>
-          <!-- CUSTOMIZE -->
-          Choosing the right data structure can make the difference between an algorithm that runs in milliseconds vs.
-          hours.
-        </div>
+
+        <aside class="notes">
+          Welcome students. Introduce the topic and set expectations for the lesson. Mention prerequisites if any.
+        </aside>
       </section>
 
-      <!-- SLIDE 4: Comparison -->
-      <section data-background-color="#fff">
-        <h2 class="anim-fade-in-up">Comparison</h2>
-        <div style="margin-top: 1em; overflow-x: auto;">
-          <table style="width: 100%; border-collapse: collapse; font-size: 0.85em; text-align: left;">
+
+      <!-- ================================================================
+           SLIDE 2: LEARNING OBJECTIVES (Numbered List)
+           ================================================================ -->
+      <section data-background-color="#F5F0EB">
+        <!-- Section heading with inline icon -->
+        <div style="display: flex; align-items: center; gap: 0.5em;" class="anim-fade-in-up">
+          <svg class="icon-inline lg" style="width: 30px; height: 30px;" viewBox="0 0 24 24" fill="none" stroke="#B85042" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <circle cx="12" cy="12" r="6"/>
+            <circle cx="12" cy="12" r="2"/>
+          </svg>
+          <h2 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 48px; font-weight: 700; color: #3D2C2C; margin: 0;">
+            Learning Objectives
+          </h2>
+        </div>
+        <div class="accent-line anim-reveal-wipe-right delay-200"></div>
+
+        <!-- Objectives box -->
+        <div style="max-width: 780px; margin-top: 1.2em;">
+          <p style="font-family: 'Inter', sans-serif; font-size: 18px; color: #8A7575; margin-bottom: 1em; font-weight: 500;">
+            By the end of this lesson, you will be able to:
+          </p>
+
+          <ol class="numbered-list">
+            <!-- CUSTOMIZE: Objectives -->
+            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 24px; color: #5A4545;">
+              Define what data structures are and why they matter
+            </li>
+            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 24px; color: #5A4545;">
+              Compare arrays, linked lists, and hash tables
+            </li>
+            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 24px; color: #5A4545;">
+              Analyze time complexity using Big-O notation
+            </li>
+            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 24px; color: #5A4545;">
+              Choose the right data structure for common scenarios
+            </li>
+          </ol>
+        </div>
+
+        <aside class="notes">
+          Walk through each objective. These map directly to what students will be assessed on. Pause after each to let them sink in.
+        </aside>
+      </section>
+
+
+      <!-- ================================================================
+           SLIDE 3: DEFINITION / CONCEPT (Callout Box)
+           ================================================================ -->
+      <section data-background-color="#F5F0EB">
+        <!-- Section heading -->
+        <div style="display: flex; align-items: center; gap: 0.5em;" class="anim-fade-in-up">
+          <span class="edu-badge concept" style="font-family: 'Inter', sans-serif; font-size: 14px;">Key Concept</span>
+        </div>
+        <h2 class="anim-fade-in-up delay-200" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 48px; font-weight: 700; color: #3D2C2C; margin-top: 0.3em;">
+          What is a Data Structure?
+        </h2>
+
+        <!-- Definition box -->
+        <div class="definition-box fragment fade-in" style="margin-top: 1.2em; max-width: 820px;">
+          <div class="definition-term" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 24px; color: #B85042;">
+            Data Structure
+          </div>
+          <div class="definition-text" style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545; line-height: 1.7; margin-top: 0.3em;">
+            <!-- CUSTOMIZE: Definition -->
+            A specialized format for organizing, processing, retrieving, and storing data.
+            It defines both the logical arrangement and the physical storage in memory.
+          </div>
+        </div>
+
+        <!-- Key insight callout -->
+        <div class="callout fragment slide-up" style="margin-top: 1.2em; max-width: 820px;">
+          <div class="callout-label" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 15px; color: #B85042;">
+            <svg class="icon-inline" style="width: 18px; height: 18px;" viewBox="0 0 24 24" fill="none" stroke="#B85042" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 18h6"/>
+              <path d="M10 22h4"/>
+              <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/>
+            </svg>
+            Key Insight
+          </div>
+          <p style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; line-height: 1.65;">
+            <!-- CUSTOMIZE: Insight -->
+            Choosing the right data structure can make the difference between an algorithm
+            that runs in milliseconds vs. hours.
+          </p>
+        </div>
+
+        <aside class="notes">
+          Start with the formal definition, then use the insight callout to make it tangible. Ask students for real-world examples.
+        </aside>
+      </section>
+
+
+      <!-- ================================================================
+           SLIDE 4: COMPARISON TABLE
+           ================================================================ -->
+      <section data-background-color="#F5F0EB">
+        <h2 class="anim-fade-in-up" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 48px; font-weight: 700; color: #3D2C2C;">
+          Comparison
+        </h2>
+        <div class="accent-line anim-reveal-wipe-right delay-200"></div>
+
+        <div style="margin-top: 1.2em; overflow-x: auto;">
+          <table class="edu-table anim-fade-in-up delay-300">
             <thead>
-              <tr style="border-bottom: 2px solid var(--edu-primary);">
-                <!-- CUSTOMIZE: Headers -->
-                <th style="padding: 0.6em;">Structure</th>
-                <th style="padding: 0.6em;">Access</th>
-                <th style="padding: 0.6em;">Insert</th>
-                <th style="padding: 0.6em;">Delete</th>
-                <th style="padding: 0.6em;">Search</th>
-                <th style="padding: 0.6em;">Best For</th>
+              <tr>
+                <!-- CUSTOMIZE: Column headers -->
+                <th style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 18px; color: #3D2C2C; padding: 0.7em 0.8em;">Structure</th>
+                <th style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 18px; color: #3D2C2C; padding: 0.7em 0.8em;">Access</th>
+                <th style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 18px; color: #3D2C2C; padding: 0.7em 0.8em;">Insert</th>
+                <th style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 18px; color: #3D2C2C; padding: 0.7em 0.8em;">Delete</th>
+                <th style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 18px; color: #3D2C2C; padding: 0.7em 0.8em;">Search</th>
+                <th style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 18px; color: #3D2C2C; padding: 0.7em 0.8em;">Best For</th>
               </tr>
             </thead>
             <tbody>
-              <!-- CUSTOMIZE -->
-              <tr class="fragment fade-in" style="border-bottom: 1px solid var(--edu-border);">
-                <td style="padding: 0.5em;">Array</td>
-                <td>O(1)</td>
-                <td>O(n)</td>
-                <td>O(n)</td>
-                <td>O(n)</td>
-                <td>Index-based access</td>
-              </tr>
-              <tr class="fragment fade-in" style="border-bottom: 1px solid var(--edu-border);">
-                <td style="padding: 0.5em;">Linked List</td>
-                <td>O(n)</td>
-                <td>O(1)</td>
-                <td>O(1)</td>
-                <td>O(n)</td>
-                <td>Frequent inserts</td>
-              </tr>
-              <tr class="fragment fade-in" style="border-bottom: 1px solid var(--edu-border);">
-                <td style="padding: 0.5em;">Hash Table</td>
-                <td>O(1)*</td>
-                <td>O(1)*</td>
-                <td>O(1)*</td>
-                <td>O(1)*</td>
-                <td>Key-value lookups</td>
+              <!-- CUSTOMIZE: Table rows -->
+              <tr class="fragment fade-in">
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em; font-weight: 600;">Array</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(1)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(n)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(n)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(n)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">Index-based access</td>
               </tr>
               <tr class="fragment fade-in">
-                <td style="padding: 0.5em;">Binary Tree</td>
-                <td>O(log n)</td>
-                <td>O(log n)</td>
-                <td>O(log n)</td>
-                <td>O(log n)</td>
-                <td>Sorted data</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em; font-weight: 600;">Linked List</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(n)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(1)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(1)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(n)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">Frequent inserts</td>
+              </tr>
+              <tr class="fragment fade-in">
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em; font-weight: 600;">Hash Table</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(1)*</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(1)*</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(1)*</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(1)*</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">Key-value lookups</td>
+              </tr>
+              <tr class="fragment fade-in">
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em; font-weight: 600;">Binary Tree</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(log n)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(log n)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(log n)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(log n)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">Sorted data</td>
               </tr>
             </tbody>
           </table>
-          <p class="fragment fade-in" style="font-size: 0.7em; color: var(--r-main-color); margin-top: 0.5em;">* Average
-            case — worst case can be O(n)</p>
+          <p class="fragment fade-in" style="font-family: 'Inter', sans-serif; font-size: 16px; color: #8A7575; margin-top: 0.8em;">
+            * Average case -- worst case can be O(n) due to hash collisions
+          </p>
         </div>
+
+        <aside class="notes">
+          Reveal each row one at a time. Ask students to predict complexity before revealing. Emphasize that there is no single "best" data structure.
+        </aside>
       </section>
 
-      <!-- SLIDE 5: Step-by-Step -->
-      <section data-background-color="#fff">
-        <h2 class="anim-fade-in-up">🔨 Building a Hash Table</h2>
-        <div style="max-width: 700px; margin: 0 auto;">
+
+      <!-- ================================================================
+           SLIDE 5: STEP-BY-STEP PROCESS (with Progress Indicator)
+           ================================================================ -->
+      <section data-background-color="#F5F0EB">
+        <!-- Progress indicator -->
+        <div class="progress-dots anim-fade-in-up" style="justify-content: flex-start;">
+          <div class="dot done"></div>
+          <div class="dot done"></div>
+          <div class="dot done"></div>
+          <div class="dot active"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <span style="font-family: 'Inter', sans-serif; font-size: 13px; color: #8A7575; margin-left: 0.6em;">Step 4 of 8</span>
+        </div>
+
+        <!-- Heading with icon -->
+        <div style="display: flex; align-items: center; gap: 0.5em;" class="anim-fade-in-up delay-200">
+          <svg class="icon-inline lg" style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="#B85042" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 11 12 14 22 4"/>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+          <h2 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 48px; font-weight: 700; color: #3D2C2C; margin: 0;">
+            Building a Hash Table
+          </h2>
+        </div>
+
+        <!-- Step list -->
+        <div style="max-width: 780px; margin-top: 1em;">
           <ol class="step-list">
-            <!-- CUSTOMIZE -->
-            <li class="fragment slide-up"><strong>Choose a hash function</strong> — Maps keys to array indices uniformly
+            <!-- CUSTOMIZE: Steps -->
+            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">
+              <div>
+                <strong style="color: #3D2C2C; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700;">Choose a hash function</strong>
+                <br><span style="font-size: 0.9em; color: #8A7575;">Maps keys to array indices uniformly</span>
+              </div>
             </li>
-            <li class="fragment slide-up"><strong>Allocate the array</strong> — Size should be a prime number for better
-              distribution</li>
-            <li class="fragment slide-up"><strong>Handle collisions</strong> — Use chaining (linked lists) or open
-              addressing</li>
-            <li class="fragment slide-up"><strong>Implement resize</strong> — Grow the table when load factor exceeds
-              0.75</li>
+            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">
+              <div>
+                <strong style="color: #3D2C2C; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700;">Allocate the array</strong>
+                <br><span style="font-size: 0.9em; color: #8A7575;">Size should be a prime number for better distribution</span>
+              </div>
+            </li>
+            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">
+              <div>
+                <strong style="color: #3D2C2C; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700;">Handle collisions</strong>
+                <br><span style="font-size: 0.9em; color: #8A7575;">Use chaining (linked lists) or open addressing</span>
+              </div>
+            </li>
+            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">
+              <div>
+                <strong style="color: #3D2C2C; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700;">Implement resize</strong>
+                <br><span style="font-size: 0.9em; color: #8A7575;">Grow the table when load factor exceeds 0.75</span>
+              </div>
+            </li>
           </ol>
         </div>
+
+        <aside class="notes">
+          Walk through each step sequentially. Consider live-coding the hash function step. Pause for questions after collision handling.
+        </aside>
       </section>
 
-      <!-- SLIDE 6: Exercise / Try It -->
-      <section data-background-color="#fff">
-        <div class="lesson-header" style="justify-content: center;">
-          <span class="lesson-badge exercise">Exercise</span>
-          <h2 style="margin: 0;">Knowledge Check</h2>
+
+      <!-- ================================================================
+           SLIDE 6: EXERCISE / QUIZ (Sage green accent)
+           ================================================================ -->
+      <section data-background-color="#F5F0EB">
+        <!-- Exercise badge + heading -->
+        <div style="display: flex; align-items: center; gap: 0.7em; justify-content: center;" class="anim-fade-in-up">
+          <span class="edu-badge exercise" style="font-family: 'Inter', sans-serif; font-size: 15px; color: #2D3B32;">Exercise</span>
+          <h2 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 44px; font-weight: 700; color: #3D2C2C; margin: 0;">
+            Knowledge Check
+          </h2>
         </div>
 
-        <div class="quiz-card">
-          <div class="quiz-question">
+        <!-- Quiz card (sage green border) -->
+        <div class="quiz-card" style="margin-top: 1.2em;">
+          <div class="quiz-question" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 26px; color: #3D2C2C;">
             <!-- CUSTOMIZE: Question -->
             Which data structure would you choose for implementing an undo/redo feature?
           </div>
-          <!-- CUSTOMIZE: Options -->
-          <div class="quiz-option fragment fade-in">A. Array</div>
-          <div class="quiz-option fragment fade-in">B. Hash Table</div>
-          <div class="quiz-option correct fragment highlight-green">C. Stack</div>
-          <div class="quiz-option fragment fade-in">D. Queue</div>
+
+          <!-- Options -->
+          <div class="quiz-option fragment fade-in" style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">A. Array</div>
+          <div class="quiz-option fragment fade-in" style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">B. Hash Table</div>
+          <div class="quiz-option correct fragment fade-in" style="font-family: 'Inter', sans-serif; font-size: 22px; color: #2D3B32; font-weight: 600;">C. Stack</div>
+          <div class="quiz-option fragment fade-in" style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">D. Queue</div>
         </div>
 
-        <div class="callout success fragment slide-up" style="max-width: 700px; margin: 1em auto;">
-          <div class="callout-title">✅ Answer: Stack</div>
-          Stacks follow LIFO (Last In, First Out) — perfect for undo operations where you reverse the most recent action
-          first.
-        </div>
-      </section>
-
-      <!-- SLIDE 7: Key Takeaways -->
-      <section data-background-color="#fff">
-        <h2 class="anim-fade-in-up">📝 Key Takeaways</h2>
-        <div class="grid-3" style="margin-top: 1em;">
-          <!-- CUSTOMIZE -->
-          <div class="callout info fragment slide-up">
-            <div class="callout-title">1. Know Your Options</div>
-            Different structures excel at different operations — there's no "best" structure.
+        <!-- Answer reveal (fragment) -->
+        <div class="answer-card fragment slide-up">
+          <div style="display: flex; align-items: center; gap: 0.4em; margin-bottom: 0.4em;">
+            <svg class="icon-inline" style="width: 20px; height: 20px;" viewBox="0 0 24 24" fill="none" stroke="#7A9882" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 17px; font-weight: 700; color: #7A9882; text-transform: uppercase; letter-spacing: 0.04em;">
+              Answer: Stack
+            </span>
           </div>
-          <div class="callout info fragment slide-up">
-            <div class="callout-title">2. Think About Scale</div>
-            Big-O matters when data grows. O(n²) is fine for 10 items, disastrous for 10 million.
-          </div>
-          <div class="callout info fragment slide-up">
-            <div class="callout-title">3. Profile First</div>
-            Don't optimize prematurely — measure actual performance before choosing complex structures.
-          </div>
-        </div>
-      </section>
-
-      <!-- SLIDE 8: What's Next -->
-      <section data-background-color="#fff">
-        <h2 class="anim-fade-in-up">📚 What's Next</h2>
-        <div class="text-left" style="max-width: 600px; margin: 1em auto;">
-          <!-- CUSTOMIZE -->
-          <p class="fragment slide-up"><strong>Next Lesson:</strong> Trees and Graphs</p>
-          <p class="fragment slide-up"><strong>Reading:</strong> Chapters 5-6 of the textbook</p>
-          <p class="fragment slide-up"><strong>Assignment:</strong> Implement a hash table in your language of choice
+          <p style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; line-height: 1.6; margin: 0;">
+            <!-- CUSTOMIZE: Explanation -->
+            Stacks follow LIFO (Last In, First Out) -- perfect for undo operations where you
+            reverse the most recent action first.
           </p>
-          <p class="fragment slide-up"><strong>Due:</strong> Next Monday, 11:59 PM</p>
         </div>
-        <div class="callout warning fragment slide-up" style="max-width: 600px; margin: 1em auto;">
-          <div class="callout-title">⚠️ Reminder</div>
-          Midterm exam is in 2 weeks — covers Lessons 1-4.
+
+        <aside class="notes">
+          Give students 30 seconds to think. Show options one at a time. Ask for hands or use polling. Reveal the answer and explain the reasoning.
+        </aside>
+      </section>
+
+
+      <!-- ================================================================
+           SLIDE 7: KEY TAKEAWAYS (Card Grid)
+           ================================================================ -->
+      <section data-background-color="#F5F0EB">
+        <div style="text-align: center;" class="anim-fade-in-up">
+          <svg class="icon-inline" style="width: 32px; height: 32px;" viewBox="0 0 24 24" fill="none" stroke="#B85042" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18h6"/>
+            <path d="M10 22h4"/>
+            <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/>
+          </svg>
+          <h2 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 48px; font-weight: 700; color: #3D2C2C; margin-top: 0.2em;">
+            Key Takeaways
+          </h2>
+          <div class="accent-line" style="margin: 12px auto 0;"></div>
         </div>
+
+        <!-- 3-column card grid -->
+        <div class="grid-3 anim-stagger" style="margin-top: 1.5em;">
+          <!-- CUSTOMIZE: Takeaway cards -->
+          <div class="edu-card fragment slide-up" style="border-top: 3px solid #B85042;">
+            <div style="display: flex; align-items: center; gap: 0.4em; margin-bottom: 0.5em;">
+              <span style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 28px; font-weight: 800; color: #B85042;">1</span>
+              <h3 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 22px; font-weight: 700; color: #3D2C2C; margin: 0;">
+                Know Your Options
+              </h3>
+            </div>
+            <p style="font-family: 'Inter', sans-serif; font-size: 19px; color: #5A4545; line-height: 1.6;">
+              Different structures excel at different operations -- there is no single "best" structure for every case.
+            </p>
+          </div>
+
+          <div class="edu-card fragment slide-up" style="border-top: 3px solid #A7BEAE;">
+            <div style="display: flex; align-items: center; gap: 0.4em; margin-bottom: 0.5em;">
+              <span style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 28px; font-weight: 800; color: #A7BEAE;">2</span>
+              <h3 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 22px; font-weight: 700; color: #3D2C2C; margin: 0;">
+                Think About Scale
+              </h3>
+            </div>
+            <p style="font-family: 'Inter', sans-serif; font-size: 19px; color: #5A4545; line-height: 1.6;">
+              Big-O matters when data grows. O(n&sup2;) is fine for 10 items, but disastrous for 10 million.
+            </p>
+          </div>
+
+          <div class="edu-card fragment slide-up" style="border-top: 3px solid #B85042;">
+            <div style="display: flex; align-items: center; gap: 0.4em; margin-bottom: 0.5em;">
+              <span style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 28px; font-weight: 800; color: #B85042;">3</span>
+              <h3 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 22px; font-weight: 700; color: #3D2C2C; margin: 0;">
+                Profile First
+              </h3>
+            </div>
+            <p style="font-family: 'Inter', sans-serif; font-size: 19px; color: #5A4545; line-height: 1.6;">
+              Do not optimize prematurely -- measure actual performance before choosing complex structures.
+            </p>
+          </div>
+        </div>
+
+        <aside class="notes">
+          Summarize the three main points. Ask if students have questions. These map back to the learning objectives from slide 2.
+        </aside>
+      </section>
+
+
+      <!-- ================================================================
+           SLIDE 8: WHAT'S NEXT / CLOSING
+           ================================================================ -->
+      <section data-background-color="#F5F0EB">
+        <!-- Heading with arrow icon -->
+        <div style="display: flex; align-items: center; gap: 0.5em;" class="anim-fade-in-up">
+          <svg class="icon-inline lg" style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="#B85042" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+            <polyline points="12 5 19 12 12 19"/>
+          </svg>
+          <h2 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 48px; font-weight: 700; color: #3D2C2C; margin: 0;">
+            What's Next
+          </h2>
+        </div>
+        <div class="accent-line anim-reveal-wipe-right delay-200"></div>
+
+        <!-- Next steps list -->
+        <div class="grid-2" style="margin-top: 1.5em;">
+          <div style="max-width: 600px;">
+            <!-- CUSTOMIZE: Next items -->
+            <div class="fragment slide-up" style="display: flex; align-items: flex-start; gap: 0.7em; padding: 0.7em 0; border-bottom: 1px solid #E0D5C8;">
+              <span class="edu-badge tip" style="font-family: 'Inter', sans-serif; font-size: 12px; white-space: nowrap;">Next Lesson</span>
+              <span style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">Trees and Graphs</span>
+            </div>
+            <div class="fragment slide-up" style="display: flex; align-items: flex-start; gap: 0.7em; padding: 0.7em 0; border-bottom: 1px solid #E0D5C8;">
+              <span class="edu-badge tip" style="font-family: 'Inter', sans-serif; font-size: 12px; white-space: nowrap;">Reading</span>
+              <span style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">Chapters 5-6 of the textbook</span>
+            </div>
+            <div class="fragment slide-up" style="display: flex; align-items: flex-start; gap: 0.7em; padding: 0.7em 0; border-bottom: 1px solid #E0D5C8;">
+              <span class="edu-badge tip" style="font-family: 'Inter', sans-serif; font-size: 12px; white-space: nowrap;">Assignment</span>
+              <span style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">Implement a hash table in your language of choice</span>
+            </div>
+            <div class="fragment slide-up" style="display: flex; align-items: flex-start; gap: 0.7em; padding: 0.7em 0;">
+              <span class="edu-badge tip" style="font-family: 'Inter', sans-serif; font-size: 12px; white-space: nowrap;">Due</span>
+              <span style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">Next Monday, 11:59 PM</span>
+            </div>
+          </div>
+
+          <!-- Reminder callout -->
+          <div>
+            <div class="callout fragment slide-up" style="margin-top: 0;">
+              <div class="callout-label" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 15px; color: #B85042;">
+                <svg class="icon-inline" style="width: 18px; height: 18px;" viewBox="0 0 24 24" fill="none" stroke="#B85042" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                Reminder
+              </div>
+              <p style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; line-height: 1.6;">
+                <!-- CUSTOMIZE: Reminder text -->
+                Midterm exam is in 2 weeks -- covers Lessons 1-4. Office hours available Thursday 3-5 PM.
+              </p>
+            </div>
+
+            <!-- Closing message -->
+            <div class="fragment fade-in" style="margin-top: 1.5em; text-align: center;">
+              <p style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 20px; color: #8A7575; font-weight: 500;">
+                Questions? Reach out anytime.
+              </p>
+              <p style="font-family: 'Inter', sans-serif; font-size: 18px; color: #B85042; font-weight: 600;">
+                <!-- CUSTOMIZE: Contact -->
+                {{INSTRUCTOR}} &middot; office@university.edu
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <aside class="notes">
+          Wrap up the lesson. Reiterate the assignment deadline. Remind about the midterm. Open the floor for final questions.
+        </aside>
       </section>
 
     </div>
   </div>
 
+  <!-- Reveal.js v5 -->
   <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/plugin/notes/notes.js"></script>
   <script>
     Reveal.initialize({
       hash: true,
       transition: 'slide',
+      transitionSpeed: 'default',
+      backgroundTransition: 'fade',
       center: true,
       width: 1920,
       height: 1080,
-      margin: 0.08,
+      margin: 0.06,
+      controls: true,
+      progress: true,
+      slideNumber: 'c/t',
       plugins: [RevealNotes]
     });
   </script>

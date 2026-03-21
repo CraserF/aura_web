@@ -28,6 +28,9 @@ export const ANTI_PATTERNS = [
   'Do NOT use bright accent colors as large background fills. Accents are for SMALL elements: icons, badges, dividers.',
   'Never pair two saturated colors adjacently (e.g., bright red card next to bright blue card). One saturated + one neutral.',
   'Do NOT use the primary color as body text. Primary is for accent elements ONLY (icons, metrics, buttons, dividers).',
+  'NEVER place dark text on a dark background or light text on a light background. This is the #1 most common error. Always verify: dark bg → light text, light bg → dark text.',
+  'Never set text opacity below 0.55 for ANY readable text. Muted labels at rgba(…, 0.3) or rgba(…, 0.4) are unreadable. Use minimum 0.55 opacity.',
+  'On light backgrounds, use the dark heading/body colors from the palette. On dark backgrounds, use the light heading/body colors from the palette. Do NOT invert this.',
 
   // Spatial Design
   'Do NOT nest cards inside cards — creates visual noise.',
