@@ -32,11 +32,15 @@ export async function design(
   // Select the best matching template from the registry
   const templateId = selectTemplate(planResult.enhancedPrompt);
 
+  // Pass the planned slide count to the prompt composer for hard enforcement
+  const plannedSlideCount = planResult.outline?.length;
+
   // Build the system prompt with all sections — including anti-patterns and template examples
   const systemPrompt = buildDesignerPrompt(
     planResult.blueprint,
     templateId,
     planResult.animationLevel,
+    plannedSlideCount,
   );
 
   const messages: AIMessage[] = [

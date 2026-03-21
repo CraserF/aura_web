@@ -49,12 +49,16 @@ Each slide object: { "index": number, "title": string (2-6 words), "layout": str
 Layout options: "hero-title", "bento-grid", "split-text-visual", "metrics-row", "timeline", "comparison", "icon-grid", "pull-quote", "process-steps", "card-grid", "closing-cta"
 
 Rules:
-- First slide is always "hero-title"
-- Last slide is always "closing-cta"
+- First slide is ALWAYS "hero-title"
+- Last slide is ALWAYS "closing-cta"
 - NEVER repeat the same layout on consecutive slides
-- 8-12 slides total
+- NEVER use "card-grid" more than twice — it is the most overused default pattern
+- Produce 8-12 slides total. 10 is the ideal target.
+- Use at LEAST 5 different layout types across the deck for visual variety
 - Include a "pull-quote" or strong statement slide at the 60-70% mark
-- Include at least one "metrics-row" or "bento-grid" with data
+- Include at least one "metrics-row" or data-focused slide
+- Include at least one "split-text-visual" or "timeline" for visual breathing room
+- keyPoints should be specific and content-rich, not generic placeholders like "Point 1"
 
 Output ONLY the JSON array. No markdown, no explanation.`;
 
@@ -154,7 +158,10 @@ function buildEnhancedPrompt(
     const outlineStr = outline
       .map((s) => `  ${s.index + 1}. [${s.layout}] "${s.title}" — ${s.keyPoints.join(', ')}`)
       .join('\n');
-    additions.push(`Follow this slide outline exactly:\n${outlineStr}`);
+    additions.push(`SLIDE OUTLINE CONTRACT — You MUST produce exactly ${outline.length} slides matching this outline:
+${outlineStr}
+
+CRITICAL: Produce exactly ${outline.length} slides. Each slide must match its specified layout type and cover the listed key points. Do not skip, merge, or add slides.`);
   }
 
   if (intent === 'modify') {

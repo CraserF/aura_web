@@ -24,6 +24,7 @@ export class PromptComposer {
   private sections: string[] = [];
   private _palette?: TemplatePalette;
   private _animLevel: 1 | 2 | 3 | 4 = 2;
+  private _slideCount?: number;
 
   /** Start with base section (identity, philosophy, output format, rules) */
   addBase(palette?: TemplatePalette): this {
@@ -71,15 +72,16 @@ export class PromptComposer {
     return this;
   }
 
-  /** Add slide structure / narrative arc */
-  addNarrative(): this {
-    this.sections.push(buildNarrativeSection());
+  /** Add slide structure / narrative arc with optional planned slide count */
+  addNarrative(slideCount?: number): this {
+    this._slideCount = slideCount;
+    this.sections.push(buildNarrativeSection(slideCount));
     return this;
   }
 
-  /** Add quality checklist and response format */
+  /** Add quality checklist and response format with optional planned slide count */
   addQuality(): this {
-    this.sections.push(buildQualitySection());
+    this.sections.push(buildQualitySection(this._slideCount));
     return this;
   }
 
@@ -126,6 +128,7 @@ export function buildDesignerPrompt(
   blueprint: TemplateBlueprint,
   templateId: TemplateId,
   animLevel: 1 | 2 | 3 | 4,
+  slideCount?: number,
 ): string {
   return new PromptComposer()
     .addBase(blueprint.palette)
@@ -135,7 +138,7 @@ export function buildDesignerPrompt(
     .addDecorative()
     .addAnimation(animLevel)
     .addSvg()
-    .addNarrative()
+    .addNarrative(slideCount)
     .addAntiPatterns()
     .addTemplateExamples(templateId, blueprint.exampleSlides)
     .addKnowledge()

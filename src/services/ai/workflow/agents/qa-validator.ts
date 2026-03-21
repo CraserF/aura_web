@@ -1,7 +1,14 @@
 /**
  * QA Validator — Programmatic (no LLM) post-generation validation.
+ *
  * Catches mechanical errors that don't need AI to detect:
  * missing styles, broken structure, external images, etc.
+ *
+ * Key improvements:
+ * - Slide count validation against planned count
+ * - Palette color compliance checking
+ * - Layout variety detection (consecutive duplicates, insufficient variety)
+ * - CSS custom property duplication warning
  */
 
 export interface QAViolation {
@@ -16,11 +23,20 @@ export interface QAResult {
   violations: QAViolation[];
 }
 
+export interface QAOptions {
+  /** Expected slide count from the planner (for create intent) */
+  expectedSlideCount?: number;
+  /** Expected background color from the palette */
+  expectedBgColor?: string;
+  /** Whether this is a new presentation (stricter checks) */
+  isCreate?: boolean;
+}
+
 /**
  * Run programmatic QA checks on generated HTML.
  * Returns structured violations without requiring an LLM call.
  */
-export function validateSlides(html: string): QAResult {
+export function validateSlides(html: string, options: QAOptions = {}): QAResult {
   const violations: QAViolation[] = [];
 
   // Parse sections
@@ -41,7 +57,81 @@ export function validateSlides(html: string): QAResult {
     return { passed: false, violations };
   }
 
-  // Check each section
+  // ── Slide count validation ──────────────────────────────────
+  if (options.expectedSlideCount && options.isCreate) {
+    if (sections.length < options.expectedSlideCount) {
+      violations.push({
+        slide: 0,
+        rule: 'slide-count',
+        severity: 'error',
+        detail: `Expected ${options.expectedSlideCount} slides but only found ${sections.length}. The planner outline specified ${options.expectedSlideCount} slides. Add the missing slides.`,
+      });
+    }
+  } else if (options.isCreate && sections.length < 8) {
+    violations.push({
+      slide: 0,
+      rule: 'slide-count',
+      severity: 'error',
+      detail: `Only ${sections.length} slides found. New presentations must have at least 8 slides to cover the narrative arc.`,
+    });
+  }
+
+  // ── Layout variety detection ────────────────────────────────
+  const layoutPatterns = detectLayoutPatterns(sections);
+
+  // Check consecutive duplicates
+  for (let i = 1; i < layoutPatterns.length; i++) {
+    if (layoutPatterns[i] === layoutPatterns[i - 1] && layoutPatterns[i] !== 'hero' && layoutPatterns[i] !== 'unknown') {
+      violations.push({
+        slide: i + 1,
+        rule: 'layout-variety',
+        severity: 'warning',
+        detail: `Consecutive slides ${i} and ${i + 1} both use "${layoutPatterns[i]}" layout. Vary the layout.`,
+      });
+    }
+  }
+
+  // Check overall variety (for decks with 6+ slides)
+  if (sections.length >= 6) {
+    const uniqueLayouts = new Set(layoutPatterns.filter(l => l !== 'unknown'));
+    if (uniqueLayouts.size < 4) {
+      violations.push({
+        slide: 0,
+        rule: 'layout-variety',
+        severity: 'warning',
+        detail: `Only ${uniqueLayouts.size} distinct layout types detected (${[...uniqueLayouts].join(', ')}). Use at least 4 different layout types for variety.`,
+      });
+    }
+  }
+
+  // Check card-grid overuse
+  const cardGridCount = layoutPatterns.filter(l => l === 'card-grid').length;
+  if (cardGridCount > 2) {
+    violations.push({
+      slide: 0,
+      rule: 'layout-variety',
+      severity: 'warning',
+      detail: `Card-grid layout used ${cardGridCount} times. Maximum 2 times per deck to avoid monotony.`,
+    });
+  }
+
+  // ── CSS custom property duplication ─────────────────────────
+  let cssVarDuplicates = 0;
+  for (let i = 1; i < sections.length; i++) {
+    if (sections[i]!.includes('--primary:') && sections[i]!.includes('--heading-font:')) {
+      cssVarDuplicates++;
+    }
+  }
+  if (cssVarDuplicates > 0) {
+    violations.push({
+      slide: 0,
+      rule: 'css-var-duplication',
+      severity: 'warning',
+      detail: `CSS custom properties duplicated on ${cssVarDuplicates} sections after the first. They should only be on the first <section>.`,
+    });
+  }
+
+  // ── Per-section checks ──────────────────────────────────────
   for (let i = 0; i < sections.length; i++) {
     const section = sections[i]!;
     const slideNum = i + 1;
@@ -68,8 +158,26 @@ export function validateSlides(html: string): QAResult {
       }
     }
 
+    // Rule: palette compliance — check that data-background-color matches expected
+    if (options.expectedBgColor) {
+      const bgColorMatch = section.match(/data-background-color=["']([^"']+)["']/);
+      if (bgColorMatch) {
+        const actualBg = bgColorMatch[1]?.toLowerCase() ?? '';
+        const expectedBg = options.expectedBgColor.toLowerCase();
+        // Allow bg and bgSubtle (close variants)
+        if (actualBg !== expectedBg && !isCloseColor(actualBg, expectedBg)) {
+          violations.push({
+            slide: slideNum,
+            rule: 'palette-compliance',
+            severity: 'warning',
+            detail: `Background color "${bgColorMatch[1]}" doesn't match palette "${options.expectedBgColor}". Use palette colors only.`,
+          });
+        }
+      }
+    }
+
     // Rule: no external image URLs
-    const imgRegex = /src=["'](https?:\/\/(?!fonts\.googleapis|fonts\.gstatic)[^"']+)["']/gi;
+    const imgRegex = /src=["'](https?:\/\/(?!fonts\.googleapis|fonts\.gstatic|cdn\.jsdelivr)[^"']+)["']/gi;
     let imgMatch: RegExpExecArray | null;
     while ((imgMatch = imgRegex.exec(section)) !== null) {
       violations.push({
@@ -183,15 +291,81 @@ export function validateSlides(html: string): QAResult {
   };
 }
 
+// ── Layout pattern detection ──────────────────────────────────
+
+/**
+ * Detect the layout pattern of each slide by scanning for structural CSS.
+ * Returns an array of layout type strings, one per section.
+ */
+function detectLayoutPatterns(sections: string[]): string[] {
+  return sections.map((section, i) => {
+    // Title slide (first or has large hero title)
+    if (i === 0 || /font-size:\s*4em/i.test(section)) return 'hero';
+
+    // Metrics row: 3-4 column grid with large numbers (3.5em+)
+    if (/font-size:\s*3\.?[0-9]*em/i.test(section) && /repeat\([34],/i.test(section)) return 'metrics-row';
+
+    // Split layout: 2-column with text on one side
+    if (/grid-template-columns:\s*1fr\s+1\.?[0-9]*fr/i.test(section) || /grid-template-columns:\s*1\.?[0-9]*fr\s+1fr/i.test(section)) return 'split';
+
+    // Card grid: 3-column grid with cards
+    if (/repeat\(3,\s*1fr\)/i.test(section)) return 'card-grid';
+
+    // 4-column grid
+    if (/repeat\(4,\s*1fr\)/i.test(section)) return 'card-grid';
+
+    // 2-column comparison
+    if (/repeat\(2,\s*1fr\)/i.test(section)) return 'comparison';
+
+    // List-based (ul/li heavy)
+    if ((section.match(/<li/gi) ?? []).length >= 3) return 'list';
+
+    // Pull quote (centered, large text, minimal elements)
+    if (/font-size:\s*[23]\.?[0-9]*em/i.test(section) && (section.match(/<(?:h2|p|div)/gi) ?? []).length <= 5) return 'pull-quote';
+
+    // Closing CTA (has a link/button styled element)
+    if (/<a\s/i.test(section) && i >= sections.length - 2) return 'closing-cta';
+
+    return 'unknown';
+  });
+}
+
+// ── Color utility functions ───────────────────────────────────
+
+/**
+ * Check if two hex colors are close (same palette family).
+ * Used to allow bgSubtle as an acceptable variant of bg.
+ */
+function isCloseColor(a: string, b: string): boolean {
+  const aRgb = hexToRgb(a);
+  const bRgb = hexToRgb(b);
+  if (!aRgb || !bRgb) return false;
+  const distance = Math.sqrt(
+    (aRgb.r - bRgb.r) ** 2 + (aRgb.g - bRgb.g) ** 2 + (aRgb.b - bRgb.b) ** 2,
+  );
+  return distance < 40; // Allow small variations within the palette
+}
+
+function hexToRgb(color: string): { r: number; g: number; b: number } | null {
+  const c = color.trim().replace('#', '');
+  if (!/^[0-9a-f]{3,8}$/i.test(c)) return null;
+  let hex = c;
+  if (hex.length === 3) hex = hex[0]! + hex[0]! + hex[1]! + hex[1]! + hex[2]! + hex[2]!;
+  if (hex.length < 6) return null;
+  return {
+    r: parseInt(hex.substring(0, 2), 16),
+    g: parseInt(hex.substring(2, 4), 16),
+    b: parseInt(hex.substring(4, 6), 16),
+  };
+}
+
 /**
  * Rough lightness check: returns true if a color is likely "light" (high luminance).
- * Handles hex (#fff, #ffffff, #F2F2F2), rgba(), and named colors.
  */
 function isLightColor(color: string): boolean {
   const c = color.trim().toLowerCase();
   if (c === 'white' || c === '#fff' || c === '#ffffff') return true;
 
-  // Hex colors
   const hexMatch = c.match(/^#([0-9a-f]{3,8})$/);
   if (hexMatch) {
     let hex = hexMatch[1]!;
@@ -200,13 +374,11 @@ function isLightColor(color: string): boolean {
       const r = parseInt(hex.substring(0, 2), 16);
       const g = parseInt(hex.substring(2, 4), 16);
       const b = parseInt(hex.substring(4, 6), 16);
-      // Relative luminance approximation
       const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
       return luminance > 0.65;
     }
   }
 
-  // rgba/rgb
   const rgbaMatch = c.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
   if (rgbaMatch) {
     const r = parseInt(rgbaMatch[1]!, 10);

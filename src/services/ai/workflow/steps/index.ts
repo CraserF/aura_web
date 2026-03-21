@@ -111,7 +111,11 @@ export const qaValidateStep = createStep<DesignStepOutput, QAStepOutput>({
 
     emit({ type: 'progress', message: 'Running automated quality checks…', pct: 72 });
 
-    const qaResult = validateSlides(designResult.html);
+    const qaResult = validateSlides(designResult.html, {
+      expectedSlideCount: planResult.outline?.length,
+      expectedBgColor: planResult.blueprint.palette.bg,
+      isCreate: planResult.intent === 'create',
+    });
 
     if (qaResult.violations.length > 0) {
       const errorCount = qaResult.violations.filter((v) => v.severity === 'error').length;

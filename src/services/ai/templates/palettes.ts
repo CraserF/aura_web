@@ -201,17 +201,19 @@ const PALETTES: Record<TemplateStyle, TemplatePalette> = {
     headingFont: "'Sora', sans-serif",
     bodyFont: "'DM Sans', sans-serif",
     colorUsageGuide: `COLOR RULES — Coral Energy (LIGHT MODE):
-- BACKGROUND (#FFFBF0): Warm cream/off-white. Feels energetic yet approachable.
+- BACKGROUND (#FFFBF0): Warm cream/off-white. Feels energetic yet approachable. Use this EXACT hex for data-background-color on every slide.
 - SURFACE (#FFFFFF): White cards. Clean and bright.
 - BORDER (#F0E0D0): Warm-tinted border. Softer than pure gray.
-- PRIMARY (#F96167 coral): Icon containers, CTA buttons, accent badges. Vibrant and eye-catching.
-- HEADING (#2F3C7E navy): Dark navy headings. Bold contrast against cream background.
-- BODY (#4A4560): Dark purple-gray body text. Warm and readable.
-- MUTED (#8A8598): Light purple-gray for captions and metadata.
+- PRIMARY (#F96167 coral): Icon containers, CTA buttons, accent badges. Vibrant and eye-catching. NEVER as body text.
+- HEADING (#2F3C7E navy): Dark navy headings. Bold contrast against cream background. Use on ALL h1/h2/h3 elements.
+- BODY (#4A4560): Dark purple-gray body text. Warm and readable. Use on ALL paragraph and list text.
+- MUTED (#8A8598): Light purple-gray for captions and metadata. Never below 0.55 opacity.
 - ACCENT (#F9E795 gold): Secondary highlight. Use for tags, pill badges, section dividers, subtle fills.
+- GOTCHA: Do NOT invent similar colors like #D9454C or #F9E795 as substitutes for #F96167. Use the EXACT palette hex values.
 - Do NOT use coral (#F96167) as large background fills — too intense. Reserve for small accents.
-- Do NOT use gradient text. Use solid navy headings with coral accent dividers.
-- Cards: white surface + warm border + box-shadow: 0 1px 3px rgba(249,97,103,0.06).
+- Do NOT use gradient text — it has poor contrast on light backgrounds. Use solid navy (#2F3C7E) headings.
+- Do NOT use backdrop-filter:blur on this light palette — use solid surfaces with box-shadow.
+- Cards: white (#FFFFFF) surface + warm border (#F0E0D0) + box-shadow: 0 1px 3px rgba(249,97,103,0.06).
 - The navy-coral-gold triad creates a playful, high-energy feel.`,
   },
 

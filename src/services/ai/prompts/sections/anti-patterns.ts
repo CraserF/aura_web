@@ -1,9 +1,12 @@
 /**
  * Anti-patterns section — design rules injected into the designer's prompt.
- * KEY FIX: Previously anti-patterns were only used in review (post-generation).
- * Now they're in the designer's prompt too, preventing predictable generate-fail-revise cycles.
+ *
+ * Key improvements:
+ * - Gotchas section added (highest-value content per Skills methodology)
+ * - Anti-patterns now include WHY reasoning
+ * - Principles are positive guidance that complements the anti-patterns
  */
-import { ANTI_PATTERNS, DESIGN_PRINCIPLES } from '../../workflow/skills/design-rules';
+import { ANTI_PATTERNS, DESIGN_PRINCIPLES, GOTCHAS } from '../../workflow/skills/design-rules';
 
 export function buildAntiPatternsSection(): string {
   const antiPatternList = ANTI_PATTERNS
@@ -14,11 +17,21 @@ export function buildAntiPatternsSection(): string {
     .map(([domain, rules]) => `### ${domain}\n${(rules as readonly string[]).map((r) => `- ${r}`).join('\n')}`)
     .join('\n\n');
 
+  const gotchasList = GOTCHAS
+    .map((g, i) => `  ${i + 1}. ${g}`)
+    .join('\n');
+
   return `## DESIGN ANTI-PATTERNS — AVOID ALL OF THESE
 
-Your output will be audited against these rules. Avoid them during generation to produce better slides on the first pass:
+Your output will be audited against these rules. Each rule includes WHY it matters — understanding the reasoning helps you avoid the pattern naturally.
 
 ${antiPatternList}
+
+## GOTCHAS — Common LLM Generation Failures
+
+These are corrections from real generation runs. They represent the highest-value fixes:
+
+${gotchasList}
 
 ## DESIGN PRINCIPLES — Follow These
 

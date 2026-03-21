@@ -31,8 +31,18 @@ ${buildReviewRules()}
 Review the provided HTML slides. For each issue found, create an issue object.
 Then score the deck 0-100 and decide pass/fail (≥ 75 = pass).
 
+### Scoring priorities (errors are -10 points each, warnings are -3 points each):
+- Contrast issues (dark text on dark bg, light text on light bg) → ERROR
+- Missing data-background-color → ERROR
+- Slide count below 8 for new decks → ERROR
+- Invented colors not from the palette → ERROR
+- Same layout on consecutive slides → WARNING
+- Insufficient layout variety (< 4 types) → WARNING
+- CSS custom properties duplicated across sections → WARNING
+- Cards or content too small for 1920x1080 → WARNING
+
 IMPORTANT: Be practical. Minor spacing tweaks are warnings, not errors.
-Focus on the anti-patterns listed above — those are the errors.
+Focus on contrast, palette compliance, slide count, and layout variety — these are the most common failures.
 
 Output ONLY this JSON structure (no markdown, no explanation):
 {
