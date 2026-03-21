@@ -1,0 +1,857 @@
+<!doctype html>
+<!--
+  SPLIT WORLD TEMPLATE — Dual-World Gradient Split
+  Purpose: Comparing two concepts, worlds, approaches, or products side by side with an animated connecting seam
+  Animation Level: 3 (animated seam, transitions, glow effects)
+  Best For: Comparisons, A/B analysis, product vs product, before/after, dual narratives
+
+  Palette: Dual World (dark mode)
+  - Background: #041828
+  - Left World: Blues (#0090B8, #00C8E8)
+  - Right World: Greens (#008858, #00D898)
+  - Seam: #00C8A0 (connecting teal-green)
+  - Heading: #FFFFFF
+  - Body: rgba(255, 255, 255, 0.75)
+  - Muted: rgba(255, 255, 255, 0.45)
+
+  CUSTOMIZATION POINTS (search & replace):
+  - {{TITLE}}                 Main presentation title
+  - {{SUBTITLE}}              Subtitle or tagline
+  - {{LEFT_WORLD_NAME}}       Name of left concept/world
+  - {{RIGHT_WORLD_NAME}}      Name of right concept/world
+  - {{LEFT_TITLE}}            Left-focus slide title
+  - {{LEFT_TEXT}}             Left-focus slide body
+  - {{LEFT_POINT_*}}          Left bullet points
+  - {{RIGHT_TITLE}}           Right-focus slide title
+  - {{RIGHT_TEXT}}            Right-focus slide body
+  - {{RIGHT_POINT_*}}         Right bullet points
+  - {{COMPARE_TITLE}}         Comparison slide title
+  - {{LEFT_STAT_*_VALUE}}     Left-side metrics
+  - {{LEFT_STAT_*_LABEL}}     Left-side metric labels
+  - {{RIGHT_STAT_*_VALUE}}    Right-side metrics
+  - {{RIGHT_STAT_*_LABEL}}    Right-side metric labels
+  - {{BRIDGE_TITLE}}          Bridge/connection slide title
+  - {{BRIDGE_TEXT}}           Bridge connection body text
+  - {{BRIDGE_POINT_*}}        Connection points
+  - {{CLOSING_TITLE}}         Closing unified message
+  - {{CLOSING_TEXT}}          Closing body text
+-->
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{TITLE}} — Split World</title>
+
+  <!-- Reveal.js 5 Core -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/black.css">
+
+  <!-- Animation Libraries -->
+  <link rel="stylesheet" href="../animations/core-animations.css">
+  <link rel="stylesheet" href="../animations/advanced-effects.css">
+
+  <!-- Typography: Space Grotesk + Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* =============================================
+       DUAL WORLD — CSS Custom Properties
+       ============================================= */
+    :root {
+      --bg-primary: #041828;
+      --bg-deep: #021018;
+
+      /* Left world: blues */
+      --left-primary: #0090B8;
+      --left-light: #00C8E8;
+      --left-surface: rgba(0, 144, 184, 0.08);
+      --left-border: rgba(0, 144, 184, 0.20);
+      --left-glow: rgba(0, 200, 232, 0.15);
+
+      /* Right world: greens */
+      --right-primary: #008858;
+      --right-light: #00D898;
+      --right-surface: rgba(0, 136, 88, 0.08);
+      --right-border: rgba(0, 136, 88, 0.20);
+      --right-glow: rgba(0, 216, 152, 0.15);
+
+      /* Seam / bridge */
+      --seam-color: #00C8A0;
+      --seam-glow: rgba(0, 200, 160, 0.40);
+
+      /* Text */
+      --text-primary: #FFFFFF;
+      --text-secondary: rgba(255, 255, 255, 0.75);
+      --text-muted: rgba(255, 255, 255, 0.45);
+      --border: rgba(255, 255, 255, 0.10);
+      --border-strong: rgba(255, 255, 255, 0.20);
+
+      --font-heading: 'Space Grotesk', sans-serif;
+      --font-body: 'Inter', sans-serif;
+    }
+
+    /* =============================================
+       KEYFRAME ANIMATIONS
+       ============================================= */
+    @keyframes seamPulse {
+      0%   { opacity: 0.5; box-shadow: 0 0 12px var(--seam-glow), 0 0 24px var(--seam-glow); }
+      50%  { opacity: 1; box-shadow: 0 0 20px var(--seam-glow), 0 0 40px var(--seam-glow); }
+      100% { opacity: 0.5; box-shadow: 0 0 12px var(--seam-glow), 0 0 24px var(--seam-glow); }
+    }
+
+    @keyframes seamExpand {
+      0%   { width: 4px; }
+      100% { width: 120px; }
+    }
+
+    @keyframes leftSlideIn {
+      from { transform: translateX(-40px); opacity: 0; }
+      to   { transform: translateX(0); opacity: 1; }
+    }
+
+    @keyframes rightSlideIn {
+      from { transform: translateX(40px); opacity: 0; }
+      to   { transform: translateX(0); opacity: 1; }
+    }
+
+    @keyframes glowBreath {
+      0%   { opacity: 0.3; }
+      50%  { opacity: 0.6; }
+      100% { opacity: 0.3; }
+    }
+
+    @keyframes unify {
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* =============================================
+       BASE STYLES
+       ============================================= */
+    .reveal {
+      font-family: var(--font-body);
+      color: var(--text-secondary);
+      font-size: 34px;
+    }
+
+    .reveal .slides {
+      text-align: left;
+    }
+
+    .reveal .slides section {
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    .reveal h1,
+    .reveal h2,
+    .reveal h3,
+    .reveal h4 {
+      font-family: var(--font-heading);
+      color: var(--text-primary);
+      font-weight: 700;
+      text-transform: none;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      margin: 0;
+    }
+
+    .reveal p {
+      margin: 0;
+      line-height: 1.6;
+      font-size: 1em;
+    }
+
+    /* =============================================
+       SPLIT LAYOUT — 1fr 1fr with seam
+       ============================================= */
+    .split-container {
+      display: grid;
+      grid-template-columns: 1fr 4px 1fr;
+      width: 100%;
+      height: 100%;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    .split-left {
+      background: linear-gradient(160deg, rgba(0, 144, 184, 0.12) 0%, rgba(0, 200, 232, 0.04) 100%);
+      padding: 4rem 4rem 4rem 5rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .split-right {
+      background: linear-gradient(200deg, rgba(0, 136, 88, 0.12) 0%, rgba(0, 216, 152, 0.04) 100%);
+      padding: 4rem 5rem 4rem 4rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    /* =============================================
+       THE SEAM — Glowing vertical strip
+       ============================================= */
+    .seam {
+      width: 4px;
+      background: linear-gradient(180deg, var(--left-light), var(--seam-color), var(--right-light));
+      position: relative;
+      z-index: 2;
+      animation: seamPulse 3s ease-in-out infinite;
+    }
+
+    .seam::before,
+    .seam::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 40px;
+    }
+
+    .seam::before {
+      right: 100%;
+      background: linear-gradient(90deg, transparent, var(--left-glow));
+      animation: glowBreath 3s ease-in-out infinite;
+    }
+
+    .seam::after {
+      left: 100%;
+      background: linear-gradient(270deg, transparent, var(--right-glow));
+      animation: glowBreath 3s ease-in-out infinite;
+      animation-delay: 1.5s;
+    }
+
+    /* =============================================
+       ASYMMETRIC VARIANTS
+       ============================================= */
+    .split-container.left-focus {
+      grid-template-columns: 2fr 4px 1fr;
+    }
+
+    .split-container.right-focus {
+      grid-template-columns: 1fr 4px 2fr;
+    }
+
+    .split-container.bridge-mode {
+      grid-template-columns: 1fr 120px 1fr;
+    }
+
+    .split-container.bridge-mode .seam {
+      width: 120px;
+      background: linear-gradient(180deg,
+        rgba(0, 200, 160, 0.05),
+        rgba(0, 200, 160, 0.15),
+        rgba(0, 200, 160, 0.05));
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 0.8rem;
+    }
+
+    .split-container.unified {
+      grid-template-columns: 1fr;
+    }
+
+    /* =============================================
+       WORLD LABELS
+       ============================================= */
+    .world-label {
+      font-family: var(--font-heading);
+      font-size: 0.7em;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 16px;
+    }
+
+    .world-label.left {
+      color: var(--left-light);
+    }
+
+    .world-label.right {
+      color: var(--right-light);
+    }
+
+    /* =============================================
+       ACCENT LINES
+       ============================================= */
+    .accent-line-left {
+      width: 48px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--left-primary), var(--left-light));
+      border-radius: 2px;
+      margin: 12px 0;
+    }
+
+    .accent-line-right {
+      width: 48px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--right-primary), var(--right-light));
+      border-radius: 2px;
+      margin: 12px 0;
+    }
+
+    .accent-line-seam {
+      width: 48px;
+      height: 3px;
+      background: var(--seam-color);
+      border-radius: 2px;
+      margin: 12px auto;
+    }
+
+    /* =============================================
+       WORLD SECTION HEADERS
+       ============================================= */
+    .world-title {
+      font-size: 2.4em;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    .world-title.left-color {
+      background: linear-gradient(135deg, #FFFFFF 40%, var(--left-light) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .world-title.right-color {
+      background: linear-gradient(135deg, #FFFFFF 40%, var(--right-light) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* =============================================
+       WORLD CARDS
+       ============================================= */
+    .world-card {
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-top: 12px;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .world-card.left-card {
+      background: var(--left-surface);
+      border: 1px solid var(--left-border);
+      border-left: 3px solid var(--left-primary);
+    }
+
+    .world-card.right-card {
+      background: var(--right-surface);
+      border: 1px solid var(--right-border);
+      border-left: 3px solid var(--right-primary);
+    }
+
+    .world-card h3 {
+      font-size: 1.05em;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .world-card p {
+      font-size: 0.9em;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* =============================================
+       POINT LISTS
+       ============================================= */
+    .point-list {
+      list-style: none;
+      padding: 0;
+      margin: 16px 0 0;
+    }
+
+    .point-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 14px;
+      font-size: 0.95em;
+      line-height: 1.5;
+      color: var(--text-secondary);
+    }
+
+    .point-list li .point-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-top: 8px;
+      flex-shrink: 0;
+    }
+
+    .point-dot.left-dot { background: var(--left-light); }
+    .point-dot.right-dot { background: var(--right-light); }
+    .point-dot.seam-dot { background: var(--seam-color); }
+
+    /* =============================================
+       METRICS
+       ============================================= */
+    .world-metric {
+      text-align: center;
+      padding: 1.2rem;
+    }
+
+    .world-metric-value {
+      font-family: var(--font-heading);
+      font-size: 2.8em;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .world-metric-value.left-val { color: var(--left-light); }
+    .world-metric-value.right-val { color: var(--right-light); }
+
+    .world-metric-label {
+      font-size: 0.7em;
+      color: var(--text-muted);
+      margin-top: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 500;
+    }
+
+    /* =============================================
+       HERO TITLE SLIDE
+       ============================================= */
+    .hero-title {
+      font-size: 3.8em;
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      text-align: center;
+      background: linear-gradient(135deg, var(--left-light) 0%, var(--seam-color) 50%, var(--right-light) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: 1.2em;
+      text-align: center;
+      color: var(--text-secondary);
+      margin-top: 0.6em;
+      font-weight: 300;
+    }
+
+    /* =============================================
+       BRIDGE SEAM CONTENT
+       ============================================= */
+    .seam-content {
+      text-align: center;
+    }
+
+    .seam-icon {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 12px;
+    }
+
+    .seam-label {
+      font-family: var(--font-heading);
+      font-size: 0.6em;
+      font-weight: 600;
+      color: var(--seam-color);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+    }
+
+    /* =============================================
+       UNIFIED CLOSING
+       ============================================= */
+    .unified-bg {
+      background: linear-gradient(135deg,
+        rgba(0, 144, 184, 0.08) 0%,
+        rgba(0, 200, 160, 0.06) 50%,
+        rgba(0, 136, 88, 0.08) 100%);
+      background-size: 200% 200%;
+      animation: unify 8s ease infinite;
+      padding: 4rem 5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .closing-title {
+      font-size: 3.2em;
+      font-weight: 700;
+      text-align: center;
+      background: linear-gradient(135deg, var(--left-light), var(--seam-color), var(--right-light));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .closing-text {
+      font-size: 1.15em;
+      text-align: center;
+      color: var(--text-secondary);
+      margin-top: 1em;
+      max-width: 650px;
+      line-height: 1.7;
+    }
+
+    /* =============================================
+       ANIMATION DELAY UTILITIES
+       ============================================= */
+    .delay-100 { animation-delay: 0.1s; }
+    .delay-200 { animation-delay: 0.2s; }
+    .delay-300 { animation-delay: 0.3s; }
+    .delay-400 { animation-delay: 0.4s; }
+    .delay-500 { animation-delay: 0.5s; }
+    .delay-600 { animation-delay: 0.6s; }
+    .delay-700 { animation-delay: 0.7s; }
+    .delay-800 { animation-delay: 0.8s; }
+
+    .anim-left  { animation: leftSlideIn 0.6s ease-out both; }
+    .anim-right { animation: rightSlideIn 0.6s ease-out both; }
+  </style>
+</head>
+
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- ============================================================
+           SLIDE 1: TITLE — Split Background + Glowing Seam
+           ============================================================ -->
+      <section data-background-color="#041828" data-transition="fade">
+        <div class="split-container">
+          <div class="split-left" style="align-items: flex-end; text-align: right; padding-right: 3rem;">
+            <div class="anim-left">
+              <span class="world-label left">{{LEFT_WORLD_NAME}}</span>
+              <div class="accent-line-left" style="margin-left: auto;"></div>
+            </div>
+          </div>
+
+          <div class="seam"></div>
+
+          <div class="split-right" style="padding-left: 3rem;">
+            <div class="anim-right delay-200">
+              <span class="world-label right">{{RIGHT_WORLD_NAME}}</span>
+              <div class="accent-line-right"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Centered title overlay -->
+        <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 3; pointer-events: none;">
+          <h1 class="hero-title anim-fade-in-up delay-300">{{TITLE}}</h1>
+          <p class="hero-subtitle anim-fade-in-up delay-500">{{SUBTITLE}}</p>
+        </div>
+
+        <aside class="notes">
+          The split world immediately signals a duality. Introduce both concepts before diving into each side.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 2: LEFT-WORLD FOCUS — 2fr + 1fr
+           ============================================================ -->
+      <section data-background-color="#041828" data-transition="slide">
+        <div class="split-container left-focus">
+          <div class="split-left" style="padding: 4rem 3rem 4rem 5rem;">
+            <div class="anim-left">
+              <span class="world-label left">{{LEFT_WORLD_NAME}}</span>
+              <h2 class="world-title left-color">{{LEFT_TITLE}}</h2>
+              <div class="accent-line-left"></div>
+              <p style="margin-top: 12px; color: var(--text-secondary); line-height: 1.7;">{{LEFT_TEXT}}</p>
+
+              <ul class="point-list" style="margin-top: 20px;">
+                <li class="fragment fade-up" data-fragment-index="0">
+                  <span class="point-dot left-dot"></span>
+                  <span>{{LEFT_POINT_1}}</span>
+                </li>
+                <li class="fragment fade-up" data-fragment-index="1">
+                  <span class="point-dot left-dot"></span>
+                  <span>{{LEFT_POINT_2}}</span>
+                </li>
+                <li class="fragment fade-up" data-fragment-index="2">
+                  <span class="point-dot left-dot"></span>
+                  <span>{{LEFT_POINT_3}}</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="seam"></div>
+
+          <div class="split-right" style="opacity: 0.4; padding: 4rem 3rem;">
+            <div class="anim-right delay-300">
+              <span class="world-label right" style="opacity: 0.5;">{{RIGHT_WORLD_NAME}}</span>
+              <p style="font-size: 0.85em; color: var(--text-muted); margin-top: 8px; font-style: italic;">
+                Coming up next...
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <aside class="notes">
+          Deep dive into the left world. The right side is dimmed to keep focus. Walk through each point.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 3: RIGHT-WORLD FOCUS — 1fr + 2fr
+           ============================================================ -->
+      <section data-background-color="#041828" data-transition="slide">
+        <div class="split-container right-focus">
+          <div class="split-left" style="opacity: 0.4; padding: 4rem 3rem 4rem 5rem;">
+            <div class="anim-left">
+              <span class="world-label left" style="opacity: 0.5;">{{LEFT_WORLD_NAME}}</span>
+              <p style="font-size: 0.85em; color: var(--text-muted); margin-top: 8px; font-style: italic;">
+                Previously covered
+              </p>
+            </div>
+          </div>
+
+          <div class="seam"></div>
+
+          <div class="split-right" style="padding: 4rem 5rem 4rem 3rem;">
+            <div class="anim-right">
+              <span class="world-label right">{{RIGHT_WORLD_NAME}}</span>
+              <h2 class="world-title right-color">{{RIGHT_TITLE}}</h2>
+              <div class="accent-line-right"></div>
+              <p style="margin-top: 12px; color: var(--text-secondary); line-height: 1.7;">{{RIGHT_TEXT}}</p>
+
+              <ul class="point-list" style="margin-top: 20px;">
+                <li class="fragment fade-up" data-fragment-index="0">
+                  <span class="point-dot right-dot"></span>
+                  <span>{{RIGHT_POINT_1}}</span>
+                </li>
+                <li class="fragment fade-up" data-fragment-index="1">
+                  <span class="point-dot right-dot"></span>
+                  <span>{{RIGHT_POINT_2}}</span>
+                </li>
+                <li class="fragment fade-up" data-fragment-index="2">
+                  <span class="point-dot right-dot"></span>
+                  <span>{{RIGHT_POINT_3}}</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <aside class="notes">
+          Now shift focus to the right world. The left side fades to signal transition.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 4: COMPARISON — Equal Split with Data
+           ============================================================ -->
+      <section data-background-color="#041828" data-transition="slide">
+        <div class="split-container">
+          <div class="split-left" style="padding: 4rem 3rem 4rem 5rem;">
+            <div class="anim-left">
+              <span class="world-label left">{{LEFT_WORLD_NAME}}</span>
+              <div class="accent-line-left"></div>
+
+              <div class="world-metric fragment zoom-in" data-fragment-index="0" style="margin-top: 20px;">
+                <div class="world-metric-value left-val">{{LEFT_STAT_1_VALUE}}</div>
+                <div class="world-metric-label">{{LEFT_STAT_1_LABEL}}</div>
+              </div>
+              <div class="world-metric fragment zoom-in" data-fragment-index="2" style="margin-top: 16px;">
+                <div class="world-metric-value left-val">{{LEFT_STAT_2_VALUE}}</div>
+                <div class="world-metric-label">{{LEFT_STAT_2_LABEL}}</div>
+              </div>
+              <div class="world-metric fragment zoom-in" data-fragment-index="4" style="margin-top: 16px;">
+                <div class="world-metric-value left-val">{{LEFT_STAT_3_VALUE}}</div>
+                <div class="world-metric-label">{{LEFT_STAT_3_LABEL}}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="seam"></div>
+
+          <div class="split-right" style="padding: 4rem 5rem 4rem 3rem;">
+            <div class="anim-right delay-200">
+              <span class="world-label right">{{RIGHT_WORLD_NAME}}</span>
+              <div class="accent-line-right"></div>
+
+              <div class="world-metric fragment zoom-in" data-fragment-index="1" style="margin-top: 20px;">
+                <div class="world-metric-value right-val">{{RIGHT_STAT_1_VALUE}}</div>
+                <div class="world-metric-label">{{RIGHT_STAT_1_LABEL}}</div>
+              </div>
+              <div class="world-metric fragment zoom-in" data-fragment-index="3" style="margin-top: 16px;">
+                <div class="world-metric-value right-val">{{RIGHT_STAT_2_VALUE}}</div>
+                <div class="world-metric-label">{{RIGHT_STAT_2_LABEL}}</div>
+              </div>
+              <div class="world-metric fragment zoom-in" data-fragment-index="5" style="margin-top: 16px;">
+                <div class="world-metric-value right-val">{{RIGHT_STAT_3_VALUE}}</div>
+                <div class="world-metric-label">{{RIGHT_STAT_3_LABEL}}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Centered comparison title overlay -->
+        <div style="position: absolute; top: 3rem; left: 0; right: 0; text-align: center; z-index: 3; pointer-events: none;">
+          <h2 style="font-family: var(--font-heading); font-size: 1.6em; font-weight: 700; color: var(--text-primary);" class="anim-fade-in-up">
+            {{COMPARE_TITLE}}
+          </h2>
+        </div>
+
+        <aside class="notes">
+          Reveal metrics alternating left-right to encourage direct comparison. Let the numbers speak.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 5: BRIDGE / CONNECTION — Expanded Seam
+           ============================================================ -->
+      <section data-background-color="#041828" data-transition="fade">
+        <div class="split-container bridge-mode">
+          <div class="split-left" style="padding: 4rem 2rem 4rem 5rem;">
+            <div class="anim-left">
+              <span class="world-label left">{{LEFT_WORLD_NAME}}</span>
+              <div class="world-card left-card fragment fade-right" data-fragment-index="0">
+                <h3 style="color: var(--left-light);">{{LEFT_BRIDGE_POINT}}</h3>
+                <p>{{LEFT_BRIDGE_DESC}}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="seam" style="padding: 2rem 0.8rem;">
+            <div class="seam-content anim-fade-in-up delay-300">
+              <svg class="seam-icon" viewBox="0 0 48 48" fill="none" stroke="#00C8A0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 24h32"/>
+                <path d="M24 8v32"/>
+                <circle cx="24" cy="24" r="6"/>
+              </svg>
+              <span class="seam-label">Bridge</span>
+            </div>
+          </div>
+
+          <div class="split-right" style="padding: 4rem 5rem 4rem 2rem;">
+            <div class="anim-right delay-200">
+              <span class="world-label right">{{RIGHT_WORLD_NAME}}</span>
+              <div class="world-card right-card fragment fade-left" data-fragment-index="1">
+                <h3 style="color: var(--right-light);">{{RIGHT_BRIDGE_POINT}}</h3>
+                <p>{{RIGHT_BRIDGE_DESC}}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Centered bridge title overlay -->
+        <div style="position: absolute; top: 3rem; left: 0; right: 0; text-align: center; z-index: 3; pointer-events: none;">
+          <h2 style="font-family: var(--font-heading); font-size: 1.8em; font-weight: 700; color: var(--seam-color);" class="anim-fade-in-up">
+            {{BRIDGE_TITLE}}
+          </h2>
+          <p style="font-size: 0.85em; color: var(--text-muted); margin-top: 6px;" class="anim-fade-in-up delay-100">
+            {{BRIDGE_TEXT}}
+          </p>
+        </div>
+
+        <!-- Bridge connection points at bottom -->
+        <div style="position: absolute; bottom: 4rem; left: 0; right: 0; z-index: 3; pointer-events: none;">
+          <div style="display: flex; justify-content: center; gap: 2rem; max-width: 800px; margin: 0 auto;">
+            <div class="fragment fade-up" data-fragment-index="2" style="flex: 1; text-align: center; padding: 1rem; background: rgba(0, 200, 160, 0.06); border: 1px solid rgba(0, 200, 160, 0.15); border-radius: 8px;">
+              <p style="font-size: 0.8em; color: var(--seam-color); font-weight: 500;">{{BRIDGE_POINT_1}}</p>
+            </div>
+            <div class="fragment fade-up" data-fragment-index="3" style="flex: 1; text-align: center; padding: 1rem; background: rgba(0, 200, 160, 0.06); border: 1px solid rgba(0, 200, 160, 0.15); border-radius: 8px;">
+              <p style="font-size: 0.8em; color: var(--seam-color); font-weight: 500;">{{BRIDGE_POINT_2}}</p>
+            </div>
+            <div class="fragment fade-up" data-fragment-index="4" style="flex: 1; text-align: center; padding: 1rem; background: rgba(0, 200, 160, 0.06); border: 1px solid rgba(0, 200, 160, 0.15); border-radius: 8px;">
+              <p style="font-size: 0.8em; color: var(--seam-color); font-weight: 500;">{{BRIDGE_POINT_3}}</p>
+            </div>
+          </div>
+        </div>
+
+        <aside class="notes">
+          The expanded seam symbolizes the bridge between both worlds. Highlight where they connect and overlap.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 6: CLOSING — Unified View
+           ============================================================ -->
+      <section data-background-color="#041828" data-transition="fade">
+        <div class="split-container unified">
+          <div class="unified-bg">
+            <div class="accent-line-seam anim-fade-in-up" style="width: 64px; margin-bottom: 20px;"></div>
+            <h2 class="closing-title anim-fade-in-up delay-200">{{CLOSING_TITLE}}</h2>
+            <p class="closing-text anim-fade-in-up delay-400">{{CLOSING_TEXT}}</p>
+
+            <div style="display: flex; gap: 3rem; margin-top: 40px;" class="anim-fade-in-up delay-600">
+              <div style="text-align: center;">
+                <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, var(--left-primary), var(--left-light)); margin: 0 auto 8px;"></div>
+                <span class="world-label left" style="font-size: 0.65em;">{{LEFT_WORLD_NAME}}</span>
+              </div>
+              <div style="text-align: center; display: flex; align-items: center;">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00C8A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 12h14"/>
+                  <path d="M12 5l7 7-7 7"/>
+                </svg>
+              </div>
+              <div style="text-align: center;">
+                <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, var(--right-primary), var(--right-light)); margin: 0 auto 8px;"></div>
+                <span class="world-label right" style="font-size: 0.65em;">{{RIGHT_WORLD_NAME}}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="notes">
+          The unified view removes the split, symbolizing convergence. Close with the message that ties both worlds together.
+        </aside>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Reveal.js 5 -->
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
+  <script>
+    Reveal.initialize({
+      // Display
+      width: 1920,
+      height: 1080,
+      margin: 0,
+      center: false,
+
+      // Transitions
+      hash: true,
+      transition: 'slide',
+      transitionSpeed: 'default',
+      backgroundTransition: 'fade',
+
+      // Controls
+      controls: true,
+      controlsLayout: 'bottom-right',
+      progress: true,
+      slideNumber: false,
+
+      // Navigation
+      keyboard: true,
+      touch: true,
+      loop: false,
+
+      // Media
+      embedded: false,
+      help: true,
+      autoPlayMedia: true,
+    });
+  </script>
+</body>
+
+</html>

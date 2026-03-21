@@ -64,7 +64,7 @@
     .reveal {
       font-family: var(--body-font);
       color: var(--body-color);
-      font-size: 28px;
+      font-size: 36px;
     }
 
     .reveal .slides {
@@ -72,7 +72,7 @@
     }
 
     .reveal .slides section {
-      padding: 60px 80px;
+      padding: 4rem 5rem;
     }
 
     .reveal h1,
@@ -85,9 +85,9 @@
       line-height: 1.2;
     }
 
-    .reveal h1 { font-size: 2.6em; font-weight: 800; }
-    .reveal h2 { font-size: 1.8em; font-weight: 700; }
-    .reveal h3 { font-size: 1.25em; font-weight: 600; }
+    .reveal h1 { font-size: 4em; font-weight: 800; }
+    .reveal h2 { font-size: 2.4em; font-weight: 700; }
+    .reveal h3 { font-size: 1.2em; font-weight: 600; }
 
     /* ── Pill Badges ── */
     .edu-badge {
@@ -97,7 +97,7 @@
       padding: 0.3em 1em;
       border-radius: 100px;
       font-family: var(--body-font);
-      font-size: 0.6em;
+      font-size: 0.8em;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.06em;
@@ -158,7 +158,7 @@
     }
 
     .callout p {
-      font-size: 0.9em;
+      font-size: 1.1em;
       color: var(--body-color);
       line-height: 1.65;
       margin: 0;
@@ -169,20 +169,20 @@
       background: var(--bg-white);
       border: 1px solid var(--border-color);
       border-radius: 10px;
-      padding: 1.4em 1.5em;
+      padding: 2rem;
       box-shadow: var(--card-shadow);
       text-align: left;
     }
 
     .edu-card h3 {
       margin: 0 0 0.4em;
-      font-size: 1em;
+      font-size: 1.2em;
       color: var(--heading-color);
     }
 
     .edu-card p {
       margin: 0;
-      font-size: 0.85em;
+      font-size: 1.1em;
       color: var(--body-color);
       line-height: 1.6;
     }
@@ -208,7 +208,7 @@
 
     .definition-text {
       font-family: var(--body-font);
-      font-size: 0.92em;
+      font-size: 1.1em;
       color: var(--body-color);
       line-height: 1.7;
     }
@@ -229,7 +229,7 @@
       padding: 0.65em 0;
       border-bottom: 1px solid var(--border-color);
       font-family: var(--body-font);
-      font-size: 0.92em;
+      font-size: 1.1em;
       color: var(--body-color);
       line-height: 1.5;
     }
@@ -270,7 +270,7 @@
       padding: 0.9em 0;
       border-bottom: 1px solid var(--border-color);
       font-family: var(--body-font);
-      font-size: 0.9em;
+      font-size: 1.1em;
       color: var(--body-color);
       line-height: 1.55;
     }
@@ -300,7 +300,7 @@
       width: 100%;
       border-collapse: collapse;
       font-family: var(--body-font);
-      font-size: 0.82em;
+      font-size: 1.1em;
     }
 
     .edu-table thead tr {
@@ -356,7 +356,7 @@
       margin: 0.35em 0;
       border-radius: 8px;
       font-family: var(--body-font);
-      font-size: 0.88em;
+      font-size: 1.1em;
       color: var(--body-color);
       border: 1px solid var(--border-color);
       background: var(--bg);
@@ -394,8 +394,8 @@
     }
 
     /* ── Grid Layouts ── */
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5em; align-items: start; }
-    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5em; align-items: start; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; align-items: start; }
 
     /* ── Accent Line ── */
     .accent-line {
@@ -445,14 +445,14 @@
         <div style="text-align: center; padding-top: 40px;">
           <!-- Lesson badge -->
           <div class="anim-fade-in-up">
-            <span class="edu-badge lesson" style="font-family: 'Inter', sans-serif; font-size: 16px; color: #FFFFFF;">
+            <span class="edu-badge lesson" style="font-family: 'Inter', sans-serif; font-size: 29px; color: #FFFFFF;">
               <!-- CUSTOMIZE: Lesson number -->
               {{LESSON_NUMBER}}
             </span>
           </div>
 
           <!-- Title -->
-          <h1 class="anim-fade-in-up delay-200" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 72px; font-weight: 800; color: #3D2C2C; margin-top: 0.4em; line-height: 1.15;">
+          <h1 class="anim-fade-in-up delay-200" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 144px; font-weight: 800; color: #3D2C2C; margin-top: 0.4em; line-height: 1.15;">
             <!-- CUSTOMIZE: Lesson/course title -->
             Introduction to<br>Data Structures
           </h1>
@@ -461,7 +461,7 @@
           <div class="accent-line anim-reveal-wipe-right delay-400" style="margin: 20px auto 0; width: 60px;"></div>
 
           <!-- Subtitle / course info -->
-          <p class="anim-fade-in-up delay-500" style="font-family: 'Inter', sans-serif; font-size: 22px; color: #8A7575; margin-top: 1em; font-weight: 400;">
+          <p class="anim-fade-in-up delay-500" style="font-family: 'Inter', sans-serif; font-size: 40px; color: #8A7575; margin-top: 1em; font-weight: 400;">
             <!-- CUSTOMIZE: Course info -->
             Computer Science 101 &middot; {{INSTRUCTOR}}
           </p>
@@ -494,7 +494,7 @@
             <circle cx="12" cy="12" r="6"/>
             <circle cx="12" cy="12" r="2"/>
           </svg>
-          <h2 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 48px; font-weight: 700; color: #3D2C2C; margin: 0;">
+          <h2 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 86px; font-weight: 700; color: #3D2C2C; margin: 0;">
             Learning Objectives
           </h2>
         </div>
@@ -502,22 +502,22 @@
 
         <!-- Objectives box -->
         <div style="max-width: 780px; margin-top: 1.2em;">
-          <p style="font-family: 'Inter', sans-serif; font-size: 18px; color: #8A7575; margin-bottom: 1em; font-weight: 500;">
+          <p style="font-family: 'Inter', sans-serif; font-size: 29px; color: #8A7575; margin-bottom: 1em; font-weight: 500;">
             By the end of this lesson, you will be able to:
           </p>
 
           <ol class="numbered-list">
             <!-- CUSTOMIZE: Objectives -->
-            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 24px; color: #5A4545;">
+            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545;">
               Define what data structures are and why they matter
             </li>
-            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 24px; color: #5A4545;">
+            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545;">
               Compare arrays, linked lists, and hash tables
             </li>
-            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 24px; color: #5A4545;">
+            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545;">
               Analyze time complexity using Big-O notation
             </li>
-            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 24px; color: #5A4545;">
+            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545;">
               Choose the right data structure for common scenarios
             </li>
           </ol>
@@ -535,18 +535,18 @@
       <section data-background-color="#F5F0EB">
         <!-- Section heading -->
         <div style="display: flex; align-items: center; gap: 0.5em;" class="anim-fade-in-up">
-          <span class="edu-badge concept" style="font-family: 'Inter', sans-serif; font-size: 14px;">Key Concept</span>
+          <span class="edu-badge concept" style="font-family: 'Inter', sans-serif; font-size: 29px;">Key Concept</span>
         </div>
-        <h2 class="anim-fade-in-up delay-200" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 48px; font-weight: 700; color: #3D2C2C; margin-top: 0.3em;">
+        <h2 class="anim-fade-in-up delay-200" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 86px; font-weight: 700; color: #3D2C2C; margin-top: 0.3em;">
           What is a Data Structure?
         </h2>
 
         <!-- Definition box -->
         <div class="definition-box fragment fade-in" style="margin-top: 1.2em; max-width: 820px;">
-          <div class="definition-term" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 24px; color: #B85042;">
+          <div class="definition-term" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 40px; color: #B85042;">
             Data Structure
           </div>
-          <div class="definition-text" style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545; line-height: 1.7; margin-top: 0.3em;">
+          <div class="definition-text" style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; line-height: 1.7; margin-top: 0.3em;">
             <!-- CUSTOMIZE: Definition -->
             A specialized format for organizing, processing, retrieving, and storing data.
             It defines both the logical arrangement and the physical storage in memory.
@@ -555,7 +555,7 @@
 
         <!-- Key insight callout -->
         <div class="callout fragment slide-up" style="margin-top: 1.2em; max-width: 820px;">
-          <div class="callout-label" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 15px; color: #B85042;">
+          <div class="callout-label" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 29px; color: #B85042;">
             <svg class="icon-inline" style="width: 18px; height: 18px;" viewBox="0 0 24 24" fill="none" stroke="#B85042" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M9 18h6"/>
               <path d="M10 22h4"/>
@@ -563,7 +563,7 @@
             </svg>
             Key Insight
           </div>
-          <p style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; line-height: 1.65;">
+          <p style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; line-height: 1.65;">
             <!-- CUSTOMIZE: Insight -->
             Choosing the right data structure can make the difference between an algorithm
             that runs in milliseconds vs. hours.
@@ -580,7 +580,7 @@
            SLIDE 4: COMPARISON TABLE
            ================================================================ -->
       <section data-background-color="#F5F0EB">
-        <h2 class="anim-fade-in-up" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 48px; font-weight: 700; color: #3D2C2C;">
+        <h2 class="anim-fade-in-up" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 86px; font-weight: 700; color: #3D2C2C;">
           Comparison
         </h2>
         <div class="accent-line anim-reveal-wipe-right delay-200"></div>
@@ -590,51 +590,51 @@
             <thead>
               <tr>
                 <!-- CUSTOMIZE: Column headers -->
-                <th style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 18px; color: #3D2C2C; padding: 0.7em 0.8em;">Structure</th>
-                <th style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 18px; color: #3D2C2C; padding: 0.7em 0.8em;">Access</th>
-                <th style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 18px; color: #3D2C2C; padding: 0.7em 0.8em;">Insert</th>
-                <th style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 18px; color: #3D2C2C; padding: 0.7em 0.8em;">Delete</th>
-                <th style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 18px; color: #3D2C2C; padding: 0.7em 0.8em;">Search</th>
-                <th style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 18px; color: #3D2C2C; padding: 0.7em 0.8em;">Best For</th>
+                <th style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 29px; color: #3D2C2C; padding: 0.7em 0.8em;">Structure</th>
+                <th style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 29px; color: #3D2C2C; padding: 0.7em 0.8em;">Access</th>
+                <th style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 29px; color: #3D2C2C; padding: 0.7em 0.8em;">Insert</th>
+                <th style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 29px; color: #3D2C2C; padding: 0.7em 0.8em;">Delete</th>
+                <th style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 29px; color: #3D2C2C; padding: 0.7em 0.8em;">Search</th>
+                <th style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 29px; color: #3D2C2C; padding: 0.7em 0.8em;">Best For</th>
               </tr>
             </thead>
             <tbody>
               <!-- CUSTOMIZE: Table rows -->
               <tr class="fragment fade-in">
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em; font-weight: 600;">Array</td>
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(1)</td>
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(n)</td>
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(n)</td>
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(n)</td>
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">Index-based access</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em; font-weight: 600;">Array</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em;">O(1)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em;">O(n)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em;">O(n)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em;">O(n)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em;">Index-based access</td>
               </tr>
               <tr class="fragment fade-in">
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em; font-weight: 600;">Linked List</td>
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(n)</td>
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(1)</td>
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(1)</td>
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(n)</td>
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">Frequent inserts</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em; font-weight: 600;">Linked List</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em;">O(n)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em;">O(1)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em;">O(1)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em;">O(n)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em;">Frequent inserts</td>
               </tr>
               <tr class="fragment fade-in">
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em; font-weight: 600;">Hash Table</td>
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(1)*</td>
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(1)*</td>
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(1)*</td>
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(1)*</td>
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">Key-value lookups</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em; font-weight: 600;">Hash Table</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em;">O(1)*</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em;">O(1)*</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em;">O(1)*</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em;">O(1)*</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em;">Key-value lookups</td>
               </tr>
               <tr class="fragment fade-in">
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em; font-weight: 600;">Binary Tree</td>
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(log n)</td>
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(log n)</td>
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(log n)</td>
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">O(log n)</td>
-                <td style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; padding: 0.6em 0.8em;">Sorted data</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em; font-weight: 600;">Binary Tree</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em;">O(log n)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em;">O(log n)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em;">O(log n)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em;">O(log n)</td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; padding: 0.6em 0.8em;">Sorted data</td>
               </tr>
             </tbody>
           </table>
-          <p class="fragment fade-in" style="font-family: 'Inter', sans-serif; font-size: 16px; color: #8A7575; margin-top: 0.8em;">
+          <p class="fragment fade-in" style="font-family: 'Inter', sans-serif; font-size: 29px; color: #8A7575; margin-top: 0.8em;">
             * Average case -- worst case can be O(n) due to hash collisions
           </p>
         </div>
@@ -659,7 +659,7 @@
           <div class="dot"></div>
           <div class="dot"></div>
           <div class="dot"></div>
-          <span style="font-family: 'Inter', sans-serif; font-size: 13px; color: #8A7575; margin-left: 0.6em;">Step 4 of 8</span>
+          <span style="font-family: 'Inter', sans-serif; font-size: 29px; color: #8A7575; margin-left: 0.6em;">Step 4 of 8</span>
         </div>
 
         <!-- Heading with icon -->
@@ -668,7 +668,7 @@
             <polyline points="9 11 12 14 22 4"/>
             <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
           </svg>
-          <h2 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 48px; font-weight: 700; color: #3D2C2C; margin: 0;">
+          <h2 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 86px; font-weight: 700; color: #3D2C2C; margin: 0;">
             Building a Hash Table
           </h2>
         </div>
@@ -677,25 +677,25 @@
         <div style="max-width: 780px; margin-top: 1em;">
           <ol class="step-list">
             <!-- CUSTOMIZE: Steps -->
-            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">
+            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545;">
               <div>
                 <strong style="color: #3D2C2C; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700;">Choose a hash function</strong>
                 <br><span style="font-size: 0.9em; color: #8A7575;">Maps keys to array indices uniformly</span>
               </div>
             </li>
-            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">
+            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545;">
               <div>
                 <strong style="color: #3D2C2C; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700;">Allocate the array</strong>
                 <br><span style="font-size: 0.9em; color: #8A7575;">Size should be a prime number for better distribution</span>
               </div>
             </li>
-            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">
+            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545;">
               <div>
                 <strong style="color: #3D2C2C; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700;">Handle collisions</strong>
                 <br><span style="font-size: 0.9em; color: #8A7575;">Use chaining (linked lists) or open addressing</span>
               </div>
             </li>
-            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">
+            <li class="fragment slide-up" style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545;">
               <div>
                 <strong style="color: #3D2C2C; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700;">Implement resize</strong>
                 <br><span style="font-size: 0.9em; color: #8A7575;">Grow the table when load factor exceeds 0.75</span>
@@ -716,24 +716,24 @@
       <section data-background-color="#F5F0EB">
         <!-- Exercise badge + heading -->
         <div style="display: flex; align-items: center; gap: 0.7em; justify-content: center;" class="anim-fade-in-up">
-          <span class="edu-badge exercise" style="font-family: 'Inter', sans-serif; font-size: 15px; color: #2D3B32;">Exercise</span>
-          <h2 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 44px; font-weight: 700; color: #3D2C2C; margin: 0;">
+          <span class="edu-badge exercise" style="font-family: 'Inter', sans-serif; font-size: 29px; color: #2D3B32;">Exercise</span>
+          <h2 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 86px; font-weight: 700; color: #3D2C2C; margin: 0;">
             Knowledge Check
           </h2>
         </div>
 
         <!-- Quiz card (sage green border) -->
         <div class="quiz-card" style="margin-top: 1.2em;">
-          <div class="quiz-question" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 26px; color: #3D2C2C;">
+          <div class="quiz-question" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 40px; color: #3D2C2C;">
             <!-- CUSTOMIZE: Question -->
             Which data structure would you choose for implementing an undo/redo feature?
           </div>
 
           <!-- Options -->
-          <div class="quiz-option fragment fade-in" style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">A. Array</div>
-          <div class="quiz-option fragment fade-in" style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">B. Hash Table</div>
-          <div class="quiz-option correct fragment fade-in" style="font-family: 'Inter', sans-serif; font-size: 22px; color: #2D3B32; font-weight: 600;">C. Stack</div>
-          <div class="quiz-option fragment fade-in" style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">D. Queue</div>
+          <div class="quiz-option fragment fade-in" style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545;">A. Array</div>
+          <div class="quiz-option fragment fade-in" style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545;">B. Hash Table</div>
+          <div class="quiz-option correct fragment fade-in" style="font-family: 'Inter', sans-serif; font-size: 40px; color: #2D3B32; font-weight: 600;">C. Stack</div>
+          <div class="quiz-option fragment fade-in" style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545;">D. Queue</div>
         </div>
 
         <!-- Answer reveal (fragment) -->
@@ -742,11 +742,11 @@
             <svg class="icon-inline" style="width: 20px; height: 20px;" viewBox="0 0 24 24" fill="none" stroke="#7A9882" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
-            <span style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 17px; font-weight: 700; color: #7A9882; text-transform: uppercase; letter-spacing: 0.04em;">
+            <span style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 29px; font-weight: 700; color: #7A9882; text-transform: uppercase; letter-spacing: 0.04em;">
               Answer: Stack
             </span>
           </div>
-          <p style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; line-height: 1.6; margin: 0;">
+          <p style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; line-height: 1.6; margin: 0;">
             <!-- CUSTOMIZE: Explanation -->
             Stacks follow LIFO (Last In, First Out) -- perfect for undo operations where you
             reverse the most recent action first.
@@ -769,7 +769,7 @@
             <path d="M10 22h4"/>
             <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/>
           </svg>
-          <h2 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 48px; font-weight: 700; color: #3D2C2C; margin-top: 0.2em;">
+          <h2 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 86px; font-weight: 700; color: #3D2C2C; margin-top: 0.2em;">
             Key Takeaways
           </h2>
           <div class="accent-line" style="margin: 12px auto 0;"></div>
@@ -780,36 +780,36 @@
           <!-- CUSTOMIZE: Takeaway cards -->
           <div class="edu-card fragment slide-up" style="border-top: 3px solid #B85042;">
             <div style="display: flex; align-items: center; gap: 0.4em; margin-bottom: 0.5em;">
-              <span style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 28px; font-weight: 800; color: #B85042;">1</span>
-              <h3 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 22px; font-weight: 700; color: #3D2C2C; margin: 0;">
+              <span style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 126px; font-weight: 800; color: #B85042;">1</span>
+              <h3 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 43px; font-weight: 700; color: #3D2C2C; margin: 0;">
                 Know Your Options
               </h3>
             </div>
-            <p style="font-family: 'Inter', sans-serif; font-size: 19px; color: #5A4545; line-height: 1.6;">
+            <p style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; line-height: 1.6;">
               Different structures excel at different operations -- there is no single "best" structure for every case.
             </p>
           </div>
 
           <div class="edu-card fragment slide-up" style="border-top: 3px solid #A7BEAE;">
             <div style="display: flex; align-items: center; gap: 0.4em; margin-bottom: 0.5em;">
-              <span style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 28px; font-weight: 800; color: #A7BEAE;">2</span>
-              <h3 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 22px; font-weight: 700; color: #3D2C2C; margin: 0;">
+              <span style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 126px; font-weight: 800; color: #A7BEAE;">2</span>
+              <h3 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 43px; font-weight: 700; color: #3D2C2C; margin: 0;">
                 Think About Scale
               </h3>
             </div>
-            <p style="font-family: 'Inter', sans-serif; font-size: 19px; color: #5A4545; line-height: 1.6;">
+            <p style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; line-height: 1.6;">
               Big-O matters when data grows. O(n&sup2;) is fine for 10 items, but disastrous for 10 million.
             </p>
           </div>
 
           <div class="edu-card fragment slide-up" style="border-top: 3px solid #B85042;">
             <div style="display: flex; align-items: center; gap: 0.4em; margin-bottom: 0.5em;">
-              <span style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 28px; font-weight: 800; color: #B85042;">3</span>
-              <h3 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 22px; font-weight: 700; color: #3D2C2C; margin: 0;">
+              <span style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 126px; font-weight: 800; color: #B85042;">3</span>
+              <h3 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 43px; font-weight: 700; color: #3D2C2C; margin: 0;">
                 Profile First
               </h3>
             </div>
-            <p style="font-family: 'Inter', sans-serif; font-size: 19px; color: #5A4545; line-height: 1.6;">
+            <p style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; line-height: 1.6;">
               Do not optimize prematurely -- measure actual performance before choosing complex structures.
             </p>
           </div>
@@ -831,7 +831,7 @@
             <line x1="5" y1="12" x2="19" y2="12"/>
             <polyline points="12 5 19 12 12 19"/>
           </svg>
-          <h2 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 48px; font-weight: 700; color: #3D2C2C; margin: 0;">
+          <h2 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 86px; font-weight: 700; color: #3D2C2C; margin: 0;">
             What's Next
           </h2>
         </div>
@@ -842,27 +842,27 @@
           <div style="max-width: 600px;">
             <!-- CUSTOMIZE: Next items -->
             <div class="fragment slide-up" style="display: flex; align-items: flex-start; gap: 0.7em; padding: 0.7em 0; border-bottom: 1px solid #E0D5C8;">
-              <span class="edu-badge tip" style="font-family: 'Inter', sans-serif; font-size: 12px; white-space: nowrap;">Next Lesson</span>
-              <span style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">Trees and Graphs</span>
+              <span class="edu-badge tip" style="font-family: 'Inter', sans-serif; font-size: 29px; white-space: nowrap;">Next Lesson</span>
+              <span style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545;">Trees and Graphs</span>
             </div>
             <div class="fragment slide-up" style="display: flex; align-items: flex-start; gap: 0.7em; padding: 0.7em 0; border-bottom: 1px solid #E0D5C8;">
-              <span class="edu-badge tip" style="font-family: 'Inter', sans-serif; font-size: 12px; white-space: nowrap;">Reading</span>
-              <span style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">Chapters 5-6 of the textbook</span>
+              <span class="edu-badge tip" style="font-family: 'Inter', sans-serif; font-size: 29px; white-space: nowrap;">Reading</span>
+              <span style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545;">Chapters 5-6 of the textbook</span>
             </div>
             <div class="fragment slide-up" style="display: flex; align-items: flex-start; gap: 0.7em; padding: 0.7em 0; border-bottom: 1px solid #E0D5C8;">
-              <span class="edu-badge tip" style="font-family: 'Inter', sans-serif; font-size: 12px; white-space: nowrap;">Assignment</span>
-              <span style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">Implement a hash table in your language of choice</span>
+              <span class="edu-badge tip" style="font-family: 'Inter', sans-serif; font-size: 29px; white-space: nowrap;">Assignment</span>
+              <span style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545;">Implement a hash table in your language of choice</span>
             </div>
             <div class="fragment slide-up" style="display: flex; align-items: flex-start; gap: 0.7em; padding: 0.7em 0;">
-              <span class="edu-badge tip" style="font-family: 'Inter', sans-serif; font-size: 12px; white-space: nowrap;">Due</span>
-              <span style="font-family: 'Inter', sans-serif; font-size: 22px; color: #5A4545;">Next Monday, 11:59 PM</span>
+              <span class="edu-badge tip" style="font-family: 'Inter', sans-serif; font-size: 29px; white-space: nowrap;">Due</span>
+              <span style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545;">Next Monday, 11:59 PM</span>
             </div>
           </div>
 
           <!-- Reminder callout -->
           <div>
             <div class="callout fragment slide-up" style="margin-top: 0;">
-              <div class="callout-label" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 15px; color: #B85042;">
+              <div class="callout-label" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 29px; color: #B85042;">
                 <svg class="icon-inline" style="width: 18px; height: 18px;" viewBox="0 0 24 24" fill="none" stroke="#B85042" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
                   <line x1="12" y1="9" x2="12" y2="13"/>
@@ -870,7 +870,7 @@
                 </svg>
                 Reminder
               </div>
-              <p style="font-family: 'Inter', sans-serif; font-size: 20px; color: #5A4545; line-height: 1.6;">
+              <p style="font-family: 'Inter', sans-serif; font-size: 40px; color: #5A4545; line-height: 1.6;">
                 <!-- CUSTOMIZE: Reminder text -->
                 Midterm exam is in 2 weeks -- covers Lessons 1-4. Office hours available Thursday 3-5 PM.
               </p>
@@ -878,10 +878,10 @@
 
             <!-- Closing message -->
             <div class="fragment fade-in" style="margin-top: 1.5em; text-align: center;">
-              <p style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 20px; color: #8A7575; font-weight: 500;">
+              <p style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 40px; color: #8A7575; font-weight: 500;">
                 Questions? Reach out anytime.
               </p>
-              <p style="font-family: 'Inter', sans-serif; font-size: 18px; color: #B85042; font-weight: 600;">
+              <p style="font-family: 'Inter', sans-serif; font-size: 40px; color: #B85042; font-weight: 600;">
                 <!-- CUSTOMIZE: Contact -->
                 {{INSTRUCTOR}} &middot; office@university.edu
               </p>

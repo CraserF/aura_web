@@ -1,0 +1,869 @@
+<!doctype html>
+<!--
+  INFOGRAPHIC GRID TEMPLATE — Clear Analytics
+  Purpose: Data reports, research summaries, annual reviews, visual data storytelling
+  Animation Level: 3 (Heavy — anim-fade-up, anim-scale-in, anim-stagger, SVG draw-in)
+  Design: Clean infographic cards with inline SVG visualizations on light background
+
+  Palette: Clear Analytics
+  - Background: #F0F8FC (ice blue tint)
+  - Primary: #0090B8 (teal)
+  - Accent: #009878 (green)
+  - Heading: #1a2a3a (dark navy)
+  - Body: rgba(26, 42, 58, 0.70)
+  - Muted: rgba(26, 42, 58, 0.45)
+
+  Color-coded categories:
+  - Teal: #0090B8
+  - Green: #009878
+  - Coral: #E8614D
+  - Amber: #E89B3C
+  - Indigo: #5B5FC7
+
+  CUSTOMIZATION POINTS (search for "CUSTOMIZE"):
+  - {{TITLE}}           Main presentation title
+  - {{SUBTITLE}}        Subtitle or tagline
+  - {{DATE}}            Report date
+  - {{METRIC_*}}        Metric values and labels
+  - {{CHART_*}}         Chart labels and values
+  - {{CATEGORY_*}}      Category names
+  - {{TAKEAWAY_*}}      Key takeaways text
+-->
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><!-- CUSTOMIZE --> {{TITLE}} — Infographic</title>
+
+  <!-- Reveal.js 5 Core -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/black.css">
+
+  <!-- Animation Libraries -->
+  <link rel="stylesheet" href="../animations/core-animations.css">
+  <link rel="stylesheet" href="../animations/advanced-effects.css">
+
+  <!-- Typography: DM Sans + Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    /* =============================================
+       CLEAR ANALYTICS — CSS Custom Properties
+       ============================================= */
+    :root {
+      --primary: #0090B8;
+      --accent: #009878;
+      --coral: #E8614D;
+      --amber: #E89B3C;
+      --indigo: #5B5FC7;
+      --bg-primary: #F0F8FC;
+      --bg-card: #FFFFFF;
+      --surface: rgba(0, 144, 184, 0.04);
+      --border: rgba(26, 42, 58, 0.08);
+      --shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.10);
+      --text-primary: #1a2a3a;
+      --text-secondary: rgba(26, 42, 58, 0.70);
+      --text-muted: rgba(26, 42, 58, 0.45);
+      --font-heading: 'DM Sans', sans-serif;
+      --font-body: 'Inter', sans-serif;
+    }
+
+    /* =============================================
+       BASE STYLES
+       ============================================= */
+    .reveal {
+      font-family: var(--font-body);
+      color: var(--text-secondary);
+      font-size: 36px;
+    }
+
+    .reveal .slides {
+      text-align: left;
+    }
+
+    .reveal .slides section {
+      padding: 3.5rem 5rem;
+      box-sizing: border-box;
+    }
+
+    .reveal h1,
+    .reveal h2,
+    .reveal h3,
+    .reveal h4 {
+      font-family: var(--font-heading);
+      color: var(--text-primary);
+      font-weight: 700;
+      text-transform: none;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      margin: 0;
+    }
+
+    .reveal p {
+      margin: 0;
+      line-height: 1.6;
+      font-size: 1.1em;
+    }
+
+    /* =============================================
+       HERO / COVER
+       ============================================= */
+    .hero-title {
+      font-family: var(--font-heading);
+      font-size: 4.2em;
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      color: var(--text-primary);
+    }
+
+    .hero-subtitle {
+      font-size: 1.25em;
+      color: var(--text-secondary);
+      margin-top: 0.6em;
+      font-weight: 400;
+      max-width: 700px;
+      line-height: 1.5;
+    }
+
+    /* =============================================
+       STAT PILLS (Cover slide)
+       ============================================= */
+    .stat-pills {
+      display: flex;
+      gap: 16px;
+      margin-top: 32px;
+    }
+
+    .stat-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      box-shadow: var(--shadow);
+    }
+
+    .stat-pill .pill-value {
+      font-family: var(--font-heading);
+      font-size: 1.1em;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .stat-pill .pill-label {
+      font-size: 0.8em;
+      color: var(--text-muted);
+    }
+
+    .stat-pill .pill-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* =============================================
+       SECTION HEADER
+       ============================================= */
+    .section-header {
+      font-size: 2.6em;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 0.15em;
+    }
+
+    .section-lead {
+      font-size: 1.1em;
+      color: var(--text-secondary);
+      max-width: 680px;
+      line-height: 1.5;
+    }
+
+    .section-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-family: var(--font-heading);
+      font-size: 0.7em;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      background: rgba(0, 144, 184, 0.08);
+      color: var(--primary);
+      border: 1px solid rgba(0, 144, 184, 0.15);
+      margin-bottom: 12px;
+    }
+
+    /* =============================================
+       DATA VIZ CARD
+       ============================================= */
+    .viz-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.8rem;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+      transition: box-shadow 0.2s ease;
+    }
+
+    .viz-card:hover {
+      box-shadow: var(--shadow-hover);
+    }
+
+    .viz-card .card-accent-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      border-radius: 12px 12px 0 0;
+    }
+
+    .viz-card .card-label {
+      font-family: var(--font-body);
+      font-size: 0.72em;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+
+    .viz-card .card-metric {
+      font-family: var(--font-heading);
+      font-size: 2.6em;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+
+    .viz-card .card-change {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.8em;
+      font-weight: 600;
+      margin-top: 6px;
+      padding: 2px 10px;
+      border-radius: 999px;
+    }
+
+    .viz-card .card-change.up {
+      color: var(--accent);
+      background: rgba(0, 152, 120, 0.08);
+    }
+
+    .viz-card .card-change.down {
+      color: var(--coral);
+      background: rgba(232, 97, 77, 0.08);
+    }
+
+    /* =============================================
+       GRID LAYOUTS
+       ============================================= */
+    .grid-3x2 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 1.5rem;
+      margin-top: 32px;
+    }
+
+    .grid-2col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-top: 32px;
+    }
+
+    .grid-3col {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      margin-top: 32px;
+    }
+
+    /* =============================================
+       SVG CHART STYLES & DRAW-IN ANIMATION
+       ============================================= */
+    .chart-svg {
+      display: block;
+      margin: 12px auto 0;
+    }
+
+    .bar-rect {
+      rx: 4;
+      transition: opacity 0.2s ease;
+    }
+
+    .bar-rect:hover {
+      opacity: 0.8;
+    }
+
+    .draw-in {
+      stroke-dasharray: 100;
+      stroke-dashoffset: 100;
+      animation: draw-in 1.5s ease-out forwards;
+    }
+
+    .draw-in.delay-1 { animation-delay: 0.3s; }
+    .draw-in.delay-2 { animation-delay: 0.6s; }
+    .draw-in.delay-3 { animation-delay: 0.9s; }
+
+    @keyframes draw-in {
+      from { stroke-dashoffset: 100; }
+      to { stroke-dashoffset: 0; }
+    }
+
+    .donut-segment {
+      transition: opacity 0.2s ease;
+    }
+
+    .donut-segment:hover {
+      opacity: 0.8;
+    }
+
+    /* =============================================
+       LEGEND
+       ============================================= */
+    .chart-legend {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75em;
+      color: var(--text-secondary);
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    /* =============================================
+       SPARKLINE CARD
+       ============================================= */
+    .sparkline-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.8rem;
+      box-shadow: var(--shadow);
+    }
+
+    .sparkline-card .spark-label {
+      font-family: var(--font-body);
+      font-size: 0.72em;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .sparkline-card .spark-value {
+      font-family: var(--font-heading);
+      font-size: 2em;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1.1;
+      margin-top: 4px;
+    }
+
+    /* =============================================
+       TAKEAWAY CARDS (Numbered)
+       ============================================= */
+    .takeaway-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: var(--shadow);
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .takeaway-number {
+      font-family: var(--font-heading);
+      font-size: 1.5em;
+      font-weight: 800;
+      color: var(--primary);
+      line-height: 1;
+      min-width: 36px;
+    }
+
+    .takeaway-text h3 {
+      font-size: 1.1em;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .takeaway-text p {
+      font-size: 0.95em;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* =============================================
+       ANIMATION DELAY UTILITIES
+       ============================================= */
+    .delay-100 { animation-delay: 0.1s; }
+    .delay-200 { animation-delay: 0.2s; }
+    .delay-300 { animation-delay: 0.3s; }
+    .delay-400 { animation-delay: 0.4s; }
+    .delay-500 { animation-delay: 0.5s; }
+    .delay-600 { animation-delay: 0.6s; }
+    .delay-700 { animation-delay: 0.7s; }
+    .delay-800 { animation-delay: 0.8s; }
+  </style>
+</head>
+
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- ============================================================
+           SLIDE 1: COVER — Bold title + subtitle + 3 stat pills
+           ============================================================ -->
+      <section data-background-color="#F0F8FC" data-transition="fade">
+        <div style="display: flex; flex-direction: column; justify-content: center; min-height: 75vh;">
+          <div class="section-badge anim-fade-up"><!-- CUSTOMIZE --> {{DATE}} &middot; Data Report</div>
+          <h1 class="hero-title anim-fade-up delay-200">{{TITLE}}</h1>
+          <p class="hero-subtitle anim-fade-up delay-300">{{SUBTITLE}}</p>
+
+          <div class="stat-pills anim-fade-up delay-500">
+            <div class="stat-pill">
+              <div class="pill-dot" style="background: var(--primary);"></div>
+              <div>
+                <div class="pill-value">{{METRIC_PILL_1_VALUE}}</div>
+                <div class="pill-label">{{METRIC_PILL_1_LABEL}}</div>
+              </div>
+            </div>
+            <div class="stat-pill">
+              <div class="pill-dot" style="background: var(--accent);"></div>
+              <div>
+                <div class="pill-value">{{METRIC_PILL_2_VALUE}}</div>
+                <div class="pill-label">{{METRIC_PILL_2_LABEL}}</div>
+              </div>
+            </div>
+            <div class="stat-pill">
+              <div class="pill-dot" style="background: var(--amber);"></div>
+              <div>
+                <div class="pill-value">{{METRIC_PILL_3_VALUE}}</div>
+                <div class="pill-label">{{METRIC_PILL_3_LABEL}}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="notes">
+          The cover stat pills give an immediate sense of scale. Let the audience absorb the headline numbers.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 2: OVERVIEW GRID — 6 metric cards in 3x2
+           ============================================================ -->
+      <section data-background-color="#F0F8FC" data-transition="fade">
+        <div class="section-badge anim-fade-up">Overview</div>
+        <h2 class="section-header anim-fade-up delay-100">{{SECTION_1_TITLE}}</h2>
+
+        <div class="grid-3x2 anim-stagger">
+          <!-- Card 1: Teal -->
+          <div class="viz-card">
+            <div class="card-accent-bar" style="background: var(--primary);"></div>
+            <div class="card-label">{{METRIC_1_LABEL}}</div>
+            <div class="card-metric">{{METRIC_1_VALUE}}</div>
+            <div class="card-change up">+{{METRIC_1_CHANGE}}</div>
+            <svg class="chart-svg" width="100%" height="40" viewBox="0 0 160 40">
+              <polyline fill="none" stroke="#0090B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                points="0,35 20,28 40,30 60,22 80,18 100,20 120,12 140,8 160,5"
+                style="stroke-dasharray: 240; stroke-dashoffset: 240; animation: draw-in 1.8s ease-out forwards;" />
+            </svg>
+          </div>
+
+          <!-- Card 2: Green -->
+          <div class="viz-card">
+            <div class="card-accent-bar" style="background: var(--accent);"></div>
+            <div class="card-label">{{METRIC_2_LABEL}}</div>
+            <div class="card-metric">{{METRIC_2_VALUE}}</div>
+            <div class="card-change up">+{{METRIC_2_CHANGE}}</div>
+            <svg class="chart-svg" width="100%" height="40" viewBox="0 0 160 40">
+              <polyline fill="none" stroke="#009878" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                points="0,32 20,30 40,25 60,28 80,20 100,15 120,10 140,12 160,6"
+                style="stroke-dasharray: 240; stroke-dashoffset: 240; animation: draw-in 1.8s ease-out 0.3s forwards;" />
+            </svg>
+          </div>
+
+          <!-- Card 3: Coral -->
+          <div class="viz-card">
+            <div class="card-accent-bar" style="background: var(--coral);"></div>
+            <div class="card-label">{{METRIC_3_LABEL}}</div>
+            <div class="card-metric">{{METRIC_3_VALUE}}</div>
+            <div class="card-change down">-{{METRIC_3_CHANGE}}</div>
+            <svg class="chart-svg" width="100%" height="40" viewBox="0 0 160 40">
+              <polyline fill="none" stroke="#E8614D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                points="0,10 20,15 40,12 60,20 80,25 100,22 120,28 140,30 160,35"
+                style="stroke-dasharray: 240; stroke-dashoffset: 240; animation: draw-in 1.8s ease-out 0.6s forwards;" />
+            </svg>
+          </div>
+
+          <!-- Card 4: Amber -->
+          <div class="viz-card">
+            <div class="card-accent-bar" style="background: var(--amber);"></div>
+            <div class="card-label">{{METRIC_4_LABEL}}</div>
+            <div class="card-metric">{{METRIC_4_VALUE}}</div>
+            <div class="card-change up">+{{METRIC_4_CHANGE}}</div>
+            <svg class="chart-svg" width="100%" height="40" viewBox="0 0 120 40">
+              <rect class="bar-rect" x="0" y="20" width="14" height="20" fill="#E89B3C" opacity="0.4" />
+              <rect class="bar-rect" x="18" y="14" width="14" height="26" fill="#E89B3C" opacity="0.5" />
+              <rect class="bar-rect" x="36" y="8" width="14" height="32" fill="#E89B3C" opacity="0.6" />
+              <rect class="bar-rect" x="54" y="12" width="14" height="28" fill="#E89B3C" opacity="0.7" />
+              <rect class="bar-rect" x="72" y="5" width="14" height="35" fill="#E89B3C" opacity="0.8" />
+              <rect class="bar-rect" x="90" y="2" width="14" height="38" fill="#E89B3C" opacity="1" />
+            </svg>
+          </div>
+
+          <!-- Card 5: Indigo -->
+          <div class="viz-card">
+            <div class="card-accent-bar" style="background: var(--indigo);"></div>
+            <div class="card-label">{{METRIC_5_LABEL}}</div>
+            <div class="card-metric">{{METRIC_5_VALUE}}</div>
+            <div class="card-change up">+{{METRIC_5_CHANGE}}</div>
+            <svg class="chart-svg" width="100%" height="40" viewBox="0 0 120 40">
+              <circle cx="10" cy="30" r="4" fill="#5B5FC7" opacity="0.4" />
+              <circle cx="30" cy="24" r="5" fill="#5B5FC7" opacity="0.5" />
+              <circle cx="50" cy="18" r="6" fill="#5B5FC7" opacity="0.6" />
+              <circle cx="70" cy="20" r="5" fill="#5B5FC7" opacity="0.7" />
+              <circle cx="90" cy="12" r="7" fill="#5B5FC7" opacity="0.8" />
+              <circle cx="110" cy="8" r="8" fill="#5B5FC7" opacity="1" />
+            </svg>
+          </div>
+
+          <!-- Card 6: Primary -->
+          <div class="viz-card">
+            <div class="card-accent-bar" style="background: var(--primary);"></div>
+            <div class="card-label">{{METRIC_6_LABEL}}</div>
+            <div class="card-metric">{{METRIC_6_VALUE}}</div>
+            <div class="card-change up">+{{METRIC_6_CHANGE}}</div>
+            <svg class="chart-svg" width="100%" height="40" viewBox="0 0 160 40">
+              <polyline fill="none" stroke="#0090B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                points="0,30 20,28 40,32 60,18 80,22 100,10 120,14 140,6 160,8"
+                style="stroke-dasharray: 240; stroke-dashoffset: 240; animation: draw-in 1.8s ease-out 0.9s forwards;" />
+            </svg>
+          </div>
+        </div>
+
+        <aside class="notes">
+          Walk through the grid systematically. Each card tells a micro-story with its color accent and sparkline.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 3: BAR CHART — Full-width SVG bar chart + legend
+           ============================================================ -->
+      <section data-background-color="#F0F8FC" data-transition="fade">
+        <div class="section-badge anim-fade-up">Breakdown</div>
+        <h2 class="section-header anim-fade-up delay-100">{{CHART_BAR_TITLE}}</h2>
+        <p class="section-lead anim-fade-up delay-200">{{CHART_BAR_DESC}}</p>
+
+        <div class="viz-card anim-scale-in delay-300" style="margin-top: 32px; padding: 2.5rem;">
+          <svg width="100%" height="320" viewBox="0 0 800 320" preserveAspectRatio="xMidYMid meet">
+            <!-- Y-axis labels -->
+            <text x="30" y="28" fill="#1a2a3a" opacity="0.4" font-size="12" font-family="Inter, sans-serif" text-anchor="end">100</text>
+            <text x="30" y="88" fill="#1a2a3a" opacity="0.4" font-size="12" font-family="Inter, sans-serif" text-anchor="end">75</text>
+            <text x="30" y="148" fill="#1a2a3a" opacity="0.4" font-size="12" font-family="Inter, sans-serif" text-anchor="end">50</text>
+            <text x="30" y="208" fill="#1a2a3a" opacity="0.4" font-size="12" font-family="Inter, sans-serif" text-anchor="end">25</text>
+            <text x="30" y="268" fill="#1a2a3a" opacity="0.4" font-size="12" font-family="Inter, sans-serif" text-anchor="end">0</text>
+
+            <!-- Grid lines -->
+            <line x1="40" y1="24" x2="780" y2="24" stroke="#1a2a3a" stroke-opacity="0.06" />
+            <line x1="40" y1="84" x2="780" y2="84" stroke="#1a2a3a" stroke-opacity="0.06" />
+            <line x1="40" y1="144" x2="780" y2="144" stroke="#1a2a3a" stroke-opacity="0.06" />
+            <line x1="40" y1="204" x2="780" y2="204" stroke="#1a2a3a" stroke-opacity="0.06" />
+            <line x1="40" y1="264" x2="780" y2="264" stroke="#1a2a3a" stroke-opacity="0.08" />
+
+            <!-- CUSTOMIZE: Bar groups (5 categories, 2 series each). Adjust bar heights for your data. -->
+            <!-- Group 1 -->
+            <rect class="bar-rect" x="80" y="64" width="48" height="200" fill="#0090B8" rx="4" />
+            <rect class="bar-rect" x="132" y="104" width="48" height="160" fill="#009878" rx="4" />
+            <text x="130" y="290" fill="#1a2a3a" opacity="0.5" font-size="12" font-family="Inter, sans-serif" text-anchor="middle">{{CHART_CAT_1}}</text>
+
+            <!-- Group 2 -->
+            <rect class="bar-rect" x="220" y="44" width="48" height="220" fill="#0090B8" rx="4" />
+            <rect class="bar-rect" x="272" y="84" width="48" height="180" fill="#009878" rx="4" />
+            <text x="270" y="290" fill="#1a2a3a" opacity="0.5" font-size="12" font-family="Inter, sans-serif" text-anchor="middle">{{CHART_CAT_2}}</text>
+
+            <!-- Group 3 -->
+            <rect class="bar-rect" x="360" y="94" width="48" height="170" fill="#0090B8" rx="4" />
+            <rect class="bar-rect" x="412" y="54" width="48" height="210" fill="#009878" rx="4" />
+            <text x="410" y="290" fill="#1a2a3a" opacity="0.5" font-size="12" font-family="Inter, sans-serif" text-anchor="middle">{{CHART_CAT_3}}</text>
+
+            <!-- Group 4 -->
+            <rect class="bar-rect" x="500" y="114" width="48" height="150" fill="#0090B8" rx="4" />
+            <rect class="bar-rect" x="552" y="144" width="48" height="120" fill="#009878" rx="4" />
+            <text x="550" y="290" fill="#1a2a3a" opacity="0.5" font-size="12" font-family="Inter, sans-serif" text-anchor="middle">{{CHART_CAT_4}}</text>
+
+            <!-- Group 5 -->
+            <rect class="bar-rect" x="640" y="34" width="48" height="230" fill="#0090B8" rx="4" />
+            <rect class="bar-rect" x="692" y="74" width="48" height="190" fill="#009878" rx="4" />
+            <text x="690" y="290" fill="#1a2a3a" opacity="0.5" font-size="12" font-family="Inter, sans-serif" text-anchor="middle">{{CHART_CAT_5}}</text>
+          </svg>
+
+          <div class="chart-legend" style="margin-top: 8px;">
+            <div class="legend-item"><div class="legend-dot" style="background: var(--primary);"></div> {{CHART_SERIES_A}}</div>
+            <div class="legend-item"><div class="legend-dot" style="background: var(--accent);"></div> {{CHART_SERIES_B}}</div>
+          </div>
+        </div>
+
+        <aside class="notes">
+          Highlight the comparative story: which categories lead in each series and why.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 4: DONUT BREAKDOWN — 2 donut charts side by side
+           ============================================================ -->
+      <section data-background-color="#F0F8FC" data-transition="fade">
+        <div class="section-badge anim-fade-up">Composition</div>
+        <h2 class="section-header anim-fade-up delay-100">{{CHART_DONUT_TITLE}}</h2>
+        <p class="section-lead anim-fade-up delay-200">{{CHART_DONUT_DESC}}</p>
+
+        <div class="grid-2col anim-stagger">
+          <!-- Donut 1 -->
+          <div class="viz-card" style="text-align: center; padding: 2.5rem;">
+            <h3 style="font-size: 1em; font-weight: 600; color: var(--text-primary); margin-bottom: 20px;">{{DONUT_1_TITLE}}</h3>
+            <svg width="220" height="220" viewBox="0 0 220 220" class="chart-svg">
+              <circle cx="110" cy="110" r="80" fill="none" stroke="#e8ecef" stroke-width="24" />
+              <!-- CUSTOMIZE: Segment 1 — Teal 45% (dasharray = 0.45 * 2 * pi * 80 = 226) -->
+              <circle cx="110" cy="110" r="80" fill="none" stroke="#0090B8" stroke-width="24"
+                stroke-dasharray="226 502" stroke-dashoffset="0"
+                transform="rotate(-90 110 110)" class="donut-segment" />
+              <!-- Segment 2 — Green 30% (dasharray = 151) -->
+              <circle cx="110" cy="110" r="80" fill="none" stroke="#009878" stroke-width="24"
+                stroke-dasharray="151 502" stroke-dashoffset="-226"
+                transform="rotate(-90 110 110)" class="donut-segment" />
+              <!-- Segment 3 — Amber 15% (dasharray = 75) -->
+              <circle cx="110" cy="110" r="80" fill="none" stroke="#E89B3C" stroke-width="24"
+                stroke-dasharray="75 502" stroke-dashoffset="-377"
+                transform="rotate(-90 110 110)" class="donut-segment" />
+              <!-- Segment 4 — Coral 10% (dasharray = 50) -->
+              <circle cx="110" cy="110" r="80" fill="none" stroke="#E8614D" stroke-width="24"
+                stroke-dasharray="50 502" stroke-dashoffset="-452"
+                transform="rotate(-90 110 110)" class="donut-segment" />
+              <!-- Center label -->
+              <text x="110" y="105" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="28" font-weight="800" fill="#1a2a3a">{{DONUT_1_CENTER}}</text>
+              <text x="110" y="128" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#1a2a3a" opacity="0.5">{{DONUT_1_SUBLABEL}}</text>
+            </svg>
+            <div class="chart-legend" style="justify-content: center; margin-top: 16px;">
+              <div class="legend-item"><div class="legend-dot" style="background: var(--primary);"></div> {{DONUT_1_SEG_1}} 45%</div>
+              <div class="legend-item"><div class="legend-dot" style="background: var(--accent);"></div> {{DONUT_1_SEG_2}} 30%</div>
+              <div class="legend-item"><div class="legend-dot" style="background: var(--amber);"></div> {{DONUT_1_SEG_3}} 15%</div>
+              <div class="legend-item"><div class="legend-dot" style="background: var(--coral);"></div> {{DONUT_1_SEG_4}} 10%</div>
+            </div>
+          </div>
+
+          <!-- Donut 2 -->
+          <div class="viz-card" style="text-align: center; padding: 2.5rem;">
+            <h3 style="font-size: 1em; font-weight: 600; color: var(--text-primary); margin-bottom: 20px;">{{DONUT_2_TITLE}}</h3>
+            <svg width="220" height="220" viewBox="0 0 220 220" class="chart-svg">
+              <circle cx="110" cy="110" r="80" fill="none" stroke="#e8ecef" stroke-width="24" />
+              <!-- Segment 1 — Indigo 40% (dasharray = 201) -->
+              <circle cx="110" cy="110" r="80" fill="none" stroke="#5B5FC7" stroke-width="24"
+                stroke-dasharray="201 502" stroke-dashoffset="0"
+                transform="rotate(-90 110 110)" class="donut-segment" />
+              <!-- Segment 2 — Teal 35% (dasharray = 176) -->
+              <circle cx="110" cy="110" r="80" fill="none" stroke="#0090B8" stroke-width="24"
+                stroke-dasharray="176 502" stroke-dashoffset="-201"
+                transform="rotate(-90 110 110)" class="donut-segment" />
+              <!-- Segment 3 — Green 25% (dasharray = 126) -->
+              <circle cx="110" cy="110" r="80" fill="none" stroke="#009878" stroke-width="24"
+                stroke-dasharray="126 502" stroke-dashoffset="-377"
+                transform="rotate(-90 110 110)" class="donut-segment" />
+              <!-- Center label -->
+              <text x="110" y="105" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="28" font-weight="800" fill="#1a2a3a">{{DONUT_2_CENTER}}</text>
+              <text x="110" y="128" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#1a2a3a" opacity="0.5">{{DONUT_2_SUBLABEL}}</text>
+            </svg>
+            <div class="chart-legend" style="justify-content: center; margin-top: 16px;">
+              <div class="legend-item"><div class="legend-dot" style="background: var(--indigo);"></div> {{DONUT_2_SEG_1}} 40%</div>
+              <div class="legend-item"><div class="legend-dot" style="background: var(--primary);"></div> {{DONUT_2_SEG_2}} 35%</div>
+              <div class="legend-item"><div class="legend-dot" style="background: var(--accent);"></div> {{DONUT_2_SEG_3}} 25%</div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="notes">
+          Compare the two distributions side by side. Call out the dominant segments and what drives them.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 5: TREND LINES — 3 sparkline cards
+           ============================================================ -->
+      <section data-background-color="#F0F8FC" data-transition="fade">
+        <div class="section-badge anim-fade-up">Trends</div>
+        <h2 class="section-header anim-fade-up delay-100">{{CHART_TREND_TITLE}}</h2>
+
+        <div class="grid-3col anim-stagger">
+          <div class="sparkline-card">
+            <div class="spark-label">{{TREND_1_LABEL}}</div>
+            <div class="spark-value" style="color: var(--primary);">{{TREND_1_VALUE}}</div>
+            <svg width="100%" height="64" viewBox="0 0 240 64" style="margin-top: 12px;">
+              <defs>
+                <linearGradient id="grad-teal" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#0090B8" stop-opacity="0.2" />
+                  <stop offset="100%" stop-color="#0090B8" stop-opacity="0" />
+                </linearGradient>
+              </defs>
+              <path d="M0,50 C30,45 60,40 90,30 C120,20 150,25 180,15 C210,5 230,10 240,8 L240,64 L0,64 Z" fill="url(#grad-teal)" />
+              <polyline fill="none" stroke="#0090B8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                points="0,50 30,45 60,40 90,30 120,20 150,25 180,15 210,5 240,8" />
+              <circle cx="240" cy="8" r="4" fill="#0090B8" />
+            </svg>
+          </div>
+
+          <div class="sparkline-card">
+            <div class="spark-label">{{TREND_2_LABEL}}</div>
+            <div class="spark-value" style="color: var(--accent);">{{TREND_2_VALUE}}</div>
+            <svg width="100%" height="64" viewBox="0 0 240 64" style="margin-top: 12px;">
+              <defs>
+                <linearGradient id="grad-green" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#009878" stop-opacity="0.2" />
+                  <stop offset="100%" stop-color="#009878" stop-opacity="0" />
+                </linearGradient>
+              </defs>
+              <path d="M0,45 C30,42 60,35 90,38 C120,28 150,22 180,18 C210,12 230,14 240,10 L240,64 L0,64 Z" fill="url(#grad-green)" />
+              <polyline fill="none" stroke="#009878" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                points="0,45 30,42 60,35 90,38 120,28 150,22 180,18 210,12 240,10" />
+              <circle cx="240" cy="10" r="4" fill="#009878" />
+            </svg>
+          </div>
+
+          <div class="sparkline-card">
+            <div class="spark-label">{{TREND_3_LABEL}}</div>
+            <div class="spark-value" style="color: var(--coral);">{{TREND_3_VALUE}}</div>
+            <svg width="100%" height="64" viewBox="0 0 240 64" style="margin-top: 12px;">
+              <defs>
+                <linearGradient id="grad-coral" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#E8614D" stop-opacity="0.2" />
+                  <stop offset="100%" stop-color="#E8614D" stop-opacity="0" />
+                </linearGradient>
+              </defs>
+              <path d="M0,15 C30,18 60,22 90,20 C120,30 150,35 180,32 C210,40 230,38 240,42 L240,64 L0,64 Z" fill="url(#grad-coral)" />
+              <polyline fill="none" stroke="#E8614D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                points="0,15 30,18 60,22 90,20 120,30 150,35 180,32 210,40 240,42" />
+              <circle cx="240" cy="42" r="4" fill="#E8614D" />
+            </svg>
+          </div>
+        </div>
+
+        <aside class="notes">
+          The sparklines tell the trend story at a glance. Focus on the direction, not the exact values.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 6: SUMMARY — Key takeaways in numbered cards
+           ============================================================ -->
+      <section data-background-color="#F0F8FC" data-transition="fade">
+        <div class="section-badge anim-fade-up">Summary</div>
+        <h2 class="section-header anim-fade-up delay-100">{{TAKEAWAY_TITLE}}</h2>
+
+        <div style="display: flex; flex-direction: column; gap: 1.2rem; margin-top: 32px; max-width: 880px;" class="anim-stagger">
+          <div class="takeaway-card">
+            <div class="takeaway-number">01</div>
+            <div class="takeaway-text">
+              <h3>{{TAKEAWAY_1_TITLE}}</h3>
+              <p>{{TAKEAWAY_1_DESC}}</p>
+            </div>
+          </div>
+          <div class="takeaway-card">
+            <div class="takeaway-number">02</div>
+            <div class="takeaway-text">
+              <h3>{{TAKEAWAY_2_TITLE}}</h3>
+              <p>{{TAKEAWAY_2_DESC}}</p>
+            </div>
+          </div>
+          <div class="takeaway-card">
+            <div class="takeaway-number">03</div>
+            <div class="takeaway-text">
+              <h3>{{TAKEAWAY_3_TITLE}}</h3>
+              <p>{{TAKEAWAY_3_DESC}}</p>
+            </div>
+          </div>
+          <div class="takeaway-card">
+            <div class="takeaway-number">04</div>
+            <div class="takeaway-text">
+              <h3>{{TAKEAWAY_4_TITLE}}</h3>
+              <p>{{TAKEAWAY_4_DESC}}</p>
+            </div>
+          </div>
+        </div>
+
+        <aside class="notes">
+          End on the key insights. These should be actionable and directly supported by the data shown.
+        </aside>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Reveal.js 5 -->
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
+  <script>
+    Reveal.initialize({
+      // Display
+      width: 1920,
+      height: 1080,
+      margin: 0.04,
+      center: true,
+
+      // Transitions
+      hash: true,
+      transition: 'fade',
+      transitionSpeed: 'default',
+      backgroundTransition: 'fade',
+
+      // Controls
+      controls: true,
+      controlsLayout: 'bottom-right',
+      progress: true,
+      slideNumber: false,
+
+      // Navigation
+      keyboard: true,
+      touch: true,
+      loop: false,
+
+      // Media
+      embedded: false,
+      help: true,
+      autoPlayMedia: true,
+    });
+  </script>
+</body>
+
+</html>

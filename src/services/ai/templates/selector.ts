@@ -8,6 +8,41 @@ interface SelectionPattern {
 
 const SELECTION_PATTERNS: SelectionPattern[] = [
   {
+    templateId: 'editorial-magazine',
+    patterns: [/\b(editorial|magazine|long.?form|thought\s*leader|serif|article|essay|literary)\b/i],
+    weight: 9,
+  },
+  {
+    templateId: 'infographic-grid',
+    patterns: [/\b(infographic|data\s*viz|visuali[sz]ation|statistic|chart\s*grid|research\s*finding)\b/i],
+    weight: 9,
+  },
+  {
+    templateId: 'interactive-quiz',
+    patterns: [/\b(quiz|trivia|question|knowledge\s*check|game\s*show|kahoot|test\s*your|multiple.?choice)\b/i],
+    weight: 10,
+  },
+  {
+    templateId: 'split-world',
+    patterns: [/\b(split|dual|two\s*world|before.?after|left.?right|versus|dichotomy)\b/i],
+    weight: 8,
+  },
+  {
+    templateId: 'landscape-illustration',
+    patterns: [/\b(landscape|illustrat|scene|nature|environment|immersive|journey|scenic)\b/i],
+    weight: 8,
+  },
+  {
+    templateId: 'multi-panel-dashboard',
+    patterns: [/\b(multi.?panel|panel\s*dashboard|category\s*board|status\s*board|admin\s*panel|overview\s*panel)\b/i],
+    weight: 9,
+  },
+  {
+    templateId: 'sidebar-cards',
+    patterns: [/\b(sidebar|side.?bar|luxury\s*brand|premium\s*brand|agency|service\s*showcase)\b/i],
+    weight: 8,
+  },
+  {
     templateId: 'keynote',
     patterns: [/\b(keynote|launch|conference|announce|reveal|main\s*stage)\b/i],
     weight: 10,

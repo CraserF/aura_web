@@ -11,6 +11,7 @@ import { buildBaseSection } from './sections/base';
 import { buildTypographySection } from './sections/typography';
 import { buildLayoutSection } from './sections/layout';
 import { buildDecorativeSection } from './sections/decorative';
+import { buildSvgSection } from './sections/svg';
 import { buildAnimationSection } from './sections/animation';
 import { buildNarrativeSection } from './sections/narrative';
 import { buildQualitySection } from './sections/quality';
@@ -60,6 +61,13 @@ export class PromptComposer {
   addAnimation(level: 1 | 2 | 3 | 4): this {
     this._animLevel = level;
     this.sections.push(buildAnimationSection(level));
+    return this;
+  }
+
+  /** Add SVG drawing skills and Bootstrap Icons guidance (gated by animation level) */
+  addSvg(): this {
+    const section = buildSvgSection(this._palette, this._animLevel);
+    if (section) this.sections.push(section);
     return this;
   }
 
@@ -126,6 +134,7 @@ export function buildDesignerPrompt(
     .addModernPatterns()
     .addDecorative()
     .addAnimation(animLevel)
+    .addSvg()
     .addNarrative()
     .addAntiPatterns()
     .addTemplateExamples(templateId, blueprint.exampleSlides)

@@ -1,0 +1,817 @@
+<!doctype html>
+<!--
+  EDITORIAL MAGAZINE TEMPLATE — Warm Midnight Editorial
+  Purpose: Long-form storytelling, thought leadership, editorial features, magazine-style narratives
+  Animation Level: 2 (Moderate — anim-fade-up, anim-scale-in, anim-stagger)
+  Design: Magazine/editorial with serif typography, asymmetric layouts, drop caps
+
+  Palette: Warm Midnight
+  - Background: #1a1a2e
+  - Accent: #e8d5b7 (gold)
+  - Heading: #f0ece2
+  - Body: rgba(240, 236, 226, 0.70)
+  - Muted: rgba(240, 236, 226, 0.40)
+
+  CUSTOMIZATION POINTS (search for "CUSTOMIZE"):
+  - {{TITLE}}           Main presentation title
+  - {{SUBTITLE}}        Subtitle or tagline
+  - {{AUTHOR_NAME}}     Author / presenter name
+  - {{AUTHOR_ROLE}}     Author title or role
+  - {{DATE}}            Publication date
+  - {{SECTION_*}}       Section content placeholders
+  - {{ARTICLE_*}}       Article text content
+  - {{QUOTE_*}}         Pull quote content
+  - {{STAT_*}}          Statistic values and labels
+  - {{CAPTION_*}}       Image / visual captions
+  - {{CLOSING_*}}       Closing slide content
+-->
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><!-- CUSTOMIZE --> {{TITLE}} — Editorial</title>
+
+  <!-- Reveal.js 5 Core -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/black.css">
+
+  <!-- Animation Libraries -->
+  <link rel="stylesheet" href="../animations/core-animations.css">
+  <link rel="stylesheet" href="../animations/advanced-effects.css">
+
+  <!-- Typography: Playfair Display + Source Sans 3 -->
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,400;1,600;1,700&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    /* =============================================
+       WARM MIDNIGHT — CSS Custom Properties
+       ============================================= */
+    :root {
+      --accent: #e8d5b7;
+      --accent-dim: rgba(232, 213, 183, 0.15);
+      --bg-primary: #1a1a2e;
+      --bg-deep: #141425;
+      --surface: rgba(240, 236, 226, 0.05);
+      --surface-hover: rgba(240, 236, 226, 0.08);
+      --border: rgba(240, 236, 226, 0.10);
+      --border-accent: rgba(232, 213, 183, 0.35);
+      --text-primary: #f0ece2;
+      --text-secondary: rgba(240, 236, 226, 0.70);
+      --text-muted: rgba(240, 236, 226, 0.40);
+      --font-heading: 'Playfair Display', Georgia, serif;
+      --font-body: 'Source Sans 3', 'Source Sans Pro', sans-serif;
+    }
+
+    /* =============================================
+       BASE STYLES
+       ============================================= */
+    .reveal {
+      font-family: var(--font-body);
+      color: var(--text-secondary);
+      font-size: 36px;
+    }
+
+    .reveal .slides {
+      text-align: left;
+    }
+
+    .reveal .slides section {
+      padding: 4rem 5rem;
+      box-sizing: border-box;
+    }
+
+    .reveal h1,
+    .reveal h2,
+    .reveal h3,
+    .reveal h4 {
+      font-family: var(--font-heading);
+      color: var(--text-primary);
+      font-weight: 700;
+      text-transform: none;
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+      margin: 0;
+    }
+
+    .reveal p {
+      margin: 0;
+      line-height: 1.7;
+      font-size: 1.1em;
+    }
+
+    /* =============================================
+       HERO / COVER SLIDE
+       ============================================= */
+    .hero-title {
+      font-size: 4.5em;
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+
+    .hero-subtitle {
+      font-family: var(--font-body);
+      font-size: 1.3em;
+      color: var(--text-secondary);
+      margin-top: 0.8em;
+      font-weight: 300;
+      max-width: 700px;
+      line-height: 1.6;
+    }
+
+    /* =============================================
+       GOLD ACCENT DIVIDERS
+       ============================================= */
+    .gold-line {
+      width: 80px;
+      height: 2px;
+      background: var(--accent);
+      border-radius: 1px;
+      margin: 24px 0;
+    }
+
+    .gold-line-wide {
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(90deg, var(--accent), transparent);
+      margin: 32px 0;
+    }
+
+    .gold-line-center {
+      width: 80px;
+      height: 2px;
+      background: var(--accent);
+      border-radius: 1px;
+      margin: 24px auto;
+    }
+
+    /* =============================================
+       CHAPTER / SECTION NUMBERS
+       ============================================= */
+    .chapter-number {
+      font-family: var(--font-heading);
+      font-size: 8em;
+      font-weight: 800;
+      color: var(--accent);
+      opacity: 0.07;
+      position: absolute;
+      top: -20px;
+      left: 50px;
+      line-height: 1;
+      pointer-events: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .chapter-label {
+      font-family: var(--font-body);
+      font-size: 0.75em;
+      font-weight: 600;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    /* =============================================
+       SECTION HEADERS
+       ============================================= */
+    .section-header {
+      font-size: 2.8em;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 0.15em;
+    }
+
+    .section-lead {
+      font-size: 1.15em;
+      color: var(--text-secondary);
+      max-width: 700px;
+      line-height: 1.7;
+    }
+
+    /* =============================================
+       ASYMMETRIC GRID LAYOUT (60/40)
+       ============================================= */
+    .editorial-grid {
+      display: grid;
+      grid-template-columns: 3fr 2fr;
+      gap: 64px;
+      align-items: start;
+      margin-top: 32px;
+    }
+
+    .editorial-grid.reverse {
+      grid-template-columns: 2fr 3fr;
+    }
+
+    /* =============================================
+       DROP CAP PARAGRAPH
+       ============================================= */
+    .drop-cap-text {
+      font-size: 1.1em;
+      color: var(--text-secondary);
+      line-height: 1.75;
+      max-width: 720px;
+    }
+
+    .drop-cap-text::first-letter {
+      font-family: var(--font-heading);
+      font-size: 3.6em;
+      font-weight: 800;
+      float: left;
+      color: var(--accent);
+      line-height: 0.8;
+      margin-right: 12px;
+      margin-top: 6px;
+    }
+
+    /* =============================================
+       LEFT-BORDER ACCENT CARDS
+       ============================================= */
+    .accent-card {
+      background: var(--surface);
+      border-left: 4px solid var(--accent);
+      border-radius: 0 12px 12px 0;
+      padding: 1.8rem 2rem;
+      transition: background 0.2s ease;
+    }
+
+    .accent-card:hover {
+      background: var(--surface-hover);
+    }
+
+    .accent-card h3 {
+      font-size: 1.15em;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .accent-card p {
+      font-size: 1em;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .three-col-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      margin-top: 32px;
+    }
+
+    /* =============================================
+       PULL QUOTE
+       ============================================= */
+    .pull-quote {
+      font-family: var(--font-heading);
+      font-size: 2.4em;
+      font-weight: 400;
+      font-style: italic;
+      line-height: 1.35;
+      color: var(--text-primary);
+      text-align: center;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .pull-quote-attr {
+      font-family: var(--font-body);
+      font-size: 0.9em;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 1.2em;
+      font-style: normal;
+      letter-spacing: 0.04em;
+    }
+
+    /* =============================================
+       SIDEBAR / PULL QUOTE CARD
+       ============================================= */
+    .sidebar-quote {
+      font-family: var(--font-heading);
+      font-size: 1.4em;
+      font-style: italic;
+      font-weight: 400;
+      color: var(--accent);
+      line-height: 1.4;
+      border-left: 3px solid var(--accent);
+      padding-left: 24px;
+    }
+
+    /* =============================================
+       PHOTO ESSAY GRID (CSS Gradient Placeholders)
+       ============================================= */
+    .photo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 16px;
+      margin-top: 32px;
+    }
+
+    .photo-card {
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      min-height: 220px;
+    }
+
+    .photo-card .photo-bg {
+      position: absolute;
+      inset: 0;
+      border-radius: 12px;
+    }
+
+    .photo-card .photo-caption {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 16px 20px;
+      background: linear-gradient(transparent, rgba(26, 26, 46, 0.9));
+      border-radius: 0 0 12px 12px;
+    }
+
+    .photo-card .photo-caption p {
+      font-family: var(--font-body);
+      font-size: 0.85em;
+      color: var(--text-primary);
+      margin: 0;
+      font-weight: 500;
+    }
+
+    .photo-card .photo-caption span {
+      font-family: var(--font-body);
+      font-size: 0.75em;
+      color: var(--text-muted);
+    }
+
+    /* =============================================
+       STATISTICS / METRICS
+       ============================================= */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2rem;
+      margin-top: 48px;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-family: var(--font-heading);
+      font-size: 4em;
+      font-weight: 800;
+      color: var(--accent);
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+
+    .stat-label {
+      font-family: var(--font-heading);
+      font-size: 0.95em;
+      font-style: italic;
+      color: var(--text-secondary);
+      margin-top: 8px;
+    }
+
+    .stat-desc {
+      font-family: var(--font-body);
+      font-size: 0.8em;
+      color: var(--text-muted);
+      margin-top: 4px;
+      line-height: 1.5;
+    }
+
+    /* =============================================
+       AUTHOR / CREDITS CARD
+       ============================================= */
+    .author-card {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      max-width: 700px;
+    }
+
+    .author-avatar {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), #8b7355);
+      border: 3px solid var(--border-accent);
+      flex-shrink: 0;
+    }
+
+    .author-name {
+      font-family: var(--font-heading);
+      font-size: 1.5em;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .author-role {
+      font-family: var(--font-body);
+      font-size: 0.95em;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    .author-bio {
+      font-family: var(--font-body);
+      font-size: 0.9em;
+      color: var(--text-muted);
+      margin-top: 8px;
+      line-height: 1.6;
+      max-width: 500px;
+    }
+
+    /* =============================================
+       CLOSING SLIDE
+       ============================================= */
+    .closing-title {
+      font-size: 3.5em;
+      font-weight: 800;
+      text-align: center;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+
+    .closing-message {
+      font-family: var(--font-heading);
+      font-size: 1.2em;
+      font-style: italic;
+      text-align: center;
+      color: var(--text-secondary);
+      max-width: 650px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+
+    /* =============================================
+       DECORATIVE ORNAMENT
+       ============================================= */
+    .ornament {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin: 24px 0;
+    }
+
+    .ornament .dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--accent);
+      opacity: 0.5;
+    }
+
+    .ornament .diamond {
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
+      transform: rotate(45deg);
+      opacity: 0.7;
+    }
+
+    /* =============================================
+       ANIMATION DELAY UTILITIES
+       ============================================= */
+    .delay-100 { animation-delay: 0.1s; }
+    .delay-200 { animation-delay: 0.2s; }
+    .delay-300 { animation-delay: 0.3s; }
+    .delay-400 { animation-delay: 0.4s; }
+    .delay-500 { animation-delay: 0.5s; }
+    .delay-600 { animation-delay: 0.6s; }
+    .delay-700 { animation-delay: 0.7s; }
+    .delay-800 { animation-delay: 0.8s; }
+  </style>
+</head>
+
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- ============================================================
+           SLIDE 1: COVER — Large serif title + subtitle + gold divider
+           ============================================================ -->
+      <section data-background-color="#1a1a2e" data-transition="fade">
+        <div style="display: flex; flex-direction: column; justify-content: center; min-height: 75vh;">
+          <div class="chapter-label anim-fade-up"><!-- CUSTOMIZE --> {{DATE}} &middot; Issue No. 01</div>
+          <div style="height: 16px;"></div>
+          <h1 class="hero-title anim-fade-up delay-200">{{TITLE}}</h1>
+          <div class="gold-line anim-fade-up delay-300"></div>
+          <p class="hero-subtitle anim-fade-up delay-400">{{SUBTITLE}}</p>
+
+          <div style="margin-top: 40px;" class="anim-fade-up delay-600">
+            <div style="display: flex; align-items: center; gap: 16px;">
+              <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #8b7355); border: 2px solid var(--border-accent);"></div>
+              <div>
+                <div style="font-family: var(--font-heading); font-size: 0.9em; color: var(--text-primary); font-weight: 600;">{{AUTHOR_NAME}}</div>
+                <div style="font-size: 0.75em; color: var(--text-muted);">{{AUTHOR_ROLE}}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="notes">
+          Set the tone with a calm, authoritative opening. Let the serif title convey editorial gravitas.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 2: EDITORIAL INTRO — Drop cap + 60/40 layout
+           ============================================================ -->
+      <section data-background-color="#1a1a2e" data-transition="fade">
+        <div class="chapter-number">01</div>
+
+        <div class="editorial-grid">
+          <div class="anim-fade-up">
+            <span class="chapter-label">Chapter One</span>
+            <h2 class="section-header" style="margin-top: 8px;">{{SECTION_1_TITLE}}</h2>
+            <div class="gold-line"></div>
+            <p class="drop-cap-text">
+              <!-- CUSTOMIZE: Opening paragraph with rich editorial text -->
+              {{ARTICLE_INTRO_TEXT}} The landscape has shifted dramatically over the past decade, reshaping how organizations approach their most fundamental challenges. What once seemed like distant possibilities have become present realities, demanding a new framework for understanding and action.
+            </p>
+          </div>
+
+          <div class="anim-fade-up delay-300" style="padding-top: 64px;">
+            <div class="sidebar-quote">
+              {{QUOTE_SIDEBAR_TEXT}}
+            </div>
+            <div style="font-size: 0.8em; color: var(--text-muted); margin-top: 12px; padding-left: 24px;">
+              &mdash; {{QUOTE_SIDEBAR_AUTHOR}}
+            </div>
+          </div>
+        </div>
+
+        <aside class="notes">
+          The drop cap draws the eye into the text. Use the sidebar quote to reinforce the opening thesis.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 3: FEATURE ARTICLE — Full-width heading + 3-column cards
+           ============================================================ -->
+      <section data-background-color="#1a1a2e" data-transition="fade">
+        <div class="chapter-number">02</div>
+
+        <span class="chapter-label anim-fade-up">Analysis</span>
+        <h2 class="section-header anim-fade-up delay-100" style="margin-top: 8px; max-width: 900px;">{{SECTION_2_TITLE}}</h2>
+        <div class="gold-line anim-fade-up delay-200"></div>
+
+        <div class="three-col-cards anim-stagger">
+          <div class="accent-card">
+            <h3>{{ARTICLE_CARD_1_TITLE}}</h3>
+            <p>{{ARTICLE_CARD_1_TEXT}} Structural shifts in the market have created unprecedented opportunities for organizations willing to adapt their core strategies.</p>
+          </div>
+          <div class="accent-card">
+            <h3>{{ARTICLE_CARD_2_TITLE}}</h3>
+            <p>{{ARTICLE_CARD_2_TEXT}} The convergence of technological capability and market demand has accelerated timelines that were once measured in decades.</p>
+          </div>
+          <div class="accent-card">
+            <h3>{{ARTICLE_CARD_3_TITLE}}</h3>
+            <p>{{ARTICLE_CARD_3_TEXT}} Early adopters are already seeing measurable returns, with efficiency gains compounding across organizational boundaries.</p>
+          </div>
+        </div>
+
+        <aside class="notes">
+          Walk through each column. These are the three pillars of your argument.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 4: PULL QUOTE — Large italic centered text on dark bg
+           ============================================================ -->
+      <section data-background-color="#141425" data-transition="fade">
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 75vh;">
+          <div class="ornament anim-fade-up">
+            <span class="dot"></span>
+            <span class="diamond"></span>
+            <span class="dot"></span>
+          </div>
+
+          <blockquote class="pull-quote anim-fade-up delay-200">
+            {{QUOTE_MAIN_TEXT}}
+          </blockquote>
+
+          <p class="pull-quote-attr anim-fade-up delay-400">
+            &mdash; {{QUOTE_MAIN_AUTHOR}}, {{QUOTE_MAIN_ROLE}}
+          </p>
+
+          <div class="ornament anim-fade-up delay-500">
+            <span class="dot"></span>
+            <span class="diamond"></span>
+            <span class="dot"></span>
+          </div>
+        </div>
+
+        <aside class="notes">
+          Let the quote breathe. Pause after it appears and let the audience absorb the message.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 5: PHOTO ESSAY — CSS gradient placeholders with captions (2x2)
+           ============================================================ -->
+      <section data-background-color="#1a1a2e" data-transition="fade">
+        <div class="chapter-number">03</div>
+
+        <span class="chapter-label anim-fade-up">Visual Essay</span>
+        <h2 class="section-header anim-fade-up delay-100" style="margin-top: 8px;">{{SECTION_3_TITLE}}</h2>
+        <div class="gold-line anim-fade-up delay-200"></div>
+
+        <div class="photo-grid anim-stagger">
+          <div class="photo-card">
+            <div class="photo-bg" style="background: linear-gradient(135deg, #2a1f3d 0%, #1a3a4a 50%, #1a2a2e 100%);"></div>
+            <div class="photo-caption">
+              <p>{{CAPTION_1_TITLE}}</p>
+              <span>{{CAPTION_1_DESC}}</span>
+            </div>
+          </div>
+          <div class="photo-card">
+            <div class="photo-bg" style="background: linear-gradient(225deg, #3d2a1f 0%, #2e3a1a 50%, #1a2e2a 100%);"></div>
+            <div class="photo-caption">
+              <p>{{CAPTION_2_TITLE}}</p>
+              <span>{{CAPTION_2_DESC}}</span>
+            </div>
+          </div>
+          <div class="photo-card">
+            <div class="photo-bg" style="background: linear-gradient(45deg, #1f2a3d 0%, #3a2a1a 50%, #2e1a2a 100%);"></div>
+            <div class="photo-caption">
+              <p>{{CAPTION_3_TITLE}}</p>
+              <span>{{CAPTION_3_DESC}}</span>
+            </div>
+          </div>
+          <div class="photo-card">
+            <div class="photo-bg" style="background: linear-gradient(315deg, #2a3d1f 0%, #1a2a3a 50%, #2a1a2e 100%);"></div>
+            <div class="photo-caption">
+              <p>{{CAPTION_4_TITLE}}</p>
+              <span>{{CAPTION_4_DESC}}</span>
+            </div>
+          </div>
+        </div>
+
+        <aside class="notes">
+          Each visual represents a different facet of the story. Use the captions to guide interpretation.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 6: STATISTICS — Large numbers + serif labels
+           ============================================================ -->
+      <section data-background-color="#1a1a2e" data-transition="fade">
+        <div style="text-align: center;">
+          <span class="chapter-label anim-fade-up">By the Numbers</span>
+          <h2 class="section-header anim-fade-up delay-100" style="text-align: center; margin-top: 8px;">{{SECTION_4_TITLE}}</h2>
+          <div class="gold-line-center anim-fade-up delay-200"></div>
+        </div>
+
+        <div class="stat-grid anim-stagger">
+          <div class="stat-item">
+            <div class="stat-value">{{STAT_1_VALUE}}</div>
+            <div class="stat-label">{{STAT_1_LABEL}}</div>
+            <div class="stat-desc">{{STAT_1_DESC}}</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value">{{STAT_2_VALUE}}</div>
+            <div class="stat-label">{{STAT_2_LABEL}}</div>
+            <div class="stat-desc">{{STAT_2_DESC}}</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value">{{STAT_3_VALUE}}</div>
+            <div class="stat-label">{{STAT_3_LABEL}}</div>
+            <div class="stat-desc">{{STAT_3_DESC}}</div>
+          </div>
+        </div>
+
+        <aside class="notes">
+          Present each statistic with conviction. The serif italic labels add editorial authority.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 7: AUTHOR / CREDITS
+           ============================================================ -->
+      <section data-background-color="#1a1a2e" data-transition="fade">
+        <div style="display: flex; flex-direction: column; justify-content: center; min-height: 70vh;">
+          <span class="chapter-label anim-fade-up">About the Author</span>
+          <div class="gold-line anim-fade-up delay-100"></div>
+
+          <div class="author-card anim-fade-up delay-200" style="margin-top: 16px;">
+            <div class="author-avatar"></div>
+            <div>
+              <div class="author-name">{{AUTHOR_NAME}}</div>
+              <div class="author-role">{{AUTHOR_ROLE}}</div>
+              <p class="author-bio">{{AUTHOR_BIO}} A seasoned strategist with over fifteen years of experience in transformative leadership, contributing regularly to leading industry publications.</p>
+            </div>
+          </div>
+
+          <div class="gold-line-wide anim-fade-up delay-400" style="margin-top: 48px;"></div>
+
+          <div class="anim-fade-up delay-500" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-top: 24px;">
+            <div>
+              <div style="font-size: 0.75em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px;">Published</div>
+              <div style="font-size: 0.9em; color: var(--text-secondary);">{{DATE}}</div>
+            </div>
+            <div>
+              <div style="font-size: 0.75em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px;">Series</div>
+              <div style="font-size: 0.9em; color: var(--text-secondary);">{{SERIES_NAME}}</div>
+            </div>
+            <div>
+              <div style="font-size: 0.75em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px;">Reading Time</div>
+              <div style="font-size: 0.9em; color: var(--text-secondary);">{{READING_TIME}}</div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="notes">
+          Introduce the author to build credibility. The metadata adds a professional, published feel.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 8: CLOSING
+           ============================================================ -->
+      <section data-background-color="#141425" data-transition="fade">
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 75vh; text-align: center;">
+          <div class="ornament anim-fade-up">
+            <span class="dot"></span>
+            <span class="diamond"></span>
+            <span class="dot"></span>
+          </div>
+
+          <h2 class="closing-title anim-fade-up delay-200">{{CLOSING_TITLE}}</h2>
+
+          <div class="gold-line-center anim-fade-up delay-300"></div>
+
+          <p class="closing-message anim-fade-up delay-400">
+            {{CLOSING_MESSAGE}}
+          </p>
+
+          <div style="margin-top: 48px;" class="anim-fade-up delay-600">
+            <div style="font-size: 0.8em; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase;">
+              {{CLOSING_LABEL}}
+            </div>
+          </div>
+
+          <div class="ornament anim-fade-up delay-700">
+            <span class="dot"></span>
+            <span class="diamond"></span>
+            <span class="dot"></span>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Reveal.js 5 -->
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
+  <script>
+    Reveal.initialize({
+      // Display
+      width: 1920,
+      height: 1080,
+      margin: 0.04,
+      center: true,
+
+      // Transitions
+      hash: true,
+      transition: 'fade',
+      transitionSpeed: 'slow',
+      backgroundTransition: 'fade',
+
+      // Controls
+      controls: true,
+      controlsLayout: 'bottom-right',
+      progress: true,
+      slideNumber: false,
+
+      // Navigation
+      keyboard: true,
+      touch: true,
+      loop: false,
+
+      // Media
+      embedded: false,
+      help: true,
+      autoPlayMedia: true,
+    });
+  </script>
+</body>
+
+</html>

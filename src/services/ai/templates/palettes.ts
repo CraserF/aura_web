@@ -15,7 +15,12 @@ export type TemplateStyle =
   | 'editorial'
   | 'scifi'
   | 'data'
-  | 'educational';
+  | 'educational'
+  | 'ocean'
+  | 'luxury'
+  | 'nature'
+  | 'neon'
+  | 'dashboard';
 
 export interface TemplatePalette {
   // Identity
@@ -424,6 +429,183 @@ const PALETTES: Record<TemplateStyle, TemplatePalette> = {
 - Cards: white + warm border + box-shadow: 0 1px 3px rgba(0,0,0,0.06).
 - Educational feel: clear hierarchy, generous spacing, focused content areas.`,
   },
+
+  // ── Ocean Depths (Ocean/Water) ─────────────────────────
+  ocean: {
+    name: 'Ocean Depths',
+    mode: 'light',
+    bg: '#F0F8FC',
+    bgSubtle: '#E4F0F8',
+    surface: '#FFFFFF',
+    surfaceHover: '#F5FAFD',
+    surfaceActive: '#EAF4FA',
+    border: '#C8E0F0',
+    borderStrong: '#A0C8E0',
+    primary: '#0090B8',
+    primaryHover: '#007A9E',
+    heading: '#005A78',
+    body: '#2A6070',
+    muted: '#6A9AAA',
+    accent: '#009878',
+    accentMuted: 'rgba(0, 152, 120, 0.08)',
+    fontImport: 'family=DM+Sans:wght@400;500;600;700&display=swap',
+    headingFont: "'DM Sans', sans-serif",
+    bodyFont: "'DM Sans', sans-serif",
+    colorUsageGuide: `COLOR RULES — Ocean Depths (LIGHT MODE):
+- BACKGROUND (#F0F8FC): Pale ice blue. Fresh, open, aquatic.
+- SURFACE (#FFFFFF): White cards. Clean and bright.
+- BORDER (#C8E0F0): Soft blue borders. Evokes water.
+- PRIMARY (#0090B8 teal blue): Icon containers, accents, CTA buttons. Bold water tone.
+- HEADING (#005A78 deep teal): Dark teal headings. Authoritative.
+- BODY (#2A6070): Teal-gray body text. Readable on light backgrounds.
+- MUTED (#6A9AAA): Soft teal-gray for captions.
+- ACCENT (#009878 sea green): Secondary highlight for badges, charts, success states.
+- Do NOT use gradient text. Solid teal headings with blue accent dividers.
+- Cards: white + blue border + box-shadow: 0 1px 3px rgba(0,144,184,0.06).
+- Use accent green for secondary data, positive trends, and nature-related content.`,
+  },
+
+  // ── Navy & Gold (Luxury) ───────────────────────────────
+  luxury: {
+    name: 'Navy & Gold',
+    mode: 'dark',
+    bg: '#1a2744',
+    bgSubtle: '#162038',
+    surface: 'rgba(200, 169, 110, 0.06)',
+    surfaceHover: 'rgba(200, 169, 110, 0.10)',
+    surfaceActive: 'rgba(200, 169, 110, 0.14)',
+    border: 'rgba(200, 169, 110, 0.12)',
+    borderStrong: 'rgba(200, 169, 110, 0.22)',
+    primary: '#c8a96e',
+    primaryHover: '#d4b87a',
+    heading: '#f5f4f0',
+    body: 'rgba(245, 244, 240, 0.78)',
+    muted: 'rgba(245, 244, 240, 0.45)',
+    accent: '#8B7355',
+    accentMuted: 'rgba(139, 115, 85, 0.15)',
+    fontImport: 'family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;600&display=swap',
+    headingFont: "'Cormorant Garamond', serif",
+    bodyFont: "'Montserrat', sans-serif",
+    colorUsageGuide: `COLOR RULES — Navy & Gold:
+- BACKGROUND (#1a2744): Deep authoritative navy. Luxurious, premium.
+- SURFACE (gold at 6%): Cards have subtle warm gold-tinted glass.
+- BORDER (gold at 12%): Warm gold borders for elegant structure.
+- PRIMARY (#c8a96e warm gold): Icon fills, metric numbers, accents. Rich and refined.
+- HEADING (#f5f4f0 cream): Warm white headings. Sophisticated on navy.
+- BODY (cream at 78%): Warm translucent body text.
+- MUTED (cream at 45%): Subdued labels.
+- ACCENT (#8B7355 bronze): Deeper gold for secondary elements, gradient stops.
+- Gradient: linear-gradient(135deg, #f5f4f0, #c8a96e) for hero text.
+- Gold is a LUXURY accent. Use sparingly on icons, metrics, dividers. NEVER as background.
+- The serif heading font (Cormorant Garamond) conveys tradition and premium quality.`,
+  },
+
+  // ── Earth & Green (Nature) ─────────────────────────────
+  nature: {
+    name: 'Earth & Green',
+    mode: 'light',
+    bg: '#F2FAF4',
+    bgSubtle: '#E8F5EC',
+    surface: '#FFFFFF',
+    surfaceHover: '#F5FBF7',
+    surfaceActive: '#ECF7F0',
+    border: '#C0DCC8',
+    borderStrong: '#98C4A8',
+    primary: '#00A060',
+    primaryHover: '#008850',
+    heading: '#1A4028',
+    body: '#3A6048',
+    muted: '#6A8A78',
+    accent: '#008860',
+    accentMuted: 'rgba(0, 136, 96, 0.08)',
+    fontImport: 'family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500&display=swap',
+    headingFont: "'Plus Jakarta Sans', sans-serif",
+    bodyFont: "'Inter', sans-serif",
+    colorUsageGuide: `COLOR RULES — Earth & Green (LIGHT MODE):
+- BACKGROUND (#F2FAF4): Pale green tint. Fresh, natural, growth-oriented.
+- SURFACE (#FFFFFF): White cards. Clean and open.
+- BORDER (#C0DCC8): Soft sage borders. Organic feel.
+- PRIMARY (#00A060 emerald): Icon fills, accents, buttons. Vibrant green energy.
+- HEADING (#1A4028 deep forest): Dark green headings. Strong and grounded.
+- BODY (#3A6048): Medium green-gray text.
+- MUTED (#6A8A78): Faded sage for captions.
+- ACCENT (#008860 forest green): Secondary highlight for charts, badges.
+- Do NOT use gradient text. Solid forest headings with emerald accent dividers.
+- Cards: white + sage border + box-shadow: 0 1px 3px rgba(0,160,96,0.06).
+- Perfect for sustainability, ESG, environmental, and growth-focused presentations.`,
+  },
+
+  // ── Neon Vibrant (Neon) ────────────────────────────────
+  neon: {
+    name: 'Neon Vibrant',
+    mode: 'dark',
+    bg: '#0A0E1A',
+    bgSubtle: '#0E1224',
+    surface: 'rgba(0, 200, 160, 0.06)',
+    surfaceHover: 'rgba(0, 200, 160, 0.10)',
+    surfaceActive: 'rgba(0, 200, 160, 0.14)',
+    border: 'rgba(0, 200, 160, 0.12)',
+    borderStrong: 'rgba(0, 200, 160, 0.24)',
+    primary: '#00C8A0',
+    primaryHover: '#00E0B0',
+    heading: '#F0FFF8',
+    body: 'rgba(240, 255, 248, 0.78)',
+    muted: 'rgba(240, 255, 248, 0.42)',
+    accent: '#FF6B6B',
+    accentMuted: 'rgba(255, 107, 107, 0.10)',
+    fontImport: 'family=Space+Grotesk:wght@400;600;700&family=Inter:wght@400;500;600&display=swap',
+    headingFont: "'Space Grotesk', sans-serif",
+    bodyFont: "'Inter', sans-serif",
+    colorUsageGuide: `COLOR RULES — Neon Vibrant:
+- BACKGROUND (#0A0E1A): Near-black with blue undertone. Electric, digital.
+- SURFACE (electric teal at 6%): Cards have a cool neon glass tint.
+- BORDER (teal at 12%): Glowing teal edges.
+- PRIMARY (#00C8A0 electric teal): Icon fills, metrics, data, accents. Bright and energetic.
+- HEADING (#F0FFF8 mint-white): High-contrast headings.
+- BODY (mint-white at 78%): Translucent body text.
+- MUTED (mint-white at 42%): Faded labels.
+- ACCENT (#FF6B6B warm coral): Secondary highlight for contrast. Use on warnings, CTAs, key data.
+- Gradient: linear-gradient(135deg, #00C8A0, #FF6B6B) for hero text — electric energy.
+- Teal + coral is a complementary warm-cool pair. Use coral VERY sparingly (1-2 elements per slide).
+- Supports neon glow: box-shadow: 0 0 20px rgba(0,200,160,0.15) on accent elements.`,
+  },
+
+  // ── Multi-Color Dashboard ──────────────────────────────
+  dashboard: {
+    name: 'Multi-Color Dashboard',
+    mode: 'light',
+    bg: '#F8F9FC',
+    bgSubtle: '#F0F2F8',
+    surface: '#FFFFFF',
+    surfaceHover: '#FAFBFE',
+    surfaceActive: '#F2F4FA',
+    border: '#E2E6F0',
+    borderStrong: '#C8CEE0',
+    primary: '#4F6AE8',
+    primaryHover: '#3D58D6',
+    heading: '#1A1F36',
+    body: '#3A4058',
+    muted: '#7A8098',
+    accent: '#10B981',
+    accentMuted: 'rgba(16, 185, 129, 0.08)',
+    fontImport: 'family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400&display=swap',
+    headingFont: "'Inter', sans-serif",
+    bodyFont: "'Inter', sans-serif",
+    colorUsageGuide: `COLOR RULES — Multi-Color Dashboard (LIGHT MODE):
+- BACKGROUND (#F8F9FC): Cool off-white. Professional dashboard canvas.
+- SURFACE (#FFFFFF): White cards with clean elevation.
+- BORDER (#E2E6F0): Cool gray borders.
+- PRIMARY (#4F6AE8 indigo): Main accent for icons, buttons, primary metrics.
+- HEADING (#1A1F36): Near-black headings.
+- BODY (#3A4058): Dark gray body text.
+- MUTED (#7A8098): Cool gray for labels and metadata.
+- ACCENT (#10B981 emerald): Success states, positive metrics.
+- CATEGORY COLORS for multi-panel dashboards:
+  Blue: #4F6AE8 (primary), Red: #EF4444 (alerts), Orange: #F59E0B (warnings), Purple: #8B5CF6 (secondary), Green: #10B981 (success).
+- Use category colors ONLY for small accents: top borders on cards, icon fills, chart segments.
+- Cards: white + cool border + box-shadow: 0 1px 3px rgba(0,0,0,0.06).
+- The 5-color system categorizes data while maintaining overall cohesion.`,
+  },
 };
 
 // ============================================
@@ -435,15 +617,15 @@ function buildDarkExampleSlides(p: TemplatePalette): string {
   return `
 <!-- TITLE SLIDE — hero with gradient text -->
 <section data-background-color="${p.bg}" data-transition="fade" style="--primary:${p.primary}; --accent:${p.accent}; --bg-dark:${p.bg}; --heading-font:${p.headingFont}; --body-font:${p.bodyFont};">
-  <div style="position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; text-align:center; padding:2rem;">
-    <div style="display:inline-flex; padding:0.25em 0.75em; border-radius:999px; font-size:0.7em; font-weight:600; letter-spacing:0.03em; background:rgba(${hexToRgb(p.primary)},0.10); color:${p.primary}; border:1px solid rgba(${hexToRgb(p.primary)},0.20); margin-bottom:1.5rem;" class="anim-fade-in-up">
+  <div style="position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; text-align:center; padding:4rem 5rem;">
+    <div style="display:inline-flex; padding:0.3em 1em; border-radius:999px; font-size:0.8em; font-weight:600; letter-spacing:0.03em; background:rgba(${hexToRgb(p.primary)},0.10); color:${p.primary}; border:1px solid rgba(${hexToRgb(p.primary)},0.20); margin-bottom:2rem;" class="anim-fade-in-up">
       PRESENTATION
     </div>
-    <h1 class="anim-fade-in-up delay-100" style="font-family:var(--heading-font); font-size:3.5em; font-weight:700; letter-spacing:-0.03em; line-height:1.1; background:linear-gradient(135deg,${p.heading},${p.primary}); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; margin:0;">
+    <h1 class="anim-fade-in-up delay-100" style="font-family:var(--heading-font); font-size:4em; font-weight:800; letter-spacing:-0.03em; line-height:1.05; background:linear-gradient(135deg,${p.heading},${p.primary}); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; margin:0;">
       Presentation Title
     </h1>
-    <div class="anim-fade-in-up delay-200" style="width:48px; height:3px; background:${p.primary}; border-radius:2px; margin:1.2rem auto;"></div>
-    <p class="anim-fade-in-up delay-300" style="font-family:var(--body-font); font-size:1.2em; color:${p.body}; margin:0; max-width:550px; line-height:1.5;">
+    <div class="anim-fade-in-up delay-200" style="width:56px; height:3px; background:${p.primary}; border-radius:2px; margin:1.5rem auto;"></div>
+    <p class="anim-fade-in-up delay-300" style="font-family:var(--body-font); font-size:1.4em; color:${p.body}; margin:0; max-width:650px; line-height:1.5;">
       A compelling subtitle that sets the tone
     </p>
   </div>
@@ -451,30 +633,30 @@ function buildDarkExampleSlides(p: TemplatePalette): string {
 
 <!-- CONTENT SLIDE — bento grid with glass cards -->
 <section data-background-color="${p.bg}" data-transition="fade">
-  <div style="max-width:90%; margin:0 auto; padding:2rem;">
-    <h2 class="anim-fade-in-up" style="font-family:var(--heading-font); font-size:2.2em; font-weight:700; color:${p.heading}; margin:0 0 0.3em; letter-spacing:-0.02em;">Key Features</h2>
-    <div class="anim-fade-in-up delay-100" style="width:48px; height:3px; background:var(--primary); border-radius:2px; margin-bottom:1.5rem;"></div>
-    <div class="anim-stagger" style="display:grid; grid-template-columns:repeat(3,1fr); gap:1.2rem;">
-      <div class="anim-fade-in-up" style="background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:1.5rem; backdrop-filter:blur(12px);">
-        <div style="width:44px; height:44px; border-radius:10px; background:rgba(${hexToRgb(p.primary)},0.10); display:flex; align-items:center; justify-content:center; margin-bottom:1rem;">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${p.primary}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+  <div style="width:100%; padding:4rem 5rem; box-sizing:border-box;">
+    <h2 class="anim-fade-in-up" style="font-family:var(--heading-font); font-size:2.4em; font-weight:700; color:${p.heading}; margin:0 0 0.3em; letter-spacing:-0.02em;">Key Features</h2>
+    <div class="anim-fade-in-up delay-100" style="width:56px; height:3px; background:var(--primary); border-radius:2px; margin-bottom:2rem;"></div>
+    <div class="anim-stagger" style="display:grid; grid-template-columns:repeat(3,1fr); gap:1.5rem;">
+      <div class="anim-fade-in-up" style="background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:2rem; backdrop-filter:blur(12px);">
+        <div style="width:48px; height:48px; border-radius:10px; background:rgba(${hexToRgb(p.primary)},0.10); display:flex; align-items:center; justify-content:center; margin-bottom:1.25rem;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${p.primary}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         </div>
-        <h3 style="font-family:var(--heading-font); font-size:1.05em; font-weight:600; color:${p.heading}; margin:0 0 0.4em;">Lightning Fast</h3>
-        <p style="font-family:var(--body-font); font-size:0.8em; color:${p.body}; margin:0; line-height:1.5;">Optimized for speed with sub-millisecond response times.</p>
+        <h3 style="font-family:var(--heading-font); font-size:1.2em; font-weight:600; color:${p.heading}; margin:0 0 0.5em;">Lightning Fast</h3>
+        <p style="font-family:var(--body-font); font-size:1em; color:${p.body}; margin:0; line-height:1.6;">Optimized for speed with sub-millisecond response times.</p>
       </div>
-      <div class="anim-fade-in-up" style="background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:1.5rem; backdrop-filter:blur(12px);">
-        <div style="width:44px; height:44px; border-radius:10px; background:rgba(${hexToRgb(p.primary)},0.10); display:flex; align-items:center; justify-content:center; margin-bottom:1rem;">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${p.primary}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      <div class="anim-fade-in-up" style="background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:2rem; backdrop-filter:blur(12px);">
+        <div style="width:48px; height:48px; border-radius:10px; background:rgba(${hexToRgb(p.primary)},0.10); display:flex; align-items:center; justify-content:center; margin-bottom:1.25rem;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${p.primary}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
         </div>
-        <h3 style="font-family:var(--heading-font); font-size:1.05em; font-weight:600; color:${p.heading}; margin:0 0 0.4em;">Secure by Default</h3>
-        <p style="font-family:var(--body-font); font-size:0.8em; color:${p.body}; margin:0; line-height:1.5;">Enterprise-grade security with zero-trust architecture.</p>
+        <h3 style="font-family:var(--heading-font); font-size:1.2em; font-weight:600; color:${p.heading}; margin:0 0 0.5em;">Secure by Default</h3>
+        <p style="font-family:var(--body-font); font-size:1em; color:${p.body}; margin:0; line-height:1.6;">Enterprise-grade security with zero-trust architecture.</p>
       </div>
-      <div class="anim-fade-in-up" style="background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:1.5rem; backdrop-filter:blur(12px);">
-        <div style="width:44px; height:44px; border-radius:10px; background:rgba(${hexToRgb(p.primary)},0.10); display:flex; align-items:center; justify-content:center; margin-bottom:1rem;">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${p.primary}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <div class="anim-fade-in-up" style="background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:2rem; backdrop-filter:blur(12px);">
+        <div style="width:48px; height:48px; border-radius:10px; background:rgba(${hexToRgb(p.primary)},0.10); display:flex; align-items:center; justify-content:center; margin-bottom:1.25rem;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${p.primary}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         </div>
-        <h3 style="font-family:var(--heading-font); font-size:1.05em; font-weight:600; color:${p.heading}; margin:0 0 0.4em;">Real-Time Analytics</h3>
-        <p style="font-family:var(--body-font); font-size:0.8em; color:${p.body}; margin:0; line-height:1.5;">Live dashboards with instant insights and alerting.</p>
+        <h3 style="font-family:var(--heading-font); font-size:1.2em; font-weight:600; color:${p.heading}; margin:0 0 0.5em;">Real-Time Analytics</h3>
+        <p style="font-family:var(--body-font); font-size:1em; color:${p.body}; margin:0; line-height:1.6;">Live dashboards with instant insights and alerting.</p>
       </div>
     </div>
   </div>
@@ -482,28 +664,28 @@ function buildDarkExampleSlides(p: TemplatePalette): string {
 
 <!-- METRICS SLIDE — large numbers with context -->
 <section data-background-color="${p.bg}" data-transition="fade">
-  <div style="max-width:90%; margin:0 auto; padding:2rem;">
-    <h2 class="anim-fade-in-up" style="font-family:var(--heading-font); font-size:2.2em; font-weight:700; color:${p.heading}; margin:0 0 1.5rem; letter-spacing:-0.02em; text-align:center;">By the Numbers</h2>
-    <div class="anim-stagger" style="display:grid; grid-template-columns:repeat(4,1fr); gap:1rem;">
-      <div class="anim-fade-in-up" style="text-align:center; background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:1.8rem 1rem; backdrop-filter:blur(12px);">
-        <div style="font-family:var(--heading-font); font-size:2.8em; font-weight:800; color:var(--primary); line-height:1; letter-spacing:-0.02em;">$4.2M</div>
-        <div style="font-family:var(--body-font); font-size:0.7em; color:${p.muted}; margin-top:0.5em; text-transform:uppercase; letter-spacing:0.05em;">Annual Revenue</div>
-        <div style="font-size:0.7em; color:#4ade80; margin-top:0.3em;">↑ 24% YoY</div>
+  <div style="width:100%; padding:4rem 5rem; box-sizing:border-box;">
+    <h2 class="anim-fade-in-up" style="font-family:var(--heading-font); font-size:2.4em; font-weight:700; color:${p.heading}; margin:0 0 2rem; letter-spacing:-0.02em; text-align:center;">By the Numbers</h2>
+    <div class="anim-stagger" style="display:grid; grid-template-columns:repeat(4,1fr); gap:1.5rem;">
+      <div class="anim-fade-in-up" style="text-align:center; background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:2.5rem 1.5rem; backdrop-filter:blur(12px);">
+        <div style="font-family:var(--heading-font); font-size:3.5em; font-weight:800; color:var(--primary); line-height:1; letter-spacing:-0.02em;">$4.2M</div>
+        <div style="font-family:var(--body-font); font-size:0.8em; color:${p.muted}; margin-top:0.75em; text-transform:uppercase; letter-spacing:0.05em;">Annual Revenue</div>
+        <div style="font-size:0.85em; color:#4ade80; margin-top:0.4em;">↑ 24% YoY</div>
       </div>
-      <div class="anim-fade-in-up" style="text-align:center; background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:1.8rem 1rem; backdrop-filter:blur(12px);">
-        <div style="font-family:var(--heading-font); font-size:2.8em; font-weight:800; color:var(--primary); line-height:1; letter-spacing:-0.02em;">125K</div>
-        <div style="font-family:var(--body-font); font-size:0.7em; color:${p.muted}; margin-top:0.5em; text-transform:uppercase; letter-spacing:0.05em;">Active Users</div>
-        <div style="font-size:0.7em; color:#4ade80; margin-top:0.3em;">↑ 18% MoM</div>
+      <div class="anim-fade-in-up" style="text-align:center; background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:2.5rem 1.5rem; backdrop-filter:blur(12px);">
+        <div style="font-family:var(--heading-font); font-size:3.5em; font-weight:800; color:var(--primary); line-height:1; letter-spacing:-0.02em;">125K</div>
+        <div style="font-family:var(--body-font); font-size:0.8em; color:${p.muted}; margin-top:0.75em; text-transform:uppercase; letter-spacing:0.05em;">Active Users</div>
+        <div style="font-size:0.85em; color:#4ade80; margin-top:0.4em;">↑ 18% MoM</div>
       </div>
-      <div class="anim-fade-in-up" style="text-align:center; background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:1.8rem 1rem; backdrop-filter:blur(12px);">
-        <div style="font-family:var(--heading-font); font-size:2.8em; font-weight:800; color:var(--primary); line-height:1; letter-spacing:-0.02em;">99.9%</div>
-        <div style="font-family:var(--body-font); font-size:0.7em; color:${p.muted}; margin-top:0.5em; text-transform:uppercase; letter-spacing:0.05em;">Uptime SLA</div>
-        <div style="font-size:0.7em; color:#4ade80; margin-top:0.3em;">42-day streak</div>
+      <div class="anim-fade-in-up" style="text-align:center; background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:2.5rem 1.5rem; backdrop-filter:blur(12px);">
+        <div style="font-family:var(--heading-font); font-size:3.5em; font-weight:800; color:var(--primary); line-height:1; letter-spacing:-0.02em;">99.9%</div>
+        <div style="font-family:var(--body-font); font-size:0.8em; color:${p.muted}; margin-top:0.75em; text-transform:uppercase; letter-spacing:0.05em;">Uptime SLA</div>
+        <div style="font-size:0.85em; color:#4ade80; margin-top:0.4em;">42-day streak</div>
       </div>
-      <div class="anim-fade-in-up" style="text-align:center; background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:1.8rem 1rem; backdrop-filter:blur(12px);">
-        <div style="font-family:var(--heading-font); font-size:2.8em; font-weight:800; color:var(--primary); line-height:1; letter-spacing:-0.02em;">72</div>
-        <div style="font-family:var(--body-font); font-size:0.7em; color:${p.muted}; margin-top:0.5em; text-transform:uppercase; letter-spacing:0.05em;">NPS Score</div>
-        <div style="font-size:0.7em; color:#4ade80; margin-top:0.3em;">↑ 8 points</div>
+      <div class="anim-fade-in-up" style="text-align:center; background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:2.5rem 1.5rem; backdrop-filter:blur(12px);">
+        <div style="font-family:var(--heading-font); font-size:3.5em; font-weight:800; color:var(--primary); line-height:1; letter-spacing:-0.02em;">72</div>
+        <div style="font-family:var(--body-font); font-size:0.8em; color:${p.muted}; margin-top:0.75em; text-transform:uppercase; letter-spacing:0.05em;">NPS Score</div>
+        <div style="font-size:0.85em; color:#4ade80; margin-top:0.4em;">↑ 8 points</div>
       </div>
     </div>
   </div>
@@ -514,15 +696,15 @@ function buildLightExampleSlides(p: TemplatePalette): string {
   return `
 <!-- TITLE SLIDE — clean hero with accent divider (light mode) -->
 <section data-background-color="${p.bg}" data-transition="fade" style="--primary:${p.primary}; --accent:${p.accent}; --bg-dark:${p.bg}; --heading-font:${p.headingFont}; --body-font:${p.bodyFont};">
-  <div style="position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; text-align:center; padding:2rem;">
-    <div style="display:inline-flex; padding:0.25em 0.75em; border-radius:999px; font-size:0.7em; font-weight:600; letter-spacing:0.03em; background:rgba(${hexToRgb(p.primary)},0.08); color:${p.primary}; border:1px solid rgba(${hexToRgb(p.primary)},0.15); margin-bottom:1.5rem;" class="anim-fade-in-up">
+  <div style="position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; text-align:center; padding:4rem 5rem;">
+    <div style="display:inline-flex; padding:0.3em 1em; border-radius:999px; font-size:0.8em; font-weight:600; letter-spacing:0.03em; background:rgba(${hexToRgb(p.primary)},0.08); color:${p.primary}; border:1px solid rgba(${hexToRgb(p.primary)},0.15); margin-bottom:2rem;" class="anim-fade-in-up">
       PRESENTATION
     </div>
-    <h1 class="anim-fade-in-up delay-100" style="font-family:var(--heading-font); font-size:3.5em; font-weight:700; letter-spacing:-0.03em; line-height:1.1; color:${p.heading}; margin:0;">
+    <h1 class="anim-fade-in-up delay-100" style="font-family:var(--heading-font); font-size:4em; font-weight:800; letter-spacing:-0.03em; line-height:1.05; color:${p.heading}; margin:0;">
       Presentation Title
     </h1>
-    <div class="anim-fade-in-up delay-200" style="width:48px; height:3px; background:${p.primary}; border-radius:2px; margin:1.2rem auto;"></div>
-    <p class="anim-fade-in-up delay-300" style="font-family:var(--body-font); font-size:1.2em; color:${p.body}; margin:0; max-width:550px; line-height:1.5;">
+    <div class="anim-fade-in-up delay-200" style="width:56px; height:3px; background:${p.primary}; border-radius:2px; margin:1.5rem auto;"></div>
+    <p class="anim-fade-in-up delay-300" style="font-family:var(--body-font); font-size:1.4em; color:${p.body}; margin:0; max-width:650px; line-height:1.5;">
       A compelling subtitle that sets the tone
     </p>
   </div>
@@ -530,30 +712,30 @@ function buildLightExampleSlides(p: TemplatePalette): string {
 
 <!-- CONTENT SLIDE — clean cards with shadows (light mode) -->
 <section data-background-color="${p.bg}" data-transition="fade">
-  <div style="max-width:90%; margin:0 auto; padding:2rem;">
-    <h2 class="anim-fade-in-up" style="font-family:var(--heading-font); font-size:2.2em; font-weight:700; color:${p.heading}; margin:0 0 0.3em; letter-spacing:-0.02em;">Key Features</h2>
-    <div class="anim-fade-in-up delay-100" style="width:48px; height:3px; background:var(--primary); border-radius:2px; margin-bottom:1.5rem;"></div>
-    <div class="anim-stagger" style="display:grid; grid-template-columns:repeat(3,1fr); gap:1.2rem;">
-      <div class="anim-fade-in-up" style="background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);">
-        <div style="width:44px; height:44px; border-radius:10px; background:rgba(${hexToRgb(p.primary)},0.08); display:flex; align-items:center; justify-content:center; margin-bottom:1rem;">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${p.primary}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+  <div style="width:100%; padding:4rem 5rem; box-sizing:border-box;">
+    <h2 class="anim-fade-in-up" style="font-family:var(--heading-font); font-size:2.4em; font-weight:700; color:${p.heading}; margin:0 0 0.3em; letter-spacing:-0.02em;">Key Features</h2>
+    <div class="anim-fade-in-up delay-100" style="width:56px; height:3px; background:var(--primary); border-radius:2px; margin-bottom:2rem;"></div>
+    <div class="anim-stagger" style="display:grid; grid-template-columns:repeat(3,1fr); gap:1.5rem;">
+      <div class="anim-fade-in-up" style="background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:2rem; box-shadow:0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);">
+        <div style="width:48px; height:48px; border-radius:10px; background:rgba(${hexToRgb(p.primary)},0.08); display:flex; align-items:center; justify-content:center; margin-bottom:1.25rem;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${p.primary}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         </div>
-        <h3 style="font-family:var(--heading-font); font-size:1.05em; font-weight:600; color:${p.heading}; margin:0 0 0.4em;">Lightning Fast</h3>
-        <p style="font-family:var(--body-font); font-size:0.8em; color:${p.body}; margin:0; line-height:1.5;">Optimized for speed with sub-millisecond response times.</p>
+        <h3 style="font-family:var(--heading-font); font-size:1.2em; font-weight:600; color:${p.heading}; margin:0 0 0.5em;">Lightning Fast</h3>
+        <p style="font-family:var(--body-font); font-size:1em; color:${p.body}; margin:0; line-height:1.6;">Optimized for speed with sub-millisecond response times.</p>
       </div>
-      <div class="anim-fade-in-up" style="background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);">
-        <div style="width:44px; height:44px; border-radius:10px; background:rgba(${hexToRgb(p.primary)},0.08); display:flex; align-items:center; justify-content:center; margin-bottom:1rem;">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${p.primary}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      <div class="anim-fade-in-up" style="background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:2rem; box-shadow:0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);">
+        <div style="width:48px; height:48px; border-radius:10px; background:rgba(${hexToRgb(p.primary)},0.08); display:flex; align-items:center; justify-content:center; margin-bottom:1.25rem;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${p.primary}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
         </div>
-        <h3 style="font-family:var(--heading-font); font-size:1.05em; font-weight:600; color:${p.heading}; margin:0 0 0.4em;">Secure by Default</h3>
-        <p style="font-family:var(--body-font); font-size:0.8em; color:${p.body}; margin:0; line-height:1.5;">Enterprise-grade security with zero-trust architecture.</p>
+        <h3 style="font-family:var(--heading-font); font-size:1.2em; font-weight:600; color:${p.heading}; margin:0 0 0.5em;">Secure by Default</h3>
+        <p style="font-family:var(--body-font); font-size:1em; color:${p.body}; margin:0; line-height:1.6;">Enterprise-grade security with zero-trust architecture.</p>
       </div>
-      <div class="anim-fade-in-up" style="background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);">
-        <div style="width:44px; height:44px; border-radius:10px; background:rgba(${hexToRgb(p.primary)},0.08); display:flex; align-items:center; justify-content:center; margin-bottom:1rem;">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${p.primary}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <div class="anim-fade-in-up" style="background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:2rem; box-shadow:0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);">
+        <div style="width:48px; height:48px; border-radius:10px; background:rgba(${hexToRgb(p.primary)},0.08); display:flex; align-items:center; justify-content:center; margin-bottom:1.25rem;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${p.primary}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         </div>
-        <h3 style="font-family:var(--heading-font); font-size:1.05em; font-weight:600; color:${p.heading}; margin:0 0 0.4em;">Real-Time Analytics</h3>
-        <p style="font-family:var(--body-font); font-size:0.8em; color:${p.body}; margin:0; line-height:1.5;">Live dashboards with instant insights and alerting.</p>
+        <h3 style="font-family:var(--heading-font); font-size:1.2em; font-weight:600; color:${p.heading}; margin:0 0 0.5em;">Real-Time Analytics</h3>
+        <p style="font-family:var(--body-font); font-size:1em; color:${p.body}; margin:0; line-height:1.6;">Live dashboards with instant insights and alerting.</p>
       </div>
     </div>
   </div>
@@ -561,28 +743,28 @@ function buildLightExampleSlides(p: TemplatePalette): string {
 
 <!-- METRICS SLIDE — clean metric cards (light mode) -->
 <section data-background-color="${p.bg}" data-transition="fade">
-  <div style="max-width:90%; margin:0 auto; padding:2rem;">
-    <h2 class="anim-fade-in-up" style="font-family:var(--heading-font); font-size:2.2em; font-weight:700; color:${p.heading}; margin:0 0 1.5rem; letter-spacing:-0.02em; text-align:center;">By the Numbers</h2>
-    <div class="anim-stagger" style="display:grid; grid-template-columns:repeat(4,1fr); gap:1rem;">
-      <div class="anim-fade-in-up" style="text-align:center; background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:1.8rem 1rem; box-shadow:0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);">
-        <div style="font-family:var(--heading-font); font-size:2.8em; font-weight:800; color:var(--primary); line-height:1; letter-spacing:-0.02em;">$4.2M</div>
-        <div style="font-family:var(--body-font); font-size:0.7em; color:${p.muted}; margin-top:0.5em; text-transform:uppercase; letter-spacing:0.05em;">Annual Revenue</div>
-        <div style="font-size:0.7em; color:#16a34a; margin-top:0.3em;">↑ 24% YoY</div>
+  <div style="width:100%; padding:4rem 5rem; box-sizing:border-box;">
+    <h2 class="anim-fade-in-up" style="font-family:var(--heading-font); font-size:2.4em; font-weight:700; color:${p.heading}; margin:0 0 2rem; letter-spacing:-0.02em; text-align:center;">By the Numbers</h2>
+    <div class="anim-stagger" style="display:grid; grid-template-columns:repeat(4,1fr); gap:1.5rem;">
+      <div class="anim-fade-in-up" style="text-align:center; background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:2.5rem 1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);">
+        <div style="font-family:var(--heading-font); font-size:3.5em; font-weight:800; color:var(--primary); line-height:1; letter-spacing:-0.02em;">$4.2M</div>
+        <div style="font-family:var(--body-font); font-size:0.8em; color:${p.muted}; margin-top:0.75em; text-transform:uppercase; letter-spacing:0.05em;">Annual Revenue</div>
+        <div style="font-size:0.85em; color:#16a34a; margin-top:0.4em;">↑ 24% YoY</div>
       </div>
-      <div class="anim-fade-in-up" style="text-align:center; background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:1.8rem 1rem; box-shadow:0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);">
-        <div style="font-family:var(--heading-font); font-size:2.8em; font-weight:800; color:var(--primary); line-height:1; letter-spacing:-0.02em;">125K</div>
-        <div style="font-family:var(--body-font); font-size:0.7em; color:${p.muted}; margin-top:0.5em; text-transform:uppercase; letter-spacing:0.05em;">Active Users</div>
-        <div style="font-size:0.7em; color:#16a34a; margin-top:0.3em;">↑ 18% MoM</div>
+      <div class="anim-fade-in-up" style="text-align:center; background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:2.5rem 1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);">
+        <div style="font-family:var(--heading-font); font-size:3.5em; font-weight:800; color:var(--primary); line-height:1; letter-spacing:-0.02em;">125K</div>
+        <div style="font-family:var(--body-font); font-size:0.8em; color:${p.muted}; margin-top:0.75em; text-transform:uppercase; letter-spacing:0.05em;">Active Users</div>
+        <div style="font-size:0.85em; color:#16a34a; margin-top:0.4em;">↑ 18% MoM</div>
       </div>
-      <div class="anim-fade-in-up" style="text-align:center; background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:1.8rem 1rem; box-shadow:0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);">
-        <div style="font-family:var(--heading-font); font-size:2.8em; font-weight:800; color:var(--primary); line-height:1; letter-spacing:-0.02em;">99.9%</div>
-        <div style="font-family:var(--body-font); font-size:0.7em; color:${p.muted}; margin-top:0.5em; text-transform:uppercase; letter-spacing:0.05em;">Uptime SLA</div>
-        <div style="font-size:0.7em; color:#16a34a; margin-top:0.3em;">42-day streak</div>
+      <div class="anim-fade-in-up" style="text-align:center; background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:2.5rem 1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);">
+        <div style="font-family:var(--heading-font); font-size:3.5em; font-weight:800; color:var(--primary); line-height:1; letter-spacing:-0.02em;">99.9%</div>
+        <div style="font-family:var(--body-font); font-size:0.8em; color:${p.muted}; margin-top:0.75em; text-transform:uppercase; letter-spacing:0.05em;">Uptime SLA</div>
+        <div style="font-size:0.85em; color:#16a34a; margin-top:0.4em;">42-day streak</div>
       </div>
-      <div class="anim-fade-in-up" style="text-align:center; background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:1.8rem 1rem; box-shadow:0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);">
-        <div style="font-family:var(--heading-font); font-size:2.8em; font-weight:800; color:var(--primary); line-height:1; letter-spacing:-0.02em;">72</div>
-        <div style="font-family:var(--body-font); font-size:0.7em; color:${p.muted}; margin-top:0.5em; text-transform:uppercase; letter-spacing:0.05em;">NPS Score</div>
-        <div style="font-size:0.7em; color:#16a34a; margin-top:0.3em;">↑ 8 points</div>
+      <div class="anim-fade-in-up" style="text-align:center; background:${p.surface}; border:1px solid ${p.border}; border-radius:12px; padding:2.5rem 1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);">
+        <div style="font-family:var(--heading-font); font-size:3.5em; font-weight:800; color:var(--primary); line-height:1; letter-spacing:-0.02em;">72</div>
+        <div style="font-family:var(--body-font); font-size:0.8em; color:${p.muted}; margin-top:0.75em; text-transform:uppercase; letter-spacing:0.05em;">NPS Score</div>
+        <div style="font-size:0.85em; color:#16a34a; margin-top:0.4em;">↑ 8 points</div>
       </div>
     </div>
   </div>
@@ -639,6 +821,11 @@ const STYLE_DESCRIPTIONS: Record<TemplateStyle, string> = {
   scifi: 'Futuristic sci-fi theme with Teal Trust palette (teal + seafoam + mint). Neon accents, electric borders, digital aesthetic.',
   data: 'Data-driven dashboard with Forest & Moss palette (forest green + moss). Growth-oriented, natural, clean data visualizations.',
   educational: 'Warm educational format with Warm Terracotta palette (terracotta + sage). Approachable, clear hierarchy, focused.',
+  ocean: 'Fresh aquatic theme with Ocean Depths palette (teal blue + sea green). Light mode, clean, water-inspired.',
+  luxury: 'Premium luxury presentation with Navy & Gold palette (deep navy + warm gold). Serif typography, sophisticated.',
+  nature: 'Natural growth theme with Earth & Green palette (emerald + forest). Light mode, organic, eco-friendly.',
+  neon: 'Electric dark theme with Neon Vibrant palette (electric teal + warm coral). High-energy, modern, startup.',
+  dashboard: 'Professional multi-category dashboard with Multi-Color palette. 5-color coded system for data-rich slides.',
 };
 
 const STYLE_ANIM_LEVELS: Record<TemplateStyle, 1 | 2 | 3 | 4> = {
@@ -652,6 +839,11 @@ const STYLE_ANIM_LEVELS: Record<TemplateStyle, 1 | 2 | 3 | 4> = {
   scifi: 4,
   data: 2,
   educational: 2,
+  ocean: 2,
+  luxury: 3,
+  nature: 2,
+  neon: 4,
+  dashboard: 2,
 };
 
 // ============================================
@@ -661,9 +853,17 @@ const STYLE_ANIM_LEVELS: Record<TemplateStyle, 1 | 2 | 3 | 4> = {
 export function detectTemplateStyle(prompt: string): TemplateStyle {
   const lower = prompt.toLowerCase();
 
+  // New palette styles (check before existing to avoid conflicts)
+  if (/\b(ocean|marine|aqua|sea|coastal|water\s*theme)\b/.test(lower)) return 'ocean';
+  if (/\b(luxury|premium|gold|elegant|exclusive|upscale|high-?end)\b/.test(lower)) return 'luxury';
+  if (/\b(nature|eco|sustain|environment|organic|earth|garden)\b/.test(lower)) return 'nature';
+  if (/\b(neon|vibrant|electric|glow)\b/.test(lower)) return 'neon';
+  if (/\b(multi-?color|panel|categor|admin|overview\s*dash|status\s*board)\b/.test(lower)) return 'dashboard';
+
+  // Original palette styles
   if (/\b(keynote|launch|conference|announce|reveal)\b/.test(lower)) return 'keynote';
   if (/\b(pitch\s*deck|investor|startup|funding|series\s*[abc]|venture|fundrais|vc)\b/.test(lower)) return 'pitch';
-  if (/\b(sci-?fi|futurist|cyber|neon|matrix|holo|space|galaxy)\b/.test(lower)) return 'scifi';
+  if (/\b(sci-?fi|futurist|cyber|matrix|holo|space|galaxy)\b/.test(lower)) return 'scifi';
   if (/\b(creative|portfolio|design|art|brand|visual|showcase)\b/.test(lower)) return 'creative';
   if (/\b(minimal|clean|simple|whitespace|swiss|brief|quick)\b/.test(lower)) return 'minimal';
   if (/\b(story|editorial|narrative|journal|magazine|case\s*study)\b/.test(lower)) return 'editorial';

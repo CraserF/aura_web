@@ -1,0 +1,766 @@
+<!doctype html>
+<!--
+  LANDSCAPE ILLUSTRATION TEMPLATE — Reveal.js 5
+  Purpose: Nature-themed storytelling, environmental reports, travel, outdoor brands
+  Animation Level: Heavy (Level 4)
+  Features: Layered SVG landscape scenes, cloud drift, water shimmer, bird flight, scene overlays
+
+  Color System:
+    --bg:       #0a1628  (deep night sky)
+    --primary:  #64B5F6  (sky blue)
+    --accent:   #81C784  (nature green)
+    Heading:    #f0f4f8  (bright white)
+    Body:       rgba(240,244,248,0.7)  (soft white)
+
+  CUSTOMIZATION POINTS (search for "CUSTOMIZE")
+-->
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><!-- CUSTOMIZE --></title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/black.css">
+  <link rel="stylesheet" href="../animations/core-animations.css">
+  <link rel="stylesheet" href="../animations/advanced-effects.css">
+
+  <style>
+    /* ── Design Tokens ────────────────────────────────── */
+    :root {
+      --bg: #0a1628;
+      --primary: #64B5F6;
+      --accent: #81C784;
+      --heading: #f0f4f8;
+      --body: rgba(240, 244, 248, 0.7);
+      --card-bg: rgba(10, 22, 40, 0.75);
+      --card-border: rgba(100, 181, 246, 0.15);
+      --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      --r-background-color: #0a1628;
+      --r-main-color: rgba(240, 244, 248, 0.7);
+      --r-heading-color: #f0f4f8;
+    }
+
+    /* ── Base ─────────────────────────────────────────── */
+    .reveal {
+      font-family: 'Inter', sans-serif;
+      font-size: 36px;
+      color: var(--body);
+    }
+
+    .reveal .slides {
+      text-align: left;
+    }
+
+    .reveal .slides section {
+      padding: 0;
+      margin: 0;
+      box-sizing: border-box;
+    }
+
+    /* ── Typography ───────────────────────────────────── */
+    .reveal h1,
+    .reveal h2,
+    .reveal h3 {
+      font-family: 'Poppins', sans-serif;
+      color: var(--heading);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      margin-bottom: 0;
+    }
+
+    .reveal h1 {
+      font-size: 4em;
+    }
+
+    .reveal h2 {
+      font-size: 2.5em;
+    }
+
+    .reveal h3 {
+      font-size: 1.3em;
+      font-weight: 600;
+    }
+
+    .reveal p {
+      font-family: 'Inter', sans-serif;
+      color: var(--body);
+      font-size: 1.1em;
+      line-height: 1.7;
+      margin-top: 0;
+    }
+
+    /* ── Scene Container ─────────────────────────────── */
+    .scene {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+
+    .scene svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ── Content Overlay ─────────────────────────────── */
+    .content-overlay {
+      position: relative;
+      z-index: 10;
+      padding: 4rem 5rem;
+      box-sizing: border-box;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .content-overlay.center {
+      align-items: center;
+      text-align: center;
+    }
+
+    .content-overlay.bottom {
+      justify-content: flex-end;
+      padding-bottom: 6rem;
+    }
+
+    /* ── Glass Card Panels ───────────────────────────── */
+    .glass-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: var(--card-shadow);
+    }
+
+    .glass-card h3 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.3em;
+      color: var(--heading);
+      margin: 0 0 12px 0;
+    }
+
+    .glass-card p {
+      font-family: 'Inter', sans-serif;
+      font-size: 1.1em;
+      color: var(--body);
+      line-height: 1.7;
+      margin: 0;
+    }
+
+    .glass-card .card-icon {
+      font-size: 1.6em;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    /* ── Card Grids ──────────────────────────────────── */
+    .card-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-top: 40px;
+    }
+
+    .card-grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1.5rem;
+      margin-top: 40px;
+    }
+
+    /* ── Accent Line ─────────────────────────────────── */
+    .accent-line {
+      width: 56px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      border: none;
+      border-radius: 2px;
+      margin: 24px 0;
+    }
+
+    .accent-line.center {
+      margin: 24px auto;
+    }
+
+    /* ── Pill Badge ───────────────────────────────────── */
+    .pill {
+      display: inline-block;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.75em;
+      font-weight: 600;
+      color: var(--primary);
+      background: rgba(100, 181, 246, 0.1);
+      border: 1px solid rgba(100, 181, 246, 0.2);
+      border-radius: 100px;
+      padding: 6px 18px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    /* ── Timeline ─────────────────────────────────────── */
+    .timeline {
+      display: flex;
+      gap: 2rem;
+      margin-top: 48px;
+      position: relative;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      top: 24px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: rgba(100, 181, 246, 0.2);
+    }
+
+    .timeline-item {
+      flex: 1;
+      text-align: center;
+    }
+
+    .timeline-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--primary);
+      margin: 16px auto 20px;
+      position: relative;
+      z-index: 2;
+      box-shadow: 0 0 12px rgba(100, 181, 246, 0.4);
+    }
+
+    .timeline-item h3 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.1em;
+      color: var(--heading);
+      margin: 0 0 8px 0;
+    }
+
+    .timeline-item p {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.85em;
+      color: var(--body);
+      margin: 0;
+    }
+
+    /* ── Stat ─────────────────────────────────────────── */
+    .stat-value {
+      font-family: 'Poppins', sans-serif;
+      font-size: 3em;
+      font-weight: 700;
+      color: var(--heading);
+      line-height: 1.1;
+    }
+
+    .stat-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.85em;
+      color: var(--body);
+      margin-top: 4px;
+    }
+
+    /* ── Cloud Animation ─────────────────────────────── */
+    .cloud {
+      animation: cloud-drift linear infinite;
+      opacity: 0.3;
+    }
+
+    .cloud-slow { animation-duration: 80s; }
+    .cloud-medium { animation-duration: 50s; }
+    .cloud-fast { animation-duration: 35s; }
+
+    @keyframes cloud-drift {
+      from { transform: translateX(-100%); }
+      to { transform: translateX(200%); }
+    }
+
+    /* ── Water Shimmer ───────────────────────────────── */
+    .water-shimmer {
+      animation: water-shimmer 4s ease-in-out infinite;
+    }
+
+    @keyframes water-shimmer {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.7; }
+    }
+
+    /* ── Bird Flight ─────────────────────────────────── */
+    .bird {
+      animation: bird-fly 12s ease-in-out infinite;
+    }
+
+    .bird-delayed {
+      animation: bird-fly 14s ease-in-out 3s infinite;
+    }
+
+    @keyframes bird-fly {
+      0% { transform: translate(0, 0); }
+      50% { transform: translate(200px, -30px); }
+      100% { transform: translate(400px, 0); }
+    }
+
+    /* ── Star Twinkle ────────────────────────────────── */
+    .star-twinkle {
+      animation: twinkle 3s ease-in-out infinite alternate;
+    }
+
+    @keyframes twinkle {
+      0% { opacity: 0.3; }
+      100% { opacity: 1; }
+    }
+
+    /* ── Utility ──────────────────────────────────────── */
+    .spacer-sm { height: 16px; }
+    .spacer-md { height: 32px; }
+    .spacer-lg { height: 48px; }
+  </style>
+</head>
+
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- ════════════════════════════════════════════════
+           SLIDE 1 — Dawn Scene: Title
+           ════════════════════════════════════════════════ -->
+      <section data-background-color="#0a1628" data-transition="fade">
+        <!-- SVG Dawn Landscape -->
+        <div class="scene">
+          <svg viewBox="0 0 1920 1080" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Sky gradient -->
+            <defs>
+              <linearGradient id="dawn-sky" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#0a1628" />
+                <stop offset="40%" stop-color="#1a2a4a" />
+                <stop offset="70%" stop-color="#3d5a80" />
+                <stop offset="90%" stop-color="#ee6c4d" />
+                <stop offset="100%" stop-color="#f4a261" />
+              </linearGradient>
+              <radialGradient id="sun-glow" cx="50%" cy="78%" r="20%">
+                <stop offset="0%" stop-color="#f4a261" stop-opacity="0.8" />
+                <stop offset="100%" stop-color="#f4a261" stop-opacity="0" />
+              </radialGradient>
+            </defs>
+            <rect width="1920" height="1080" fill="url(#dawn-sky)" />
+            <!-- Sun glow -->
+            <circle cx="960" cy="780" r="300" fill="url(#sun-glow)" />
+            <!-- Stars -->
+            <circle cx="200" cy="80" r="2" fill="#f0f4f8" class="star-twinkle" style="animation-delay: 0s;" />
+            <circle cx="450" cy="120" r="1.5" fill="#f0f4f8" class="star-twinkle" style="animation-delay: 0.8s;" />
+            <circle cx="700" cy="60" r="2" fill="#f0f4f8" class="star-twinkle" style="animation-delay: 1.5s;" />
+            <circle cx="1300" cy="100" r="1.5" fill="#f0f4f8" class="star-twinkle" style="animation-delay: 0.4s;" />
+            <circle cx="1600" cy="140" r="2" fill="#f0f4f8" class="star-twinkle" style="animation-delay: 2s;" />
+            <!-- Clouds -->
+            <ellipse cx="300" cy="250" rx="180" ry="30" fill="rgba(240,244,248,0.08)" class="cloud cloud-slow" />
+            <ellipse cx="1200" cy="200" rx="220" ry="35" fill="rgba(240,244,248,0.06)" class="cloud cloud-medium" />
+            <!-- Birds -->
+            <path d="M100,180 Q108,170 116,180 Q124,170 132,180" stroke="rgba(240,244,248,0.3)" stroke-width="2" fill="none" class="bird" />
+            <path d="M160,200 Q166,192 172,200 Q178,192 184,200" stroke="rgba(240,244,248,0.2)" stroke-width="1.5" fill="none" class="bird-delayed" />
+            <!-- Distant hills -->
+            <path d="M0,750 Q200,650 480,720 Q700,650 960,700 Q1200,640 1440,710 Q1700,660 1920,730 L1920,1080 L0,1080 Z" fill="#1a2a3e" opacity="0.7" />
+            <!-- Mid hills -->
+            <path d="M0,800 Q300,720 600,780 Q900,740 1100,770 Q1400,730 1700,790 Q1820,770 1920,800 L1920,1080 L0,1080 Z" fill="#15253a" opacity="0.85" />
+            <!-- Foreground hills -->
+            <path d="M0,880 Q250,830 500,860 Q750,840 1000,870 Q1250,850 1500,880 Q1750,860 1920,890 L1920,1080 L0,1080 Z" fill="#0e1b2e" />
+            <!-- Vegetation silhouettes -->
+            <polygon points="80,880 90,820 100,880" fill="#0a1525" />
+            <polygon points="85,880 90,835 95,880" fill="#0d1a2d" />
+            <polygon points="1800,885 1815,810 1830,885" fill="#0a1525" />
+            <polygon points="1810,885 1815,830 1820,885" fill="#0d1a2d" />
+          </svg>
+        </div>
+        <!-- Content -->
+        <div class="content-overlay center">
+          <span class="pill anim-fade-up" style="font-family: 'Inter', sans-serif; font-size: 0.75em; color: #64B5F6;"><!-- CUSTOMIZE: Badge label --></span>
+          <div class="spacer-md"></div>
+          <h1 class="anim-fade-up delay-200" style="font-family: 'Poppins', sans-serif; font-size: 4em; color: #f0f4f8; text-shadow: 0 4px 24px rgba(0,0,0,0.4);">
+            <!-- CUSTOMIZE: Presentation Title -->
+          </h1>
+          <div class="accent-line center anim-fade-up delay-400"></div>
+          <p class="anim-fade-up delay-500" style="font-family: 'Inter', sans-serif; font-size: 1.2em; color: rgba(240,244,248,0.7); max-width: 700px;">
+            <!-- CUSTOMIZE: Subtitle or tagline -->
+          </p>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════
+           SLIDE 2 — Forest Scene: Content Cards
+           ════════════════════════════════════════════════ -->
+      <section data-background-color="#0a1628" data-transition="fade">
+        <!-- SVG Forest -->
+        <div class="scene">
+          <svg viewBox="0 0 1920 1080" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="forest-sky" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#0a1628" />
+                <stop offset="60%" stop-color="#122240" />
+                <stop offset="100%" stop-color="#1a3a2a" />
+              </linearGradient>
+            </defs>
+            <rect width="1920" height="1080" fill="url(#forest-sky)" />
+            <!-- Moon -->
+            <circle cx="1600" cy="150" r="50" fill="rgba(240,244,248,0.12)" />
+            <circle cx="1615" cy="145" r="48" fill="#0a1628" />
+            <circle cx="1600" cy="150" r="42" fill="rgba(240,244,248,0.08)" />
+            <!-- Mist -->
+            <ellipse cx="960" cy="600" rx="900" ry="60" fill="rgba(100,181,246,0.04)" class="water-shimmer" />
+            <!-- Tree row - back -->
+            <polygon points="100,500 130,300 160,500" fill="#0d2818" opacity="0.6" />
+            <polygon points="200,480 240,260 280,480" fill="#0d2818" opacity="0.6" />
+            <polygon points="360,490 395,280 430,490" fill="#0e2d1a" opacity="0.5" />
+            <polygon points="1500,490 1535,270 1570,490" fill="#0d2818" opacity="0.6" />
+            <polygon points="1620,480 1660,250 1700,480" fill="#0e2d1a" opacity="0.5" />
+            <polygon points="1780,500 1810,310 1840,500" fill="#0d2818" opacity="0.6" />
+            <!-- Tree row - front -->
+            <polygon points="0,1080 40,480 80,1080" fill="#081c12" />
+            <polygon points="20,1080 45,520 70,1080" fill="#0a2216" />
+            <polygon points="1840,1080 1880,460 1920,1080" fill="#081c12" />
+            <polygon points="1860,1080 1885,500 1910,1080" fill="#0a2216" />
+            <!-- Ground -->
+            <path d="M0,850 Q480,820 960,840 Q1440,820 1920,850 L1920,1080 L0,1080 Z" fill="#071510" />
+            <!-- Ground vegetation -->
+            <ellipse cx="200" cy="860" rx="60" ry="15" fill="#0a2016" />
+            <ellipse cx="600" cy="850" rx="50" ry="12" fill="#0a2016" />
+            <ellipse cx="1400" cy="855" rx="55" ry="13" fill="#0a2016" />
+          </svg>
+        </div>
+        <!-- Content -->
+        <div class="content-overlay">
+          <span class="pill anim-fade-up" style="font-family: 'Inter', sans-serif; font-size: 0.75em; color: #64B5F6;"><!-- CUSTOMIZE: Section label --></span>
+          <div class="spacer-sm"></div>
+          <h2 class="anim-fade-up delay-200" style="font-family: 'Poppins', sans-serif; font-size: 2.5em; color: #f0f4f8;"><!-- CUSTOMIZE: Section Title --></h2>
+          <div class="card-grid-2 anim-stagger" style="max-width: 1400px;">
+            <div class="glass-card anim-fade-up">
+              <span class="card-icon"><!-- CUSTOMIZE: Emoji icon --></span>
+              <h3 style="font-family: 'Poppins', sans-serif; font-size: 1.3em; color: #f0f4f8;"><!-- CUSTOMIZE: Card Title --></h3>
+              <p style="font-family: 'Inter', sans-serif; font-size: 1.1em; color: rgba(240,244,248,0.7);"><!-- CUSTOMIZE: Card description, 1-2 sentences. --></p>
+            </div>
+            <div class="glass-card anim-fade-up">
+              <span class="card-icon"><!-- CUSTOMIZE: Emoji icon --></span>
+              <h3 style="font-family: 'Poppins', sans-serif; font-size: 1.3em; color: #f0f4f8;"><!-- CUSTOMIZE: Card Title --></h3>
+              <p style="font-family: 'Inter', sans-serif; font-size: 1.1em; color: rgba(240,244,248,0.7);"><!-- CUSTOMIZE: Card description, 1-2 sentences. --></p>
+            </div>
+            <div class="glass-card anim-fade-up">
+              <span class="card-icon"><!-- CUSTOMIZE: Emoji icon --></span>
+              <h3 style="font-family: 'Poppins', sans-serif; font-size: 1.3em; color: #f0f4f8;"><!-- CUSTOMIZE: Card Title --></h3>
+              <p style="font-family: 'Inter', sans-serif; font-size: 1.1em; color: rgba(240,244,248,0.7);"><!-- CUSTOMIZE: Card description, 1-2 sentences. --></p>
+            </div>
+            <div class="glass-card anim-fade-up">
+              <span class="card-icon"><!-- CUSTOMIZE: Emoji icon --></span>
+              <h3 style="font-family: 'Poppins', sans-serif; font-size: 1.3em; color: #f0f4f8;"><!-- CUSTOMIZE: Card Title --></h3>
+              <p style="font-family: 'Inter', sans-serif; font-size: 1.1em; color: rgba(240,244,248,0.7);"><!-- CUSTOMIZE: Card description, 1-2 sentences. --></p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════
+           SLIDE 3 — Ocean Scene: Data Cards
+           ════════════════════════════════════════════════ -->
+      <section data-background-color="#0a1628" data-transition="fade">
+        <!-- SVG Ocean -->
+        <div class="scene">
+          <svg viewBox="0 0 1920 1080" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="ocean-sky" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#0a1628" />
+                <stop offset="50%" stop-color="#14304a" />
+                <stop offset="100%" stop-color="#1a4a6a" />
+              </linearGradient>
+            </defs>
+            <rect width="1920" height="1080" fill="url(#ocean-sky)" />
+            <!-- Stars -->
+            <circle cx="300" cy="100" r="1.5" fill="#f0f4f8" class="star-twinkle" style="animation-delay: 0.3s;" />
+            <circle cx="800" cy="70" r="2" fill="#f0f4f8" class="star-twinkle" style="animation-delay: 1.2s;" />
+            <circle cx="1500" cy="110" r="1.5" fill="#f0f4f8" class="star-twinkle" style="animation-delay: 0.7s;" />
+            <!-- Clouds -->
+            <ellipse cx="500" cy="180" rx="200" ry="28" fill="rgba(240,244,248,0.06)" class="cloud cloud-medium" />
+            <ellipse cx="1400" cy="140" rx="160" ry="22" fill="rgba(240,244,248,0.04)" class="cloud cloud-slow" />
+            <!-- Horizon line -->
+            <line x1="0" y1="580" x2="1920" y2="580" stroke="rgba(100,181,246,0.15)" stroke-width="1" />
+            <!-- Ocean waves -->
+            <path d="M0,600 Q160,580 320,600 Q480,620 640,600 Q800,580 960,600 Q1120,620 1280,600 Q1440,580 1600,600 Q1760,620 1920,600 L1920,1080 L0,1080 Z" fill="#0e2a4a" class="water-shimmer" />
+            <path d="M0,650 Q200,630 400,650 Q600,670 800,650 Q1000,630 1200,650 Q1400,670 1600,650 Q1800,630 1920,650 L1920,1080 L0,1080 Z" fill="#0c2240" opacity="0.8" class="water-shimmer" style="animation-delay: 1s;" />
+            <path d="M0,720 Q240,700 480,720 Q720,740 960,720 Q1200,700 1440,720 Q1680,740 1920,720 L1920,1080 L0,1080 Z" fill="#0a1c38" opacity="0.9" class="water-shimmer" style="animation-delay: 2s;" />
+            <!-- Light reflections on water -->
+            <rect x="920" y="600" width="80" height="2" rx="1" fill="rgba(100,181,246,0.15)" class="water-shimmer" style="animation-delay: 0.5s;" />
+            <rect x="880" y="640" width="120" height="2" rx="1" fill="rgba(100,181,246,0.1)" class="water-shimmer" style="animation-delay: 1.5s;" />
+            <rect x="900" y="680" width="100" height="2" rx="1" fill="rgba(100,181,246,0.08)" class="water-shimmer" style="animation-delay: 2.5s;" />
+          </svg>
+        </div>
+        <!-- Content -->
+        <div class="content-overlay">
+          <span class="pill anim-fade-up" style="font-family: 'Inter', sans-serif; font-size: 0.75em; color: #64B5F6;"><!-- CUSTOMIZE: Section label --></span>
+          <div class="spacer-sm"></div>
+          <h2 class="anim-fade-up delay-200" style="font-family: 'Poppins', sans-serif; font-size: 2.5em; color: #f0f4f8;"><!-- CUSTOMIZE: Section Title --></h2>
+          <div class="card-grid-3 anim-stagger" style="max-width: 1600px; margin-top: 40px;">
+            <div class="glass-card anim-fade-up" style="text-align: center;">
+              <div class="stat-value" style="font-family: 'Poppins', sans-serif; font-size: 3em; color: #64B5F6;"><!-- CUSTOMIZE: Stat value --></div>
+              <div class="stat-label" style="font-family: 'Inter', sans-serif; font-size: 0.85em; color: rgba(240,244,248,0.7);"><!-- CUSTOMIZE: Stat label --></div>
+              <div class="spacer-sm"></div>
+              <p style="font-family: 'Inter', sans-serif; font-size: 0.9em; color: rgba(240,244,248,0.5);"><!-- CUSTOMIZE: Brief insight --></p>
+            </div>
+            <div class="glass-card anim-fade-up" style="text-align: center;">
+              <div class="stat-value" style="font-family: 'Poppins', sans-serif; font-size: 3em; color: #81C784;"><!-- CUSTOMIZE: Stat value --></div>
+              <div class="stat-label" style="font-family: 'Inter', sans-serif; font-size: 0.85em; color: rgba(240,244,248,0.7);"><!-- CUSTOMIZE: Stat label --></div>
+              <div class="spacer-sm"></div>
+              <p style="font-family: 'Inter', sans-serif; font-size: 0.9em; color: rgba(240,244,248,0.5);"><!-- CUSTOMIZE: Brief insight --></p>
+            </div>
+            <div class="glass-card anim-fade-up" style="text-align: center;">
+              <div class="stat-value" style="font-family: 'Poppins', sans-serif; font-size: 3em; color: #f4a261;"><!-- CUSTOMIZE: Stat value --></div>
+              <div class="stat-label" style="font-family: 'Inter', sans-serif; font-size: 0.85em; color: rgba(240,244,248,0.7);"><!-- CUSTOMIZE: Stat label --></div>
+              <div class="spacer-sm"></div>
+              <p style="font-family: 'Inter', sans-serif; font-size: 0.9em; color: rgba(240,244,248,0.5);"><!-- CUSTOMIZE: Brief insight --></p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════
+           SLIDE 4 — Mountain Scene: Timeline
+           ════════════════════════════════════════════════ -->
+      <section data-background-color="#0a1628" data-transition="fade">
+        <!-- SVG Mountains -->
+        <div class="scene">
+          <svg viewBox="0 0 1920 1080" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="mtn-sky" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#0a1628" />
+                <stop offset="100%" stop-color="#162840" />
+              </linearGradient>
+            </defs>
+            <rect width="1920" height="1080" fill="url(#mtn-sky)" />
+            <!-- Stars -->
+            <circle cx="150" cy="100" r="2" fill="#f0f4f8" class="star-twinkle" style="animation-delay: 0.5s;" />
+            <circle cx="500" cy="60" r="1.5" fill="#f0f4f8" class="star-twinkle" style="animation-delay: 1.8s;" />
+            <circle cx="960" cy="80" r="2" fill="#f0f4f8" class="star-twinkle" style="animation-delay: 0.2s;" />
+            <circle cx="1400" cy="120" r="1.5" fill="#f0f4f8" class="star-twinkle" style="animation-delay: 1.1s;" />
+            <circle cx="1750" cy="70" r="2" fill="#f0f4f8" class="star-twinkle" style="animation-delay: 2.3s;" />
+            <!-- Clouds -->
+            <ellipse cx="700" cy="220" rx="160" ry="24" fill="rgba(240,244,248,0.05)" class="cloud cloud-slow" />
+            <!-- Mountain range - back (tallest) -->
+            <polygon points="600,700 960,280 1320,700" fill="#12233a" />
+            <polygon points="200,700 520,350 840,700" fill="#10203a" opacity="0.8" />
+            <polygon points="1100,700 1450,320 1800,700" fill="#12233a" opacity="0.8" />
+            <!-- Snow caps -->
+            <polygon points="930,310 960,280 990,310 975,300 945,300" fill="rgba(240,244,248,0.15)" />
+            <polygon points="495,375 520,350 545,375 535,367 505,367" fill="rgba(240,244,248,0.12)" />
+            <polygon points="1420,345 1450,320 1480,345 1468,337 1432,337" fill="rgba(240,244,248,0.12)" />
+            <!-- Mountain range - mid -->
+            <polygon points="0,750 300,520 600,750" fill="#0e1d32" />
+            <polygon points="400,750 750,480 1100,750" fill="#0e1d32" />
+            <polygon points="900,750 1200,500 1500,750" fill="#0e1d32" opacity="0.9" />
+            <polygon points="1300,750 1620,530 1920,750" fill="#0e1d32" />
+            <!-- Foreground -->
+            <path d="M0,780 Q480,750 960,770 Q1440,750 1920,780 L1920,1080 L0,1080 Z" fill="#0a1628" />
+          </svg>
+        </div>
+        <!-- Content -->
+        <div class="content-overlay">
+          <span class="pill anim-fade-up" style="font-family: 'Inter', sans-serif; font-size: 0.75em; color: #64B5F6;"><!-- CUSTOMIZE: Section label --></span>
+          <div class="spacer-sm"></div>
+          <h2 class="anim-fade-up delay-200" style="font-family: 'Poppins', sans-serif; font-size: 2.5em; color: #f0f4f8;"><!-- CUSTOMIZE: Section Title --></h2>
+          <div class="timeline anim-stagger" style="max-width: 1500px;">
+            <div class="timeline-item anim-fade-up">
+              <div class="timeline-dot"></div>
+              <div class="glass-card" style="padding: 1.5rem;">
+                <h3 style="font-family: 'Poppins', sans-serif; font-size: 1.1em; color: #f0f4f8;"><!-- CUSTOMIZE: Phase title --></h3>
+                <p style="font-family: 'Inter', sans-serif; font-size: 0.85em; color: rgba(240,244,248,0.7);"><!-- CUSTOMIZE: Phase description --></p>
+              </div>
+            </div>
+            <div class="timeline-item anim-fade-up">
+              <div class="timeline-dot" style="background: var(--accent);"></div>
+              <div class="glass-card" style="padding: 1.5rem;">
+                <h3 style="font-family: 'Poppins', sans-serif; font-size: 1.1em; color: #f0f4f8;"><!-- CUSTOMIZE: Phase title --></h3>
+                <p style="font-family: 'Inter', sans-serif; font-size: 0.85em; color: rgba(240,244,248,0.7);"><!-- CUSTOMIZE: Phase description --></p>
+              </div>
+            </div>
+            <div class="timeline-item anim-fade-up">
+              <div class="timeline-dot" style="background: #f4a261;"></div>
+              <div class="glass-card" style="padding: 1.5rem;">
+                <h3 style="font-family: 'Poppins', sans-serif; font-size: 1.1em; color: #f0f4f8;"><!-- CUSTOMIZE: Phase title --></h3>
+                <p style="font-family: 'Inter', sans-serif; font-size: 0.85em; color: rgba(240,244,248,0.7);"><!-- CUSTOMIZE: Phase description --></p>
+              </div>
+            </div>
+            <div class="timeline-item anim-fade-up">
+              <div class="timeline-dot" style="background: #ce93d8;"></div>
+              <div class="glass-card" style="padding: 1.5rem;">
+                <h3 style="font-family: 'Poppins', sans-serif; font-size: 1.1em; color: #f0f4f8;"><!-- CUSTOMIZE: Phase title --></h3>
+                <p style="font-family: 'Inter', sans-serif; font-size: 0.85em; color: rgba(240,244,248,0.7);"><!-- CUSTOMIZE: Phase description --></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════
+           SLIDE 5 — City Skyline: Stats
+           ════════════════════════════════════════════════ -->
+      <section data-background-color="#0a1628" data-transition="fade">
+        <!-- SVG City Skyline -->
+        <div class="scene">
+          <svg viewBox="0 0 1920 1080" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="city-sky" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#0a1628" />
+                <stop offset="100%" stop-color="#1a2844" />
+              </linearGradient>
+            </defs>
+            <rect width="1920" height="1080" fill="url(#city-sky)" />
+            <!-- Stars -->
+            <circle cx="250" cy="90" r="1.5" fill="#f0f4f8" class="star-twinkle" style="animation-delay: 0.6s;" />
+            <circle cx="600" cy="50" r="2" fill="#f0f4f8" class="star-twinkle" style="animation-delay: 1.4s;" />
+            <circle cx="1100" cy="80" r="1.5" fill="#f0f4f8" class="star-twinkle" style="animation-delay: 0.9s;" />
+            <circle cx="1700" cy="110" r="2" fill="#f0f4f8" class="star-twinkle" style="animation-delay: 2.1s;" />
+            <!-- Building silhouettes -->
+            <rect x="120" y="520" width="80" height="560" fill="#0e1e34" />
+            <rect x="220" y="480" width="60" height="600" fill="#0e1e34" />
+            <rect x="310" y="440" width="100" height="640" fill="#101f36" />
+            <rect x="440" y="500" width="70" height="580" fill="#0e1e34" />
+            <rect x="540" y="380" width="90" height="700" fill="#101f36" />
+            <rect x="660" y="460" width="70" height="620" fill="#0e1e34" />
+            <rect x="760" y="350" width="110" height="730" fill="#12223a" />
+            <rect x="900" y="420" width="80" height="660" fill="#0e1e34" />
+            <rect x="1010" y="360" width="100" height="720" fill="#101f36" />
+            <rect x="1140" y="440" width="70" height="640" fill="#0e1e34" />
+            <rect x="1240" y="380" width="90" height="700" fill="#12223a" />
+            <rect x="1360" y="480" width="80" height="600" fill="#0e1e34" />
+            <rect x="1470" y="420" width="100" height="660" fill="#101f36" />
+            <rect x="1600" y="500" width="70" height="580" fill="#0e1e34" />
+            <rect x="1700" y="460" width="90" height="620" fill="#101f36" />
+            <!-- Building windows -->
+            <rect x="770" y="380" width="8" height="8" rx="1" fill="rgba(100,181,246,0.2)" class="star-twinkle" style="animation-delay: 0.3s;" />
+            <rect x="790" y="380" width="8" height="8" rx="1" fill="rgba(255,235,180,0.25)" />
+            <rect x="770" y="400" width="8" height="8" rx="1" fill="rgba(255,235,180,0.15)" />
+            <rect x="810" y="400" width="8" height="8" rx="1" fill="rgba(100,181,246,0.2)" class="star-twinkle" style="animation-delay: 1.5s;" />
+            <rect x="550" y="410" width="8" height="8" rx="1" fill="rgba(255,235,180,0.2)" />
+            <rect x="570" y="430" width="8" height="8" rx="1" fill="rgba(100,181,246,0.15)" class="star-twinkle" style="animation-delay: 0.8s;" />
+            <rect x="1020" y="390" width="8" height="8" rx="1" fill="rgba(255,235,180,0.2)" />
+            <rect x="1050" y="410" width="8" height="8" rx="1" fill="rgba(100,181,246,0.2)" class="star-twinkle" style="animation-delay: 2s;" />
+            <rect x="1250" y="410" width="8" height="8" rx="1" fill="rgba(255,235,180,0.18)" />
+            <rect x="1270" y="430" width="8" height="8" rx="1" fill="rgba(100,181,246,0.15)" class="star-twinkle" style="animation-delay: 1.2s;" />
+            <!-- Ground -->
+            <rect x="0" y="900" width="1920" height="180" fill="#0a1525" />
+            <line x1="0" y1="920" x2="1920" y2="920" stroke="rgba(100,181,246,0.08)" stroke-width="2" />
+          </svg>
+        </div>
+        <!-- Content -->
+        <div class="content-overlay">
+          <span class="pill anim-fade-up" style="font-family: 'Inter', sans-serif; font-size: 0.75em; color: #64B5F6;"><!-- CUSTOMIZE: Section label --></span>
+          <div class="spacer-sm"></div>
+          <h2 class="anim-fade-up delay-200" style="font-family: 'Poppins', sans-serif; font-size: 2.5em; color: #f0f4f8;"><!-- CUSTOMIZE: Section Title --></h2>
+          <div class="card-grid-3 anim-stagger" style="max-width: 1500px;">
+            <div class="glass-card anim-fade-up" style="text-align: center; border-top: 3px solid var(--primary);">
+              <div class="stat-value" style="font-family: 'Poppins', sans-serif; font-size: 3.5em; color: #f0f4f8;"><!-- CUSTOMIZE: Stat --></div>
+              <div class="stat-label" style="font-family: 'Inter', sans-serif; font-size: 0.9em; color: var(--primary);"><!-- CUSTOMIZE: Label --></div>
+            </div>
+            <div class="glass-card anim-fade-up" style="text-align: center; border-top: 3px solid var(--accent);">
+              <div class="stat-value" style="font-family: 'Poppins', sans-serif; font-size: 3.5em; color: #f0f4f8;"><!-- CUSTOMIZE: Stat --></div>
+              <div class="stat-label" style="font-family: 'Inter', sans-serif; font-size: 0.9em; color: var(--accent);"><!-- CUSTOMIZE: Label --></div>
+            </div>
+            <div class="glass-card anim-fade-up" style="text-align: center; border-top: 3px solid #f4a261;">
+              <div class="stat-value" style="font-family: 'Poppins', sans-serif; font-size: 3.5em; color: #f0f4f8;"><!-- CUSTOMIZE: Stat --></div>
+              <div class="stat-label" style="font-family: 'Inter', sans-serif; font-size: 0.9em; color: #f4a261;"><!-- CUSTOMIZE: Label --></div>
+            </div>
+          </div>
+          <div class="spacer-md"></div>
+          <div class="glass-card anim-fade-up delay-500" style="max-width: 1500px; text-align: center; padding: 1.5rem 3rem;">
+            <p style="font-family: 'Inter', sans-serif; font-size: 1.1em; color: rgba(240,244,248,0.7); margin: 0;"><!-- CUSTOMIZE: Summary insight sentence --></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════
+           SLIDE 6 — Sunset Closing
+           ════════════════════════════════════════════════ -->
+      <section data-background-color="#0a1628" data-transition="fade">
+        <!-- SVG Sunset -->
+        <div class="scene">
+          <svg viewBox="0 0 1920 1080" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="sunset-sky" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#1a1040" />
+                <stop offset="30%" stop-color="#3d2060" />
+                <stop offset="55%" stop-color="#c0392b" />
+                <stop offset="75%" stop-color="#e67e22" />
+                <stop offset="90%" stop-color="#f39c12" />
+                <stop offset="100%" stop-color="#f4d03f" />
+              </linearGradient>
+              <radialGradient id="sunset-sun" cx="50%" cy="72%" r="15%">
+                <stop offset="0%" stop-color="#f4d03f" stop-opacity="1" />
+                <stop offset="50%" stop-color="#f39c12" stop-opacity="0.6" />
+                <stop offset="100%" stop-color="#e67e22" stop-opacity="0" />
+              </radialGradient>
+            </defs>
+            <rect width="1920" height="1080" fill="url(#sunset-sky)" />
+            <!-- Sun -->
+            <circle cx="960" cy="720" r="280" fill="url(#sunset-sun)" />
+            <circle cx="960" cy="750" r="60" fill="#f4d03f" opacity="0.8" />
+            <!-- Clouds -->
+            <ellipse cx="400" cy="350" rx="200" ry="25" fill="rgba(240,200,150,0.15)" class="cloud cloud-slow" />
+            <ellipse cx="1500" cy="300" rx="180" ry="20" fill="rgba(240,200,150,0.1)" class="cloud cloud-medium" />
+            <ellipse cx="800" cy="280" rx="150" ry="18" fill="rgba(240,200,150,0.08)" class="cloud cloud-fast" />
+            <!-- Birds -->
+            <path d="M600,320 Q610,308 620,320 Q630,308 640,320" stroke="rgba(60,20,60,0.4)" stroke-width="2" fill="none" class="bird" />
+            <path d="M650,340 Q658,330 666,340 Q674,330 682,340" stroke="rgba(60,20,60,0.3)" stroke-width="1.5" fill="none" class="bird-delayed" />
+            <!-- Hills silhouette -->
+            <path d="M0,780 Q300,700 600,760 Q900,720 1100,750 Q1350,710 1600,760 Q1800,730 1920,770 L1920,1080 L0,1080 Z" fill="#1a0e28" opacity="0.7" />
+            <path d="M0,840 Q400,790 800,830 Q1100,800 1400,840 Q1700,810 1920,850 L1920,1080 L0,1080 Z" fill="#120820" />
+            <!-- Vegetation -->
+            <polygon points="60,840 75,780 90,840" fill="#0e0618" />
+            <polygon points="1820,845 1835,790 1850,845" fill="#0e0618" />
+            <polygon points="1840,845 1850,800 1860,845" fill="#100a1e" />
+          </svg>
+        </div>
+        <!-- Content -->
+        <div class="content-overlay center">
+          <h1 class="anim-fade-up" style="font-family: 'Poppins', sans-serif; font-size: 4em; color: #f0f4f8; text-shadow: 0 4px 32px rgba(0,0,0,0.5);">
+            <!-- CUSTOMIZE: Closing title e.g. "Thank You" -->
+          </h1>
+          <div class="accent-line center anim-fade-up delay-200"></div>
+          <p class="anim-fade-up delay-400" style="font-family: 'Inter', sans-serif; font-size: 1.2em; color: rgba(240,244,248,0.8); max-width: 700px;">
+            <!-- CUSTOMIZE: Closing message or CTA -->
+          </p>
+          <div class="spacer-md"></div>
+          <p class="anim-fade-up delay-500" style="font-family: 'Inter', sans-serif; font-size: 0.9em; color: rgba(240,244,248,0.5);">
+            <!-- CUSTOMIZE: Contact info or credits -->
+          </p>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      transition: 'fade',
+      transitionSpeed: 'slow',
+      backgroundTransition: 'fade',
+      center: false,
+      width: 1920,
+      height: 1080,
+      margin: 0,
+      controls: false,
+      progress: false
+    });
+  </script>
+</body>
+
+</html>

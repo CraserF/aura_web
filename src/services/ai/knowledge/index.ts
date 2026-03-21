@@ -8,6 +8,8 @@ import components from './docs/components.md?raw';
 import iconsAndFonts from './docs/icons-and-fonts.md?raw';
 import qualityChecklist from './docs/quality-checklist.md?raw';
 import threejsKnowledge from './docs/threejs-knowledge.md?raw';
+import svgDrawing from './docs/svg-drawing.md?raw';
+import svgDiagrams from './docs/svg-diagrams.md?raw';
 import slideGeneration from './skills/slide-generation.md?raw';
 import advancedWorkflows from './skills/advanced-workflows.md?raw';
 import promptLibrary from './prompts/prompt-library.md?raw';
@@ -18,6 +20,8 @@ export type KnowledgeDocId =
   | 'icons-and-fonts'
   | 'quality-checklist'
   | 'threejs-knowledge'
+  | 'svg-drawing'
+  | 'svg-diagrams'
   | 'slide-generation'
   | 'advanced-workflows'
   | 'prompt-library';
@@ -28,6 +32,8 @@ const KNOWLEDGE_BASE: Record<KnowledgeDocId, string> = {
   'icons-and-fonts': iconsAndFonts,
   'quality-checklist': qualityChecklist,
   'threejs-knowledge': threejsKnowledge,
+  'svg-drawing': svgDrawing,
+  'svg-diagrams': svgDiagrams,
   'slide-generation': slideGeneration,
   'advanced-workflows': advancedWorkflows,
   'prompt-library': promptLibrary,
@@ -46,9 +52,15 @@ export function getRelevantKnowledge(animLevel: 1 | 2 | 3 | 4): string[] {
   docs.push(components);
   docs.push(iconsAndFonts);
 
-  // Add animation reference scaled to level
+  // Add animation and SVG references scaled to level
   if (animLevel >= 2) {
     docs.push(animCheatsheet);
+    docs.push(svgDrawing);
+  }
+
+  // Add advanced SVG diagrams for higher levels
+  if (animLevel >= 3) {
+    docs.push(svgDiagrams);
   }
 
   // Add Three.js knowledge for cinematic levels

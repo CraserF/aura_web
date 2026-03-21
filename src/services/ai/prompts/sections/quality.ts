@@ -18,10 +18,18 @@ Before outputting, verify:
 - [ ] Animation classes on all content blocks
 - [ ] Stagger containers on grids/lists
 - [ ] No two consecutive slides share the same layout pattern
-- [ ] At least 40% of each slide is whitespace
 - [ ] Heading hierarchy: h1 only on title slide, h2 on content slides, h3 inside cards
 - [ ] Title slide is first, CTA/closing is last
-- [ ] Generous padding: 2rem section padding, 1.5rem card padding, 1-1.5rem grid gaps
+- [ ] Generous padding: 4rem 5rem section padding, 2rem card padding, 1.5-2rem grid gaps
+
+### SIZE & LEGIBILITY CHECKS (slides render at 1920×1080):
+- [ ] **Body text is at LEAST 1.1em (≈40px).** If text looks like fine print, it's too small.
+- [ ] **Hero titles are at LEAST 4em (≈144px).** They should feel impactful and dominant.
+- [ ] **H2 slide titles are at LEAST 2.4em (≈86px).** They must command attention.
+- [ ] **No text element is smaller than 0.75em (≈27px).** Even labels/badges must be readable.
+- [ ] **Content fills the slide.** Does content cover at least 60-70% of the 1920×1080 area? If not, increase sizes and spacing.
+- [ ] **Cards are substantial.** Card/panel components should be at least 150-200px tall, not tiny chips.
+- [ ] **Metric numbers are large and bold.** Stats should be 3.5-5em with font-weight 800.
 
 ## WHEN MODIFYING EXISTING SLIDES
 

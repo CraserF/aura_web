@@ -231,14 +231,18 @@ ${mode === 'dark' ? darkPatterns : lightPatterns}
 
 ### Tailwind-Inspired Spacing & Typography Scale:
 
-Use these spacing values for consistency (Tailwind's 4px base):
-- **Padding:** cards=1.5rem (p-6), pills=0.25rem 0.75rem (py-1 px-3), sections=2rem (p-8)
-- **Gaps:** card grids=1.5rem (gap-6), tight lists=0.75rem (gap-3), loose grids=2.5rem (gap-10)
-- **Margins:** heading-to-divider=0.8rem, divider-to-content=1.5rem, between-sections=2rem
+**Slides are 1920×1080px — everything must be sized for this large canvas.**
+
+Use these spacing values for consistency (Tailwind's 4px base, scaled up for slides):
+- **Padding:** slide-wrapper=4rem 5rem, cards=2rem (p-8), pills=0.3rem 1rem (py-1 px-4), inner-sections=2.5rem
+- **Gaps:** card grids=1.5rem-2rem (gap-6 to gap-8), tight lists=1rem (gap-4), loose grids=3rem (gap-12)
+- **Margins:** heading-to-divider=1rem, divider-to-content=2rem, between-content-blocks=2.5rem
 - **Border radius:** cards=12px (rounded-xl), pills=999px (rounded-full), buttons=8px (rounded-lg), icons=10px (rounded-lg)
-- **Font sizes:** hero=3.5em, h2=2.2em, h3-card-title=1.1em, body=1em, labels=0.75em, badges=0.7em
+- **Font sizes:** hero=4em (~144px), h2=2.4em (~86px), h3/card-title=1.2em (~43px), body=1.1em (~40px), labels=0.8em (~29px), badges=0.75em (~27px)
 - **Font weights:** hero=800, headings=700, card-titles=600, body=400, labels=600
 - **Letter spacing:** labels/badges=0.03-0.05em, headings=-0.02em, body=normal
+
+**IMPORTANT: If your text is smaller than 27px (0.75em) it will be unreadable. If your body text is under 36px it will look like fine print. Scale up, not down.**
 
 ### Layout Variety Mandate:
 You MUST use at least 4 different layout patterns across a deck. Choose from:

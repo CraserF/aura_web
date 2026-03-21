@@ -14,12 +14,22 @@ import codeWalkthroughHtml from './html/code-walkthrough.html?raw';
 import productDemoHtml from './html/product-demo.html?raw';
 import comparisonHtml from './html/comparison.html?raw';
 import timelineHtml from './html/timeline.html?raw';
+import editorialMagazineHtml from './html/editorial-magazine.html?raw';
+import infographicGridHtml from './html/infographic-grid.html?raw';
+import interactiveQuizHtml from './html/interactive-quiz.html?raw';
+import splitWorldHtml from './html/split-world.html?raw';
+import landscapeIllustrationHtml from './html/landscape-illustration.html?raw';
+import multiPanelDashboardHtml from './html/multi-panel-dashboard.html?raw';
+import sidebarCardsHtml from './html/sidebar-cards.html?raw';
 
 export type TemplateId =
   | 'keynote' | 'corporate' | 'tech-architecture' | 'data-dashboard'
   | 'sci-fi' | 'creative-portfolio' | 'storytelling' | 'educational'
   | 'minimal' | 'cinematic' | 'pitch-deck' | 'workshop'
-  | 'code-walkthrough' | 'product-demo' | 'comparison' | 'timeline';
+  | 'code-walkthrough' | 'product-demo' | 'comparison' | 'timeline'
+  | 'editorial-magazine' | 'infographic-grid' | 'interactive-quiz'
+  | 'split-world' | 'landscape-illustration' | 'multi-panel-dashboard'
+  | 'sidebar-cards';
 
 export interface TemplateEntry {
   id: TemplateId;
@@ -158,6 +168,62 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
     description: 'Timeline-focused presentation for roadmaps and histories',
     bestFor: ['roadmap', 'project timeline', 'history'],
     slideCount: { min: 8, max: 12 },
+  },
+  'editorial-magazine': {
+    id: 'editorial-magazine',
+    html: editorialMagazineHtml,
+    animationLevel: 2,
+    description: 'Magazine-style editorial with serif typography and asymmetric layouts',
+    bestFor: ['editorial', 'magazine', 'long-form article', 'thought leadership'],
+    slideCount: { min: 6, max: 10 },
+  },
+  'infographic-grid': {
+    id: 'infographic-grid',
+    html: infographicGridHtml,
+    animationLevel: 3,
+    description: 'Data-rich infographic with SVG visualizations in grid cells',
+    bestFor: ['infographic', 'data report', 'statistics overview', 'research findings'],
+    slideCount: { min: 5, max: 8 },
+  },
+  'interactive-quiz': {
+    id: 'interactive-quiz',
+    html: interactiveQuizHtml,
+    animationLevel: 3,
+    description: 'Game-show style quiz with multiple-choice cards and score reveals',
+    bestFor: ['quiz', 'trivia', 'knowledge check', 'interactive learning'],
+    slideCount: { min: 6, max: 12 },
+  },
+  'split-world': {
+    id: 'split-world',
+    html: splitWorldHtml,
+    animationLevel: 3,
+    description: 'Dual-world split screen comparing contrasting concepts',
+    bestFor: ['comparison', 'before and after', 'problem vs solution', 'dual perspective'],
+    slideCount: { min: 5, max: 8 },
+  },
+  'landscape-illustration': {
+    id: 'landscape-illustration',
+    html: landscapeIllustrationHtml,
+    animationLevel: 4,
+    description: 'Illustrated SVG landscape scenes with animated backgrounds',
+    bestFor: ['nature', 'environmental', 'immersive storytelling', 'visual journey'],
+    slideCount: { min: 5, max: 8 },
+  },
+  'multi-panel-dashboard': {
+    id: 'multi-panel-dashboard',
+    html: multiPanelDashboardHtml,
+    animationLevel: 2,
+    description: 'Multi-column panel dashboard with category color coding',
+    bestFor: ['dashboard overview', 'multi-category report', 'admin panel', 'status board'],
+    slideCount: { min: 6, max: 10 },
+  },
+  'sidebar-cards': {
+    id: 'sidebar-cards',
+    html: sidebarCardsHtml,
+    animationLevel: 2,
+    description: 'Luxury sidebar navigation with card content grid',
+    bestFor: ['portfolio', 'agency', 'premium brand', 'service showcase'],
+    slideCount: { min: 6, max: 10 },
   },
 };
 

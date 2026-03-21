@@ -13,7 +13,9 @@
 export const ANTI_PATTERNS = [
   // Typography
   'Do NOT use Inter as the only font — it signals generic/undesigned.',
-  'Never set body text below 0.85em (16px equivalent at slide scale).',
+  'Never set body text below 1.1em (~40px on a 1920×1080 slide). Text that looks fine in a code editor is tiny on a presentation.',
+  'Hero titles MUST be at least 4em (~144px). Timid titles make the whole deck look amateur.',
+  'H2 slide titles must be at least 2.4em (~86px) — they must visually anchor the slide.',
   'Heading line-height must be ≤ 1.2 — anything higher looks loose.',
   'Never use more than 2 font families (3 if one is monospace for code).',
   'Avoid ALL-CAPS on body text or long headings — reserve for labels only.',
@@ -35,8 +37,11 @@ export const ANTI_PATTERNS = [
   // Spatial Design
   'Do NOT nest cards inside cards — creates visual noise.',
   'Never have unequal gutters in a grid — all gaps must be consistent.',
-  'Content must never touch the edges — minimum 2rem padding on all slides.',
+  'Content must never touch the edges — minimum 4rem 5rem padding on all slides.',
   'Avoid orphaned elements (single card in a row that should have siblings).',
+  'Content must fill at least 60-70% of the 1920×1080 slide area. Small clusters of content floating in the center look unfinished.',
+  'Wrap all slide content in a full-size container: width:100%; height:100%; padding:4rem 5rem; box-sizing:border-box; — do NOT use max-width:90% with margin:auto which clusters everything.',
+  'Cards and panels should be substantial — minimum 150-200px tall. Tiny cards look like thumbnail previews, not presentation content.',
 
   // Motion Design
   'Do NOT use bounce easing — it looks cheap and dated.',
@@ -49,7 +54,7 @@ export const ANTI_PATTERNS = [
   'Never use more than 6 fragment steps per slide — audience loses patience.',
 
   // Responsive / Layout
-  'Slide content must use max-width ≤ 90% and be centered.',
+  'Slide content wrapper should use width:100% with internal padding (4rem 5rem), not max-width:90% with margin:auto that causes center-clustering.',
   'Grid columns: max 4 columns for cards, max 6 for icon grids.',
   'Never stack more than 5 bullet points — split into two columns or cards instead.',
 
@@ -57,6 +62,12 @@ export const ANTI_PATTERNS = [
   'Headings should be 2–8 words. Cut filler words mercilessly.',
   'Bullet points: max 12 words each. If longer, rewrite as a card with title + body.',
   'Never use "Click here" or "Next slide" — the presentation flow handles navigation.',
+
+  // SVG
+  'Max 2 SVG-heavy slides per deck — overuse turns the presentation into an infographic.',
+  'All inline SVGs MUST have a viewBox attribute — without it they will not scale correctly.',
+  'Do NOT use SVG illustrations on animation level 1 (minimal) presentations — keep it text and CSS only.',
+  'Inline SVG icons MUST have explicit width and height attributes — never rely on the parent container for sizing.',
 ] as const;
 
 // ── Design Principles (positive guidance) ───────────────────
@@ -92,6 +103,13 @@ export const DESIGN_PRINCIPLES = {
     'Stagger delays: 80-120ms between items in a group.',
     'Scene backgrounds (particles, aurora) on max 2 slides — overuse kills impact.',
     'Use .anim-stagger container for automatic child delay cascading.',
+  ],
+  svg: [
+    'Use SVGs for diagrams, charts, and illustrations — they scale perfectly at any resolution.',
+    'SVG colors should reference palette tokens: primary for strokes, surface for fills, muted for labels.',
+    'Animated SVGs: limit to stroke-dashoffset (draw-in), transform, and opacity transitions.',
+    'Diagram readability: max 6-8 nodes, minimum 12px font-size in SVG text elements.',
+    'Bootstrap Icons CDN for broad icon coverage; inline SVGs for custom visuals and data viz.',
   ],
 } as const;
 

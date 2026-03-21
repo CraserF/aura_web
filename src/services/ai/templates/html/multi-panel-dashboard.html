@@ -1,0 +1,933 @@
+<!doctype html>
+<!--
+  MULTI-PANEL DASHBOARD TEMPLATE — Reveal.js 5
+  Purpose: Category-based analytics, department overviews, multi-domain KPI tracking
+  Animation Level: Moderate (Level 2)
+  Features: Multi-column card grids, category color system, mini SVG charts, stat pills, data tables
+
+  Color System:
+    --bg:       #F8F9FC  (cool light gray)
+    --primary:  #4F6AE8  (indigo)
+    --border:   #E8ECF4  (subtle border)
+    Heading:    #1a1f36  (deep navy)
+    Body:       rgba(26,31,54,0.65)  (muted navy)
+
+  Category Colors:
+    Indigo:  #4F6AE8
+    Emerald: #10B981
+    Amber:   #F59E0B
+    Rose:    #F43F5E
+    Violet:  #8B5CF6
+
+  CUSTOMIZATION POINTS (search for "CUSTOMIZE")
+-->
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><!-- CUSTOMIZE --></title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/black.css">
+  <link rel="stylesheet" href="../animations/core-animations.css">
+  <link rel="stylesheet" href="../animations/advanced-effects.css">
+
+  <style>
+    /* ── Design Tokens ────────────────────────────────── */
+    :root {
+      --bg: #F8F9FC;
+      --primary: #4F6AE8;
+      --border: #E8ECF4;
+      --heading: #1a1f36;
+      --body: rgba(26, 31, 54, 0.65);
+      --card-bg: #FFFFFF;
+      --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+      --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.08);
+      --cat-indigo: #4F6AE8;
+      --cat-emerald: #10B981;
+      --cat-amber: #F59E0B;
+      --cat-rose: #F43F5E;
+      --cat-violet: #8B5CF6;
+      --r-background-color: #F8F9FC;
+      --r-main-color: rgba(26, 31, 54, 0.65);
+      --r-heading-color: #1a1f36;
+    }
+
+    /* ── Base ─────────────────────────────────────────── */
+    .reveal {
+      font-family: 'Inter', sans-serif;
+      font-size: 36px;
+      color: var(--body);
+    }
+
+    .reveal .slides {
+      text-align: left;
+    }
+
+    .reveal .slides section {
+      padding: 3.5rem 4.5rem;
+      box-sizing: border-box;
+    }
+
+    /* ── Typography ───────────────────────────────────── */
+    .reveal h1,
+    .reveal h2,
+    .reveal h3 {
+      font-family: 'Inter', sans-serif;
+      color: var(--heading);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      margin-bottom: 0;
+    }
+
+    .reveal h1 {
+      font-size: 4em;
+      font-weight: 800;
+    }
+
+    .reveal h2 {
+      font-size: 2.4em;
+    }
+
+    .reveal h3 {
+      font-size: 1.15em;
+      font-weight: 600;
+    }
+
+    .reveal p {
+      font-family: 'Inter', sans-serif;
+      color: var(--body);
+      font-size: 1.1em;
+      line-height: 1.7;
+      margin-top: 0;
+    }
+
+    /* ── Panel Card ──────────────────────────────────── */
+    .panel-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header {
+      height: 8px;
+      flex-shrink: 0;
+    }
+
+    .panel-body {
+      padding: 1.5rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7em;
+      font-weight: 600;
+      color: var(--body);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+    }
+
+    .panel-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2.2em;
+      font-weight: 600;
+      color: var(--heading);
+      line-height: 1.1;
+    }
+
+    .panel-footer {
+      padding: 12px 1.5rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── Metric Chip ─────────────────────────────────── */
+    .metric-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7em;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 100px;
+    }
+
+    .metric-chip.up {
+      color: #10B981;
+      background: rgba(16, 185, 129, 0.08);
+    }
+
+    .metric-chip.down {
+      color: #F43F5E;
+      background: rgba(244, 63, 94, 0.08);
+    }
+
+    .metric-chip.neutral {
+      color: #F59E0B;
+      background: rgba(245, 158, 11, 0.08);
+    }
+
+    /* ── Grid Layouts ────────────────────────────────── */
+    .grid-5 {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 1.25rem;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.25rem;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+
+    .grid-4x2 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: auto auto;
+      gap: 1.25rem;
+    }
+
+    /* ── Category Chip ───────────────────────────────── */
+    .cat-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7em;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+    }
+
+    .cat-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── Mini SVG Charts ─────────────────────────────── */
+    .mini-chart {
+      margin-top: auto;
+      padding-top: 12px;
+    }
+
+    /* ── Stat Pill Row ───────────────────────────────── */
+    .stat-pill-row {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .stat-pill {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 24px;
+      box-shadow: var(--card-shadow);
+      flex: 1;
+      min-width: 160px;
+    }
+
+    .stat-pill-color {
+      width: 4px;
+      height: 40px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .stat-pill-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.4em;
+      font-weight: 600;
+      color: var(--heading);
+      line-height: 1.1;
+    }
+
+    .stat-pill-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7em;
+      color: var(--body);
+    }
+
+    /* ── Data Table ──────────────────────────────────── */
+    .dash-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85em;
+      margin-top: 16px;
+    }
+
+    .dash-table th {
+      font-family: 'Inter', sans-serif;
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.8em;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--body);
+      border-bottom: 2px solid var(--border);
+    }
+
+    .dash-table td {
+      font-family: 'Inter', sans-serif;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--heading);
+    }
+
+    .dash-table tr:nth-child(even) {
+      background: rgba(79, 106, 232, 0.02);
+    }
+
+    .dash-table .mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.95em;
+    }
+
+    /* ── Priority Card ───────────────────────────────── */
+    .priority-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: var(--card-shadow);
+      border-left: 4px solid transparent;
+    }
+
+    .priority-card.high { border-left-color: var(--cat-rose); }
+    .priority-card.medium { border-left-color: var(--cat-amber); }
+    .priority-card.low { border-left-color: var(--cat-emerald); }
+
+    .priority-badge {
+      display: inline-block;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.65em;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 100px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Section Header ──────────────────────────────── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+
+    .section-header .subtitle {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8em;
+      color: var(--body);
+    }
+
+    /* ── Utility ──────────────────────────────────────── */
+    .spacer-sm { height: 16px; }
+    .spacer-md { height: 32px; }
+    .spacer-lg { height: 48px; }
+  </style>
+</head>
+
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- ════════════════════════════════════════════════
+           SLIDE 1 — Dashboard Cover
+           ════════════════════════════════════════════════ -->
+      <section data-background-color="#F8F9FC" data-transition="fade">
+        <div style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
+          <p class="anim-fade-up" style="font-family: 'Inter', sans-serif; font-size: 0.75em; font-weight: 600; color: var(--primary); text-transform: uppercase; letter-spacing: 0.1em;">
+            <!-- CUSTOMIZE: Report type e.g. "Operations Dashboard" -->
+          </p>
+          <div class="spacer-sm"></div>
+          <h1 class="anim-fade-up delay-200" style="font-family: 'Inter', sans-serif; font-size: 4em; color: #1a1f36;">
+            <!-- CUSTOMIZE: Dashboard Title -->
+          </h1>
+          <div class="spacer-sm"></div>
+          <p class="anim-fade-up delay-300" style="font-family: 'Inter', sans-serif; font-size: 1.1em; color: rgba(26,31,54,0.65);">
+            <!-- CUSTOMIZE: Date range -->
+          </p>
+          <div class="spacer-lg"></div>
+          <div class="anim-fade-up delay-400" style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <div class="cat-chip">
+              <span class="cat-dot" style="background: var(--cat-indigo);"></span>
+              <span style="font-family: 'Inter', sans-serif; color: #1a1f36;"><!-- CUSTOMIZE: Category 1 --></span>
+            </div>
+            <div class="cat-chip">
+              <span class="cat-dot" style="background: var(--cat-emerald);"></span>
+              <span style="font-family: 'Inter', sans-serif; color: #1a1f36;"><!-- CUSTOMIZE: Category 2 --></span>
+            </div>
+            <div class="cat-chip">
+              <span class="cat-dot" style="background: var(--cat-amber);"></span>
+              <span style="font-family: 'Inter', sans-serif; color: #1a1f36;"><!-- CUSTOMIZE: Category 3 --></span>
+            </div>
+            <div class="cat-chip">
+              <span class="cat-dot" style="background: var(--cat-rose);"></span>
+              <span style="font-family: 'Inter', sans-serif; color: #1a1f36;"><!-- CUSTOMIZE: Category 4 --></span>
+            </div>
+            <div class="cat-chip">
+              <span class="cat-dot" style="background: var(--cat-violet);"></span>
+              <span style="font-family: 'Inter', sans-serif; color: #1a1f36;"><!-- CUSTOMIZE: Category 5 --></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════
+           SLIDE 2 — Overview Panel (5 KPI Cards)
+           ════════════════════════════════════════════════ -->
+      <section data-background-color="#F8F9FC" data-transition="fade">
+        <div class="section-header">
+          <h2 class="anim-fade-up" style="font-family: 'Inter', sans-serif; font-size: 2.4em; color: #1a1f36;"><!-- CUSTOMIZE: Section Title --></h2>
+          <span class="subtitle anim-fade-up delay-200" style="font-family: 'Inter', sans-serif; font-size: 0.8em; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE: Period --></span>
+        </div>
+        <div class="grid-5 anim-stagger">
+          <!-- Card 1: Indigo -->
+          <div class="panel-card anim-fade-up">
+            <div class="panel-header" style="background: var(--cat-indigo);"></div>
+            <div class="panel-body">
+              <div class="panel-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE: Metric label --></div>
+              <div class="panel-value" style="font-family: 'JetBrains Mono', monospace; color: #1a1f36;"><!-- CUSTOMIZE: Value --></div>
+              <div class="mini-chart">
+                <svg width="100%" height="32" viewBox="0 0 120 32">
+                  <rect x="0" y="14" width="12" height="18" rx="2" fill="rgba(79,106,232,0.2)" />
+                  <rect x="16" y="8" width="12" height="24" rx="2" fill="rgba(79,106,232,0.3)" />
+                  <rect x="32" y="12" width="12" height="20" rx="2" fill="rgba(79,106,232,0.25)" />
+                  <rect x="48" y="4" width="12" height="28" rx="2" fill="rgba(79,106,232,0.4)" />
+                  <rect x="64" y="6" width="12" height="26" rx="2" fill="rgba(79,106,232,0.5)" />
+                  <rect x="80" y="2" width="12" height="30" rx="2" fill="rgba(79,106,232,0.7)" />
+                  <rect x="96" y="0" width="12" height="32" rx="2" fill="var(--cat-indigo)" />
+                </svg>
+              </div>
+            </div>
+            <div class="panel-footer">
+              <span class="metric-chip up" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE: Change --></span>
+            </div>
+          </div>
+          <!-- Card 2: Emerald -->
+          <div class="panel-card anim-fade-up">
+            <div class="panel-header" style="background: var(--cat-emerald);"></div>
+            <div class="panel-body">
+              <div class="panel-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE: Metric label --></div>
+              <div class="panel-value" style="font-family: 'JetBrains Mono', monospace; color: #1a1f36;"><!-- CUSTOMIZE: Value --></div>
+              <div class="mini-chart">
+                <svg width="100%" height="32" viewBox="0 0 120 32">
+                  <rect x="0" y="16" width="12" height="16" rx="2" fill="rgba(16,185,129,0.2)" />
+                  <rect x="16" y="12" width="12" height="20" rx="2" fill="rgba(16,185,129,0.3)" />
+                  <rect x="32" y="8" width="12" height="24" rx="2" fill="rgba(16,185,129,0.35)" />
+                  <rect x="48" y="10" width="12" height="22" rx="2" fill="rgba(16,185,129,0.3)" />
+                  <rect x="64" y="6" width="12" height="26" rx="2" fill="rgba(16,185,129,0.5)" />
+                  <rect x="80" y="4" width="12" height="28" rx="2" fill="rgba(16,185,129,0.6)" />
+                  <rect x="96" y="2" width="12" height="30" rx="2" fill="var(--cat-emerald)" />
+                </svg>
+              </div>
+            </div>
+            <div class="panel-footer">
+              <span class="metric-chip up" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE: Change --></span>
+            </div>
+          </div>
+          <!-- Card 3: Amber -->
+          <div class="panel-card anim-fade-up">
+            <div class="panel-header" style="background: var(--cat-amber);"></div>
+            <div class="panel-body">
+              <div class="panel-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE: Metric label --></div>
+              <div class="panel-value" style="font-family: 'JetBrains Mono', monospace; color: #1a1f36;"><!-- CUSTOMIZE: Value --></div>
+              <div class="mini-chart">
+                <svg width="100%" height="32" viewBox="0 0 120 32">
+                  <rect x="0" y="10" width="12" height="22" rx="2" fill="rgba(245,158,11,0.3)" />
+                  <rect x="16" y="6" width="12" height="26" rx="2" fill="rgba(245,158,11,0.4)" />
+                  <rect x="32" y="12" width="12" height="20" rx="2" fill="rgba(245,158,11,0.25)" />
+                  <rect x="48" y="14" width="12" height="18" rx="2" fill="rgba(245,158,11,0.2)" />
+                  <rect x="64" y="10" width="12" height="22" rx="2" fill="rgba(245,158,11,0.35)" />
+                  <rect x="80" y="8" width="12" height="24" rx="2" fill="rgba(245,158,11,0.5)" />
+                  <rect x="96" y="6" width="12" height="26" rx="2" fill="var(--cat-amber)" />
+                </svg>
+              </div>
+            </div>
+            <div class="panel-footer">
+              <span class="metric-chip neutral" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE: Change --></span>
+            </div>
+          </div>
+          <!-- Card 4: Rose -->
+          <div class="panel-card anim-fade-up">
+            <div class="panel-header" style="background: var(--cat-rose);"></div>
+            <div class="panel-body">
+              <div class="panel-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE: Metric label --></div>
+              <div class="panel-value" style="font-family: 'JetBrains Mono', monospace; color: #1a1f36;"><!-- CUSTOMIZE: Value --></div>
+              <div class="mini-chart">
+                <svg width="100%" height="32" viewBox="0 0 120 32">
+                  <circle cx="60" cy="16" r="14" fill="none" stroke="rgba(244,63,94,0.12)" stroke-width="4" />
+                  <circle cx="60" cy="16" r="14" fill="none" stroke="var(--cat-rose)" stroke-width="4" stroke-dasharray="66 22" stroke-dashoffset="22" stroke-linecap="round" />
+                </svg>
+              </div>
+            </div>
+            <div class="panel-footer">
+              <span class="metric-chip down" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE: Change --></span>
+            </div>
+          </div>
+          <!-- Card 5: Violet -->
+          <div class="panel-card anim-fade-up">
+            <div class="panel-header" style="background: var(--cat-violet);"></div>
+            <div class="panel-body">
+              <div class="panel-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE: Metric label --></div>
+              <div class="panel-value" style="font-family: 'JetBrains Mono', monospace; color: #1a1f36;"><!-- CUSTOMIZE: Value --></div>
+              <div class="mini-chart">
+                <svg width="100%" height="32" viewBox="0 0 120 32">
+                  <circle cx="60" cy="16" r="14" fill="none" stroke="rgba(139,92,246,0.12)" stroke-width="4" />
+                  <circle cx="60" cy="16" r="14" fill="none" stroke="var(--cat-violet)" stroke-width="4" stroke-dasharray="55 33" stroke-dashoffset="22" stroke-linecap="round" />
+                </svg>
+              </div>
+            </div>
+            <div class="panel-footer">
+              <span class="metric-chip up" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE: Change --></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════
+           SLIDE 3 — Detailed Breakdown (3 Large Cards with Charts)
+           ════════════════════════════════════════════════ -->
+      <section data-background-color="#F8F9FC" data-transition="fade">
+        <div class="section-header">
+          <h2 class="anim-fade-up" style="font-family: 'Inter', sans-serif; font-size: 2.4em; color: #1a1f36;"><!-- CUSTOMIZE: Section Title --></h2>
+        </div>
+        <div class="grid-3 anim-stagger">
+          <!-- Large card 1 -->
+          <div class="panel-card anim-fade-up">
+            <div class="panel-header" style="background: var(--cat-indigo);"></div>
+            <div class="panel-body" style="gap: 12px;">
+              <div class="panel-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE: Card label --></div>
+              <div class="panel-value" style="font-family: 'JetBrains Mono', monospace; font-size: 1.8em; color: #1a1f36;"><!-- CUSTOMIZE: Value --></div>
+              <p style="font-family: 'Inter', sans-serif; font-size: 0.8em; color: rgba(26,31,54,0.65); margin: 0;"><!-- CUSTOMIZE: Description --></p>
+              <div class="mini-chart">
+                <svg width="100%" height="60" viewBox="0 0 200 60">
+                  <rect x="5" y="30" width="22" height="30" rx="3" fill="rgba(79,106,232,0.2)" />
+                  <rect x="32" y="18" width="22" height="42" rx="3" fill="rgba(79,106,232,0.3)" />
+                  <rect x="59" y="24" width="22" height="36" rx="3" fill="rgba(79,106,232,0.25)" />
+                  <rect x="86" y="10" width="22" height="50" rx="3" fill="rgba(79,106,232,0.5)" />
+                  <rect x="113" y="6" width="22" height="54" rx="3" fill="rgba(79,106,232,0.65)" />
+                  <rect x="140" y="14" width="22" height="46" rx="3" fill="rgba(79,106,232,0.5)" />
+                  <rect x="167" y="2" width="22" height="58" rx="3" fill="var(--cat-indigo)" />
+                </svg>
+              </div>
+            </div>
+          </div>
+          <!-- Large card 2 -->
+          <div class="panel-card anim-fade-up">
+            <div class="panel-header" style="background: var(--cat-emerald);"></div>
+            <div class="panel-body" style="gap: 12px;">
+              <div class="panel-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE: Card label --></div>
+              <div class="panel-value" style="font-family: 'JetBrains Mono', monospace; font-size: 1.8em; color: #1a1f36;"><!-- CUSTOMIZE: Value --></div>
+              <p style="font-family: 'Inter', sans-serif; font-size: 0.8em; color: rgba(26,31,54,0.65); margin: 0;"><!-- CUSTOMIZE: Description --></p>
+              <div class="mini-chart">
+                <svg width="100%" height="60" viewBox="0 0 200 60">
+                  <circle cx="100" cy="30" r="26" fill="none" stroke="rgba(16,185,129,0.1)" stroke-width="8" />
+                  <circle cx="100" cy="30" r="26" fill="none" stroke="var(--cat-emerald)" stroke-width="8" stroke-dasharray="122 42" stroke-dashoffset="40" stroke-linecap="round" />
+                  <text x="100" y="34" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" font-weight="600" fill="#1a1f36"><!-- CUSTOMIZE: % --></text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <!-- Large card 3 -->
+          <div class="panel-card anim-fade-up">
+            <div class="panel-header" style="background: var(--cat-amber);"></div>
+            <div class="panel-body" style="gap: 12px;">
+              <div class="panel-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE: Card label --></div>
+              <div class="panel-value" style="font-family: 'JetBrains Mono', monospace; font-size: 1.8em; color: #1a1f36;"><!-- CUSTOMIZE: Value --></div>
+              <p style="font-family: 'Inter', sans-serif; font-size: 0.8em; color: rgba(26,31,54,0.65); margin: 0;"><!-- CUSTOMIZE: Description --></p>
+              <div class="mini-chart">
+                <svg width="100%" height="60" viewBox="0 0 200 60">
+                  <polyline points="5,50 30,40 55,45 80,25 105,30 130,15 155,20 180,8 195,12" fill="none" stroke="var(--cat-amber)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                  <polyline points="5,50 30,40 55,45 80,25 105,30 130,15 155,20 180,8 195,12 195,60 5,60" fill="rgba(245,158,11,0.08)" stroke="none" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════
+           SLIDE 4 — Category Deep-Dive (2 Cards + Tables)
+           ════════════════════════════════════════════════ -->
+      <section data-background-color="#F8F9FC" data-transition="fade">
+        <div class="section-header">
+          <h2 class="anim-fade-up" style="font-family: 'Inter', sans-serif; font-size: 2.4em; color: #1a1f36;"><!-- CUSTOMIZE: Section Title --></h2>
+        </div>
+        <div class="grid-2 anim-stagger">
+          <!-- Left card with table -->
+          <div class="panel-card anim-fade-up">
+            <div class="panel-header" style="background: var(--cat-indigo);"></div>
+            <div class="panel-body">
+              <div class="panel-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE: Category label --></div>
+              <table class="dash-table">
+                <thead>
+                  <tr>
+                    <th style="font-family: 'Inter', sans-serif;"><!-- CUSTOMIZE --></th>
+                    <th style="font-family: 'Inter', sans-serif;"><!-- CUSTOMIZE --></th>
+                    <th style="font-family: 'Inter', sans-serif;"><!-- CUSTOMIZE --></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style="font-family: 'Inter', sans-serif;"><!-- CUSTOMIZE --></td>
+                    <td class="mono" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE --></td>
+                    <td class="mono" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE --></td>
+                  </tr>
+                  <tr>
+                    <td style="font-family: 'Inter', sans-serif;"><!-- CUSTOMIZE --></td>
+                    <td class="mono" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE --></td>
+                    <td class="mono" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE --></td>
+                  </tr>
+                  <tr>
+                    <td style="font-family: 'Inter', sans-serif;"><!-- CUSTOMIZE --></td>
+                    <td class="mono" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE --></td>
+                    <td class="mono" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE --></td>
+                  </tr>
+                  <tr>
+                    <td style="font-family: 'Inter', sans-serif;"><!-- CUSTOMIZE --></td>
+                    <td class="mono" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE --></td>
+                    <td class="mono" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE --></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <!-- Right card with table -->
+          <div class="panel-card anim-fade-up">
+            <div class="panel-header" style="background: var(--cat-emerald);"></div>
+            <div class="panel-body">
+              <div class="panel-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE: Category label --></div>
+              <table class="dash-table">
+                <thead>
+                  <tr>
+                    <th style="font-family: 'Inter', sans-serif;"><!-- CUSTOMIZE --></th>
+                    <th style="font-family: 'Inter', sans-serif;"><!-- CUSTOMIZE --></th>
+                    <th style="font-family: 'Inter', sans-serif;"><!-- CUSTOMIZE --></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style="font-family: 'Inter', sans-serif;"><!-- CUSTOMIZE --></td>
+                    <td class="mono" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE --></td>
+                    <td class="mono" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE --></td>
+                  </tr>
+                  <tr>
+                    <td style="font-family: 'Inter', sans-serif;"><!-- CUSTOMIZE --></td>
+                    <td class="mono" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE --></td>
+                    <td class="mono" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE --></td>
+                  </tr>
+                  <tr>
+                    <td style="font-family: 'Inter', sans-serif;"><!-- CUSTOMIZE --></td>
+                    <td class="mono" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE --></td>
+                    <td class="mono" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE --></td>
+                  </tr>
+                  <tr>
+                    <td style="font-family: 'Inter', sans-serif;"><!-- CUSTOMIZE --></td>
+                    <td class="mono" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE --></td>
+                    <td class="mono" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE --></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════
+           SLIDE 5 — Trend Analysis (Sparkline Cards + Summary)
+           ════════════════════════════════════════════════ -->
+      <section data-background-color="#F8F9FC" data-transition="fade">
+        <div class="section-header">
+          <h2 class="anim-fade-up" style="font-family: 'Inter', sans-serif; font-size: 2.4em; color: #1a1f36;"><!-- CUSTOMIZE: Section Title --></h2>
+        </div>
+        <div class="grid-3 anim-stagger" style="margin-bottom: 1.5rem;">
+          <!-- Sparkline card 1 -->
+          <div class="panel-card anim-fade-up">
+            <div class="panel-header" style="background: var(--cat-indigo);"></div>
+            <div class="panel-body">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                  <div class="panel-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE --></div>
+                  <div class="panel-value" style="font-family: 'JetBrains Mono', monospace; font-size: 1.6em; color: #1a1f36;"><!-- CUSTOMIZE --></div>
+                </div>
+                <span class="metric-chip up" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE --></span>
+              </div>
+              <div class="mini-chart">
+                <svg width="100%" height="40" viewBox="0 0 200 40">
+                  <polyline points="5,35 25,28 50,30 75,20 100,22 125,15 150,12 175,8 195,5" fill="none" stroke="var(--cat-indigo)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                  <polyline points="5,35 25,28 50,30 75,20 100,22 125,15 150,12 175,8 195,5 195,40 5,40" fill="rgba(79,106,232,0.06)" stroke="none" />
+                </svg>
+              </div>
+            </div>
+          </div>
+          <!-- Sparkline card 2 -->
+          <div class="panel-card anim-fade-up">
+            <div class="panel-header" style="background: var(--cat-emerald);"></div>
+            <div class="panel-body">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                  <div class="panel-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE --></div>
+                  <div class="panel-value" style="font-family: 'JetBrains Mono', monospace; font-size: 1.6em; color: #1a1f36;"><!-- CUSTOMIZE --></div>
+                </div>
+                <span class="metric-chip up" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE --></span>
+              </div>
+              <div class="mini-chart">
+                <svg width="100%" height="40" viewBox="0 0 200 40">
+                  <polyline points="5,30 25,32 50,25 75,28 100,18 125,20 150,10 175,12 195,6" fill="none" stroke="var(--cat-emerald)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                  <polyline points="5,30 25,32 50,25 75,28 100,18 125,20 150,10 175,12 195,6 195,40 5,40" fill="rgba(16,185,129,0.06)" stroke="none" />
+                </svg>
+              </div>
+            </div>
+          </div>
+          <!-- Sparkline card 3 -->
+          <div class="panel-card anim-fade-up">
+            <div class="panel-header" style="background: var(--cat-rose);"></div>
+            <div class="panel-body">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                  <div class="panel-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE --></div>
+                  <div class="panel-value" style="font-family: 'JetBrains Mono', monospace; font-size: 1.6em; color: #1a1f36;"><!-- CUSTOMIZE --></div>
+                </div>
+                <span class="metric-chip down" style="font-family: 'JetBrains Mono', monospace;"><!-- CUSTOMIZE --></span>
+              </div>
+              <div class="mini-chart">
+                <svg width="100%" height="40" viewBox="0 0 200 40">
+                  <polyline points="5,8 25,12 50,10 75,18 100,15 125,22 150,20 175,28 195,32" fill="none" stroke="var(--cat-rose)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                  <polyline points="5,8 25,12 50,10 75,18 100,15 125,22 150,20 175,28 195,32 195,40 5,40" fill="rgba(244,63,94,0.06)" stroke="none" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Summary row -->
+        <div class="anim-fade-up delay-400" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem 1.5rem; box-shadow: var(--card-shadow);">
+          <p style="font-family: 'Inter', sans-serif; font-size: 0.9em; color: rgba(26,31,54,0.65); margin: 0;"><!-- CUSTOMIZE: Summary insight sentence --></p>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════
+           SLIDE 6 — Comparison Grid (4x2 Before/After)
+           ════════════════════════════════════════════════ -->
+      <section data-background-color="#F8F9FC" data-transition="fade">
+        <div class="section-header">
+          <h2 class="anim-fade-up" style="font-family: 'Inter', sans-serif; font-size: 2.4em; color: #1a1f36;"><!-- CUSTOMIZE: Section Title --></h2>
+        </div>
+        <div class="grid-4x2 anim-stagger">
+          <!-- Row 1: Previous -->
+          <div class="anim-fade-up" style="display: flex; align-items: center;">
+            <span style="font-family: 'Inter', sans-serif; font-size: 0.75em; font-weight: 600; color: rgba(26,31,54,0.65); text-transform: uppercase; letter-spacing: 0.06em;"><!-- CUSTOMIZE: "Previous" --></span>
+          </div>
+          <div class="panel-card anim-fade-up" style="padding: 0;">
+            <div class="panel-header" style="background: rgba(79,106,232,0.3);"></div>
+            <div class="panel-body" style="text-align: center;">
+              <div class="panel-value" style="font-family: 'JetBrains Mono', monospace; font-size: 1.5em; color: rgba(26,31,54,0.5);"><!-- CUSTOMIZE --></div>
+              <div class="panel-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE --></div>
+            </div>
+          </div>
+          <div class="panel-card anim-fade-up" style="padding: 0;">
+            <div class="panel-header" style="background: rgba(16,185,129,0.3);"></div>
+            <div class="panel-body" style="text-align: center;">
+              <div class="panel-value" style="font-family: 'JetBrains Mono', monospace; font-size: 1.5em; color: rgba(26,31,54,0.5);"><!-- CUSTOMIZE --></div>
+              <div class="panel-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE --></div>
+            </div>
+          </div>
+          <div class="panel-card anim-fade-up" style="padding: 0;">
+            <div class="panel-header" style="background: rgba(245,158,11,0.3);"></div>
+            <div class="panel-body" style="text-align: center;">
+              <div class="panel-value" style="font-family: 'JetBrains Mono', monospace; font-size: 1.5em; color: rgba(26,31,54,0.5);"><!-- CUSTOMIZE --></div>
+              <div class="panel-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE --></div>
+            </div>
+          </div>
+          <!-- Row 2: Current -->
+          <div class="anim-fade-up" style="display: flex; align-items: center;">
+            <span style="font-family: 'Inter', sans-serif; font-size: 0.75em; font-weight: 600; color: var(--primary); text-transform: uppercase; letter-spacing: 0.06em;"><!-- CUSTOMIZE: "Current" --></span>
+          </div>
+          <div class="panel-card anim-fade-up" style="padding: 0;">
+            <div class="panel-header" style="background: var(--cat-indigo);"></div>
+            <div class="panel-body" style="text-align: center;">
+              <div class="panel-value" style="font-family: 'JetBrains Mono', monospace; font-size: 1.5em; color: #1a1f36;"><!-- CUSTOMIZE --></div>
+              <div class="panel-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE --></div>
+            </div>
+          </div>
+          <div class="panel-card anim-fade-up" style="padding: 0;">
+            <div class="panel-header" style="background: var(--cat-emerald);"></div>
+            <div class="panel-body" style="text-align: center;">
+              <div class="panel-value" style="font-family: 'JetBrains Mono', monospace; font-size: 1.5em; color: #1a1f36;"><!-- CUSTOMIZE --></div>
+              <div class="panel-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE --></div>
+            </div>
+          </div>
+          <div class="panel-card anim-fade-up" style="padding: 0;">
+            <div class="panel-header" style="background: var(--cat-amber);"></div>
+            <div class="panel-body" style="text-align: center;">
+              <div class="panel-value" style="font-family: 'JetBrains Mono', monospace; font-size: 1.5em; color: #1a1f36;"><!-- CUSTOMIZE --></div>
+              <div class="panel-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE --></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════
+           SLIDE 7 — Alerts / Actions (Priority Cards)
+           ════════════════════════════════════════════════ -->
+      <section data-background-color="#F8F9FC" data-transition="fade">
+        <div class="section-header">
+          <h2 class="anim-fade-up" style="font-family: 'Inter', sans-serif; font-size: 2.4em; color: #1a1f36;"><!-- CUSTOMIZE: Section Title --></h2>
+        </div>
+        <div class="grid-3 anim-stagger">
+          <div class="priority-card high anim-fade-up">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <h3 style="font-family: 'Inter', sans-serif; font-size: 1.15em; color: #1a1f36; margin: 0;"><!-- CUSTOMIZE: Action title --></h3>
+              <span class="priority-badge" style="font-family: 'Inter', sans-serif; color: var(--cat-rose); background: rgba(244,63,94,0.08);"><!-- CUSTOMIZE: Priority --></span>
+            </div>
+            <p style="font-family: 'Inter', sans-serif; font-size: 0.85em; color: rgba(26,31,54,0.65); margin: 0;"><!-- CUSTOMIZE: Description --></p>
+          </div>
+          <div class="priority-card high anim-fade-up">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <h3 style="font-family: 'Inter', sans-serif; font-size: 1.15em; color: #1a1f36; margin: 0;"><!-- CUSTOMIZE: Action title --></h3>
+              <span class="priority-badge" style="font-family: 'Inter', sans-serif; color: var(--cat-rose); background: rgba(244,63,94,0.08);"><!-- CUSTOMIZE: Priority --></span>
+            </div>
+            <p style="font-family: 'Inter', sans-serif; font-size: 0.85em; color: rgba(26,31,54,0.65); margin: 0;"><!-- CUSTOMIZE: Description --></p>
+          </div>
+          <div class="priority-card medium anim-fade-up">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <h3 style="font-family: 'Inter', sans-serif; font-size: 1.15em; color: #1a1f36; margin: 0;"><!-- CUSTOMIZE: Action title --></h3>
+              <span class="priority-badge" style="font-family: 'Inter', sans-serif; color: var(--cat-amber); background: rgba(245,158,11,0.08);"><!-- CUSTOMIZE: Priority --></span>
+            </div>
+            <p style="font-family: 'Inter', sans-serif; font-size: 0.85em; color: rgba(26,31,54,0.65); margin: 0;"><!-- CUSTOMIZE: Description --></p>
+          </div>
+          <div class="priority-card medium anim-fade-up">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <h3 style="font-family: 'Inter', sans-serif; font-size: 1.15em; color: #1a1f36; margin: 0;"><!-- CUSTOMIZE: Action title --></h3>
+              <span class="priority-badge" style="font-family: 'Inter', sans-serif; color: var(--cat-amber); background: rgba(245,158,11,0.08);"><!-- CUSTOMIZE: Priority --></span>
+            </div>
+            <p style="font-family: 'Inter', sans-serif; font-size: 0.85em; color: rgba(26,31,54,0.65); margin: 0;"><!-- CUSTOMIZE: Description --></p>
+          </div>
+          <div class="priority-card low anim-fade-up">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <h3 style="font-family: 'Inter', sans-serif; font-size: 1.15em; color: #1a1f36; margin: 0;"><!-- CUSTOMIZE: Action title --></h3>
+              <span class="priority-badge" style="font-family: 'Inter', sans-serif; color: var(--cat-emerald); background: rgba(16,185,129,0.08);"><!-- CUSTOMIZE: Priority --></span>
+            </div>
+            <p style="font-family: 'Inter', sans-serif; font-size: 0.85em; color: rgba(26,31,54,0.65); margin: 0;"><!-- CUSTOMIZE: Description --></p>
+          </div>
+          <div class="priority-card low anim-fade-up">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <h3 style="font-family: 'Inter', sans-serif; font-size: 1.15em; color: #1a1f36; margin: 0;"><!-- CUSTOMIZE: Action title --></h3>
+              <span class="priority-badge" style="font-family: 'Inter', sans-serif; color: var(--cat-emerald); background: rgba(16,185,129,0.08);"><!-- CUSTOMIZE: Priority --></span>
+            </div>
+            <p style="font-family: 'Inter', sans-serif; font-size: 0.85em; color: rgba(26,31,54,0.65); margin: 0;"><!-- CUSTOMIZE: Description --></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════
+           SLIDE 8 — Summary (Stat Pills + Closing)
+           ════════════════════════════════════════════════ -->
+      <section data-background-color="#F8F9FC" data-transition="fade">
+        <div style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
+          <h2 class="anim-fade-up" style="font-family: 'Inter', sans-serif; font-size: 2.4em; color: #1a1f36; text-align: center;"><!-- CUSTOMIZE: Closing Title --></h2>
+          <div class="spacer-lg"></div>
+          <div class="stat-pill-row anim-stagger" style="max-width: 1400px; margin: 0 auto;">
+            <div class="stat-pill anim-fade-up">
+              <div class="stat-pill-color" style="background: var(--cat-indigo);"></div>
+              <div>
+                <div class="stat-pill-value" style="font-family: 'JetBrains Mono', monospace; color: #1a1f36;"><!-- CUSTOMIZE --></div>
+                <div class="stat-pill-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE --></div>
+              </div>
+            </div>
+            <div class="stat-pill anim-fade-up">
+              <div class="stat-pill-color" style="background: var(--cat-emerald);"></div>
+              <div>
+                <div class="stat-pill-value" style="font-family: 'JetBrains Mono', monospace; color: #1a1f36;"><!-- CUSTOMIZE --></div>
+                <div class="stat-pill-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE --></div>
+              </div>
+            </div>
+            <div class="stat-pill anim-fade-up">
+              <div class="stat-pill-color" style="background: var(--cat-amber);"></div>
+              <div>
+                <div class="stat-pill-value" style="font-family: 'JetBrains Mono', monospace; color: #1a1f36;"><!-- CUSTOMIZE --></div>
+                <div class="stat-pill-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE --></div>
+              </div>
+            </div>
+            <div class="stat-pill anim-fade-up">
+              <div class="stat-pill-color" style="background: var(--cat-rose);"></div>
+              <div>
+                <div class="stat-pill-value" style="font-family: 'JetBrains Mono', monospace; color: #1a1f36;"><!-- CUSTOMIZE --></div>
+                <div class="stat-pill-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE --></div>
+              </div>
+            </div>
+            <div class="stat-pill anim-fade-up">
+              <div class="stat-pill-color" style="background: var(--cat-violet);"></div>
+              <div>
+                <div class="stat-pill-value" style="font-family: 'JetBrains Mono', monospace; color: #1a1f36;"><!-- CUSTOMIZE --></div>
+                <div class="stat-pill-label" style="font-family: 'Inter', sans-serif; color: rgba(26,31,54,0.65);"><!-- CUSTOMIZE --></div>
+              </div>
+            </div>
+          </div>
+          <div class="spacer-lg"></div>
+          <p class="anim-fade-up delay-500" style="font-family: 'Inter', sans-serif; font-size: 1.1em; color: rgba(26,31,54,0.65); text-align: center; max-width: 800px; margin: 0 auto;">
+            <!-- CUSTOMIZE: Closing statement -->
+          </p>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      transition: 'fade',
+      transitionSpeed: 'default',
+      center: false,
+      width: 1920,
+      height: 1080,
+      margin: 0,
+      controls: false,
+      progress: true,
+      slideNumber: false
+    });
+  </script>
+</body>
+
+</html>

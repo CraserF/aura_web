@@ -55,7 +55,7 @@
     /* ── Base ─────────────────────────────────────────── */
     .reveal {
       font-family: var(--font);
-      font-size: 28px;
+      font-size: 36px;
       color: var(--body);
     }
 
@@ -64,7 +64,7 @@
     }
 
     .reveal .slides section {
-      padding: 80px 120px;
+      padding: 4rem 5rem;
       box-sizing: border-box;
     }
 
@@ -81,23 +81,23 @@
     }
 
     .reveal h1 {
-      font-size: 72px;
+      font-size: 4em;
       font-weight: 700;
     }
 
     .reveal h2 {
-      font-size: 48px;
+      font-size: 2.4em;
     }
 
     .reveal h3 {
-      font-size: 28px;
+      font-size: 1.2em;
       font-weight: 600;
     }
 
     .reveal p {
       font-family: var(--font);
       color: var(--body);
-      font-size: 24px;
+      font-size: 1.1em;
       line-height: 1.7;
       margin-top: 0;
     }
@@ -116,7 +116,7 @@
     .pill {
       display: inline-block;
       font-family: var(--font);
-      font-size: 14px;
+      font-size: 0.8em;
       font-weight: 600;
       color: #84B59F;
       background: rgba(132, 181, 159, 0.08);
@@ -137,7 +137,7 @@
 
     .reveal ul.clean-list li {
       font-family: var(--font);
-      font-size: 26px;
+      font-size: 1.1em;
       color: var(--body);
       line-height: 1.6;
       padding: 16px 0;
@@ -158,7 +158,7 @@
     .card-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 32px;
+      gap: 2rem;
       margin-top: 48px;
     }
 
@@ -166,13 +166,13 @@
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 12px;
-      padding: 48px;
+      padding: 2rem;
       box-shadow: var(--card-shadow);
     }
 
     .card h3 {
       font-family: var(--font);
-      font-size: 28px;
+      font-size: 1.2em;
       font-weight: 600;
       color: var(--heading);
       margin: 0 0 12px 0;
@@ -180,7 +180,7 @@
 
     .card p {
       font-family: var(--font);
-      font-size: 22px;
+      font-size: 1.1em;
       color: var(--body);
       line-height: 1.7;
       margin: 0;
@@ -188,7 +188,7 @@
 
     .card .card-number {
       font-family: var(--font);
-      font-size: 14px;
+      font-size: 0.8em;
       font-weight: 600;
       color: var(--primary);
       letter-spacing: 0.04em;
@@ -203,7 +203,7 @@
 
     .statement blockquote {
       font-family: var(--font);
-      font-size: 40px;
+      font-size: 1.4em;
       font-weight: 600;
       color: var(--heading);
       line-height: 1.4;
@@ -217,7 +217,7 @@
 
     .statement .attribution {
       font-family: var(--font);
-      font-size: 20px;
+      font-size: 0.8em;
       color: var(--muted);
       margin-top: 32px;
     }
@@ -233,18 +233,28 @@
 
     .closing h2 {
       font-family: var(--font);
-      font-size: 56px;
+      font-size: 2.4em;
       color: var(--heading);
     }
 
     .closing p {
       font-family: var(--font);
-      font-size: 22px;
+      font-size: 1.1em;
       color: var(--muted);
     }
 
     .closing .divider {
       margin: 32px auto;
+    }
+
+    /* ── Metric Numbers ───────────────────────────────── */
+    .metric-number {
+      font-family: var(--font);
+      font-size: 4em;
+      font-weight: 700;
+      color: var(--heading);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
     }
 
     /* ── Utility ──────────────────────────────────────── */
@@ -263,25 +273,25 @@
            ════════════════════════════════════════════════ -->
       <section data-background-color="#F7FAF8">
         <div class="spacer-lg"></div>
-        <span class="pill anim-fade-in-up" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; color: #84B59F;"><!-- CUSTOMIZE: Badge label e.g. "Q1 2026 Update" --></span>
+        <span class="pill anim-fade-in-up" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.8em; color: #84B59F;"><!-- CUSTOMIZE: Badge label e.g. "Q1 2026 Update" --></span>
         <div class="spacer-md"></div>
-        <h1 class="anim-fade-in-up delay-200" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 72px; color: #2D4A3E;"><!-- CUSTOMIZE: Presentation Title --></h1>
+        <h1 class="anim-fade-in-up delay-200" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 4em; color: #2D4A3E;"><!-- CUSTOMIZE: Presentation Title --></h1>
         <div class="divider anim-fade-in-up delay-300"></div>
-        <p class="anim-fade-in-up delay-400" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 22px; color: #7E9A8E;"><!-- CUSTOMIZE: Subtitle or Author · Date --></p>
+        <p class="anim-fade-in-up delay-400" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.1em; color: #7E9A8E;"><!-- CUSTOMIZE: Subtitle or Author · Date --></p>
       </section>
 
       <!-- ════════════════════════════════════════════════
            SLIDE 2 — Bullet List
            ════════════════════════════════════════════════ -->
       <section data-background-color="#F7FAF8">
-        <span class="pill anim-fade-in-up" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; color: #84B59F;"><!-- CUSTOMIZE: Section label e.g. "Overview" --></span>
+        <span class="pill anim-fade-in-up" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.8em; color: #84B59F;"><!-- CUSTOMIZE: Section label e.g. "Overview" --></span>
         <div class="spacer-sm"></div>
-        <h2 class="anim-fade-in-up delay-200" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 48px; color: #2D4A3E;"><!-- CUSTOMIZE: Section Title --></h2>
+        <h2 class="anim-fade-in-up delay-200" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 2.4em; color: #2D4A3E;"><!-- CUSTOMIZE: Section Title --></h2>
         <ul class="clean-list anim-fade-in-up delay-300">
-          <li style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 26px; color: #4A665A;"><strong style="font-family: 'Plus Jakarta Sans', sans-serif; color: #2D4A3E;"><!-- CUSTOMIZE: Point title --></strong> — <!-- CUSTOMIZE: Point description --></li>
-          <li style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 26px; color: #4A665A;"><strong style="font-family: 'Plus Jakarta Sans', sans-serif; color: #2D4A3E;"><!-- CUSTOMIZE: Point title --></strong> — <!-- CUSTOMIZE: Point description --></li>
-          <li style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 26px; color: #4A665A;"><strong style="font-family: 'Plus Jakarta Sans', sans-serif; color: #2D4A3E;"><!-- CUSTOMIZE: Point title --></strong> — <!-- CUSTOMIZE: Point description --></li>
-          <li style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 26px; color: #4A665A;"><strong style="font-family: 'Plus Jakarta Sans', sans-serif; color: #2D4A3E;"><!-- CUSTOMIZE: Point title --></strong> — <!-- CUSTOMIZE: Point description --></li>
+          <li style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.1em; color: #4A665A;"><strong style="font-family: 'Plus Jakarta Sans', sans-serif; color: #2D4A3E;"><!-- CUSTOMIZE: Point title --></strong> — <!-- CUSTOMIZE: Point description --></li>
+          <li style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.1em; color: #4A665A;"><strong style="font-family: 'Plus Jakarta Sans', sans-serif; color: #2D4A3E;"><!-- CUSTOMIZE: Point title --></strong> — <!-- CUSTOMIZE: Point description --></li>
+          <li style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.1em; color: #4A665A;"><strong style="font-family: 'Plus Jakarta Sans', sans-serif; color: #2D4A3E;"><!-- CUSTOMIZE: Point title --></strong> — <!-- CUSTOMIZE: Point description --></li>
+          <li style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.1em; color: #4A665A;"><strong style="font-family: 'Plus Jakarta Sans', sans-serif; color: #2D4A3E;"><!-- CUSTOMIZE: Point title --></strong> — <!-- CUSTOMIZE: Point description --></li>
         </ul>
       </section>
 
@@ -289,19 +299,19 @@
            SLIDE 3 — Two-Column Cards
            ════════════════════════════════════════════════ -->
       <section data-background-color="#F7FAF8">
-        <span class="pill anim-fade-in-up" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; color: #84B59F;"><!-- CUSTOMIZE: Section label e.g. "Key Areas" --></span>
+        <span class="pill anim-fade-in-up" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.8em; color: #84B59F;"><!-- CUSTOMIZE: Section label e.g. "Key Areas" --></span>
         <div class="spacer-sm"></div>
-        <h2 class="anim-fade-in-up delay-200" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 48px; color: #2D4A3E;"><!-- CUSTOMIZE: Section Title --></h2>
+        <h2 class="anim-fade-in-up delay-200" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 2.4em; color: #2D4A3E;"><!-- CUSTOMIZE: Section Title --></h2>
         <div class="card-grid anim-fade-in-up delay-300">
           <div class="card">
-            <span class="card-number" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; color: #84B59F;">01</span>
-            <h3 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 28px; color: #2D4A3E;"><!-- CUSTOMIZE: Card Title --></h3>
-            <p style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 22px; color: #4A665A;"><!-- CUSTOMIZE: Card description. Keep it to 1-2 sentences. --></p>
+            <span class="card-number" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.8em; color: #84B59F;">01</span>
+            <h3 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.2em; color: #2D4A3E;"><!-- CUSTOMIZE: Card Title --></h3>
+            <p style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.1em; color: #4A665A;"><!-- CUSTOMIZE: Card description. Keep it to 1-2 sentences. --></p>
           </div>
           <div class="card">
-            <span class="card-number" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; color: #84B59F;">02</span>
-            <h3 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 28px; color: #2D4A3E;"><!-- CUSTOMIZE: Card Title --></h3>
-            <p style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 22px; color: #4A665A;"><!-- CUSTOMIZE: Card description. Keep it to 1-2 sentences. --></p>
+            <span class="card-number" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.8em; color: #84B59F;">02</span>
+            <h3 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.2em; color: #2D4A3E;"><!-- CUSTOMIZE: Card Title --></h3>
+            <p style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.1em; color: #4A665A;"><!-- CUSTOMIZE: Card description. Keep it to 1-2 sentences. --></p>
           </div>
         </div>
       </section>
@@ -311,11 +321,11 @@
            ════════════════════════════════════════════════ -->
       <section data-background-color="#F7FAF8">
         <div class="statement">
-          <span class="pill anim-fade-in-up" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; color: #84B59F;"><!-- CUSTOMIZE: Label e.g. "Key Insight" --></span>
+          <span class="pill anim-fade-in-up" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.8em; color: #84B59F;"><!-- CUSTOMIZE: Label e.g. "Key Insight" --></span>
           <div class="spacer-md"></div>
-          <blockquote class="anim-fade-in-up delay-200" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 40px; color: #2D4A3E;"><!-- CUSTOMIZE: A single powerful statement or quote. --></blockquote>
+          <blockquote class="anim-fade-in-up delay-200" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.4em; color: #2D4A3E;"><!-- CUSTOMIZE: A single powerful statement or quote. --></blockquote>
           <div class="divider anim-fade-in-up delay-300"></div>
-          <p class="attribution anim-fade-in-up delay-400" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 20px; color: #7E9A8E;"><!-- CUSTOMIZE: Attribution e.g. "— Author Name, Role" --></p>
+          <p class="attribution anim-fade-in-up delay-400" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.8em; color: #7E9A8E;"><!-- CUSTOMIZE: Attribution e.g. "— Author Name, Role" --></p>
         </div>
       </section>
 
@@ -324,9 +334,9 @@
            ════════════════════════════════════════════════ -->
       <section data-background-color="#F7FAF8">
         <div class="closing">
-          <h2 class="anim-fade-in-up" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 56px; color: #2D4A3E;"><!-- CUSTOMIZE: e.g. "Thank You" --></h2>
+          <h2 class="anim-fade-in-up" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 2.4em; color: #2D4A3E;"><!-- CUSTOMIZE: e.g. "Thank You" --></h2>
           <div class="divider anim-fade-in-up delay-200"></div>
-          <p class="anim-fade-in-up delay-300" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 22px; color: #7E9A8E;"><!-- CUSTOMIZE: e.g. "Questions? Reach out at hello@company.com" --></p>
+          <p class="anim-fade-in-up delay-300" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.1em; color: #7E9A8E;"><!-- CUSTOMIZE: e.g. "Questions? Reach out at hello@company.com" --></p>
         </div>
       </section>
 

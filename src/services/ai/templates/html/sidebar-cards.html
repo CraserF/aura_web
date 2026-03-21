@@ -1,0 +1,1250 @@
+<!doctype html>
+<!--
+  SIDEBAR CARDS TEMPLATE — Persistent Sidebar + Card Grid
+  Purpose: Brand-forward presentations, guided walkthroughs, structured content
+  Animation Level: Medium (Level 2) — staggered card entrances from right
+  Best For: Brand presentations, product tours, company overviews, onboarding decks
+
+  Palette: Navy + Gold sidebar, cream content area
+  - Sidebar BG: #1a2744
+  - Gold Accent: #c8a96e
+  - Sidebar Text: #f5f4f0 (cream)
+  - Content BG: #F7F7F5
+  - Content Heading: #1a2744
+  - Content Body: rgba(26, 39, 68, 0.72)
+  - Content Muted: rgba(26, 39, 68, 0.48)
+
+  CUSTOMIZATION POINTS (search & replace):
+  - {{TITLE}}               Main presentation title
+  - {{SUBTITLE}}            Subtitle or tagline
+  - {{BRAND_NAME}}          Brand / company name
+  - {{BRAND_TAGLINE}}       Short brand tagline
+  - {{DATE}}                Presentation date
+  - {{SECTION_*}}           Section content
+  - {{FEATURE_*}}           Feature card content
+  - {{DETAIL_*}}            Detail slide content
+  - {{METRIC_*}}            Metric card values
+  - {{TEAM_*}}              Team member content
+  - {{PROCESS_*}}           Process step content
+  - {{CTA_*}}               Call-to-action content
+  - {{CONTACT_*}}           Contact details
+-->
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{TITLE}} — Sidebar Cards</title>
+
+  <!-- Reveal.js 5 Core -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/white.css">
+
+  <!-- Animation Libraries -->
+  <link rel="stylesheet" href="../animations/core-animations.css">
+  <link rel="stylesheet" href="../animations/advanced-effects.css">
+
+  <!-- Typography: DM Sans + Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    /* =============================================
+       SIDEBAR CARDS — CSS Custom Properties
+       ============================================= */
+    :root {
+      --sidebar-bg: #1a2744;
+      --sidebar-bg-hover: #1f2f52;
+      --gold: #c8a96e;
+      --gold-light: rgba(200, 169, 110, 0.15);
+      --gold-glow: rgba(200, 169, 110, 0.25);
+      --sidebar-text: #f5f4f0;
+      --sidebar-muted: rgba(245, 244, 240, 0.50);
+      --bg-content: #F7F7F5;
+      --bg-card: #FFFFFF;
+      --border: rgba(26, 39, 68, 0.08);
+      --border-strong: rgba(26, 39, 68, 0.15);
+      --text-primary: #1a2744;
+      --text-secondary: rgba(26, 39, 68, 0.72);
+      --text-muted: rgba(26, 39, 68, 0.48);
+      --font-heading: 'DM Sans', sans-serif;
+      --font-body: 'Inter', sans-serif;
+    }
+
+    /* =============================================
+       BASE STYLES
+       ============================================= */
+    .reveal {
+      font-family: var(--font-body);
+      color: var(--text-secondary);
+      font-size: 34px;
+    }
+
+    .reveal .slides {
+      text-align: left;
+    }
+
+    .reveal .slides section {
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    .reveal h1,
+    .reveal h2,
+    .reveal h3,
+    .reveal h4 {
+      font-family: var(--font-heading);
+      color: var(--text-primary);
+      font-weight: 700;
+      text-transform: none;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      margin: 0;
+    }
+
+    .reveal p {
+      margin: 0;
+      line-height: 1.6;
+      font-size: 1em;
+    }
+
+    /* =============================================
+       SIDEBAR + MAIN LAYOUT
+       ============================================= */
+    .slide-layout {
+      display: grid;
+      grid-template-columns: 280px 8px 1fr;
+      min-height: 100vh;
+      width: 100%;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: var(--sidebar-bg);
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      color: var(--sidebar-text);
+      overflow: hidden;
+    }
+
+    /* Gold accent strip between sidebar and content */
+    .accent-strip {
+      background: var(--gold);
+      width: 8px;
+    }
+
+    /* Main content area */
+    .main-content {
+      background: var(--bg-content);
+      padding: 3rem 3.5rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* =============================================
+       SIDEBAR ELEMENTS
+       ============================================= */
+    .sidebar-brand {
+      font-family: var(--font-heading);
+      font-size: 1.1em;
+      font-weight: 700;
+      color: var(--sidebar-text);
+      letter-spacing: -0.01em;
+    }
+
+    .sidebar-tagline {
+      font-size: 0.7em;
+      color: var(--sidebar-muted);
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+
+    .sidebar-divider {
+      width: 32px;
+      height: 2px;
+      background: var(--gold);
+      border-radius: 1px;
+      margin: 16px 0;
+    }
+
+    /* Navigation dots */
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin: 1.5rem 0;
+    }
+
+    .nav-dot {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.65em;
+      color: var(--sidebar-muted);
+      transition: color 0.2s ease;
+    }
+
+    .nav-dot .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--sidebar-muted);
+      flex-shrink: 0;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .nav-dot.active {
+      color: var(--gold);
+    }
+
+    .nav-dot.active .dot {
+      background: var(--gold);
+      transform: scale(1.3);
+    }
+
+    /* Sidebar stats (mini) */
+    .sidebar-stats {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .sidebar-stat {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .sidebar-stat .s-label {
+      font-size: 0.65em;
+      color: var(--sidebar-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .sidebar-stat .s-value {
+      font-family: var(--font-heading);
+      font-size: 0.85em;
+      font-weight: 600;
+      color: var(--gold);
+    }
+
+    /* Sidebar numbered steps indicator */
+    .sidebar-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .sidebar-step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .step-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: rgba(200, 169, 110, 0.1);
+      border: 1px solid rgba(200, 169, 110, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-heading);
+      font-size: 0.6em;
+      font-weight: 600;
+      color: var(--sidebar-muted);
+      flex-shrink: 0;
+    }
+
+    .sidebar-step.active .step-num {
+      background: var(--gold);
+      border-color: var(--gold);
+      color: var(--sidebar-bg);
+    }
+
+    .sidebar-step .step-label {
+      font-size: 0.65em;
+      color: var(--sidebar-muted);
+    }
+
+    .sidebar-step.active .step-label {
+      color: var(--gold);
+      font-weight: 500;
+    }
+
+    /* =============================================
+       SAUSAGE DOG SVG ILLUSTRATION
+       Simple abstract dog from basic shapes
+       ============================================= */
+    .sidebar-illustration {
+      margin: 1rem 0;
+      display: flex;
+      justify-content: center;
+    }
+
+    /* =============================================
+       MAIN CONTENT ELEMENTS
+       ============================================= */
+    .hero-title {
+      font-size: 3.5em;
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      color: var(--text-primary);
+    }
+
+    .hero-subtitle {
+      font-size: 1.15em;
+      color: var(--text-secondary);
+      margin-top: 0.5em;
+      font-weight: 400;
+      max-width: 700px;
+      line-height: 1.5;
+    }
+
+    .section-header {
+      font-size: 2.2em;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 0.2em;
+    }
+
+    .section-lead {
+      font-size: 1em;
+      color: var(--text-secondary);
+      max-width: 680px;
+      line-height: 1.6;
+    }
+
+    .accent-line {
+      width: 48px;
+      height: 3px;
+      background: var(--gold);
+      border-radius: 2px;
+      margin: 12px 0;
+    }
+
+    /* =============================================
+       CONTENT CARDS
+       ============================================= */
+    .card-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem;
+      margin-top: 1.5rem;
+    }
+
+    .card-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.2rem;
+      margin-top: 1.5rem;
+    }
+
+    .content-card {
+      background: var(--bg-card);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 1.5rem;
+      transition: box-shadow 0.2s ease, transform 0.2s ease;
+      box-shadow: 0 1px 3px rgba(26, 39, 68, 0.03);
+    }
+
+    .content-card:hover {
+      box-shadow: 0 4px 16px rgba(26, 39, 68, 0.06);
+      transform: translateY(-2px);
+    }
+
+    .content-card .card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: var(--gold-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+      flex-shrink: 0;
+    }
+
+    .content-card .card-title {
+      font-family: var(--font-heading);
+      font-size: 0.95em;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .content-card .card-desc {
+      font-size: 0.78em;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* =============================================
+       METRIC CARDS
+       ============================================= */
+    .metric-card {
+      background: var(--bg-card);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .metric-card .metric-value {
+      font-family: var(--font-heading);
+      font-size: 2.5em;
+      font-weight: 700;
+      color: var(--gold);
+      line-height: 1;
+    }
+
+    .metric-card .metric-label {
+      font-size: 0.72em;
+      color: var(--text-muted);
+      margin-top: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* =============================================
+       TEAM CARDS
+       ============================================= */
+    .team-card {
+      background: var(--bg-card);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .team-card .avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--gold), #1a2744);
+      margin: 0 auto 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-heading);
+      font-size: 1.2em;
+      font-weight: 700;
+      color: var(--sidebar-text);
+    }
+
+    .team-card .team-name {
+      font-family: var(--font-heading);
+      font-size: 0.85em;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .team-card .team-role {
+      font-size: 0.72em;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* =============================================
+       EXPANDED CONTENT CARD
+       ============================================= */
+    .expanded-card {
+      background: var(--bg-card);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      padding: 2.5rem;
+      box-shadow: 0 2px 8px rgba(26, 39, 68, 0.04);
+    }
+
+    /* =============================================
+       TAG PILLS
+       ============================================= */
+    .tag-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 14px;
+      border-radius: 999px;
+      font-size: 0.72em;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      background: var(--gold-light);
+      color: var(--gold);
+      border: 1px solid rgba(200, 169, 110, 0.2);
+    }
+
+    .tag.accent {
+      background: var(--gold);
+      color: var(--sidebar-bg);
+      border-color: var(--gold);
+    }
+
+    /* =============================================
+       CTA BUTTON
+       ============================================= */
+    .cta-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 32px;
+      border-radius: 999px;
+      font-family: var(--font-heading);
+      font-size: 0.9em;
+      font-weight: 600;
+      background: var(--gold);
+      color: var(--sidebar-bg);
+      border: none;
+      letter-spacing: 0.02em;
+    }
+
+    /* =============================================
+       STAGGER ENTRANCE ANIMATION (from right)
+       ============================================= */
+    @keyframes fadeInRight {
+      0%   { opacity: 0; transform: translateX(30px); }
+      100% { opacity: 1; transform: translateX(0); }
+    }
+
+    .stagger-right > * {
+      opacity: 0;
+      animation: fadeInRight 0.5s ease-out forwards;
+    }
+
+    .stagger-right > *:nth-child(1) { animation-delay: 0.08s; }
+    .stagger-right > *:nth-child(2) { animation-delay: 0.16s; }
+    .stagger-right > *:nth-child(3) { animation-delay: 0.24s; }
+    .stagger-right > *:nth-child(4) { animation-delay: 0.32s; }
+    .stagger-right > *:nth-child(5) { animation-delay: 0.40s; }
+    .stagger-right > *:nth-child(6) { animation-delay: 0.48s; }
+
+    /* =============================================
+       ANIMATION DELAY UTILITIES
+       ============================================= */
+    .delay-100 { animation-delay: 0.1s; }
+    .delay-200 { animation-delay: 0.2s; }
+    .delay-300 { animation-delay: 0.3s; }
+    .delay-400 { animation-delay: 0.4s; }
+    .delay-500 { animation-delay: 0.5s; }
+    .delay-600 { animation-delay: 0.6s; }
+    .delay-700 { animation-delay: 0.7s; }
+    .delay-800 { animation-delay: 0.8s; }
+    .delay-1000 { animation-delay: 1.0s; }
+  </style>
+</head>
+
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- ============================================================
+           SLIDE 1: TITLE
+           Sidebar introduces brand, main area has hero text
+           ============================================================ -->
+      <section data-background-color="#F7F7F5" data-transition="slide">
+        <div class="slide-layout">
+          <!-- Sidebar -->
+          <div class="sidebar">
+            <div>
+              <div class="sidebar-brand">{{BRAND_NAME}}</div>
+              <div class="sidebar-tagline">{{BRAND_TAGLINE}}</div>
+              <div class="sidebar-divider"></div>
+            </div>
+
+            <!-- Sausage dog SVG illustration -->
+            <div class="sidebar-illustration">
+              <svg viewBox="0 0 200 120" width="200" height="120" xmlns="http://www.w3.org/2000/svg">
+                <!-- Body (elongated ellipse) -->
+                <ellipse cx="100" cy="65" rx="70" ry="22" fill="rgba(200,169,110,0.15)" stroke="rgba(200,169,110,0.3)" stroke-width="1.5"/>
+                <!-- Head (circle) -->
+                <circle cx="170" cy="52" r="18" fill="rgba(200,169,110,0.2)" stroke="rgba(200,169,110,0.35)" stroke-width="1.5"/>
+                <!-- Ear (ellipse hanging) -->
+                <ellipse cx="178" cy="42" rx="8" ry="12" fill="rgba(200,169,110,0.12)" stroke="rgba(200,169,110,0.25)" stroke-width="1" transform="rotate(15 178 42)"/>
+                <!-- Snout -->
+                <ellipse cx="186" cy="55" rx="8" ry="5" fill="rgba(200,169,110,0.1)" stroke="rgba(200,169,110,0.2)" stroke-width="1"/>
+                <!-- Eye -->
+                <circle cx="174" cy="49" r="2.5" fill="rgba(200,169,110,0.5)"/>
+                <!-- Nose -->
+                <circle cx="193" cy="53" r="2" fill="rgba(200,169,110,0.4)"/>
+                <!-- Front legs -->
+                <rect x="138" y="82" width="6" height="22" rx="3" fill="rgba(200,169,110,0.15)" stroke="rgba(200,169,110,0.25)" stroke-width="1"/>
+                <rect x="150" y="82" width="6" height="22" rx="3" fill="rgba(200,169,110,0.15)" stroke="rgba(200,169,110,0.25)" stroke-width="1"/>
+                <!-- Back legs -->
+                <rect x="50" y="82" width="6" height="22" rx="3" fill="rgba(200,169,110,0.15)" stroke="rgba(200,169,110,0.25)" stroke-width="1"/>
+                <rect x="62" y="82" width="6" height="22" rx="3" fill="rgba(200,169,110,0.15)" stroke="rgba(200,169,110,0.25)" stroke-width="1"/>
+                <!-- Tail (curved path) -->
+                <path d="M30 65 Q18 45 25 35" fill="none" stroke="rgba(200,169,110,0.3)" stroke-width="2" stroke-linecap="round"/>
+                <!-- Collar -->
+                <rect x="155" y="62" width="14" height="4" rx="2" fill="var(--gold)" opacity="0.5"/>
+              </svg>
+            </div>
+
+            <div>
+              <div style="font-size:0.65em;color:var(--sidebar-muted);">{{DATE}}</div>
+            </div>
+          </div>
+
+          <!-- Gold accent strip -->
+          <div class="accent-strip"></div>
+
+          <!-- Main content -->
+          <div class="main-content">
+            <div class="tag-row anim-fade-in-up">
+              <span class="tag accent">{{DATE}}</span>
+            </div>
+
+            <h1 class="hero-title anim-fade-in-up delay-200" style="margin-top:20px;">{{TITLE}}</h1>
+            <p class="hero-subtitle anim-fade-in-up delay-400">{{SUBTITLE}}</p>
+
+            <div class="accent-line anim-fade-in-up delay-500"></div>
+
+            <p class="anim-fade-in-up delay-600" style="font-size:0.85em;color:var(--text-muted);margin-top:8px;">
+              Presented by {{BRAND_NAME}}
+            </p>
+          </div>
+        </div>
+
+        <aside class="notes">
+          Title slide. The sidebar introduces the brand with the sausage dog illustration, while the main area carries the hero title.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 2: OVERVIEW — Sidebar nav dots + 4 feature cards
+           ============================================================ -->
+      <section data-background-color="#F7F7F5" data-transition="slide">
+        <div class="slide-layout">
+          <!-- Sidebar -->
+          <div class="sidebar">
+            <div>
+              <div class="sidebar-brand">{{BRAND_NAME}}</div>
+              <div class="sidebar-divider"></div>
+
+              <div class="sidebar-nav">
+                <div class="nav-dot active">
+                  <div class="dot"></div>
+                  <span>Overview</span>
+                </div>
+                <div class="nav-dot">
+                  <div class="dot"></div>
+                  <span>Details</span>
+                </div>
+                <div class="nav-dot">
+                  <div class="dot"></div>
+                  <span>Metrics</span>
+                </div>
+                <div class="nav-dot">
+                  <div class="dot"></div>
+                  <span>Team</span>
+                </div>
+                <div class="nav-dot">
+                  <div class="dot"></div>
+                  <span>Process</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="sidebar-illustration">
+              <svg viewBox="0 0 200 120" width="180" height="108" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="100" cy="65" rx="70" ry="22" fill="rgba(200,169,110,0.12)" stroke="rgba(200,169,110,0.2)" stroke-width="1"/>
+                <circle cx="170" cy="52" r="18" fill="rgba(200,169,110,0.15)" stroke="rgba(200,169,110,0.25)" stroke-width="1"/>
+                <ellipse cx="178" cy="42" rx="8" ry="12" fill="rgba(200,169,110,0.08)" stroke="rgba(200,169,110,0.18)" stroke-width="1" transform="rotate(15 178 42)"/>
+                <circle cx="174" cy="49" r="2" fill="rgba(200,169,110,0.4)"/>
+                <circle cx="193" cy="53" r="1.5" fill="rgba(200,169,110,0.3)"/>
+                <rect x="138" y="82" width="5" height="18" rx="2.5" fill="rgba(200,169,110,0.1)" stroke="rgba(200,169,110,0.18)" stroke-width="1"/>
+                <rect x="149" y="82" width="5" height="18" rx="2.5" fill="rgba(200,169,110,0.1)" stroke="rgba(200,169,110,0.18)" stroke-width="1"/>
+                <rect x="50" y="82" width="5" height="18" rx="2.5" fill="rgba(200,169,110,0.1)" stroke="rgba(200,169,110,0.18)" stroke-width="1"/>
+                <rect x="61" y="82" width="5" height="18" rx="2.5" fill="rgba(200,169,110,0.1)" stroke="rgba(200,169,110,0.18)" stroke-width="1"/>
+                <path d="M30 65 Q18 45 25 35" fill="none" stroke="rgba(200,169,110,0.2)" stroke-width="1.5" stroke-linecap="round"/>
+                <rect x="155" y="62" width="14" height="3" rx="1.5" fill="var(--gold)" opacity="0.4"/>
+              </svg>
+            </div>
+
+            <div style="font-size:0.6em;color:var(--sidebar-muted);">01 / 08</div>
+          </div>
+
+          <!-- Gold accent strip -->
+          <div class="accent-strip"></div>
+
+          <!-- Main content -->
+          <div class="main-content">
+            <h2 class="section-header anim-fade-in-up">{{OVERVIEW_TITLE}}</h2>
+            <div class="accent-line anim-fade-in-up delay-100"></div>
+            <p class="section-lead anim-fade-in-up delay-200">{{OVERVIEW_LEAD}}</p>
+
+            <div class="card-grid stagger-right" style="margin-top:1.5rem;">
+              <!-- Feature card 1 -->
+              <div class="content-card">
+                <div class="card-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c8a96e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                  </svg>
+                </div>
+                <div class="card-title">{{FEATURE_1_TITLE}}</div>
+                <div class="card-desc">{{FEATURE_1_DESC}}</div>
+              </div>
+
+              <!-- Feature card 2 -->
+              <div class="content-card">
+                <div class="card-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c8a96e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>
+                  </svg>
+                </div>
+                <div class="card-title">{{FEATURE_2_TITLE}}</div>
+                <div class="card-desc">{{FEATURE_2_DESC}}</div>
+              </div>
+
+              <!-- Feature card 3 -->
+              <div class="content-card">
+                <div class="card-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c8a96e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  </svg>
+                </div>
+                <div class="card-title">{{FEATURE_3_TITLE}}</div>
+                <div class="card-desc">{{FEATURE_3_DESC}}</div>
+              </div>
+
+              <!-- Feature card 4 -->
+              <div class="content-card">
+                <div class="card-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c8a96e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                </div>
+                <div class="card-title">{{FEATURE_4_TITLE}}</div>
+                <div class="card-desc">{{FEATURE_4_DESC}}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="notes">
+          Overview slide with navigation dots in the sidebar and four feature cards in the main area.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 3: DETAIL 1 — Sidebar highlights active section
+           ============================================================ -->
+      <section data-background-color="#F7F7F5" data-transition="slide">
+        <div class="slide-layout">
+          <!-- Sidebar -->
+          <div class="sidebar">
+            <div>
+              <div class="sidebar-brand">{{BRAND_NAME}}</div>
+              <div class="sidebar-divider"></div>
+
+              <div class="sidebar-nav">
+                <div class="nav-dot">
+                  <div class="dot"></div>
+                  <span>Overview</span>
+                </div>
+                <div class="nav-dot active">
+                  <div class="dot"></div>
+                  <span>{{DETAIL_1_NAV}}</span>
+                </div>
+                <div class="nav-dot">
+                  <div class="dot"></div>
+                  <span>{{DETAIL_2_NAV}}</span>
+                </div>
+                <div class="nav-dot">
+                  <div class="dot"></div>
+                  <span>Metrics</span>
+                </div>
+                <div class="nav-dot">
+                  <div class="dot"></div>
+                  <span>Team</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:0.65em;color:var(--sidebar-muted);margin-bottom:8px;">Key Insight</div>
+              <div style="font-size:0.8em;color:var(--gold);font-family:var(--font-heading);font-weight:600;">{{DETAIL_1_SIDEBAR_STAT}}</div>
+              <div style="font-size:0.6em;color:var(--sidebar-muted);margin-top:2px;">{{DETAIL_1_SIDEBAR_LABEL}}</div>
+            </div>
+
+            <div style="font-size:0.6em;color:var(--sidebar-muted);">02 / 08</div>
+          </div>
+
+          <!-- Gold accent strip -->
+          <div class="accent-strip"></div>
+
+          <!-- Main content -->
+          <div class="main-content">
+            <div class="expanded-card anim-fade-in-up">
+              <div class="tag-row" style="margin-bottom:16px;">
+                <span class="tag accent">{{DETAIL_1_TAG}}</span>
+              </div>
+              <h2 class="section-header" style="font-size:2em;">{{DETAIL_1_TITLE}}</h2>
+              <div class="accent-line"></div>
+              <p class="section-lead" style="margin-top:12px;">{{DETAIL_1_BODY}}</p>
+
+              <div class="card-grid stagger-right" style="margin-top:1.5rem;">
+                <div class="content-card fragment fade-up">
+                  <div class="card-title">{{DETAIL_1_POINT_1_TITLE}}</div>
+                  <div class="card-desc">{{DETAIL_1_POINT_1_DESC}}</div>
+                </div>
+                <div class="content-card fragment fade-up">
+                  <div class="card-title">{{DETAIL_1_POINT_2_TITLE}}</div>
+                  <div class="card-desc">{{DETAIL_1_POINT_2_DESC}}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="notes">
+          Detail slide 1. Sidebar highlights the active section with a key insight stat.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 4: DETAIL 2 — Same pattern, different content
+           ============================================================ -->
+      <section data-background-color="#F7F7F5" data-transition="slide">
+        <div class="slide-layout">
+          <!-- Sidebar -->
+          <div class="sidebar">
+            <div>
+              <div class="sidebar-brand">{{BRAND_NAME}}</div>
+              <div class="sidebar-divider"></div>
+
+              <div class="sidebar-nav">
+                <div class="nav-dot">
+                  <div class="dot"></div>
+                  <span>Overview</span>
+                </div>
+                <div class="nav-dot">
+                  <div class="dot"></div>
+                  <span>{{DETAIL_1_NAV}}</span>
+                </div>
+                <div class="nav-dot active">
+                  <div class="dot"></div>
+                  <span>{{DETAIL_2_NAV}}</span>
+                </div>
+                <div class="nav-dot">
+                  <div class="dot"></div>
+                  <span>Metrics</span>
+                </div>
+                <div class="nav-dot">
+                  <div class="dot"></div>
+                  <span>Team</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:0.65em;color:var(--sidebar-muted);margin-bottom:8px;">Key Insight</div>
+              <div style="font-size:0.8em;color:var(--gold);font-family:var(--font-heading);font-weight:600;">{{DETAIL_2_SIDEBAR_STAT}}</div>
+              <div style="font-size:0.6em;color:var(--sidebar-muted);margin-top:2px;">{{DETAIL_2_SIDEBAR_LABEL}}</div>
+            </div>
+
+            <div style="font-size:0.6em;color:var(--sidebar-muted);">03 / 08</div>
+          </div>
+
+          <!-- Gold accent strip -->
+          <div class="accent-strip"></div>
+
+          <!-- Main content -->
+          <div class="main-content">
+            <div class="expanded-card anim-fade-in-up">
+              <div class="tag-row" style="margin-bottom:16px;">
+                <span class="tag accent">{{DETAIL_2_TAG}}</span>
+              </div>
+              <h2 class="section-header" style="font-size:2em;">{{DETAIL_2_TITLE}}</h2>
+              <div class="accent-line"></div>
+              <p class="section-lead" style="margin-top:12px;">{{DETAIL_2_BODY}}</p>
+
+              <div class="card-grid stagger-right" style="margin-top:1.5rem;">
+                <div class="content-card fragment fade-up">
+                  <div class="card-title">{{DETAIL_2_POINT_1_TITLE}}</div>
+                  <div class="card-desc">{{DETAIL_2_POINT_1_DESC}}</div>
+                </div>
+                <div class="content-card fragment fade-up">
+                  <div class="card-title">{{DETAIL_2_POINT_2_TITLE}}</div>
+                  <div class="card-desc">{{DETAIL_2_POINT_2_DESC}}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="notes">
+          Detail slide 2. Same sidebar navigation pattern with a different active section and content.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 5: METRICS — Sidebar mini stats + metric cards
+           ============================================================ -->
+      <section data-background-color="#F7F7F5" data-transition="slide">
+        <div class="slide-layout">
+          <!-- Sidebar -->
+          <div class="sidebar">
+            <div>
+              <div class="sidebar-brand">{{BRAND_NAME}}</div>
+              <div class="sidebar-divider"></div>
+
+              <div class="sidebar-stats">
+                <div class="sidebar-stat">
+                  <span class="s-label">{{SIDEBAR_STAT_1_LABEL}}</span>
+                  <span class="s-value">{{SIDEBAR_STAT_1_VALUE}}</span>
+                </div>
+                <div class="sidebar-stat">
+                  <span class="s-label">{{SIDEBAR_STAT_2_LABEL}}</span>
+                  <span class="s-value">{{SIDEBAR_STAT_2_VALUE}}</span>
+                </div>
+                <div class="sidebar-stat">
+                  <span class="s-label">{{SIDEBAR_STAT_3_LABEL}}</span>
+                  <span class="s-value">{{SIDEBAR_STAT_3_VALUE}}</span>
+                </div>
+                <div class="sidebar-stat">
+                  <span class="s-label">{{SIDEBAR_STAT_4_LABEL}}</span>
+                  <span class="s-value">{{SIDEBAR_STAT_4_VALUE}}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="sidebar-illustration">
+              <svg viewBox="0 0 200 120" width="160" height="96" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="100" cy="65" rx="70" ry="22" fill="rgba(200,169,110,0.1)" stroke="rgba(200,169,110,0.18)" stroke-width="1"/>
+                <circle cx="170" cy="52" r="18" fill="rgba(200,169,110,0.12)" stroke="rgba(200,169,110,0.22)" stroke-width="1"/>
+                <circle cx="174" cy="49" r="2" fill="rgba(200,169,110,0.35)"/>
+                <rect x="138" y="82" width="5" height="18" rx="2.5" fill="rgba(200,169,110,0.08)" stroke="rgba(200,169,110,0.15)" stroke-width="1"/>
+                <rect x="149" y="82" width="5" height="18" rx="2.5" fill="rgba(200,169,110,0.08)" stroke="rgba(200,169,110,0.15)" stroke-width="1"/>
+                <rect x="50" y="82" width="5" height="18" rx="2.5" fill="rgba(200,169,110,0.08)" stroke="rgba(200,169,110,0.15)" stroke-width="1"/>
+                <rect x="61" y="82" width="5" height="18" rx="2.5" fill="rgba(200,169,110,0.08)" stroke="rgba(200,169,110,0.15)" stroke-width="1"/>
+                <path d="M30 65 Q18 45 25 35" fill="none" stroke="rgba(200,169,110,0.18)" stroke-width="1.5" stroke-linecap="round"/>
+                <rect x="155" y="62" width="14" height="3" rx="1.5" fill="var(--gold)" opacity="0.35"/>
+              </svg>
+            </div>
+
+            <div style="font-size:0.6em;color:var(--sidebar-muted);">04 / 08</div>
+          </div>
+
+          <!-- Gold accent strip -->
+          <div class="accent-strip"></div>
+
+          <!-- Main content -->
+          <div class="main-content">
+            <h2 class="section-header anim-fade-in-up">{{METRICS_TITLE}}</h2>
+            <div class="accent-line anim-fade-in-up delay-100"></div>
+            <p class="section-lead anim-fade-in-up delay-200">{{METRICS_LEAD}}</p>
+
+            <div class="card-grid stagger-right" style="margin-top:1.5rem;">
+              <div class="metric-card">
+                <div class="metric-value">{{METRIC_1_VALUE}}</div>
+                <div class="metric-label">{{METRIC_1_LABEL}}</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-value">{{METRIC_2_VALUE}}</div>
+                <div class="metric-label">{{METRIC_2_LABEL}}</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-value">{{METRIC_3_VALUE}}</div>
+                <div class="metric-label">{{METRIC_3_LABEL}}</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-value">{{METRIC_4_VALUE}}</div>
+                <div class="metric-label">{{METRIC_4_LABEL}}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="notes">
+          Metrics slide. Sidebar shows quick-glance summary stats; main area displays the detailed metric cards.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 6: TEAM — Sidebar profile illustration + team grid
+           ============================================================ -->
+      <section data-background-color="#F7F7F5" data-transition="slide">
+        <div class="slide-layout">
+          <!-- Sidebar -->
+          <div class="sidebar">
+            <div>
+              <div class="sidebar-brand">{{BRAND_NAME}}</div>
+              <div class="sidebar-divider"></div>
+              <div style="font-size:0.7em;color:var(--sidebar-muted);line-height:1.5;margin-top:8px;">
+                {{TEAM_SIDEBAR_TEXT}}
+              </div>
+            </div>
+
+            <!-- Profile illustration (abstract person silhouette) -->
+            <div class="sidebar-illustration">
+              <svg viewBox="0 0 160 160" width="140" height="140" xmlns="http://www.w3.org/2000/svg">
+                <!-- Head -->
+                <circle cx="80" cy="50" r="28" fill="rgba(200,169,110,0.12)" stroke="rgba(200,169,110,0.25)" stroke-width="1.5"/>
+                <!-- Body -->
+                <ellipse cx="80" cy="115" rx="40" ry="30" fill="rgba(200,169,110,0.08)" stroke="rgba(200,169,110,0.2)" stroke-width="1.5"/>
+                <!-- Neck -->
+                <rect x="72" y="75" width="16" height="15" rx="8" fill="rgba(200,169,110,0.1)"/>
+                <!-- Eyes -->
+                <circle cx="70" cy="46" r="2.5" fill="rgba(200,169,110,0.4)"/>
+                <circle cx="90" cy="46" r="2.5" fill="rgba(200,169,110,0.4)"/>
+                <!-- Smile -->
+                <path d="M72 56 Q80 62 88 56" fill="none" stroke="rgba(200,169,110,0.3)" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+
+            <div style="font-size:0.6em;color:var(--sidebar-muted);">05 / 08</div>
+          </div>
+
+          <!-- Gold accent strip -->
+          <div class="accent-strip"></div>
+
+          <!-- Main content -->
+          <div class="main-content">
+            <h2 class="section-header anim-fade-in-up">{{TEAM_TITLE}}</h2>
+            <div class="accent-line anim-fade-in-up delay-100"></div>
+            <p class="section-lead anim-fade-in-up delay-200">{{TEAM_LEAD}}</p>
+
+            <div class="card-grid stagger-right" style="margin-top:1.5rem;">
+              <div class="team-card">
+                <div class="avatar">{{TEAM_1_INITIALS}}</div>
+                <div class="team-name">{{TEAM_1_NAME}}</div>
+                <div class="team-role">{{TEAM_1_ROLE}}</div>
+              </div>
+              <div class="team-card">
+                <div class="avatar">{{TEAM_2_INITIALS}}</div>
+                <div class="team-name">{{TEAM_2_NAME}}</div>
+                <div class="team-role">{{TEAM_2_ROLE}}</div>
+              </div>
+              <div class="team-card">
+                <div class="avatar">{{TEAM_3_INITIALS}}</div>
+                <div class="team-name">{{TEAM_3_NAME}}</div>
+                <div class="team-role">{{TEAM_3_ROLE}}</div>
+              </div>
+              <div class="team-card">
+                <div class="avatar">{{TEAM_4_INITIALS}}</div>
+                <div class="team-name">{{TEAM_4_NAME}}</div>
+                <div class="team-role">{{TEAM_4_ROLE}}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="notes">
+          Team slide. Sidebar has an abstract profile illustration. Main area shows the team grid.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 7: PROCESS — Sidebar numbered steps + expanded step
+           ============================================================ -->
+      <section data-background-color="#F7F7F5" data-transition="slide">
+        <div class="slide-layout">
+          <!-- Sidebar -->
+          <div class="sidebar">
+            <div>
+              <div class="sidebar-brand">{{BRAND_NAME}}</div>
+              <div class="sidebar-divider"></div>
+
+              <div class="sidebar-steps">
+                <div class="sidebar-step">
+                  <div class="step-num">1</div>
+                  <span class="step-label">{{PROCESS_1_TITLE}}</span>
+                </div>
+                <div class="sidebar-step">
+                  <div class="step-num">2</div>
+                  <span class="step-label">{{PROCESS_2_TITLE}}</span>
+                </div>
+                <div class="sidebar-step active">
+                  <div class="step-num">3</div>
+                  <span class="step-label">{{PROCESS_3_TITLE}}</span>
+                </div>
+                <div class="sidebar-step">
+                  <div class="step-num">4</div>
+                  <span class="step-label">{{PROCESS_4_TITLE}}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="sidebar-illustration">
+              <svg viewBox="0 0 200 120" width="160" height="96" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="100" cy="65" rx="70" ry="22" fill="rgba(200,169,110,0.1)" stroke="rgba(200,169,110,0.18)" stroke-width="1"/>
+                <circle cx="170" cy="52" r="18" fill="rgba(200,169,110,0.12)" stroke="rgba(200,169,110,0.22)" stroke-width="1"/>
+                <circle cx="174" cy="49" r="2" fill="rgba(200,169,110,0.35)"/>
+                <rect x="138" y="82" width="5" height="18" rx="2.5" fill="rgba(200,169,110,0.08)"/>
+                <rect x="149" y="82" width="5" height="18" rx="2.5" fill="rgba(200,169,110,0.08)"/>
+                <rect x="50" y="82" width="5" height="18" rx="2.5" fill="rgba(200,169,110,0.08)"/>
+                <rect x="61" y="82" width="5" height="18" rx="2.5" fill="rgba(200,169,110,0.08)"/>
+                <path d="M30 65 Q18 45 25 35" fill="none" stroke="rgba(200,169,110,0.18)" stroke-width="1.5" stroke-linecap="round"/>
+                <rect x="155" y="62" width="14" height="3" rx="1.5" fill="var(--gold)" opacity="0.35"/>
+              </svg>
+            </div>
+
+            <div style="font-size:0.6em;color:var(--sidebar-muted);">06 / 08</div>
+          </div>
+
+          <!-- Gold accent strip -->
+          <div class="accent-strip"></div>
+
+          <!-- Main content — Expanded step view -->
+          <div class="main-content">
+            <div class="expanded-card anim-fade-in-up">
+              <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+                <div style="width:48px;height:48px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:1.2em;font-weight:700;color:var(--sidebar-bg);flex-shrink:0;">3</div>
+                <h2 class="section-header" style="font-size:2em;">{{PROCESS_3_TITLE}}</h2>
+              </div>
+              <div class="accent-line"></div>
+              <p class="section-lead" style="margin-top:12px;">{{PROCESS_3_BODY}}</p>
+
+              <div class="card-grid stagger-right" style="margin-top:1.5rem;">
+                <div class="content-card fragment fade-up">
+                  <div class="card-title">{{PROCESS_3_POINT_1_TITLE}}</div>
+                  <div class="card-desc">{{PROCESS_3_POINT_1_DESC}}</div>
+                </div>
+                <div class="content-card fragment fade-up">
+                  <div class="card-title">{{PROCESS_3_POINT_2_TITLE}}</div>
+                  <div class="card-desc">{{PROCESS_3_POINT_2_DESC}}</div>
+                </div>
+                <div class="content-card fragment fade-up">
+                  <div class="card-title">{{PROCESS_3_POINT_3_TITLE}}</div>
+                  <div class="card-desc">{{PROCESS_3_POINT_3_DESC}}</div>
+                </div>
+                <div class="content-card fragment fade-up">
+                  <div class="card-title">{{PROCESS_3_POINT_4_TITLE}}</div>
+                  <div class="card-desc">{{PROCESS_3_POINT_4_DESC}}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="notes">
+          Process slide. Sidebar shows the numbered step indicator with step 3 active. Main area expands the current step.
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           SLIDE 8: CLOSING — Sidebar contact + CTA
+           ============================================================ -->
+      <section data-background-color="#F7F7F5" data-transition="slide">
+        <div class="slide-layout">
+          <!-- Sidebar -->
+          <div class="sidebar">
+            <div>
+              <div class="sidebar-brand">{{BRAND_NAME}}</div>
+              <div class="sidebar-tagline">{{BRAND_TAGLINE}}</div>
+              <div class="sidebar-divider"></div>
+            </div>
+
+            <div>
+              <div style="font-size:0.7em;color:var(--sidebar-muted);margin-bottom:12px;">Get in touch</div>
+              <div style="font-size:0.75em;color:var(--gold);margin-bottom:6px;">{{CONTACT_EMAIL}}</div>
+              <div style="font-size:0.75em;color:var(--sidebar-text);margin-bottom:6px;">{{CONTACT_PHONE}}</div>
+              <div style="font-size:0.75em;color:var(--sidebar-muted);">{{CONTACT_URL}}</div>
+            </div>
+
+            <div class="sidebar-illustration">
+              <svg viewBox="0 0 200 120" width="180" height="108" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="100" cy="65" rx="70" ry="22" fill="rgba(200,169,110,0.15)" stroke="rgba(200,169,110,0.3)" stroke-width="1.5"/>
+                <circle cx="170" cy="52" r="18" fill="rgba(200,169,110,0.2)" stroke="rgba(200,169,110,0.35)" stroke-width="1.5"/>
+                <ellipse cx="178" cy="42" rx="8" ry="12" fill="rgba(200,169,110,0.12)" stroke="rgba(200,169,110,0.25)" stroke-width="1" transform="rotate(15 178 42)"/>
+                <ellipse cx="186" cy="55" rx="8" ry="5" fill="rgba(200,169,110,0.1)" stroke="rgba(200,169,110,0.2)" stroke-width="1"/>
+                <circle cx="174" cy="49" r="2.5" fill="rgba(200,169,110,0.5)"/>
+                <circle cx="193" cy="53" r="2" fill="rgba(200,169,110,0.4)"/>
+                <rect x="138" y="82" width="6" height="22" rx="3" fill="rgba(200,169,110,0.15)" stroke="rgba(200,169,110,0.25)" stroke-width="1"/>
+                <rect x="150" y="82" width="6" height="22" rx="3" fill="rgba(200,169,110,0.15)" stroke="rgba(200,169,110,0.25)" stroke-width="1"/>
+                <rect x="50" y="82" width="6" height="22" rx="3" fill="rgba(200,169,110,0.15)" stroke="rgba(200,169,110,0.25)" stroke-width="1"/>
+                <rect x="62" y="82" width="6" height="22" rx="3" fill="rgba(200,169,110,0.15)" stroke="rgba(200,169,110,0.25)" stroke-width="1"/>
+                <path d="M30 65 Q18 45 25 35" fill="none" stroke="rgba(200,169,110,0.3)" stroke-width="2" stroke-linecap="round"/>
+                <rect x="155" y="62" width="14" height="4" rx="2" fill="var(--gold)" opacity="0.5"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Gold accent strip -->
+          <div class="accent-strip"></div>
+
+          <!-- Main content — CTA -->
+          <div class="main-content" style="text-align:center;align-items:center;">
+            <h2 class="section-header anim-fade-in-up" style="font-size:3em;text-align:center;">{{CTA_TITLE}}</h2>
+            <p class="section-lead anim-fade-in-up delay-200" style="text-align:center;max-width:600px;">{{CTA_SUBTITLE}}</p>
+
+            <div class="accent-line anim-fade-in-up delay-300" style="margin:16px auto;"></div>
+
+            <div class="anim-fade-in-up delay-400" style="margin-top:24px;">
+              <span class="cta-button">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+                </svg>
+                {{CTA_BUTTON_TEXT}}
+              </span>
+            </div>
+
+            <p class="anim-fade-in-up delay-600" style="font-size:0.8em;color:var(--text-muted);margin-top:24px;">
+              {{BRAND_NAME}} &middot; {{DATE}}
+            </p>
+          </div>
+        </div>
+
+        <aside class="notes">
+          Closing slide. Sidebar has contact details and the sausage dog. Main area presents the call to action.
+        </aside>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Reveal.js 5 -->
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
+  <script>
+    Reveal.initialize({
+      // Display
+      width: 1920,
+      height: 1080,
+      margin: 0,
+      center: false,
+
+      // Transitions
+      hash: true,
+      transition: 'slide',
+      transitionSpeed: 'default',
+      backgroundTransition: 'fade',
+
+      // Controls
+      controls: true,
+      controlsLayout: 'bottom-right',
+      progress: true,
+      slideNumber: false,
+
+      // Navigation
+      keyboard: true,
+      touch: true,
+      loop: false,
+
+      // Media
+      embedded: false,
+      help: true,
+      autoPlayMedia: true,
+    });
+  </script>
+</body>
+
+</html>
