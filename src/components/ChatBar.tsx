@@ -3,7 +3,7 @@ import { ArrowUp, Square } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
 import { usePresentationStore } from '@/stores/presentationStore';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { getProvider } from '@/services/ai/registry';
+import { getProviderEntry } from '@/services/ai/registry';
 import { runPresentationWorkflow } from '@/services/ai/workflow';
 import type { WorkflowEvent } from '@/services/ai/workflow';
 import type { AIMessage } from '@/services/ai/types';
@@ -37,6 +37,7 @@ export function ChatBar() {
     { id: 'plan', label: 'Plan', status: 'pending' },
     { id: 'design', label: 'Design', status: 'pending' },
     { id: 'qa-validate', label: 'QA', status: 'pending' },
+    { id: 'qa-revise', label: 'QA Fix', status: 'pending' },
     { id: 'review', label: 'Review', status: 'pending' },
     { id: 'revise', label: 'Polish', status: 'pending' },
   ]);
@@ -97,7 +98,7 @@ export function ChatBar() {
     abortControllerRef.current = abortController;
 
     try {
-      const provider = getProvider(providerId);
+      const providerEntry = getProviderEntry(providerId);
       const config = getActiveProvider();
 
       // Handle workflow events for real-time progress
@@ -166,7 +167,7 @@ export function ChatBar() {
           chatHistory,
         },
         llmConfig: {
-          provider,
+          providerEntry,
           apiKey: config.apiKey,
           baseUrl: config.baseUrl ?? '',
           model: config.model,

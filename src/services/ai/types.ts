@@ -1,25 +1,31 @@
-/** Message format for AI conversations */
+/**
+ * Core AI types — message format and provider registry entry.
+ *
+ * ProviderEntry replaces the old AIProvider interface.
+ * Instead of hand-rolled fetch/SSE adapters, each provider
+ * creates a LanguageModelV1 instance via the Vercel AI SDK.
+ */
+import type { LanguageModelV1 } from 'ai';
+import type { ProviderId } from '@/types';
+
+/** Message format for AI conversations (compatible with AI SDK) */
 export interface AIMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
 }
 
-/** Abstract AI provider interface — all adapters implement this */
-export interface AIProvider {
-  id: string;
-  name: string;
+/** Configuration needed to create an AI SDK model */
+export interface ProviderModelConfig {
+  apiKey: string;
+  baseUrl?: string;
+  model?: string;
+}
 
-  /**
-   * Generate a streaming response.
-   * @param messages - Conversation history including system prompt
-   * @param onChunk - Called with each text chunk as it streams in
-   * @returns The full completed response text
-   */
-  generateStream(
-    messages: AIMessage[],
-    onChunk: (text: string) => void,
-    apiKey: string,
-    baseUrl: string,
-    model?: string,
-  ): Promise<string>;
+/** Registry entry for a provider — creates AI SDK model instances on demand */
+export interface ProviderEntry {
+  id: ProviderId;
+  name: string;
+  defaultModel: string;
+  /** Create a LanguageModelV1 instance from the given config */
+  createModel: (config: ProviderModelConfig) => LanguageModelV1;
 }

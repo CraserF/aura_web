@@ -213,18 +213,19 @@ Service files must never import from React, Zustand, or any component:
 
 ### Async Patterns
 
-AI providers use `async/await` with streaming callbacks:
+The workflow `LLMClient` provides two async methods:
 
 ```tsx
-async generateStream(
-  messages: AIMessage[],
-  onChunk: (text: string) => void,
-  apiKey: string,
-  baseUrl: string,
-): Promise<string>
+interface LLMClient {
+  generate(messages: AIMessage[], onChunk?: (text: string) => void): Promise<string>;
+  generateStructured<T>(messages: AIMessage[], schema: z.ZodType<T>, schemaName?: string): Promise<T>;
+}
 ```
 
-The callback pattern allows the store to update streaming content in real-time while the service remains framework-agnostic.
+- `generate()` streams text via AI SDK's `streamText()` and calls `onChunk` for each piece
+- `generateStructured()` uses AI SDK's `generateObject()` with Zod schema validation and automatic retry
+
+The callback pattern in `generate()` allows the store to update streaming content in real-time while the service remains framework-agnostic.
 
 ---
 
@@ -294,36 +295,62 @@ The app currently targets desktop browsers. Use these breakpoints if adding resp
 
 ## AI Provider Pattern
 
-All providers implement the same interface:
+All providers are registered as `ProviderEntry` objects in `src/services/ai/registry.ts`. Each entry creates AI SDK `LanguageModelV1` instances on demand:
 
 ```tsx
-interface AIProvider {
-  id: string;
+interface ProviderEntry {
+  id: ProviderId;
   name: string;
-  generateStream(
-    messages: AIMessage[],
-    onChunk: (text: string) => void,
-    apiKey: string,
-    baseUrl: string,
-  ): Promise<string>;
+  defaultModel: string;
+  createModel: (config: ProviderModelConfig) => LanguageModelV1;
 }
 ```
 
 ### Adding a Provider
 
-1. Create `src/services/ai/providers/yourprovider.ts`
-2. Implement `AIProvider` using `fetch()` + SSE parsing
-3. Register in `src/services/ai/registry.ts`
-4. Add to `PROVIDER_OPTIONS` in `src/types/index.ts`
+1. Add a `ProviderEntry` to `src/services/ai/registry.ts` using the appropriate AI SDK factory (`createOpenAI`, `createAnthropic`, `createGoogleGenerativeAI`)
+2. Add to `ProviderId` union and `PROVIDER_OPTIONS` in `src/types/index.ts`
+3. Add default config in `settingsStore.ts`
 
-The settings UI and chat flow automatically pick up registered providers.
+The settings UI and workflow pipeline automatically pick up registered providers.
 
-### Provider Adapter Rules
+### AI SDK Usage Patterns
 
-- Use `fetch()` only — no SDK packages
-- Parse SSE streams manually (see existing adapters for patterns)
-- Never throw for empty responses — return empty string
-- Let HTTP errors propagate as standard `Error` objects
+**Streaming text (HTML generation):**
+```tsx
+import { streamText } from 'ai';
+const result = streamText({ model, messages, temperature: 0.7 });
+for await (const chunk of result.textStream) {
+  onChunk(chunk);
+}
+```
+
+**Structured output (Zod-validated JSON):**
+```tsx
+import { generateObject } from 'ai';
+const result = await generateObject({
+  model, messages, schema: MyZodSchema, schemaName: 'my-object', maxRetries: 2,
+});
+return result.object; // Typed as z.infer<typeof MyZodSchema>
+```
+
+### Zod Schema Patterns
+
+Schemas live in `src/services/ai/schemas/index.ts`:
+
+```tsx
+import { z } from 'zod';
+
+export const MySchema = z.object({
+  field: z.string().min(1).max(100),
+  score: z.number().int().min(0).max(100),
+  items: z.array(z.string()).min(1).max(10),
+});
+
+export type MyType = z.infer<typeof MySchema>;
+```
+
+When using structured output, always provide a fallback for providers that may not support it natively.
 
 ---
 
@@ -390,13 +417,22 @@ Before running `bun add`, ask:
 
 ### Approved Categories
 
-| ✅ Approved | ❌ Avoid |
+| Category | Approved |
 |---|---|
-| **Radix primitives** — accessibility is hard | **Full UI frameworks** (MUI, Chakra) — too heavy |
-| **Zustand** — minimal state management | **Redux** — too much boilerplate |
-| **reveal.js** — core presentation engine | **AI SDKs** (openai, anthropic) — fetch is enough |
-| **JSZip** — file format requirement | **Animation libraries** — CSS transitions suffice |
-| **tailwind-merge, clsx** — className merging | **CSS-in-JS runtime** (styled-components, emotion) |
+| **AI SDK** | `ai`, `@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/google` — unified provider interface, structured output |
+| **Validation** | `zod` — schema validation for structured LLM output |
+| **Radix primitives** | Accessibility is hard — use battle-tested primitives |
+| **Zustand** | Minimal state management |
+| **reveal.js** | Core presentation engine |
+| **JSZip** | File format requirement |
+| **tailwind-merge, clsx** | className merging |
+
+| Category | Avoid |
+|---|---|
+| **Full UI frameworks** (MUI, Chakra) | Too heavy |
+| **Redux** | Too much boilerplate |
+| **CSS-in-JS runtime** (styled-components, emotion) | Unnecessary with Tailwind |
+| **Animation libraries** | CSS transitions suffice |
 
 ---
 

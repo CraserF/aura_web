@@ -145,3 +145,35 @@ export function buildDesignerPrompt(
     .addQuality()
     .build();
 }
+
+/**
+ * Build a system prompt for the revision step.
+ * Includes palette, layout, anti-patterns, and SVG guidance but
+ * excludes narrative arc, template examples, and knowledge docs
+ * (since revision is fixing, not creating from scratch).
+ */
+export function buildRevisionSystemPrompt(
+  palette: TemplatePalette | undefined,
+  animLevel: 1 | 2 | 3 | 4,
+): string {
+  return new PromptComposer()
+    .addBase(palette)
+    .addTypography()
+    .addLayout()
+    .addModernPatterns()
+    .addDecorative()
+    .addAnimation(animLevel)
+    .addSvg()
+    .addAntiPatterns()
+    .addQuality()
+    .addCustom(`## YOUR TASK — REVISION MODE
+
+You are revising an existing slide deck to fix specific design issues.
+- Fix ALL listed errors (MUST FIX items).
+- Fix as many warnings (SHOULD FIX items) as possible.
+- Do NOT change content that is not flagged as an issue.
+- Do NOT re-order or remove slides unless instructed.
+- Preserve the overall design language, palette, and slide structure.
+- Output the COMPLETE corrected deck as HTML \`<section>\` elements.`)
+    .build();
+}

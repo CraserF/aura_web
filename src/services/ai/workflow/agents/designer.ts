@@ -8,6 +8,7 @@ import type { AIMessage } from '../../types';
 import { buildDesignerPrompt } from '../../prompts';
 import { selectTemplate } from '../../templates';
 import { extractHtmlFromResponse, countSlides, extractTitle } from '../../utils/extractHtml';
+import { sanitizeSlideHtml } from '../../utils/sanitizeHtml';
 import { injectFonts } from '../../utils/injectFonts';
 import type { LLMClient } from '../types';
 import type { PlanResult } from './planner';
@@ -64,7 +65,10 @@ export async function design(
   const fullResponse = await llm.generate(messages, onChunk);
 
   // Extract HTML from the response (pure — no DOM side effects)
-  const { html, fontLinks } = extractHtmlFromResponse(fullResponse);
+  const { html: rawHtml, fontLinks } = extractHtmlFromResponse(fullResponse);
+
+  // Sanitize: strip any external URLs the LLM may have included
+  const html = sanitizeSlideHtml(rawHtml);
 
   // Inject fonts into the document
   injectFonts(fontLinks);

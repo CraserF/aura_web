@@ -179,7 +179,9 @@ Look for issues tagged `good first issue` on GitHub. These are intentionally sco
 
 ### Areas That Need Help
 
-- **Slide quality** — improving the system prompt to generate more visually appealing decks
+- **Slide quality** — improving the prompt sections to generate more visually appealing decks
+- **QA validator** — adding new programmatic checks (see [agent-architecture.md](./agent-architecture.md))
+- **Provider support** — adding new AI providers via the AI SDK factory pattern
 - **Accessibility** — keyboard navigation, screen reader support, ARIA labels
 - **Testing** — unit tests for services, integration tests for chat flow
 - **Documentation** — tutorials, examples, API docs

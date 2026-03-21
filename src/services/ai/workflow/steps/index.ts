@@ -6,8 +6,9 @@
  *  1. plan        — Analyze prompt, detect style, build outline
  *  2. design      — Generate HTML/CSS slides
  *  3. qaValidate  — Programmatic quality checks (no LLM)
+ *  3b. qaBranch   — Branch: qa-pass (identity) or qa-revise (LLM fix)
  *  4. review      — Audit quality via impeccable design rules (LLM)
- *  5. revise      — Fix issues from review (conditional)
+ *  5. revise      — Fix issues from review AND/OR remaining QA (conditional)
  */
 
 import { createStep } from '../engine';
@@ -15,9 +16,11 @@ import { plan } from '../agents/planner';
 import { design } from '../agents/designer';
 import { validateSlides } from '../agents/qa-validator';
 import type { QAResult } from '../agents/qa-validator';
-import { review, buildRevisionPrompt } from '../agents/reviewer';
+import { review, buildCombinedRevisionPrompt } from '../agents/reviewer';
 import { extractHtmlFromResponse, countSlides, extractTitle } from '../../utils/extractHtml';
+import { sanitizeSlideHtml } from '../../utils/sanitizeHtml';
 import { injectFonts } from '../../utils/injectFonts';
+import { buildRevisionSystemPrompt } from '../../prompts/composer';
 import type { AIMessage } from '../../types';
 import type { PlanResult } from '../agents/planner';
 import type { DesignResult } from '../agents/designer';
@@ -34,6 +37,8 @@ export interface PlanStepOutput {
 export const planStep = createStep<PresentationInput, PlanStepOutput>({
   id: 'plan',
   description: 'Analyzing your request…',
+  retry: { maxAttempts: 2, backoffMs: 1000 },
+  timeoutMs: 30_000,
   execute: async ({ inputData, llm, emit }) => {
     emit({ type: 'progress', message: 'Understanding your request and planning slides…', pct: 10 });
 
@@ -70,6 +75,8 @@ export interface DesignStepOutput {
 export const designStep = createStep<PlanStepOutput, DesignStepOutput>({
   id: 'design',
   description: 'Generating slides…',
+  retry: { maxAttempts: 2, backoffMs: 2000 },
+  timeoutMs: 120_000,
   execute: async ({ inputData, llm, emit }) => {
     const { planResult, originalInput } = inputData;
 
@@ -135,6 +142,82 @@ export const qaValidateStep = createStep<DesignStepOutput, QAStepOutput>({
   },
 });
 
+// ── Step 3b: QA Branch — pass through or QA-revise ─────────
+
+/** Identity step: QA passed, just pass data through unchanged */
+export const qaPassStep = createStep<QAStepOutput, QAStepOutput>({
+  id: 'qa-pass',
+  description: 'QA passed — continuing…',
+  execute: async ({ inputData }) => inputData,
+});
+
+/** QA revision step: fix QA errors via LLM before review */
+export const qaReviseStep = createStep<QAStepOutput, QAStepOutput>({
+  id: 'qa-revise',
+  description: 'Fixing QA issues…',
+  retry: { maxAttempts: 2, backoffMs: 2000 },
+  timeoutMs: 120_000,
+  execute: async ({ inputData, llm, emit }) => {
+    const { qaResult, designResult, planResult, originalInput } = inputData;
+
+    emit({ type: 'progress', message: 'Fixing QA violations before review…', pct: 76 });
+
+    const revisionSystemPrompt = buildRevisionSystemPrompt(
+      planResult.blueprint.palette,
+      planResult.animationLevel,
+    );
+
+    const qaErrors = qaResult.violations
+      .filter((v) => v.severity === 'error')
+      .map((v) => `- Slide ${v.slide}: [${v.rule}] ${v.detail}`)
+      .join('\n');
+    const qaWarnings = qaResult.violations
+      .filter((v) => v.severity === 'warning')
+      .map((v) => `- Slide ${v.slide}: [${v.rule}] ${v.detail}`)
+      .join('\n');
+
+    const parts: string[] = [];
+    if (qaErrors) parts.push(`MUST FIX (QA errors):\n${qaErrors}`);
+    if (qaWarnings) parts.push(`SHOULD FIX (QA warnings):\n${qaWarnings}`);
+
+    const messages: AIMessage[] = [
+      { role: 'system', content: revisionSystemPrompt },
+      { role: 'user', content: `Here are the slides with QA issues:\n\n\`\`\`html\n${designResult.html}\n\`\`\`\n\n${parts.join('\n\n')}` },
+    ];
+
+    const revisedResponse = await llm.generate(
+      messages,
+      (chunk) => emit({ type: 'streaming', stepId: 'qa-revise', chunk }),
+    );
+
+    const { html: rawHtml, fontLinks } = extractHtmlFromResponse(revisedResponse);
+    const html = sanitizeSlideHtml(rawHtml);
+    injectFonts(fontLinks);
+
+    // Re-validate after QA revision
+    const revalidated = validateSlides(html || designResult.html, {
+      expectedSlideCount: planResult.outline?.length,
+      expectedBgColor: planResult.blueprint.palette.bg,
+      isCreate: planResult.intent === 'create',
+    });
+
+    const updatedDesign: DesignResult = {
+      html: html || designResult.html,
+      title: extractTitle(html) ?? designResult.title,
+      slideCount: countSlides(html) || designResult.slideCount,
+    };
+
+    emit({ type: 'progress', message: 'QA fixes applied', pct: 78 });
+
+    return {
+      qaResult: revalidated,
+      designResult: updatedDesign,
+      planResult,
+      originalInput,
+    };
+  },
+});
+
 // ── Step 4: Review ──────────────────────────────────────────
 
 export interface ReviewStepOutput {
@@ -147,6 +230,8 @@ export interface ReviewStepOutput {
 export const reviewStep = createStep<QAStepOutput, ReviewStepOutput>({
   id: 'review',
   description: 'Reviewing design quality…',
+  retry: { maxAttempts: 2, backoffMs: 1000 },
+  timeoutMs: 30_000,
   execute: async ({ inputData, llm, emit }) => {
     const { designResult, planResult, qaResult } = inputData;
 
@@ -169,16 +254,19 @@ export const reviewStep = createStep<QAStepOutput, ReviewStepOutput>({
   },
 });
 
-// ── Step 5: Revise (conditional — only if review failed) ────
+// ── Step 5: Revise (conditional — only if review OR QA failed) ────
 
 export const reviseStep = createStep<ReviewStepOutput, PresentationOutput>({
   id: 'revise',
   description: 'Polishing slides…',
+  retry: { maxAttempts: 2, backoffMs: 2000 },
+  timeoutMs: 120_000,
   execute: async ({ inputData, llm, emit }) => {
-    const { reviewResult, designResult } = inputData;
+    const { reviewResult, qaResult, designResult, planResult } = inputData;
 
-    // If review passed, just pass through
-    if (reviewResult.passed) {
+    // If BOTH review and QA passed, just pass through
+    const needsRevision = !reviewResult.passed || !qaResult.passed;
+    if (!needsRevision) {
       return {
         html: designResult.html,
         title: designResult.title,
@@ -187,13 +275,20 @@ export const reviseStep = createStep<ReviewStepOutput, PresentationOutput>({
       };
     }
 
-    // Review failed — make a revision pass
+    // Review and/or QA failed — make a revision pass with full designer context
     emit({ type: 'progress', message: 'Applying design fixes…', pct: 88 });
 
-    const revisionPrompt = buildRevisionPrompt(reviewResult);
+    // Build a full revision system prompt (palette, layout, anti-patterns, SVG guidance)
+    const revisionSystemPrompt = buildRevisionSystemPrompt(
+      planResult.blueprint.palette,
+      planResult.animationLevel,
+    );
+
+    // Merge issues from both QA and review into a single revision prompt
+    const revisionPrompt = buildCombinedRevisionPrompt(reviewResult, qaResult);
 
     const messages: AIMessage[] = [
-      { role: 'system', content: 'You are a slide designer fixing design issues. Output ONLY the corrected HTML code block. No explanations.' },
+      { role: 'system', content: revisionSystemPrompt },
       { role: 'user', content: `Here are the slides with issues:\n\n\`\`\`html\n${designResult.html}\n\`\`\`\n\n${revisionPrompt}` },
     ];
 
@@ -202,7 +297,8 @@ export const reviseStep = createStep<ReviewStepOutput, PresentationOutput>({
       (chunk) => emit({ type: 'streaming', stepId: 'revise', chunk }),
     );
 
-    const { html: revisedHtml, fontLinks } = extractHtmlFromResponse(revisedResponse);
+    const { html: rawRevisedHtml, fontLinks } = extractHtmlFromResponse(revisedResponse);
+    const revisedHtml = sanitizeSlideHtml(rawRevisedHtml);
     injectFonts(fontLinks);
 
     const slideCount = countSlides(revisedHtml);

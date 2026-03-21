@@ -17,9 +17,10 @@ import {
 import type { TemplateStyle, TemplateBlueprint } from '../../templates';
 import { classifyIntent } from '../../validation';
 import type { RequestIntent } from '../../validation';
+import { OutlineArraySchema, type SlideOutline } from '../../schemas';
 import type { LLMClient } from '../types';
 
-export type { RequestIntent };
+export type { RequestIntent, SlideOutline };
 
 export interface PlanResult {
   intent: RequestIntent;
@@ -31,16 +32,11 @@ export interface PlanResult {
   enhancedPrompt: string;
   /** Structured outline produced by LLM (for create intent) */
   outline?: SlideOutline[];
+  /** True if the outline came from the generic fallback (LLM parse failed) */
+  outlineFallback?: boolean;
 }
 
-export interface SlideOutline {
-  index: number;
-  title: string;
-  layout: string;
-  keyPoints: string[];
-}
-
-// ── Outline Generation (LLM call) ──────────────────────────
+// ── Outline Generation (LLM + Zod structured output) ────────
 
 const OUTLINE_SYSTEM = `You are a presentation content strategist. Given a topic, produce a slide outline as a JSON array.
 
@@ -65,20 +61,47 @@ Output ONLY the JSON array. No markdown, no explanation.`;
 async function generateOutline(
   prompt: string,
   llm: LLMClient,
-): Promise<SlideOutline[]> {
-  const response = await llm.generate([
-    { role: 'system', content: OUTLINE_SYSTEM },
-    { role: 'user', content: prompt },
-  ]);
-
+): Promise<{ outline: SlideOutline[]; fallback: boolean }> {
+  // Try structured output first (Zod-validated via AI SDK generateObject)
   try {
-    // Extract JSON from possible code fences
-    const jsonStr = response.replace(/```json?\s*\n?/g, '').replace(/```/g, '').trim();
-    return JSON.parse(jsonStr);
-  } catch {
-    // Fallback: basic 10-slide outline
-    return buildFallbackOutline(prompt);
+    const outline = await llm.generateStructured(
+      [
+        { role: 'system', content: OUTLINE_SYSTEM },
+        { role: 'user', content: prompt },
+      ],
+      OutlineArraySchema,
+      'slide-outline',
+    );
+    return { outline, fallback: false };
+  } catch (structuredErr) {
+    console.warn('[Planner] Structured output failed, falling back to raw generation:', structuredErr);
   }
+
+  // Fallback: raw text generation with manual JSON parsing
+  try {
+    const response = await llm.generate([
+      { role: 'system', content: OUTLINE_SYSTEM },
+      { role: 'user', content: prompt },
+    ]);
+
+    const jsonStr = response.replace(/```json?\s*\n?/g, '').replace(/```/g, '').trim();
+    try {
+      return { outline: JSON.parse(jsonStr), fallback: false };
+    } catch {
+      const arrayStart = response.indexOf('[');
+      const arrayEnd = response.lastIndexOf(']');
+      if (arrayStart !== -1 && arrayEnd > arrayStart) {
+        try {
+          return { outline: JSON.parse(response.slice(arrayStart, arrayEnd + 1)), fallback: false };
+        } catch { /* fall through */ }
+      }
+    }
+  } catch {
+    // Both structured and raw generation failed
+  }
+
+  console.warn('[Planner] All outline generation attempts failed, using fallback');
+  return { outline: buildFallbackOutline(prompt), fallback: true };
 }
 
 function buildFallbackOutline(prompt: string): SlideOutline[] {
@@ -124,11 +147,14 @@ export async function plan(
   const blueprint = getTemplateBlueprint(style);
 
   let outline: SlideOutline[] | undefined;
+  let outlineFallback: boolean | undefined;
   let enhancedPrompt = prompt;
 
   if (intent === 'create') {
-    // Use LLM to generate a structured outline
-    outline = await generateOutline(prompt, llm);
+    // Use LLM to generate a structured outline (Zod-validated, with fallback)
+    const result = await generateOutline(prompt, llm);
+    outline = result.outline;
+    outlineFallback = result.fallback;
     enhancedPrompt = buildEnhancedPrompt(prompt, outline, intent);
   } else {
     enhancedPrompt = buildEnhancedPrompt(prompt, undefined, intent);
@@ -142,6 +168,7 @@ export async function plan(
     blueprint,
     enhancedPrompt,
     outline,
+    outlineFallback,
   };
 }
 

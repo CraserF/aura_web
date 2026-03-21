@@ -2,7 +2,10 @@
  * Mastra-inspired workflow types for browser-based multi-agent orchestration.
  * Mirrors Mastra's createStep/createWorkflow patterns without server dependencies.
  */
-import type { AIMessage, AIProvider } from '../types';
+import type { AIMessage, ProviderEntry } from '../types';
+import type { z } from 'zod';
+
+export type { AIMessage };
 
 /** Context passed to every step's execute function */
 export interface StepContext<T = unknown> {
@@ -49,19 +52,27 @@ export type WorkflowEvent =
   | { type: 'progress';        message: string; pct?: number }
   | { type: 'branch-taken';    stepId: string; branch: string }
   | { type: 'retry-attempt';   stepId: string; attempt: number; maxAttempts: number }
+  | { type: 'qa-loop-iteration'; iteration: number; maxIterations: number; issues: string }
   | { type: 'complete';        result: unknown };
 
 /** Subscribe to workflow events */
 export type EventListener = (event: WorkflowEvent) => void;
 
-/** LLM client abstraction — wraps our existing AIProvider */
+/** LLM client abstraction — wraps AI SDK model for streaming and structured output */
 export interface LLMClient {
+  /** Generate raw text response (streaming) — used for HTML generation */
   generate(messages: AIMessage[], onChunk?: (text: string) => void): Promise<string>;
+  /** Generate Zod-validated structured output — used for outlines and review results */
+  generateStructured<T>(
+    messages: AIMessage[],
+    schema: z.ZodType<T>,
+    schemaName?: string,
+  ): Promise<T>;
 }
 
 /** Config needed to create an LLM client */
 export interface LLMConfig {
-  provider: AIProvider;
+  providerEntry: ProviderEntry;
   apiKey: string;
   baseUrl: string;
   model?: string;

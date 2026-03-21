@@ -12,6 +12,8 @@
  *  - Abort/cancel via AbortController
  */
 
+import { streamText, generateObject } from 'ai';
+import type { LanguageModelV1 } from 'ai';
 import type {
   Step,
   StepContext,
@@ -31,15 +33,39 @@ export function createStep<TIn, TOut>(def: Step<TIn, TOut>): Step<TIn, TOut> {
 // ── LLM Client factory ──────────────────────────────────────
 
 export function createLLMClient(config: LLMConfig): LLMClient {
+  const model: LanguageModelV1 = config.providerEntry.createModel({
+    apiKey: config.apiKey,
+    baseUrl: config.baseUrl,
+    model: config.model,
+  });
+
   return {
-    generate: (messages, onChunk) =>
-      config.provider.generateStream(
+    async generate(messages, onChunk) {
+      const result = streamText({
+        model,
         messages,
-        onChunk ?? (() => {}),
-        config.apiKey,
-        config.baseUrl,
-        config.model,
-      ),
+        temperature: 0.7,
+        maxTokens: 16384,
+      });
+
+      let fullText = '';
+      for await (const chunk of result.textStream) {
+        fullText += chunk;
+        onChunk?.(chunk);
+      }
+      return fullText;
+    },
+
+    async generateStructured(messages, schema, schemaName) {
+      const result = await generateObject({
+        model,
+        messages,
+        schema,
+        schemaName,
+        maxRetries: 2,
+      });
+      return result.object;
+    },
   };
 }
 

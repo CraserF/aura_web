@@ -86,7 +86,8 @@ The MVP is **presentations only**. It is deliberately minimal.
 | Presentation | reveal.js | Best-in-class embeddable presentation engine with full programmatic API |
 | State | Zustand | Minimal boilerplate, no Redux ceremony, perfect for this scope |
 | Styling | Tailwind CSS | Rapid iteration, consistent design system, utility-first |
-| AI | Abstract provider via `fetch()` | No SDK dependencies, configurable, supports any OpenAI-compatible API |
+| AI | Vercel AI SDK (`ai`, `@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/google`) | Unified streaming + structured output, provider-agnostic, Zod validation |
+| Validation | Zod | Schema validation for structured LLM output (outlines, reviews) |
 | File Format | JSZip + FileSaver | Zip-based `.aura` bundles, browser-native |
 | Persistence | IndexedDB | Auto-save without a server |
 
@@ -144,13 +145,19 @@ src/
 │       └── ProviderModal.tsx         # AI provider configuration modal
 ├── services/
 │   ├── ai/
-│   │   ├── types.ts                  # AIProvider interface, Message types
-│   │   ├── registry.ts              # Provider registry & factory
-│   │   ├── providers/
-│   │   │   ├── openai.ts            # OpenAI + Deepseek adapter
-│   │   │   ├── gemini.ts            # Google Gemini adapter
-│   │   │   └── anthropic.ts         # Claude adapter
-│   │   └── prompts.ts              # System prompts for slide generation
+│   │   ├── types.ts                  # ProviderEntry interface, AIMessage type
+│   │   ├── registry.ts              # AI SDK provider factory registry
+│   │   ├── schemas/                 # Zod schemas for structured LLM output
+│   │   ├── prompts/                 # Modular PromptComposer system (12 sections)
+│   │   ├── workflow/                # Multi-agent pipeline engine
+│   │   │   ├── engine.ts           # Workflow runner, LLMClient factory
+│   │   │   ├── presentation.ts     # Pipeline definition (plan→design→QA→review→revise)
+│   │   │   ├── agents/             # Individual agent implementations
+│   │   │   └── steps/              # Step wrappers with retry/timeout
+│   │   ├── templates/              # Template registry, palettes, blueprints
+│   │   ├── knowledge/              # Knowledge base docs for prompt augmentation
+│   │   ├── utils/                  # HTML extraction, sanitization, font injection
+│   │   └── validation/             # Intent classification, content validation
 │   ├── presentation/
 │   │   ├── engine.ts                # reveal.js lifecycle & API wrapper
 │   │   └── themes.ts               # Built-in theme CSS
@@ -249,7 +256,7 @@ These decisions were made during initial planning and should be revisited only w
 |---|---|---|---|
 | Presentation engine | reveal.js | Slidev | reveal.js is embeddable with a full programmatic API (`sync()` after DOM changes). Slidev requires its own Vite dev server, cannot be embedded, and has no API for dynamic slide manipulation. |
 | Backend | None (client-side only) | Express, serverless, FastAPI | User provides their own API key. Simpler, faster to ship, no hosting required. Sufficient for MVP. |
-| AI integration | Abstract provider via `fetch()` | Single provider, SDK dependencies | Keeps bundle small, avoids SDK lock-in, supports any OpenAI-compatible endpoint (Deepseek, local models). Start with cheapest provider. |
+| AI integration | Vercel AI SDK with provider factories | Single provider via `fetch()`, raw SDK packages | Unified interface for streaming + structured output. Provider-agnostic — adding a provider is 5 lines of config. Zod schemas ensure reliable JSON parsing from LLMs. AI SDK handles streaming, retries, and validation automatically. |
 | Framework | React + Vite + Bun | Flutter Web, Next.js, plain HTML | Native JS integration with reveal.js (no WebView bridge). Bun for fast package management and script execution. Vite for HMR and bundling. Scales to Electron/PWA. |
 | State management | Zustand | Redux, Jotai, Context API | Minimal boilerplate, intuitive API, built-in middleware for localStorage persistence. |
 | Styling | Tailwind CSS | CSS Modules, styled-components | Fast utility-first iteration, consistent design tokens, works well with the Apple-inspired minimal aesthetic. |
@@ -289,7 +296,7 @@ Resist the urge to add features. The MVP deliberately excludes manual editing, i
 - **Dependency hygiene.** Keep dependencies minimal. Audit regularly. Prefer `fetch()` over heavy SDK packages. Every dependency is an attack surface.
 - **Follow OWASP guidance.** No injection vulnerabilities, no exposed credentials, no insecure defaults.
 
-### 5. Minimal Dependencies
+### 5. Best-in-Class Dependencies
 
 Every `bun add` is a decision. Before adding a package, ask:
 - Can this be done in 20 lines of application code?
@@ -298,8 +305,8 @@ Every `bun add` is a decision. Before adding a package, ask:
 - Does it have a permissive license?
 
 The dependency philosophy:
-- **Yes**: `reveal.js` (core engine), `zustand` (state), `jszip` (file format), `tailwindcss` (styling)
-- **No**: Heavy SDKs (OpenAI SDK, Anthropic SDK), UI component libraries (Material UI, Chakra), animation libraries (framer-motion for basic transitions)
+- **Yes**: `reveal.js` (core engine), `zustand` (state), `jszip` (file format), `tailwindcss` (styling), `ai` + `@ai-sdk/*` (unified AI provider layer), `zod` (schema validation)
+- **No**: Heavy UI component libraries (Material UI, Chakra), animation libraries (framer-motion for basic transitions), redundant utilities that can be written in a few lines
 
 > **Note:** We use [Bun](https://bun.sh) as the package manager and script runner. It is significantly faster than npm/yarn for installs and script execution, and provides native TypeScript support. All `package.json` scripts are run via `bun run <script>`.
 
@@ -381,10 +388,11 @@ Aura generates visual content. The application itself must reflect that standard
 ### 15. Provider Agnostic
 
 The AI layer is the most likely to change as models improve and pricing shifts:
-- Every provider adapter implements the same `AIProvider` interface.
+- Every provider is registered as a `ProviderEntry` that creates AI SDK `LanguageModelV1` instances.
 - No provider-specific logic leaks into components or stores.
-- Adding a new provider should require only creating a new adapter file and registering it — no changes to any other module.
+- Adding a new provider requires only adding a `ProviderEntry` config to the registry — no changes to any other module.
 - The system prompt is provider-agnostic. It produces valid reveal.js HTML regardless of which model generates it.
+- Structured output (Zod schemas) works across all providers via the AI SDK abstraction.
 
 ---
 
@@ -409,4 +417,4 @@ The AI layer is the most likely to change as models improve and pricing shifts:
 
 ---
 
-*This is a living document. Last updated: 19 March 2026.*
+*This is a living document. Last updated: 22 March 2026.*

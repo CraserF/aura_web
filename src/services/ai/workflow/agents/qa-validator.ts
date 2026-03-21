@@ -176,7 +176,7 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
       }
     }
 
-    // Rule: no external image URLs
+    // Rule: no external image URLs (src attributes)
     const imgRegex = /src=["'](https?:\/\/(?!fonts\.googleapis|fonts\.gstatic|cdn\.jsdelivr)[^"']+)["']/gi;
     let imgMatch: RegExpExecArray | null;
     while ((imgMatch = imgRegex.exec(section)) !== null) {
@@ -185,6 +185,30 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
         rule: 'no-external-images',
         severity: 'error',
         detail: `External image URL found: ${imgMatch[1]?.slice(0, 60)}...`,
+      });
+    }
+
+    // Rule: no external background-image URLs
+    const bgImgRegex = /background(?:-image)?\s*:\s*[^;]*url\(\s*["']?(https?:\/\/(?!fonts\.googleapis|fonts\.gstatic|cdn\.jsdelivr)[^"')]+?)["']?\s*\)/gi;
+    let bgImgMatch: RegExpExecArray | null;
+    while ((bgImgMatch = bgImgRegex.exec(section)) !== null) {
+      violations.push({
+        slide: slideNum,
+        rule: 'no-external-images',
+        severity: 'error',
+        detail: `External background-image URL found: ${bgImgMatch[1]?.slice(0, 60)}...`,
+      });
+    }
+
+    // Rule: no SVG <image> elements with external URLs
+    const svgImageRegex = /<image[^>]*(?:xlink:)?href=["'](https?:\/\/[^"']+?)["']/gi;
+    let svgImgMatch: RegExpExecArray | null;
+    while ((svgImgMatch = svgImageRegex.exec(section)) !== null) {
+      violations.push({
+        slide: slideNum,
+        rule: 'no-external-images',
+        severity: 'error',
+        detail: `External SVG image URL found: ${svgImgMatch[1]?.slice(0, 60)}...`,
       });
     }
 

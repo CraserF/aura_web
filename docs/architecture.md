@@ -19,8 +19,8 @@ Aura is a **fully client-side** React single-page application. There is no backe
 │                                        │             │
 │                                        ▼             │
 │                              ┌──────────────────┐   │
-│                              │   AI Provider    │   │
-│                              │   (fetch API)    │   │
+│                              │   AI SDK Layer   │   │
+│                              │ (Vercel AI SDK)  │   │
 │                              └──────────────────┘   │
 └──────────────────────────────────────────────────────┘
 ```
@@ -77,12 +77,16 @@ Pure business logic with no React or Zustand dependencies.
 
 #### AI (`src/services/ai/`)
 
-- **`types.ts`** — `AIProvider` interface, `AIMessage` type
-- **`registry.ts`** — Factory: `getProvider(id)` returns the correct adapter
-- **`providers/`** — One adapter per provider (openai, gemini, anthropic), all implementing `AIProvider`
-- **`prompts.ts`** — System prompt construction, message formatting, HTML extraction from AI responses
+- **`types.ts`** — `ProviderEntry` interface (AI SDK model factory), `AIMessage` type
+- **`registry.ts`** — Factory: `getProviderEntry(id)` returns a `ProviderEntry` with `createModel()` for AI SDK
+- **`schemas/`** — Zod schemas for structured LLM output (outlines, review results)
+- **`prompts/`** — Modular `PromptComposer` with 12 composable sections for system prompts
+- **`workflow/`** — Multi-agent pipeline engine with steps, agents, retry, branching, and events
+- **`utils/`** — HTML extraction, sanitization, font injection
 
-All providers use raw `fetch()` with Server-Sent Events (SSE) for streaming. No SDK dependencies.
+Providers are implemented via the [Vercel AI SDK](https://sdk.vercel.ai/) (`@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/google`). Each provider creates a `LanguageModelV1` instance used for both streaming text and Zod-validated structured output.
+
+See [agent-architecture.md](./agent-architecture.md) for the full multi-agent pipeline documentation.
 
 #### Presentation (`src/services/presentation/`)
 
@@ -104,17 +108,21 @@ This is the core flow of the application:
 1. User types prompt in ChatBar
 2. ChatBar.handleSubmit():
    a. Adds user message to chatStore
-   b. Builds AI message array (system prompt + chat history + current slides context)
+   b. Builds AI message array from chat history
    c. Sets status to 'generating'
-   d. Calls provider.generateStream() — streams response via fetch SSE
-   e. On completion: extracts HTML from response using regex
-   f. Calls presentationStore.setSlides(html) — triggers canvas re-render
-   g. Adds assistant message to chatStore
-   h. Sets status to 'idle'
+   d. Calls runPresentationWorkflow() — the multi-agent pipeline:
+      Plan → Design → QA → [Branch] → Review → Revise
+   e. Workflow emits real-time events (progress, streaming, step status)
+   f. On completion: result contains sanitized HTML, title, slide count
+   g. Calls presentationStore.setSlides(html) — triggers canvas re-render
+   h. Adds assistant message to chatStore
+   i. Sets status to 'idle'
 3. PresentationCanvas reacts to slidesHtml change:
    a. Calls engine.updateContent(deck, html)
    b. reveal.js re-renders slides
 ```
+
+For detailed pipeline documentation, see [agent-architecture.md](./agent-architecture.md).
 
 ---
 
@@ -189,24 +197,24 @@ The format is intentionally built on standard web technologies so users are neve
 
 ## Adding a New AI Provider
 
-1. Create `src/services/ai/providers/yourprovider.ts`
-2. Implement the `AIProvider` interface:
+1. Add the provider ID to `ProviderId` union in `src/types/index.ts`
+2. Add a `ProviderEntry` in `src/services/ai/registry.ts` using the appropriate AI SDK factory:
    ```tsx
-   export const yourProvider: AIProvider = {
+   yourprovider: {
      id: 'yourprovider',
      name: 'Your Provider',
-     async generateStream(messages, onChunk, apiKey, baseUrl) {
-       // Implement SSE streaming via fetch
-       // Call onChunk(text) for each token
-       // Return full accumulated response
-     },
-   };
+     defaultModel: 'your-model-id',
+     createModel: (config: ProviderModelConfig) =>
+       createYourProvider({
+         apiKey: config.apiKey,
+         baseURL: config.baseUrl || 'https://api.yourprovider.com/v1',
+       })(config.model || 'your-model-id'),
+   },
    ```
-3. Register in `src/services/ai/registry.ts`
-4. Add to `PROVIDER_OPTIONS` in `src/types/index.ts`
-5. Add default config in `settingsStore.ts` initial state
+3. Add to `PROVIDER_OPTIONS` in `src/types/index.ts`
+4. Add default config in `settingsStore.ts` initial state
 
-No other files need to change — the settings UI and chat flow pick up new providers automatically.
+No other files need to change — the settings UI, workflow, and chat flow pick up new providers automatically.
 
 ---
 
@@ -215,10 +223,13 @@ No other files need to change — the settings UI and chat flow pick up new prov
 | Decision | Choice | Why |
 |---|---|---|
 | No backend | Client-only | User owns their API key; no server to maintain or trust |
-| `fetch()` over SDKs | Raw HTTP | Smaller bundle, no SDK lock-in, supports any compatible API |
+| Vercel AI SDK | Unified provider layer | Consistent streaming, structured output, and model interface across all providers |
+| Zod structured output | Schema-validated LLM responses | Reliable JSON parsing for outlines and reviews; automatic retry on validation failure |
+| Multi-agent pipeline | Plan → Design → QA → Review → Revise | Each stage has a clear role; QA catches programmatic issues, review catches design issues |
 | reveal.js | Embedded presentation | Best programmatic API for dynamic slide manipulation |
 | Buffer then render | Full response buffering | Partial HTML injection into reveal.js causes layout breakage |
 | Zustand over Redux | Minimal state lib | Less boilerplate, selectors prevent over-rendering |
 | shadcn/ui pattern | UI components | Accessible Radix primitives + Tailwind styling, no runtime CSS-in-JS |
+| HTML sanitization | Post-generation URL stripping | Last line of defense against external image URLs leaking through |
 
 See [ROADMAP.md](../ROADMAP.md) for the full architecture decisions table.

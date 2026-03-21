@@ -1,20 +1,32 @@
 /**
  * Presentation Workflow — The main multi-agent pipeline.
  *
- * Flow: Plan → Design → QA Validate → Review → Revise (if needed)
+ * Flow: Plan → Design → QA Validate → [QA Branch] → Review → Revise (if needed)
  *
- * Uses Mastra-style .then() chaining with event emission
+ * The QA branch runs a QA-revision LLM pass when programmatic QA finds errors,
+ * or passes through unchanged when QA passes.
+ *
+ * Uses Mastra-style .then()/.branch() chaining with event emission
  * for real-time UI progress updates.
  */
 
 import { createWorkflow, createLLMClient } from './engine';
-import { planStep, designStep, qaValidateStep, reviewStep, reviseStep } from './steps';
+import {
+  planStep,
+  designStep,
+  qaValidateStep,
+  qaPassStep,
+  qaReviseStep,
+  reviewStep,
+  reviseStep,
+} from './steps';
 import type {
   PresentationInput,
   PresentationOutput,
   LLMConfig,
   EventListener,
 } from './types';
+import type { QAStepOutput } from './steps';
 
 // ── Workflow Definition ──────────────────────────────────────
 
@@ -24,6 +36,16 @@ export const presentationWorkflow = createWorkflow<PresentationInput, Presentati
   .then(planStep)
   .then(designStep)
   .then(qaValidateStep)
+  .branch({
+    predicate: (input: unknown) => {
+      const qaOutput = input as QAStepOutput;
+      return qaOutput.qaResult.passed ? 'pass' : 'fail';
+    },
+    branches: {
+      pass: qaPassStep,
+      fail: qaReviseStep,
+    },
+  })
   .then(reviewStep)
   .then(reviseStep);
 

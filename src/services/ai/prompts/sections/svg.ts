@@ -1,13 +1,13 @@
 /**
  * SVG Skills section — inline SVG drawing, Bootstrap Icons, animation recipes.
- * Only included when animation level >= 2 (contextual gating).
+ *
+ * Level 1: Bootstrap Icons + decision guide + rules (visual alternatives to images)
+ * Level 2: + SVG drawing recipes
+ * Level 3+: + SVG animation recipes
  */
 import type { TemplatePalette } from '../../templates';
 
 export function buildSvgSection(pal?: TemplatePalette, animLevel: 1 | 2 | 3 | 4 = 2): string {
-  // Level 1 gets no SVG section (minimal presentations)
-  if (animLevel < 2) return '';
-
   const primary = pal?.primary ?? '#3b82f6';
   const accent = pal?.accent ?? '#8b5cf6';
   const heading = pal?.heading ?? '#fff';
@@ -26,6 +26,44 @@ Usage: \`<i class="bi bi-rocket-takeoff" style="font-size:24px; color:var(--prim
 **When to use Bootstrap Icons vs inline SVG:**
 - **Bootstrap Icons:** Quick icons in cards, lists, badges, nav elements (use the CDN font class \`<i class="bi bi-NAME">\`)
 - **Inline SVG:** Custom illustrations, animated visuals, diagrams, data charts, decorative scenes`;
+
+  const decisionGuide = `### When to Use SVGs — Decision Guide:
+| Scenario | Approach |
+|----------|----------|
+| Quick icons in cards/lists | Bootstrap Icons CDN (\`<i class="bi bi-NAME">\`) |
+| Need a visual but no images allowed | Emoji at 3-6em, or Bootstrap Icons at 2-3em |
+| Custom data visualization | Inline SVG (donut, bar chart, sparkline) |
+| Flowchart or diagram | Inline SVG with arrow markers |
+| Decorative illustration | Inline SVG shapes + CSS animation |
+| Simple accent shape | CSS-only (border-radius, gradients) — no SVG needed |
+| Text-only or minimal slides | Skip SVG entirely |
+
+**CRITICAL — What to use INSTEAD of images:**
+- Do NOT use \`<img>\` tags with external URLs — they will be stripped.
+- Do NOT use \`background-image: url(http...)\` — it will be removed.
+- DO use emoji at large size (3-6em) for visual impact.
+- DO use Bootstrap Icons for iconography.
+- DO use inline SVG for diagrams and data visualization.
+- DO use CSS gradients, shapes, and patterns for decoration.`;
+
+  const rules = `**Rules:**
+- Max **2 SVG-heavy slides** per deck. Alternate with text/card slides for visual rhythm.
+- Always include \`xmlns="http://www.w3.org/2000/svg"\` on all SVG elements.
+- Always set explicit \`width\` and \`height\` on the outer \`<svg>\` element.
+- Always include a \`viewBox\` attribute — without it, SVGs will not scale correctly.
+- SVG colors should use palette tokens (\`${primary}\` for strokes, \`${surfaceFill}\` for backgrounds).
+- NEVER use \`<image>\` elements inside SVGs with external URLs.`;
+
+  // Level 1: Bootstrap Icons + decision guide + rules only (no SVG drawing recipes)
+  if (animLevel < 2) {
+    return `## SVG & ICON SKILLS
+
+${bootstrapIconsBlock}
+
+${decisionGuide}
+
+${rules}`;
+  }
 
   const svgRecipes = `### Inline SVG Recipes
 
@@ -161,20 +199,7 @@ ${bootstrapIconsBlock}
 ${svgRecipes}
 ${animationRecipes}
 
-### When to Use SVGs — Decision Guide:
-| Scenario | Approach |
-|----------|----------|
-| Quick icons in cards/lists | Bootstrap Icons CDN (\`<i class="bi bi-NAME">\`) |
-| Custom data visualization | Inline SVG (donut, bar chart, sparkline) |
-| Flowchart or diagram | Inline SVG with arrow markers |
-| Decorative illustration | Inline SVG shapes + CSS animation |
-| Simple accent shape | CSS-only (border-radius, gradients) — no SVG needed |
-| Text-only or minimal slides | Skip SVG entirely |
+${decisionGuide}
 
-**Rules:**
-- Max **2 SVG-heavy slides** per deck. Alternate with text/card slides for visual rhythm.
-- Always include \`xmlns="http://www.w3.org/2000/svg"\` on all SVG elements.
-- Always set explicit \`width\` and \`height\` on the outer \`<svg>\` element.
-- Always include a \`viewBox\` attribute — without it, SVGs will not scale correctly.
-- SVG colors should use palette tokens (\`${primary}\` for strokes, \`${surfaceFill}\` for backgrounds).`;
+${rules}`;
 }
