@@ -1,0 +1,484 @@
+<!doctype html>
+<!--
+  EDUCATIONAL TEMPLATE — Reveal.js
+  Purpose: Lectures, courses, training, onboarding
+  Animation Level: Moderate (Level 2)
+  Features: Structured reveals, highlight fragments, quiz-style interactions
+  
+  CUSTOMIZATION POINTS (search for "CUSTOMIZE")
+-->
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><!-- CUSTOMIZE --></title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/white.css">
+  <link rel="stylesheet" href="../animations/core-animations.css">
+
+  <style>
+    :root {
+      --r-background-color: #fafafa;
+      --r-main-color: #334155;
+      --r-heading-color: #0f172a;
+      --edu-primary: #2563eb;
+      --edu-secondary: #7c3aed;
+      --edu-green: #16a34a;
+      --edu-orange: #ea580c;
+      --edu-bg: #f1f5f9;
+      --edu-border: #e2e8f0;
+    }
+
+    .reveal {
+      font-size: 28px;
+      font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+    }
+
+    .reveal h1 {
+      font-size: 2.5em;
+      font-weight: 800;
+      color: var(--edu-primary);
+    }
+
+    .reveal h2 {
+      font-size: 1.8em;
+      font-weight: 700;
+      color: var(--r-heading-color);
+    }
+
+    .reveal h3 {
+      font-size: 1.3em;
+      font-weight: 600;
+      color: var(--edu-primary);
+    }
+
+    /* Lesson header */
+    .lesson-header {
+      display: flex;
+      align-items: center;
+      gap: 1em;
+      margin-bottom: 1em;
+    }
+
+    .lesson-badge {
+      background: var(--edu-primary);
+      color: white;
+      padding: 0.3em 0.8em;
+      border-radius: 6px;
+      font-size: 0.7em;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .lesson-badge.advanced {
+      background: var(--edu-secondary);
+    }
+
+    .lesson-badge.exercise {
+      background: var(--edu-green);
+    }
+
+    .lesson-badge.warning {
+      background: var(--edu-orange);
+    }
+
+    /* Learning objective box */
+    .objectives-box {
+      background: rgba(37, 99, 235, 0.05);
+      border: 1px solid rgba(37, 99, 235, 0.15);
+      border-left: 4px solid var(--edu-primary);
+      border-radius: 8px;
+      padding: 1.2em 1.5em;
+      text-align: left;
+      margin-top: 1em;
+    }
+
+    .objectives-box h4 {
+      color: var(--edu-primary);
+      margin: 0 0 0.5em 0;
+      font-size: 0.9em;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .objectives-box li {
+      padding: 0.3em 0;
+      font-size: 0.9em;
+    }
+
+    /* Info callout boxes */
+    .callout {
+      border-radius: 8px;
+      padding: 1em 1.2em;
+      margin: 1em 0;
+      text-align: left;
+      font-size: 0.9em;
+    }
+
+    .callout.info {
+      background: rgba(37, 99, 235, 0.05);
+      border-left: 4px solid var(--edu-primary);
+    }
+
+    .callout.success {
+      background: rgba(22, 163, 74, 0.05);
+      border-left: 4px solid var(--edu-green);
+    }
+
+    .callout.warning {
+      background: rgba(234, 88, 12, 0.05);
+      border-left: 4px solid var(--edu-orange);
+    }
+
+    .callout-title {
+      font-weight: 700;
+      margin-bottom: 0.3em;
+    }
+
+    /* Definition box */
+    .definition {
+      background: var(--edu-bg);
+      border-radius: 8px;
+      padding: 1.2em;
+      text-align: left;
+      margin: 0.8em 0;
+    }
+
+    .definition-term {
+      font-weight: 700;
+      color: var(--edu-primary);
+      font-size: 1.1em;
+    }
+
+    .definition-text {
+      color: var(--r-main-color);
+      font-size: 0.9em;
+      margin-top: 0.3em;
+      line-height: 1.6;
+    }
+
+    /* Step-by-step */
+    .step-list {
+      list-style: none;
+      padding: 0;
+      counter-reset: step;
+    }
+
+    .step-list li {
+      counter-increment: step;
+      padding: 0.8em 0 0.8em 3em;
+      position: relative;
+      border-bottom: 1px solid var(--edu-border);
+      text-align: left;
+    }
+
+    .step-list li::before {
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: 0.6em;
+      width: 2em;
+      height: 2em;
+      border-radius: 50%;
+      background: var(--edu-primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85em;
+    }
+
+    /* Quiz/question card */
+    .quiz-card {
+      background: var(--edu-bg);
+      border: 2px solid var(--edu-border);
+      border-radius: 12px;
+      padding: 1.5em;
+      text-align: left;
+      max-width: 700px;
+      margin: 1em auto;
+    }
+
+    .quiz-question {
+      font-size: 1.1em;
+      font-weight: 600;
+      color: var(--r-heading-color);
+      margin-bottom: 0.8em;
+    }
+
+    .quiz-option {
+      padding: 0.5em 1em;
+      margin: 0.3em 0;
+      border-radius: 6px;
+      font-size: 0.9em;
+      border: 1px solid var(--edu-border);
+      background: white;
+    }
+
+    .quiz-option.correct {
+      border-color: var(--edu-green);
+      background: rgba(22, 163, 74, 0.08);
+      font-weight: 600;
+    }
+
+    /* Progress tracker */
+    .progress-dots {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      margin-bottom: 1em;
+    }
+
+    .progress-dots .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--edu-border);
+    }
+
+    .progress-dots .dot.active {
+      background: var(--edu-primary);
+    }
+
+    .progress-dots .dot.completed {
+      background: var(--edu-green);
+    }
+
+    /* Layout */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2em;
+      align-items: start;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1.5em;
+    }
+
+    .text-left {
+      text-align: left;
+    }
+
+    .text-center {
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- SLIDE 1: Title -->
+      <section data-background-color="#fff">
+        <div class="text-center">
+          <div class="lesson-badge anim-fade-in-up">Lesson 01</div>
+          <h1 class="anim-fade-in-up delay-200">
+            <!-- CUSTOMIZE: Course/Lesson title -->
+            Introduction to<br>Data Structures
+          </h1>
+          <p class="anim-fade-in-up delay-400" style="color: var(--r-main-color); font-size: 1em;">
+            <!-- CUSTOMIZE: Course info -->
+            Computer Science 101 · Professor Smith
+          </p>
+        </div>
+      </section>
+
+      <!-- SLIDE 2: Learning Objectives -->
+      <section data-background-color="#fff">
+        <h2 class="anim-fade-in-up">🎯 Learning Objectives</h2>
+        <div class="objectives-box anim-fade-in-up delay-200">
+          <h4>By the end of this lesson, you will be able to:</h4>
+          <ul>
+            <!-- CUSTOMIZE -->
+            <li class="fragment slide-up">Define what data structures are and why they matter</li>
+            <li class="fragment slide-up">Compare arrays, linked lists, and hash tables</li>
+            <li class="fragment slide-up">Analyze time complexity using Big-O notation</li>
+            <li class="fragment slide-up">Choose the right data structure for common scenarios</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- SLIDE 3: Definition Slide -->
+      <section data-background-color="#fff">
+        <h2 class="anim-fade-in-up">What is a Data Structure?</h2>
+        <div class="definition fragment fade-in" style="margin-top: 1em;">
+          <div class="definition-term">Data Structure</div>
+          <div class="definition-text">
+            <!-- CUSTOMIZE -->
+            A specialized format for organizing, processing, retrieving, and storing data. It defines both the logical
+            arrangement and the physical storage in memory.
+          </div>
+        </div>
+        <div class="callout info fragment slide-up" style="margin-top: 1em;">
+          <div class="callout-title">💡 Key Insight</div>
+          <!-- CUSTOMIZE -->
+          Choosing the right data structure can make the difference between an algorithm that runs in milliseconds vs.
+          hours.
+        </div>
+      </section>
+
+      <!-- SLIDE 4: Comparison -->
+      <section data-background-color="#fff">
+        <h2 class="anim-fade-in-up">Comparison</h2>
+        <div style="margin-top: 1em; overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.85em; text-align: left;">
+            <thead>
+              <tr style="border-bottom: 2px solid var(--edu-primary);">
+                <!-- CUSTOMIZE: Headers -->
+                <th style="padding: 0.6em;">Structure</th>
+                <th style="padding: 0.6em;">Access</th>
+                <th style="padding: 0.6em;">Insert</th>
+                <th style="padding: 0.6em;">Delete</th>
+                <th style="padding: 0.6em;">Search</th>
+                <th style="padding: 0.6em;">Best For</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- CUSTOMIZE -->
+              <tr class="fragment fade-in" style="border-bottom: 1px solid var(--edu-border);">
+                <td style="padding: 0.5em;">Array</td>
+                <td>O(1)</td>
+                <td>O(n)</td>
+                <td>O(n)</td>
+                <td>O(n)</td>
+                <td>Index-based access</td>
+              </tr>
+              <tr class="fragment fade-in" style="border-bottom: 1px solid var(--edu-border);">
+                <td style="padding: 0.5em;">Linked List</td>
+                <td>O(n)</td>
+                <td>O(1)</td>
+                <td>O(1)</td>
+                <td>O(n)</td>
+                <td>Frequent inserts</td>
+              </tr>
+              <tr class="fragment fade-in" style="border-bottom: 1px solid var(--edu-border);">
+                <td style="padding: 0.5em;">Hash Table</td>
+                <td>O(1)*</td>
+                <td>O(1)*</td>
+                <td>O(1)*</td>
+                <td>O(1)*</td>
+                <td>Key-value lookups</td>
+              </tr>
+              <tr class="fragment fade-in">
+                <td style="padding: 0.5em;">Binary Tree</td>
+                <td>O(log n)</td>
+                <td>O(log n)</td>
+                <td>O(log n)</td>
+                <td>O(log n)</td>
+                <td>Sorted data</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="fragment fade-in" style="font-size: 0.7em; color: var(--r-main-color); margin-top: 0.5em;">* Average
+            case — worst case can be O(n)</p>
+        </div>
+      </section>
+
+      <!-- SLIDE 5: Step-by-Step -->
+      <section data-background-color="#fff">
+        <h2 class="anim-fade-in-up">🔨 Building a Hash Table</h2>
+        <div style="max-width: 700px; margin: 0 auto;">
+          <ol class="step-list">
+            <!-- CUSTOMIZE -->
+            <li class="fragment slide-up"><strong>Choose a hash function</strong> — Maps keys to array indices uniformly
+            </li>
+            <li class="fragment slide-up"><strong>Allocate the array</strong> — Size should be a prime number for better
+              distribution</li>
+            <li class="fragment slide-up"><strong>Handle collisions</strong> — Use chaining (linked lists) or open
+              addressing</li>
+            <li class="fragment slide-up"><strong>Implement resize</strong> — Grow the table when load factor exceeds
+              0.75</li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- SLIDE 6: Exercise / Try It -->
+      <section data-background-color="#fff">
+        <div class="lesson-header" style="justify-content: center;">
+          <span class="lesson-badge exercise">Exercise</span>
+          <h2 style="margin: 0;">Knowledge Check</h2>
+        </div>
+
+        <div class="quiz-card">
+          <div class="quiz-question">
+            <!-- CUSTOMIZE: Question -->
+            Which data structure would you choose for implementing an undo/redo feature?
+          </div>
+          <!-- CUSTOMIZE: Options -->
+          <div class="quiz-option fragment fade-in">A. Array</div>
+          <div class="quiz-option fragment fade-in">B. Hash Table</div>
+          <div class="quiz-option correct fragment highlight-green">C. Stack</div>
+          <div class="quiz-option fragment fade-in">D. Queue</div>
+        </div>
+
+        <div class="callout success fragment slide-up" style="max-width: 700px; margin: 1em auto;">
+          <div class="callout-title">✅ Answer: Stack</div>
+          Stacks follow LIFO (Last In, First Out) — perfect for undo operations where you reverse the most recent action
+          first.
+        </div>
+      </section>
+
+      <!-- SLIDE 7: Key Takeaways -->
+      <section data-background-color="#fff">
+        <h2 class="anim-fade-in-up">📝 Key Takeaways</h2>
+        <div class="grid-3" style="margin-top: 1em;">
+          <!-- CUSTOMIZE -->
+          <div class="callout info fragment slide-up">
+            <div class="callout-title">1. Know Your Options</div>
+            Different structures excel at different operations — there's no "best" structure.
+          </div>
+          <div class="callout info fragment slide-up">
+            <div class="callout-title">2. Think About Scale</div>
+            Big-O matters when data grows. O(n²) is fine for 10 items, disastrous for 10 million.
+          </div>
+          <div class="callout info fragment slide-up">
+            <div class="callout-title">3. Profile First</div>
+            Don't optimize prematurely — measure actual performance before choosing complex structures.
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 8: What's Next -->
+      <section data-background-color="#fff">
+        <h2 class="anim-fade-in-up">📚 What's Next</h2>
+        <div class="text-left" style="max-width: 600px; margin: 1em auto;">
+          <!-- CUSTOMIZE -->
+          <p class="fragment slide-up"><strong>Next Lesson:</strong> Trees and Graphs</p>
+          <p class="fragment slide-up"><strong>Reading:</strong> Chapters 5-6 of the textbook</p>
+          <p class="fragment slide-up"><strong>Assignment:</strong> Implement a hash table in your language of choice
+          </p>
+          <p class="fragment slide-up"><strong>Due:</strong> Next Monday, 11:59 PM</p>
+        </div>
+        <div class="callout warning fragment slide-up" style="max-width: 600px; margin: 1em auto;">
+          <div class="callout-title">⚠️ Reminder</div>
+          Midterm exam is in 2 weeks — covers Lessons 1-4.
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/plugin/notes/notes.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      transition: 'slide',
+      center: true,
+      width: 1920,
+      height: 1080,
+      margin: 0.08,
+      plugins: [RevealNotes]
+    });
+  </script>
+</body>
+
+</html>

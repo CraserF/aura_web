@@ -1,4 +1,5 @@
 import Reveal from 'reveal.js';
+import { AnimationEnginePlugin, ThreeBackgroundPlugin } from './plugins';
 
 export interface DeckInstance {
   reveal: InstanceType<typeof Reveal>;
@@ -44,6 +45,7 @@ export async function initDeck(
     keyboard: true,
     overview: false,
     touch: true,
+    plugins: [AnimationEnginePlugin, ThreeBackgroundPlugin],
   });
 
   await deck.initialize();

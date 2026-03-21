@@ -1,0 +1,1244 @@
+/* =============================================================================
+   REVEAL.JS ADVANCED ANIMATION EFFECTS
+   Version: 1.0.0
+   
+   Advanced CSS-only and CSS+JS animation effects for reveal.js:
+   - Particle systems (CSS-only)
+   - Morphing shapes
+   - Parallax layers
+   - Cinematic transitions
+   - Ambient backgrounds (aurora, nebula, ocean, matrix rain)
+   - Animated borders and decorations
+   - 3D perspective effects
+   
+   Import: <link rel="stylesheet" href="animations/advanced-effects.css">
+   ============================================================================= */
+
+/* =============================================================================
+   ANIMATED BACKGROUND SCENES
+   Use as overlay containers inside slides for living backgrounds.
+   Pattern: <div class="scene-<name>"> inside <section>
+   ============================================================================= */
+
+/* --- Shared Scene Container --- */
+[class^="scene-"],
+[class*=" scene-"] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* --- SCENE: Floating Particles --- */
+.scene-particles {
+  background: transparent;
+}
+
+.scene-particles .particle {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--particle-color, rgba(255, 255, 255, 0.3));
+  animation: particleFloat var(--particle-duration, 15s) ease-in-out infinite;
+}
+
+@keyframes particleFloat {
+
+  0%,
+  100% {
+    transform: translateY(100vh) translateX(0) scale(0);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+    transform: translateY(80vh) translateX(10px) scale(1);
+  }
+
+  90% {
+    opacity: 0.8;
+    transform: translateY(10vh) translateX(-20px) scale(0.8);
+  }
+}
+
+/* Generate particle sizes & positions via nth-child */
+.scene-particles .particle:nth-child(1) {
+  width: 4px;
+  height: 4px;
+  left: 5%;
+  animation-delay: 0s;
+  animation-duration: 12s;
+}
+
+.scene-particles .particle:nth-child(2) {
+  width: 6px;
+  height: 6px;
+  left: 15%;
+  animation-delay: 2s;
+  animation-duration: 18s;
+}
+
+.scene-particles .particle:nth-child(3) {
+  width: 3px;
+  height: 3px;
+  left: 25%;
+  animation-delay: 4s;
+  animation-duration: 14s;
+}
+
+.scene-particles .particle:nth-child(4) {
+  width: 8px;
+  height: 8px;
+  left: 35%;
+  animation-delay: 1s;
+  animation-duration: 20s;
+}
+
+.scene-particles .particle:nth-child(5) {
+  width: 5px;
+  height: 5px;
+  left: 45%;
+  animation-delay: 3s;
+  animation-duration: 16s;
+}
+
+.scene-particles .particle:nth-child(6) {
+  width: 4px;
+  height: 4px;
+  left: 55%;
+  animation-delay: 5s;
+  animation-duration: 13s;
+}
+
+.scene-particles .particle:nth-child(7) {
+  width: 7px;
+  height: 7px;
+  left: 65%;
+  animation-delay: 0.5s;
+  animation-duration: 19s;
+}
+
+.scene-particles .particle:nth-child(8) {
+  width: 3px;
+  height: 3px;
+  left: 75%;
+  animation-delay: 2.5s;
+  animation-duration: 15s;
+}
+
+.scene-particles .particle:nth-child(9) {
+  width: 6px;
+  height: 6px;
+  left: 85%;
+  animation-delay: 4.5s;
+  animation-duration: 17s;
+}
+
+.scene-particles .particle:nth-child(10) {
+  width: 4px;
+  height: 4px;
+  left: 92%;
+  animation-delay: 1.5s;
+  animation-duration: 14s;
+}
+
+.scene-particles .particle:nth-child(11) {
+  width: 5px;
+  height: 5px;
+  left: 10%;
+  animation-delay: 6s;
+  animation-duration: 21s;
+}
+
+.scene-particles .particle:nth-child(12) {
+  width: 3px;
+  height: 3px;
+  left: 30%;
+  animation-delay: 7s;
+  animation-duration: 16s;
+}
+
+.scene-particles .particle:nth-child(13) {
+  width: 7px;
+  height: 7px;
+  left: 50%;
+  animation-delay: 3.5s;
+  animation-duration: 22s;
+}
+
+.scene-particles .particle:nth-child(14) {
+  width: 4px;
+  height: 4px;
+  left: 70%;
+  animation-delay: 5.5s;
+  animation-duration: 13s;
+}
+
+.scene-particles .particle:nth-child(15) {
+  width: 6px;
+  height: 6px;
+  left: 90%;
+  animation-delay: 8s;
+  animation-duration: 18s;
+}
+
+
+/* --- SCENE: Aurora Borealis --- */
+.scene-aurora {
+  background: linear-gradient(180deg, #0a0a2e 0%, #1a1a4e 100%);
+}
+
+.scene-aurora .aurora-band {
+  position: absolute;
+  width: 200%;
+  height: 40%;
+  left: -50%;
+  opacity: 0;
+  filter: blur(60px);
+  mix-blend-mode: screen;
+}
+
+.scene-aurora .aurora-band:nth-child(1) {
+  top: 10%;
+  background: linear-gradient(90deg, transparent, #00ff88, #00ccff, transparent);
+  animation: auroraWave 8s ease-in-out infinite;
+}
+
+.scene-aurora .aurora-band:nth-child(2) {
+  top: 20%;
+  background: linear-gradient(90deg, transparent, #ff00ff, #00ff88, transparent);
+  animation: auroraWave 12s ease-in-out 2s infinite;
+}
+
+.scene-aurora .aurora-band:nth-child(3) {
+  top: 5%;
+  background: linear-gradient(90deg, transparent, #00ccff, #ff00ff, transparent);
+  animation: auroraWave 10s ease-in-out 4s infinite;
+}
+
+@keyframes auroraWave {
+  0% {
+    transform: translateX(-25%) skewX(-15deg);
+    opacity: 0.3;
+  }
+
+  25% {
+    transform: translateX(0%) skewX(-5deg);
+    opacity: 0.7;
+  }
+
+  50% {
+    transform: translateX(25%) skewX(10deg);
+    opacity: 0.4;
+  }
+
+  75% {
+    transform: translateX(0%) skewX(-10deg);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: translateX(-25%) skewX(-15deg);
+    opacity: 0.3;
+  }
+}
+
+
+/* --- SCENE: Nebula --- */
+.scene-nebula {
+  background: radial-gradient(ellipse at center, #1a0533 0%, #000000 100%);
+}
+
+.scene-nebula .nebula-cloud {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  mix-blend-mode: screen;
+}
+
+.scene-nebula .nebula-cloud:nth-child(1) {
+  width: 600px;
+  height: 600px;
+  top: -10%;
+  left: -10%;
+  background: radial-gradient(circle, rgba(147, 51, 234, 0.4) 0%, transparent 70%);
+  animation: nebulaFloat 20s ease-in-out infinite;
+}
+
+.scene-nebula .nebula-cloud:nth-child(2) {
+  width: 500px;
+  height: 500px;
+  top: 30%;
+  right: -10%;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, transparent 70%);
+  animation: nebulaFloat 25s ease-in-out 5s infinite reverse;
+}
+
+.scene-nebula .nebula-cloud:nth-child(3) {
+  width: 400px;
+  height: 400px;
+  bottom: -5%;
+  left: 20%;
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.3) 0%, transparent 70%);
+  animation: nebulaFloat 18s ease-in-out 3s infinite;
+}
+
+.scene-nebula .nebula-star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: white;
+  border-radius: 50%;
+  animation: twinkle 3s ease-in-out infinite;
+}
+
+@keyframes nebulaFloat {
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  33% {
+    transform: translate(50px, -30px) scale(1.1);
+  }
+
+  66% {
+    transform: translate(-30px, 20px) scale(0.9);
+  }
+}
+
+@keyframes twinkle {
+
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.5);
+  }
+}
+
+
+/* --- SCENE: Ocean Waves --- */
+.scene-ocean {
+  background: linear-gradient(180deg, #0077be 0%, #003d5c 50%, #001a2e 100%);
+}
+
+.scene-ocean .wave {
+  position: absolute;
+  bottom: 0;
+  width: 200%;
+  height: 100px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%23ffffff' fill-opacity='0.1' d='M0,160L48,170.7C96,181,192,203,288,197.3C384,192,480,160,576,149.3C672,139,768,149,864,170.7C960,192,1056,224,1152,218.7C1248,213,1344,171,1392,149.3L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E") repeat-x;
+  background-size: 50% 100%;
+}
+
+.scene-ocean .wave:nth-child(1) {
+  animation: waveScroll 7s linear infinite;
+  opacity: 0.4;
+  bottom: 0;
+}
+
+.scene-ocean .wave:nth-child(2) {
+  animation: waveScroll 11s linear infinite reverse;
+  opacity: 0.2;
+  bottom: 20px;
+}
+
+.scene-ocean .wave:nth-child(3) {
+  animation: waveScroll 15s linear infinite;
+  opacity: 0.1;
+  bottom: 40px;
+}
+
+@keyframes waveScroll {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+
+/* --- SCENE: Matrix Digital Rain --- */
+.scene-matrix {
+  background: #000;
+}
+
+.scene-matrix .matrix-column {
+  position: absolute;
+  top: -100%;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  color: #00ff41;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  white-space: nowrap;
+  line-height: 1;
+  opacity: 0.7;
+  animation: matrixFall linear infinite;
+}
+
+.scene-matrix .matrix-column:nth-child(1) {
+  left: 3%;
+  animation-duration: 8s;
+  animation-delay: 0s;
+  font-size: 12px;
+}
+
+.scene-matrix .matrix-column:nth-child(2) {
+  left: 8%;
+  animation-duration: 12s;
+  animation-delay: 1s;
+  font-size: 14px;
+}
+
+.scene-matrix .matrix-column:nth-child(3) {
+  left: 13%;
+  animation-duration: 10s;
+  animation-delay: 3s;
+  font-size: 10px;
+}
+
+.scene-matrix .matrix-column:nth-child(4) {
+  left: 18%;
+  animation-duration: 15s;
+  animation-delay: 0.5s;
+  font-size: 16px;
+  opacity: 0.5;
+}
+
+.scene-matrix .matrix-column:nth-child(5) {
+  left: 23%;
+  animation-duration: 9s;
+  animation-delay: 2s;
+  font-size: 13px;
+}
+
+.scene-matrix .matrix-column:nth-child(6) {
+  left: 30%;
+  animation-duration: 11s;
+  animation-delay: 4s;
+  font-size: 11px;
+}
+
+.scene-matrix .matrix-column:nth-child(7) {
+  left: 37%;
+  animation-duration: 14s;
+  animation-delay: 1.5s;
+  font-size: 15px;
+  opacity: 0.4;
+}
+
+.scene-matrix .matrix-column:nth-child(8) {
+  left: 44%;
+  animation-duration: 8s;
+  animation-delay: 3.5s;
+  font-size: 12px;
+}
+
+.scene-matrix .matrix-column:nth-child(9) {
+  left: 51%;
+  animation-duration: 13s;
+  animation-delay: 0.7s;
+  font-size: 14px;
+}
+
+.scene-matrix .matrix-column:nth-child(10) {
+  left: 58%;
+  animation-duration: 10s;
+  animation-delay: 2.5s;
+  font-size: 10px;
+}
+
+.scene-matrix .matrix-column:nth-child(11) {
+  left: 65%;
+  animation-duration: 16s;
+  animation-delay: 5s;
+  font-size: 13px;
+  opacity: 0.6;
+}
+
+.scene-matrix .matrix-column:nth-child(12) {
+  left: 72%;
+  animation-duration: 9s;
+  animation-delay: 1.2s;
+  font-size: 15px;
+}
+
+.scene-matrix .matrix-column:nth-child(13) {
+  left: 79%;
+  animation-duration: 12s;
+  animation-delay: 3.8s;
+  font-size: 11px;
+}
+
+.scene-matrix .matrix-column:nth-child(14) {
+  left: 86%;
+  animation-duration: 11s;
+  animation-delay: 0.3s;
+  font-size: 14px;
+}
+
+.scene-matrix .matrix-column:nth-child(15) {
+  left: 93%;
+  animation-duration: 14s;
+  animation-delay: 2.2s;
+  font-size: 12px;
+  opacity: 0.5;
+}
+
+@keyframes matrixFall {
+  0% {
+    transform: translateY(0);
+  }
+
+  100% {
+    transform: translateY(200vh);
+  }
+}
+
+
+/* --- SCENE: Geometric Grid --- */
+.scene-geo-grid {
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: gridScroll 20s linear infinite;
+}
+
+@keyframes gridScroll {
+  0% {
+    background-position: 0 0;
+  }
+
+  100% {
+    background-position: 40px 40px;
+  }
+}
+
+/* --- SCENE: Starfield --- */
+.scene-starfield {
+  background: #000;
+  perspective: 500px;
+}
+
+.scene-starfield .star-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image:
+    radial-gradient(1px 1px at 20px 30px, white, transparent),
+    radial-gradient(1px 1px at 40px 70px, white, transparent),
+    radial-gradient(1px 1px at 50px 160px, white, transparent),
+    radial-gradient(1px 1px at 90px 40px, white, transparent),
+    radial-gradient(1px 1px at 130px 80px, white, transparent),
+    radial-gradient(1px 1px at 160px 120px, white, transparent),
+    radial-gradient(1px 1px at 200px 50px, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 250px 180px, white, transparent),
+    radial-gradient(1px 1px at 300px 100px, rgba(255, 255, 255, 0.5), transparent);
+  background-repeat: repeat;
+  background-size: 350px 200px;
+}
+
+.scene-starfield .star-layer:nth-child(1) {
+  animation: starScroll 30s linear infinite;
+  opacity: 0.6;
+}
+
+.scene-starfield .star-layer:nth-child(2) {
+  animation: starScroll 20s linear infinite;
+  opacity: 0.8;
+  background-size: 250px 150px;
+}
+
+.scene-starfield .star-layer:nth-child(3) {
+  animation: starScroll 10s linear infinite;
+  opacity: 1;
+  background-size: 450px 300px;
+}
+
+@keyframes starScroll {
+  0% {
+    transform: translateZ(0) translateY(0);
+  }
+
+  100% {
+    transform: translateZ(200px) translateY(-100%);
+  }
+}
+
+
+/* --- SCENE: Fireflies --- */
+.scene-fireflies {
+  background: linear-gradient(180deg, #0a1628 0%, #1a2d4a 100%);
+}
+
+.scene-fireflies .firefly {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffd700;
+  box-shadow: 0 0 10px 3px rgba(255, 215, 0, 0.5);
+  animation: fireflyMove 10s ease-in-out infinite;
+}
+
+@keyframes fireflyMove {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  25% {
+    transform: translate(100px, -60px);
+    opacity: 0.8;
+  }
+
+  50% {
+    transform: translate(-50px, -120px);
+    opacity: 0.3;
+  }
+
+  75% {
+    transform: translate(80px, -30px);
+    opacity: 1;
+  }
+
+  90% {
+    opacity: 0.5;
+  }
+
+  100% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+}
+
+.scene-fireflies .firefly:nth-child(1) {
+  top: 80%;
+  left: 10%;
+  animation-delay: 0s;
+  animation-duration: 12s;
+}
+
+.scene-fireflies .firefly:nth-child(2) {
+  top: 60%;
+  left: 30%;
+  animation-delay: 2s;
+  animation-duration: 15s;
+}
+
+.scene-fireflies .firefly:nth-child(3) {
+  top: 70%;
+  left: 50%;
+  animation-delay: 4s;
+  animation-duration: 10s;
+}
+
+.scene-fireflies .firefly:nth-child(4) {
+  top: 50%;
+  left: 70%;
+  animation-delay: 1s;
+  animation-duration: 14s;
+}
+
+.scene-fireflies .firefly:nth-child(5) {
+  top: 40%;
+  left: 20%;
+  animation-delay: 3s;
+  animation-duration: 11s;
+}
+
+.scene-fireflies .firefly:nth-child(6) {
+  top: 75%;
+  left: 80%;
+  animation-delay: 5s;
+  animation-duration: 13s;
+}
+
+.scene-fireflies .firefly:nth-child(7) {
+  top: 55%;
+  left: 40%;
+  animation-delay: 1.5s;
+  animation-duration: 16s;
+}
+
+.scene-fireflies .firefly:nth-child(8) {
+  top: 65%;
+  left: 60%;
+  animation-delay: 3.5s;
+  animation-duration: 9s;
+}
+
+.scene-fireflies .firefly:nth-child(9) {
+  top: 45%;
+  left: 85%;
+  animation-delay: 6s;
+  animation-duration: 12s;
+}
+
+.scene-fireflies .firefly:nth-child(10) {
+  top: 85%;
+  left: 45%;
+  animation-delay: 2.5s;
+  animation-duration: 18s;
+}
+
+
+/* =============================================================================
+   ANIMATED BORDERS & DECORATIONS
+   ============================================================================= */
+
+/* --- Animated Gradient Border --- */
+.border-gradient-anim {
+  position: relative;
+  padding: 3px;
+  background: linear-gradient(90deg, #ff0080, #ff8c00, #40e0d0, #ff0080);
+  background-size: 300% 100%;
+  animation: borderGradient 4s linear infinite;
+  border-radius: 8px;
+}
+
+.border-gradient-anim>* {
+  background: var(--bg-color, #1a1a2e);
+  border-radius: 6px;
+  padding: 1em;
+}
+
+@keyframes borderGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  100% {
+    background-position: 300% 50%;
+  }
+}
+
+/* --- Neon Glow Border --- */
+.border-neon {
+  border: 2px solid var(--neon-color, #0ff);
+  box-shadow:
+    0 0 5px var(--neon-color, #0ff),
+    0 0 10px var(--neon-color, #0ff),
+    inset 0 0 5px var(--neon-color, #0ff);
+  animation: neonFlicker 2s ease-in-out infinite alternate;
+}
+
+@keyframes neonFlicker {
+
+  0%,
+  19%,
+  21%,
+  23%,
+  25%,
+  54%,
+  56%,
+  100% {
+    box-shadow:
+      0 0 5px var(--neon-color, #0ff),
+      0 0 10px var(--neon-color, #0ff),
+      0 0 20px var(--neon-color, #0ff),
+      inset 0 0 5px var(--neon-color, #0ff);
+  }
+
+  20%,
+  24%,
+  55% {
+    box-shadow: none;
+  }
+}
+
+/* --- Drawing / Tracing Border --- */
+.border-draw {
+  position: relative;
+  overflow: hidden;
+}
+
+.border-draw::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 2px solid currentColor;
+  border-radius: inherit;
+  clip-path: polygon(0 0, 0 0, 0 0, 0 0);
+  animation: drawBorder 2s var(--ease-in-out-expo, ease) forwards;
+}
+
+@keyframes drawBorder {
+  0% {
+    clip-path: polygon(0 0, 0 0, 0 0, 0 0);
+  }
+
+  25% {
+    clip-path: polygon(0 0, 100% 0, 100% 0, 0 0);
+  }
+
+  50% {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 0);
+  }
+
+  75% {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  }
+
+  100% {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  }
+}
+
+/* --- Orbiting Dot Border --- */
+.border-orbit {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.border-orbit::before {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--orbit-color, #fff);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--orbit-color, #fff);
+  animation: orbitBorder 4s linear infinite;
+}
+
+@keyframes orbitBorder {
+  0% {
+    top: 0;
+    left: 0;
+  }
+
+  25% {
+    top: 0;
+    left: calc(100% - 10px);
+  }
+
+  50% {
+    top: calc(100% - 10px);
+    left: calc(100% - 10px);
+  }
+
+  75% {
+    top: calc(100% - 10px);
+    left: 0;
+  }
+
+  100% {
+    top: 0;
+    left: 0;
+  }
+}
+
+
+/* =============================================================================
+   MORPHING SHAPES
+   Decorative animated shapes for visual interest.
+   ============================================================================= */
+
+.morph-circle {
+  width: var(--morph-size, 200px);
+  height: var(--morph-size, 200px);
+  background: var(--morph-color, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
+  animation: morphBlob 8s ease-in-out infinite;
+}
+
+@keyframes morphBlob {
+
+  0%,
+  100% {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  }
+
+  25% {
+    border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
+  }
+
+  50% {
+    border-radius: 50% 60% 30% 60% / 30% 60% 70% 40%;
+  }
+
+  75% {
+    border-radius: 60% 30% 60% 40% / 70% 40% 50% 60%;
+  }
+}
+
+.morph-triangle {
+  width: 0;
+  height: 0;
+  border-left: 100px solid transparent;
+  border-right: 100px solid transparent;
+  border-bottom: 173px solid var(--morph-color, #667eea);
+  animation: morphTriangle 4s ease-in-out infinite;
+}
+
+@keyframes morphTriangle {
+
+  0%,
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+
+  50% {
+    transform: rotate(180deg) scale(1.1);
+  }
+}
+
+
+/* =============================================================================
+   PARALLAX LAYER SYSTEM
+   Create depth with multiple layers that move at different speeds.
+   Use with JS or pure CSS on scroll/navigation.
+   ============================================================================= */
+
+.parallax-container {
+  position: relative;
+  overflow: hidden;
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+
+.parallax-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+}
+
+.parallax-layer--back {
+  transform: translateZ(-200px) scale(1.2);
+  animation: parallaxBack 30s linear infinite alternate;
+}
+
+.parallax-layer--mid {
+  transform: translateZ(-100px) scale(1.1);
+  animation: parallaxMid 20s linear infinite alternate;
+}
+
+.parallax-layer--front {
+  transform: translateZ(0);
+}
+
+@keyframes parallaxBack {
+  0% {
+    transform: translateZ(-200px) scale(1.2) translateX(0);
+  }
+
+  100% {
+    transform: translateZ(-200px) scale(1.2) translateX(-5%);
+  }
+}
+
+@keyframes parallaxMid {
+  0% {
+    transform: translateZ(-100px) scale(1.1) translateX(0);
+  }
+
+  100% {
+    transform: translateZ(-100px) scale(1.1) translateX(-3%);
+  }
+}
+
+
+/* =============================================================================
+   CINEMATIC EFFECTS
+   Dramatic, film-style animation effects.
+   ============================================================================= */
+
+/* Letterbox — add cinematic bars */
+.cinematic-letterbox::before,
+.cinematic-letterbox::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 12%;
+  background: #000;
+  z-index: 10;
+  transition: height 1s ease;
+}
+
+.cinematic-letterbox::before {
+  top: 0;
+}
+
+.cinematic-letterbox::after {
+  bottom: 0;
+}
+
+/* Vignette overlay */
+.cinematic-vignette::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(ellipse at center,
+      transparent 50%,
+      rgba(0, 0, 0, 0.5) 100%);
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Film grain overlay */
+.cinematic-grain::before {
+  content: '';
+  position: absolute;
+  top: -100%;
+  left: -100%;
+  width: 300%;
+  height: 300%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+  animation: grainShift 0.5s steps(5) infinite;
+  pointer-events: none;
+  z-index: 6;
+  opacity: 0.4;
+}
+
+@keyframes grainShift {
+
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  25% {
+    transform: translate(-5%, -5%);
+  }
+
+  50% {
+    transform: translate(5%, 5%);
+  }
+
+  75% {
+    transform: translate(-3%, 3%);
+  }
+}
+
+/* Dramatic spotlight */
+.cinematic-spotlight::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at var(--spotlight-x, 50%) var(--spotlight-y, 30%),
+      rgba(255, 255, 255, 0.1) 0%,
+      transparent 60%);
+  animation: spotlightBreath 4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 4;
+}
+
+@keyframes spotlightBreath {
+
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+
+/* =============================================================================
+   3D CARD AND PERSPECTIVE EFFECTS
+   ============================================================================= */
+
+.card-3d {
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+
+.card-3d-inner {
+  transition: transform 0.8s ease;
+  transform-style: preserve-3d;
+}
+
+.card-3d:hover .card-3d-inner {
+  transform: rotateY(180deg);
+}
+
+.card-3d-front,
+.card-3d-back {
+  backface-visibility: hidden;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.card-3d-back {
+  transform: rotateY(180deg);
+}
+
+/* Tilt on presence */
+.tilt-effect {
+  transition: transform 0.5s ease;
+  transform-style: preserve-3d;
+}
+
+.present .tilt-effect {
+  animation: subtleTilt 6s ease-in-out infinite;
+}
+
+@keyframes subtleTilt {
+
+  0%,
+  100% {
+    transform: perspective(1000px) rotateX(0deg) rotateY(0deg);
+  }
+
+  25% {
+    transform: perspective(1000px) rotateX(2deg) rotateY(-2deg);
+  }
+
+  50% {
+    transform: perspective(1000px) rotateX(-1deg) rotateY(3deg);
+  }
+
+  75% {
+    transform: perspective(1000px) rotateX(1deg) rotateY(-1deg);
+  }
+}
+
+
+/* =============================================================================
+   COUNTER / NUMBER ANIMATIONS
+   Animate numbers for data-driven slides.
+   ============================================================================= */
+
+.number-counter {
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+}
+
+.number-counter.counting {
+  animation: countPulse 0.3s ease-in-out;
+}
+
+@keyframes countPulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+
+/* =============================================================================
+   PROGRESS / LOADING BARS
+   ============================================================================= */
+
+.progress-bar-animated {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar-animated .fill {
+  height: 100%;
+  background: var(--progress-color, linear-gradient(90deg, #667eea, #764ba2));
+  border-radius: 4px;
+  width: 0;
+  transition: width 2s ease-out;
+}
+
+.present .progress-bar-animated .fill {
+  width: var(--progress-value, 75%);
+}
+
+/* Striped animated progress */
+.progress-bar-striped .fill {
+  background-image: linear-gradient(45deg,
+      rgba(255, 255, 255, 0.15) 25%,
+      transparent 25%,
+      transparent 50%,
+      rgba(255, 255, 255, 0.15) 50%,
+      rgba(255, 255, 255, 0.15) 75%,
+      transparent 75%);
+  background-size: 1rem 1rem;
+  animation: stripeScroll 1s linear infinite;
+}
+
+@keyframes stripeScroll {
+  0% {
+    background-position: 1rem 0;
+  }
+
+  100% {
+    background-position: 0 0;
+  }
+}
+
+
+/* =============================================================================
+   RESPONSIVE BEHAVIOR
+   ============================================================================= */
+@media (max-width: 768px) {
+  .scene-particles .particle:nth-child(n+8) {
+    display: none;
+  }
+
+  .scene-aurora .aurora-band {
+    filter: blur(40px);
+  }
+
+  .scene-nebula .nebula-cloud {
+    filter: blur(50px);
+  }
+
+  .scene-matrix .matrix-column:nth-child(n+10) {
+    display: none;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+
+  [class^="scene-"] *,
+  [class*=" scene-"] *,
+  .morph-circle,
+  .morph-triangle,
+  .border-gradient-anim,
+  .border-neon,
+  .border-orbit::before,
+  .parallax-layer {
+    animation: none !important;
+  }
+}

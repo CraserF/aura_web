@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{TITLE}} — Code Walkthrough</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/black.css">
+  <link rel="stylesheet" href="../animations/core-animations.css">
+  <link rel="stylesheet" href="../animations/advanced-effects.css">
+
+  <!-- Syntax highlighting plugin -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/plugin/highlight/monokai.css">
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+    rel="stylesheet">
+
+  <style>
+    :root {
+      --primary: #a78bfa;
+      --accent: #34d399;
+      --warning: #fbbf24;
+      --info: #60a5fa;
+      --bg: #0c0c1d;
+      --surface: rgba(255, 255, 255, 0.04);
+      --code-bg: #1a1a2e;
+      --text: #e2e8f0;
+      --text-muted: rgba(226, 232, 240, 0.55);
+      --line-focus: rgba(167, 139, 250, 0.12);
+    }
+
+    .reveal {
+      font-family: 'Space Grotesk', sans-serif;
+      color: var(--text);
+    }
+
+    .reveal h1,
+    .reveal h2,
+    .reveal h3 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      text-transform: none;
+    }
+
+    .reveal code,
+    .reveal pre code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75em;
+    }
+
+    .reveal pre {
+      width: 100%;
+      margin: 0;
+      box-shadow: none;
+    }
+
+    /* --- Split Layout --- */
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      align-items: start;
+      text-align: left;
+    }
+
+    .split-60-40 {
+      grid-template-columns: 3fr 2fr;
+    }
+
+    .split-40-60 {
+      grid-template-columns: 2fr 3fr;
+    }
+
+    /* --- Code Panel --- */
+    .code-panel {
+      background: var(--code-bg);
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      overflow: hidden;
+    }
+
+    .code-panel .panel-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+      padding: 0.6em 1em;
+      background: rgba(0, 0, 0, 0.3);
+      font-size: 0.6em;
+      color: var(--text-muted);
+    }
+
+    .code-panel .panel-header .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .code-panel .panel-header .dot-red {
+      background: #ff5f57;
+    }
+
+    .code-panel .panel-header .dot-yellow {
+      background: #ffbd2e;
+    }
+
+    .code-panel .panel-header .dot-green {
+      background: #28ca41;
+    }
+
+    .code-panel .panel-header .filename {
+      margin-left: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.95em;
+    }
+
+    .code-panel pre {
+      margin: 0;
+      padding: 0.8em 1em;
+    }
+
+    /* --- Explanation Panel --- */
+    .explain-panel {
+      padding: 0.5rem 0;
+    }
+
+    .explain-panel h3 {
+      font-size: 1em;
+      color: var(--primary);
+      margin-bottom: 0.5em;
+    }
+
+    .explain-panel ul {
+      font-size: 0.75em;
+      line-height: 1.8;
+      color: var(--text-muted);
+      padding-left: 1.2em;
+    }
+
+    .explain-panel li.active-line {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    /* --- Callout Boxes --- */
+    .callout {
+      border-radius: 8px;
+      padding: 0.8rem 1.2rem;
+      font-size: 0.75em;
+      text-align: left;
+      margin-top: 1rem;
+    }
+
+    .callout-tip {
+      background: rgba(52, 211, 153, 0.1);
+      border-left: 3px solid var(--accent);
+    }
+
+    .callout-warning {
+      background: rgba(251, 191, 36, 0.1);
+      border-left: 3px solid var(--warning);
+    }
+
+    .callout-info {
+      background: rgba(96, 165, 250, 0.1);
+      border-left: 3px solid var(--info);
+    }
+
+    .callout strong {
+      display: block;
+      margin-bottom: 0.2em;
+    }
+
+    .callout-tip strong {
+      color: var(--accent);
+    }
+
+    .callout-warning strong {
+      color: var(--warning);
+    }
+
+    .callout-info strong {
+      color: var(--info);
+    }
+
+    /* --- Build Steps indicator --- */
+    .build-steps {
+      display: flex;
+      gap: 0.3rem;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+
+    .build-step {
+      padding: 0.3em 0.8em;
+      border-radius: 100px;
+      font-size: 0.5em;
+      font-weight: 600;
+      background: var(--surface);
+      color: var(--text-muted);
+    }
+
+    .build-step.done {
+      background: rgba(52, 211, 153, 0.2);
+      color: var(--accent);
+    }
+
+    .build-step.current {
+      background: var(--primary);
+      color: #000;
+    }
+
+    /* --- Terminal Output --- */
+    .terminal {
+      background: #000;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+      text-align: left;
+    }
+
+    .terminal .term-header {
+      padding: 0.5em 1em;
+      background: rgba(255, 255, 255, 0.05);
+      font-size: 0.55em;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+    }
+
+    .terminal pre {
+      margin: 0;
+      padding: 0.8em 1em;
+      font-size: 0.7em;
+      color: var(--accent);
+      background: transparent;
+    }
+
+    /* --- Diff: added / removed --- */
+    .diff-add {
+      background: rgba(52, 211, 153, 0.12);
+      border-left: 3px solid var(--accent);
+      padding-left: 0.5em;
+    }
+
+    .diff-rem {
+      background: rgba(239, 68, 68, 0.12);
+      border-left: 3px solid #ef4444;
+      padding-left: 0.5em;
+      text-decoration: line-through;
+      opacity: 0.6;
+    }
+
+    /* --- Tech badges --- */
+    .tech-badge {
+      display: inline-block;
+      padding: 0.2em 0.6em;
+      border-radius: 4px;
+      font-size: 0.55em;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--surface);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- ===== TITLE ===== -->
+      <section>
+        <div class="scene-geo-grid" style="position:absolute;inset:0;z-index:0;opacity:0.15;"></div>
+        <div style="position:relative;z-index:1;">
+          <div style="margin-bottom:0.5em;">
+            <span class="tech-badge anim-fade-in-up">{{LANGUAGE}}</span>
+            <span class="tech-badge anim-fade-in-up delay-100">{{FRAMEWORK}}</span>
+          </div>
+          <h1 class="anim-fade-in-up delay-200" style="font-size:2.5em;">{{TITLE}}</h1>
+          <p class="anim-fade-in-up delay-400" style="color:var(--text-muted);">{{SUBTITLE}}</p>
+        </div>
+        <aside class="notes">Introduce the code walkthrough topic and what the audience will understand by the end.
+        </aside>
+      </section>
+
+      <!-- ===== OVERVIEW / ARCHITECTURE ===== -->
+      <section>
+        <h2 class="anim-fade-in-up">Overview</h2>
+        <p class="anim-fade-in-up delay-200"
+          style="color:var(--text-muted);max-width:650px;margin:0 auto;font-size:0.85em;">
+          {{OVERVIEW_DESCRIPTION}}
+        </p>
+        <div class="callout callout-info anim-fade-in-up delay-400" style="max-width:600px;margin:1rem auto 0;">
+          <strong>Prerequisites</strong>
+          {{PREREQUISITES}}
+        </div>
+        <aside class="notes">Set context. What problem does this code solve?</aside>
+      </section>
+
+      <!-- ===== BUILD STEP 1: CODE + EXPLAIN ===== -->
+      <section>
+        <section>
+          <div class="build-steps">
+            <span class="build-step current">Step 1</span>
+            <span class="build-step">Step 2</span>
+            <span class="build-step">Step 3</span>
+            <span class="build-step">Step 4</span>
+          </div>
+          <h2 class="anim-fade-in-up">{{STEP_1_TITLE}}</h2>
+          <div class="split split-60-40">
+            <div class="code-panel anim-fade-in-left">
+              <div class="panel-header">
+                <span class="dot dot-red"></span>
+                <span class="dot dot-yellow"></span>
+                <span class="dot dot-green"></span>
+                <span class="filename">{{STEP_1_FILENAME}}</span>
+              </div>
+              <pre><code class="language-{{LANGUAGE_ID}}" data-trim data-line-numbers="{{STEP_1_HIGHLIGHT}}">
+{{STEP_1_CODE}}
+              </code></pre>
+            </div>
+            <div class="explain-panel anim-fade-in-right delay-200">
+              <h3>What's happening</h3>
+              <ul>
+                <li class="fragment fade-in">{{STEP_1_EXPLAIN_1}}</li>
+                <li class="fragment fade-in">{{STEP_1_EXPLAIN_2}}</li>
+                <li class="fragment fade-in">{{STEP_1_EXPLAIN_3}}</li>
+              </ul>
+            </div>
+          </div>
+          <aside class="notes">Walk through the first piece of code.</aside>
+        </section>
+
+        <section>
+          <div class="callout callout-tip" style="max-width:600px;margin:0 auto;">
+            <strong>💡 Tip</strong>
+            {{STEP_1_TIP}}
+          </div>
+          <aside class="notes">Optional deeper insight for Step 1.</aside>
+        </section>
+      </section>
+
+      <!-- ===== BUILD STEP 2: CODE + EXPLAIN ===== -->
+      <section>
+        <div class="build-steps">
+          <span class="build-step done">Step 1</span>
+          <span class="build-step current">Step 2</span>
+          <span class="build-step">Step 3</span>
+          <span class="build-step">Step 4</span>
+        </div>
+        <h2 class="anim-fade-in-up">{{STEP_2_TITLE}}</h2>
+        <div class="split split-60-40">
+          <div class="code-panel anim-fade-in-left">
+            <div class="panel-header">
+              <span class="dot dot-red"></span>
+              <span class="dot dot-yellow"></span>
+              <span class="dot dot-green"></span>
+              <span class="filename">{{STEP_2_FILENAME}}</span>
+            </div>
+            <pre><code class="language-{{LANGUAGE_ID}}" data-trim data-line-numbers="{{STEP_2_HIGHLIGHT}}">
+{{STEP_2_CODE}}
+            </code></pre>
+          </div>
+          <div class="explain-panel anim-fade-in-right delay-200">
+            <h3>What's happening</h3>
+            <ul>
+              <li class="fragment fade-in">{{STEP_2_EXPLAIN_1}}</li>
+              <li class="fragment fade-in">{{STEP_2_EXPLAIN_2}}</li>
+              <li class="fragment fade-in">{{STEP_2_EXPLAIN_3}}</li>
+            </ul>
+          </div>
+        </div>
+        <aside class="notes">Step 2 builds on the foundation.</aside>
+      </section>
+
+      <!-- ===== BUILD STEP 3: CODE DIFF ===== -->
+      <section>
+        <div class="build-steps">
+          <span class="build-step done">Step 1</span>
+          <span class="build-step done">Step 2</span>
+          <span class="build-step current">Step 3</span>
+          <span class="build-step">Step 4</span>
+        </div>
+        <h2 class="anim-fade-in-up">{{STEP_3_TITLE}}</h2>
+        <div class="split split-60-40">
+          <div class="code-panel anim-fade-in-left">
+            <div class="panel-header">
+              <span class="dot dot-red"></span>
+              <span class="dot dot-yellow"></span>
+              <span class="dot dot-green"></span>
+              <span class="filename">{{STEP_3_FILENAME}}</span>
+            </div>
+            <pre><code class="language-{{LANGUAGE_ID}}" data-trim data-line-numbers="{{STEP_3_HIGHLIGHT}}">
+{{STEP_3_CODE}}
+            </code></pre>
+          </div>
+          <div class="explain-panel anim-fade-in-right delay-200">
+            <h3>Changes</h3>
+            <ul>
+              <li class="fragment fade-in">{{STEP_3_EXPLAIN_1}}</li>
+              <li class="fragment fade-in">{{STEP_3_EXPLAIN_2}}</li>
+            </ul>
+            <div class="callout callout-warning fragment fade-in" style="margin-top:1rem;">
+              <strong>⚠️ Watch out</strong>
+              {{STEP_3_WARNING}}
+            </div>
+          </div>
+        </div>
+        <aside class="notes">Show what changed from the previous step. Highlight the diff.</aside>
+      </section>
+
+      <!-- ===== BUILD STEP 4: TERMINAL OUTPUT ===== -->
+      <section>
+        <div class="build-steps">
+          <span class="build-step done">Step 1</span>
+          <span class="build-step done">Step 2</span>
+          <span class="build-step done">Step 3</span>
+          <span class="build-step current">Step 4</span>
+        </div>
+        <h2 class="anim-fade-in-up">{{STEP_4_TITLE}}</h2>
+        <div class="terminal anim-fade-in-up delay-200" style="max-width:700px;margin:0 auto;">
+          <div class="term-header">
+            <span>🖥️</span> Terminal
+          </div>
+          <pre>{{STEP_4_TERMINAL_OUTPUT}}</pre>
+        </div>
+        <p class="fragment fade-in" style="color:var(--accent);font-size:0.85em;margin-top:1rem;">
+          ✅ {{STEP_4_SUCCESS_MESSAGE}}
+        </p>
+        <aside class="notes">Run the code and show the output.</aside>
+      </section>
+
+      <!-- ===== FULL CODE RECAP ===== -->
+      <section>
+        <h2 class="anim-fade-in-up">Complete Code</h2>
+        <div class="code-panel anim-fade-in-up delay-200" style="max-width:750px;margin:0 auto;">
+          <div class="panel-header">
+            <span class="dot dot-red"></span>
+            <span class="dot dot-yellow"></span>
+            <span class="dot dot-green"></span>
+            <span class="filename">{{FINAL_FILENAME}}</span>
+          </div>
+          <pre><code class="language-{{LANGUAGE_ID}}" data-trim data-line-numbers>
+{{FINAL_COMPLETE_CODE}}
+          </code></pre>
+        </div>
+        <aside class="notes">Show the final version all together.</aside>
+      </section>
+
+      <!-- ===== KEY TAKEAWAYS ===== -->
+      <section>
+        <h2 class="anim-fade-in-up">Key Takeaways</h2>
+        <ul style="list-style:none;padding:0;text-align:left;max-width:600px;margin:1rem auto 0;">
+          <li class="fragment slide-up" style="padding:0.5em 0;border-bottom:1px solid rgba(255,255,255,0.06);">
+            <span style="color:var(--primary);font-weight:700;">1.</span> {{TAKEAWAY_1}}
+          </li>
+          <li class="fragment slide-up" style="padding:0.5em 0;border-bottom:1px solid rgba(255,255,255,0.06);">
+            <span style="color:var(--primary);font-weight:700;">2.</span> {{TAKEAWAY_2}}
+          </li>
+          <li class="fragment slide-up" style="padding:0.5em 0;">
+            <span style="color:var(--primary);font-weight:700;">3.</span> {{TAKEAWAY_3}}
+          </li>
+        </ul>
+        <aside class="notes">Summarize the core learnings from the code walkthrough.</aside>
+      </section>
+
+      <!-- ===== Q&A ===== -->
+      <section>
+        <h1 class="anim-fade-in-up">Questions?</h1>
+        <p class="anim-fade-in-up delay-200" style="color:var(--text-muted);">{{SPEAKER_NAME}} · {{CONTACT}}</p>
+        <p class="anim-fade-in-up delay-400" style="font-size:0.7em;color:var(--text-muted);">
+          Source: <a href="{{REPO_URL}}" style="color:var(--primary);">{{REPO_URL}}</a>
+        </p>
+        <aside class="notes">Open for questions. Share the repo link.</aside>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/plugin/highlight/highlight.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      transition: 'slide',
+      controls: true,
+      progress: true,
+      center: true,
+      plugins: [RevealHighlight],
+    });
+  </script>
+</body>
+
+</html>

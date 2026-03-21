@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{PRESENTATION_TITLE}}</title>
+
+  <!-- Reveal.js core -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/black.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/plugin/highlight/monokai.css" />
+
+  <!-- Animation libraries -->
+  <link rel="stylesheet" href="../animations/core-animations.css" />
+  <link rel="stylesheet" href="../animations/advanced-effects.css" />
+
+  <!-- Fonts: Tech / Startup theme -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap"
+    rel="stylesheet" />
+
+  <!-- Icons: Lucide -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #6366f1;
+      --accent: #22d3ee;
+      --bg-dark: #0a0a1a;
+      --heading-font: "Space Grotesk", sans-serif;
+      --body-font: "Inter", sans-serif;
+      --mono-font: "JetBrains Mono", monospace;
+    }
+
+    .reveal {
+      font-family: var(--body-font);
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    .reveal h1,
+    .reveal h2,
+    .reveal h3 {
+      font-family: var(--heading-font);
+      text-transform: none;
+      letter-spacing: -0.02em;
+    }
+
+    /* Product badge */
+    .product-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4em;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      padding: 0.3em 0.8em;
+      border-radius: 100px;
+      font-size: 0.55em;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    /* Feature card */
+    .feature-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      transition: border-color 0.3s;
+    }
+
+    .feature-card:hover {
+      border-color: var(--primary);
+    }
+
+    .feature-card .icon {
+      font-size: 2em;
+      margin-bottom: 0.4em;
+    }
+
+    .feature-card h4 {
+      margin: 0 0 0.2em;
+      font-size: 0.9em;
+    }
+
+    .feature-card p {
+      margin: 0;
+      font-size: 0.65em;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* Screenshot frame */
+    .screenshot-frame {
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .screenshot-frame .browser-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0.5em 0.8em;
+      background: rgba(0, 0, 0, 0.4);
+      font-size: 0.5em;
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    .screenshot-frame .browser-bar .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    /* Workflow step */
+    .workflow-step {
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 10px;
+      padding: 1rem;
+      text-align: center;
+      position: relative;
+    }
+
+    .workflow-step .step-num {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 0.5em;
+      font-weight: 700;
+      font-size: 0.85em;
+    }
+
+    /* Pricing highlight */
+    .plan-featured {
+      border: 2px solid var(--primary);
+      transform: scale(1.05);
+      background: rgba(99, 102, 241, 0.08);
+    }
+
+    code,
+    pre {
+      font-family: var(--mono-font);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="reveal">
+    <div class="slides">
+      <!-- ========== SLIDE 1: Hero ========== -->
+      <section data-background-color="var(--bg-dark)">
+        <div class="product-badge anim-fade-in-up">
+          ✨ Now in General Availability
+        </div>
+        <h1 class="anim-fade-in-up delay-200" style="font-size: 2.8em; margin-top: 0.3em">
+          {{PRODUCT_NAME}}
+        </h1>
+        <p class="anim-fade-in-up delay-400" style="
+              font-size: 1.1em;
+              color: rgba(255, 255, 255, 0.6);
+              max-width: 600px;
+              margin: 0 auto;
+            ">
+          {{ONE_LINE_VALUE_PROPOSITION}}
+        </p>
+        <div class="anim-fade-in-up delay-600" style="margin-top: 2em">
+          <a href="#" style="
+                display: inline-block;
+                background: var(--primary);
+                color: #fff;
+                padding: 0.7em 1.8em;
+                border-radius: 8px;
+                text-decoration: none;
+                font-weight: 600;
+              ">Start Free Trial →</a>
+        </div>
+      </section>
+
+      <!-- ========== SLIDE 2: Problem ========== -->
+      <section data-background-color="var(--bg-dark)">
+        <h2 class="anim-fade-in-up">{{PROBLEM_HEADLINE}}</h2>
+        <div class="anim-stagger" style="
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 1.5rem;
+              margin-top: 1.5rem;
+            ">
+          <div class="anim-fade-in-up" style="
+                background: rgba(239, 68, 68, 0.08);
+                border-radius: 12px;
+                padding: 1.5rem;
+                text-align: center;
+              ">
+            <div style="font-size: 2.5em">😤</div>
+            <h4 style="margin: 0.5em 0 0.2em">{{PAIN_POINT_1_TITLE}}</h4>
+            <p style="
+                  font-size: 0.7em;
+                  color: rgba(255, 255, 255, 0.5);
+                  margin: 0;
+                ">
+              {{PAIN_POINT_1_DETAIL}}
+            </p>
+          </div>
+          <div class="anim-fade-in-up" style="
+                background: rgba(239, 68, 68, 0.08);
+                border-radius: 12px;
+                padding: 1.5rem;
+                text-align: center;
+              ">
+            <div style="font-size: 2.5em">⏳</div>
+            <h4 style="margin: 0.5em 0 0.2em">{{PAIN_POINT_2_TITLE}}</h4>
+            <p style="
+                  font-size: 0.7em;
+                  color: rgba(255, 255, 255, 0.5);
+                  margin: 0;
+                ">
+              {{PAIN_POINT_2_DETAIL}}
+            </p>
+          </div>
+          <div class="anim-fade-in-up" style="
+                background: rgba(239, 68, 68, 0.08);
+                border-radius: 12px;
+                padding: 1.5rem;
+                text-align: center;
+              ">
+            <div style="font-size: 2.5em">💸</div>
+            <h4 style="margin: 0.5em 0 0.2em">{{PAIN_POINT_3_TITLE}}</h4>
+            <p style="
+                  font-size: 0.7em;
+                  color: rgba(255, 255, 255, 0.5);
+                  margin: 0;
+                ">
+              {{PAIN_POINT_3_DETAIL}}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SLIDE 3: Solution Overview ========== -->
+      <section data-background-color="var(--bg-dark)">
+        <h2 class="anim-fade-in-up">Meet {{PRODUCT_NAME}}</h2>
+        <p class="anim-fade-in-up delay-200" style="
+              color: rgba(255, 255, 255, 0.6);
+              max-width: 600px;
+              margin: 0 auto 1.5em;
+            ">
+          {{SOLUTION_SUMMARY}}
+        </p>
+        <!-- Screenshot / Product Image -->
+        <div class="screenshot-frame anim-fade-in-up delay-400">
+          <div class="browser-bar">
+            <span class="dot" style="background: #ff5f57"></span>
+            <span class="dot" style="background: #ffbd2e"></span>
+            <span class="dot" style="background: #28ca41"></span>
+            <span style="margin-left: auto; font-family: monospace">app.{{PRODUCT_DOMAIN}}</span>
+          </div>
+          <div style="
+                background: linear-gradient(
+                  135deg,
+                  rgba(99, 102, 241, 0.15),
+                  rgba(34, 211, 238, 0.1)
+                );
+                height: 300px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 0.8em;
+                color: rgba(255, 255, 255, 0.3);
+              ">
+            {{SCREENSHOT_OR_REPLACE_WITH_IMG_TAG}}
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SLIDE 4: Key Features (3) ========== -->
+      <section data-background-color="var(--bg-dark)">
+        <h2 class="anim-fade-in-up">Key Features</h2>
+        <div class="anim-stagger" style="
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 1.5rem;
+              margin-top: 1.5rem;
+            ">
+          <div class="feature-card anim-fade-in-up">
+            <div class="icon">⚡</div>
+            <h4>{{FEATURE_1_NAME}}</h4>
+            <p>{{FEATURE_1_DESCRIPTION}}</p>
+          </div>
+          <div class="feature-card anim-fade-in-up">
+            <div class="icon">🔒</div>
+            <h4>{{FEATURE_2_NAME}}</h4>
+            <p>{{FEATURE_2_DESCRIPTION}}</p>
+          </div>
+          <div class="feature-card anim-fade-in-up">
+            <div class="icon">📊</div>
+            <h4>{{FEATURE_3_NAME}}</h4>
+            <p>{{FEATURE_3_DESCRIPTION}}</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SLIDE 5: Feature Deep-Dive (with screenshot) ========== -->
+      <section data-background-color="var(--bg-dark)">
+        <h2 class="anim-fade-in-up">{{FEATURE_DEEPDIVE_TITLE}}</h2>
+        <div style="
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 2rem;
+              align-items: center;
+              margin-top: 1rem;
+            ">
+          <div class="anim-fade-in-left" style="text-align: left">
+            <ul style="font-size: 0.8em; list-style: none; padding: 0">
+              <li class="fragment fade-in" style="
+                    padding: 0.5em 0;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+                  ">
+                ✅ {{DEEPDIVE_POINT_1}}
+              </li>
+              <li class="fragment fade-in" style="
+                    padding: 0.5em 0;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+                  ">
+                ✅ {{DEEPDIVE_POINT_2}}
+              </li>
+              <li class="fragment fade-in" style="padding: 0.5em 0">
+                ✅ {{DEEPDIVE_POINT_3}}
+              </li>
+            </ul>
+          </div>
+          <div class="screenshot-frame anim-fade-in-right">
+            <div class="browser-bar">
+              <span class="dot" style="background: #ff5f57"></span>
+              <span class="dot" style="background: #ffbd2e"></span>
+              <span class="dot" style="background: #28ca41"></span>
+            </div>
+            <div style="
+                  background: linear-gradient(
+                    135deg,
+                    rgba(99, 102, 241, 0.1),
+                    rgba(34, 211, 238, 0.05)
+                  );
+                  height: 250px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 0.7em;
+                  color: rgba(255, 255, 255, 0.3);
+                ">
+              {{FEATURE_SCREENSHOT}}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SLIDE 6: How It Works (workflow steps) ========== -->
+      <section data-background-color="var(--bg-dark)">
+        <h2 class="anim-fade-in-up">How It Works</h2>
+        <div class="anim-stagger" style="
+              display: grid;
+              grid-template-columns: repeat(4, 1fr);
+              gap: 1rem;
+              margin-top: 1.5rem;
+              position: relative;
+            ">
+          <!-- connector line -->
+          <div style="
+                position: absolute;
+                top: 18px;
+                left: 12%;
+                right: 12%;
+                height: 2px;
+                background: rgba(255, 255, 255, 0.1);
+                z-index: 0;
+              "></div>
+          <div class="workflow-step anim-fade-in-up">
+            <div class="step-num">1</div>
+            <h4 style="font-size: 0.8em; margin: 0">{{STEP_1_TITLE}}</h4>
+            <p style="
+                  font-size: 0.6em;
+                  color: rgba(255, 255, 255, 0.5);
+                  margin: 0.3em 0 0;
+                ">
+              {{STEP_1_DETAIL}}
+            </p>
+          </div>
+          <div class="workflow-step anim-fade-in-up">
+            <div class="step-num">2</div>
+            <h4 style="font-size: 0.8em; margin: 0">{{STEP_2_TITLE}}</h4>
+            <p style="
+                  font-size: 0.6em;
+                  color: rgba(255, 255, 255, 0.5);
+                  margin: 0.3em 0 0;
+                ">
+              {{STEP_2_DETAIL}}
+            </p>
+          </div>
+          <div class="workflow-step anim-fade-in-up">
+            <div class="step-num">3</div>
+            <h4 style="font-size: 0.8em; margin: 0">{{STEP_3_TITLE}}</h4>
+            <p style="
+                  font-size: 0.6em;
+                  color: rgba(255, 255, 255, 0.5);
+                  margin: 0.3em 0 0;
+                ">
+              {{STEP_3_DETAIL}}
+            </p>
+          </div>
+          <div class="workflow-step anim-fade-in-up">
+            <div class="step-num">4</div>
+            <h4 style="font-size: 0.8em; margin: 0">{{STEP_4_TITLE}}</h4>
+            <p style="
+                  font-size: 0.6em;
+                  color: rgba(255, 255, 255, 0.5);
+                  margin: 0.3em 0 0;
+                ">
+              {{STEP_4_DETAIL}}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SLIDE 7: Integrations ========== -->
+      <section data-background-color="var(--bg-dark)">
+        <h2 class="anim-fade-in-up">Integrates With Your Stack</h2>
+        <p class="anim-fade-in-up delay-200" style="color: rgba(255, 255, 255, 0.5); font-size: 0.85em">
+          {{INTEGRATIONS_SUBTITLE}}
+        </p>
+        <div class="anim-stagger" style="
+              display: flex;
+              flex-wrap: wrap;
+              gap: 1.5rem;
+              justify-content: center;
+              margin-top: 2rem;
+            ">
+          <!-- Replace emojis with actual partner/integration logos -->
+          <div class="anim-fade-in-up" style="
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(255, 255, 255, 0.06);
+                border-radius: 12px;
+                padding: 1rem 1.5rem;
+                text-align: center;
+                min-width: 100px;
+              ">
+            <div style="font-size: 2em">🔗</div>
+            <div style="
+                  font-size: 0.65em;
+                  margin-top: 0.3em;
+                  color: rgba(255, 255, 255, 0.6);
+                ">
+              {{INTEGRATION_1}}
+            </div>
+          </div>
+          <div class="anim-fade-in-up" style="
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(255, 255, 255, 0.06);
+                border-radius: 12px;
+                padding: 1rem 1.5rem;
+                text-align: center;
+                min-width: 100px;
+              ">
+            <div style="font-size: 2em">🔗</div>
+            <div style="
+                  font-size: 0.65em;
+                  margin-top: 0.3em;
+                  color: rgba(255, 255, 255, 0.6);
+                ">
+              {{INTEGRATION_2}}
+            </div>
+          </div>
+          <div class="anim-fade-in-up" style="
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(255, 255, 255, 0.06);
+                border-radius: 12px;
+                padding: 1rem 1.5rem;
+                text-align: center;
+                min-width: 100px;
+              ">
+            <div style="font-size: 2em">🔗</div>
+            <div style="
+                  font-size: 0.65em;
+                  margin-top: 0.3em;
+                  color: rgba(255, 255, 255, 0.6);
+                ">
+              {{INTEGRATION_3}}
+            </div>
+          </div>
+          <div class="anim-fade-in-up" style="
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(255, 255, 255, 0.06);
+                border-radius: 12px;
+                padding: 1rem 1.5rem;
+                text-align: center;
+                min-width: 100px;
+              ">
+            <div style="font-size: 2em">🔗</div>
+            <div style="
+                  font-size: 0.65em;
+                  margin-top: 0.3em;
+                  color: rgba(255, 255, 255, 0.6);
+                ">
+              {{INTEGRATION_4}}
+            </div>
+          </div>
+          <div class="anim-fade-in-up" style="
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(255, 255, 255, 0.06);
+                border-radius: 12px;
+                padding: 1rem 1.5rem;
+                text-align: center;
+                min-width: 100px;
+              ">
+            <div style="font-size: 2em">🔗</div>
+            <div style="
+                  font-size: 0.65em;
+                  margin-top: 0.3em;
+                  color: rgba(255, 255, 255, 0.6);
+                ">
+              {{INTEGRATION_5}}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SLIDE 8: Social Proof / Testimonial ========== -->
+      <section data-background-color="var(--bg-dark)">
+        <h2 class="anim-fade-in-up">Trusted By Teams Everywhere</h2>
+        <div class="anim-stagger" style="
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 1.5rem;
+              margin-top: 1.5rem;
+              max-width: 700px;
+              margin-left: auto;
+              margin-right: auto;
+            ">
+          <div class="anim-fade-in-up" style="
+                background: rgba(255, 255, 255, 0.04);
+                border-radius: 12px;
+                padding: 1.5rem;
+                text-align: left;
+              ">
+            <p style="
+                  font-style: italic;
+                  font-size: 0.75em;
+                  margin: 0 0 0.8em;
+                  line-height: 1.5;
+                ">
+              "{{TESTIMONIAL_1_QUOTE}}"
+            </p>
+            <div style="display: flex; align-items: center; gap: 0.6em">
+              <div style="
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 50%;
+                    background: linear-gradient(
+                      135deg,
+                      var(--primary),
+                      var(--accent)
+                    );
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: 700;
+                    font-size: 0.7em;
+                  ">
+                {{T1_INITIALS}}
+              </div>
+              <div>
+                <div style="font-weight: 600; font-size: 0.7em">
+                  {{TESTIMONIAL_1_NAME}}
+                </div>
+                <div style="
+                      font-size: 0.55em;
+                      color: rgba(255, 255, 255, 0.4);
+                    ">
+                  {{TESTIMONIAL_1_ROLE}}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="anim-fade-in-up" style="
+                background: rgba(255, 255, 255, 0.04);
+                border-radius: 12px;
+                padding: 1.5rem;
+                text-align: left;
+              ">
+            <p style="
+                  font-style: italic;
+                  font-size: 0.75em;
+                  margin: 0 0 0.8em;
+                  line-height: 1.5;
+                ">
+              "{{TESTIMONIAL_2_QUOTE}}"
+            </p>
+            <div style="display: flex; align-items: center; gap: 0.6em">
+              <div style="
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 50%;
+                    background: linear-gradient(
+                      135deg,
+                      var(--primary),
+                      var(--accent)
+                    );
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: 700;
+                    font-size: 0.7em;
+                  ">
+                {{T2_INITIALS}}
+              </div>
+              <div>
+                <div style="font-weight: 600; font-size: 0.7em">
+                  {{TESTIMONIAL_2_NAME}}
+                </div>
+                <div style="
+                      font-size: 0.55em;
+                      color: rgba(255, 255, 255, 0.4);
+                    ">
+                  {{TESTIMONIAL_2_ROLE}}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SLIDE 9: Pricing ========== -->
+      <section data-background-color="var(--bg-dark)">
+        <h2 class="anim-fade-in-up">Simple Pricing</h2>
+        <p class="anim-fade-in-up delay-200" style="color: rgba(255, 255, 255, 0.5); font-size: 0.8em">
+          {{PRICING_SUBTITLE}}
+        </p>
+        <div class="anim-stagger" style="
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 1.2rem;
+              margin-top: 1.5rem;
+              max-width: 750px;
+              margin-left: auto;
+              margin-right: auto;
+            ">
+          <div class="anim-fade-in-up" style="
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 12px;
+                padding: 1.5rem;
+                text-align: center;
+              ">
+            <div style="
+                  font-size: 0.65em;
+                  font-weight: 600;
+                  text-transform: uppercase;
+                  color: rgba(255, 255, 255, 0.5);
+                ">
+              {{PLAN_1_NAME}}
+            </div>
+            <div style="font-size: 2.2em; font-weight: 700; margin: 0.15em 0">
+              {{PLAN_1_PRICE}}
+            </div>
+            <div style="font-size: 0.6em; color: rgba(255, 255, 255, 0.4)">
+              per month
+            </div>
+            <ul style="
+                  font-size: 0.6em;
+                  text-align: left;
+                  color: rgba(255, 255, 255, 0.6);
+                  margin: 1em 0;
+                  padding-left: 1.2em;
+                ">
+              <li>{{PLAN_1_FEATURE_1}}</li>
+              <li>{{PLAN_1_FEATURE_2}}</li>
+              <li>{{PLAN_1_FEATURE_3}}</li>
+            </ul>
+          </div>
+          <div class="anim-fade-in-up plan-featured" style="border-radius: 12px; padding: 1.5rem; text-align: center">
+            <div style="
+                  font-size: 0.65em;
+                  font-weight: 600;
+                  text-transform: uppercase;
+                  color: var(--primary);
+                ">
+              {{PLAN_2_NAME}} ⭐
+            </div>
+            <div style="font-size: 2.2em; font-weight: 700; margin: 0.15em 0">
+              {{PLAN_2_PRICE}}
+            </div>
+            <div style="font-size: 0.6em; color: rgba(255, 255, 255, 0.4)">
+              per month
+            </div>
+            <ul style="
+                  font-size: 0.6em;
+                  text-align: left;
+                  color: rgba(255, 255, 255, 0.6);
+                  margin: 1em 0;
+                  padding-left: 1.2em;
+                ">
+              <li>{{PLAN_2_FEATURE_1}}</li>
+              <li>{{PLAN_2_FEATURE_2}}</li>
+              <li>{{PLAN_2_FEATURE_3}}</li>
+            </ul>
+          </div>
+          <div class="anim-fade-in-up" style="
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 12px;
+                padding: 1.5rem;
+                text-align: center;
+              ">
+            <div style="
+                  font-size: 0.65em;
+                  font-weight: 600;
+                  text-transform: uppercase;
+                  color: rgba(255, 255, 255, 0.5);
+                ">
+              {{PLAN_3_NAME}}
+            </div>
+            <div style="font-size: 2.2em; font-weight: 700; margin: 0.15em 0">
+              {{PLAN_3_PRICE}}
+            </div>
+            <div style="font-size: 0.6em; color: rgba(255, 255, 255, 0.4)">
+              contact sales
+            </div>
+            <ul style="
+                  font-size: 0.6em;
+                  text-align: left;
+                  color: rgba(255, 255, 255, 0.6);
+                  margin: 1em 0;
+                  padding-left: 1.2em;
+                ">
+              <li>{{PLAN_3_FEATURE_1}}</li>
+              <li>{{PLAN_3_FEATURE_2}}</li>
+              <li>{{PLAN_3_FEATURE_3}}</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SLIDE 10: Live Demo (iframe) ========== -->
+      <section data-background-color="var(--bg-dark)">
+        <h2 class="anim-fade-in-up">See It In Action</h2>
+        <div class="screenshot-frame anim-fade-in-up delay-200">
+          <div class="browser-bar">
+            <span class="dot" style="background: #ff5f57"></span>
+            <span class="dot" style="background: #ffbd2e"></span>
+            <span class="dot" style="background: #28ca41"></span>
+            <span style="margin-left: auto; font-family: monospace">demo.{{PRODUCT_DOMAIN}}</span>
+          </div>
+          <div style="
+                background: rgba(0, 0, 0, 0.3);
+                height: 350px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: rgba(255, 255, 255, 0.3);
+                font-size: 0.8em;
+              ">
+            {{REPLACE_WITH_IFRAME_OR_GIF}}
+            <!-- Example: <iframe src="https://demo.example.com" style="width:100%;height:100%;border:none;"></iframe> -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SLIDE 11: CTA / Get Started ========== -->
+      <section data-background-color="var(--bg-dark)">
+        <h2 class="anim-fade-in-up" style="font-size: 2.5em; margin-bottom: 0.3em">
+          {{CTA_HEADLINE}}
+        </h2>
+        <p class="anim-fade-in-up delay-200" style="
+              color: rgba(255, 255, 255, 0.6);
+              max-width: 500px;
+              margin: 0 auto;
+            ">
+          {{CTA_SUBTITLE}}
+        </p>
+        <div class="anim-fade-in-up delay-400" style="
+              display: flex;
+              gap: 1rem;
+              justify-content: center;
+              margin-top: 2em;
+            ">
+          <a href="#" style="
+                display: inline-block;
+                background: var(--primary);
+                color: #fff;
+                padding: 0.8em 2em;
+                border-radius: 8px;
+                text-decoration: none;
+                font-weight: 600;
+              ">{{CTA_PRIMARY_BUTTON}}</a>
+          <a href="#" style="
+                display: inline-block;
+                border: 1px solid var(--primary);
+                color: var(--primary);
+                padding: 0.8em 2em;
+                border-radius: 8px;
+                text-decoration: none;
+                font-weight: 600;
+              ">{{CTA_SECONDARY_BUTTON}}</a>
+        </div>
+        <p class="anim-fade-in-up delay-600" style="
+              font-size: 0.6em;
+              color: rgba(255, 255, 255, 0.4);
+              margin-top: 1.5em;
+            ">
+          {{CTA_FOOTER_NOTE}}
+        </p>
+      </section>
+    </div>
+  </div>
+
+  <!-- Reveal.js -->
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.esm.js" type="module"></script>
+  <script type="module">
+    import Reveal from "https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.esm.js";
+    import Highlight from "https://cdn.jsdelivr.net/npm/reveal.js@5/plugin/highlight/highlight.esm.js";
+
+    Reveal.initialize({
+      hash: true,
+      transition: "slide",
+      backgroundTransition: "fade",
+      plugins: [Highlight],
+    });
+
+    // Initialize Lucide icons after reveal is ready
+    Reveal.on("ready", () => lucide.createIcons());
+    Reveal.on("slidechanged", () => lucide.createIcons());
+  </script>
+</body>
+
+</html>

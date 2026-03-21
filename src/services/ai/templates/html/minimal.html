@@ -1,0 +1,162 @@
+<!doctype html>
+<!--
+  MINIMAL TEMPLATE — Reveal.js
+  Purpose: Quick updates, simple briefs, documentation reviews
+  Animation Level: Subtle (Level 1)
+  Features: Clean typography, maximum readability, minimal distractions
+  
+  CUSTOMIZATION POINTS (search for "CUSTOMIZE")
+-->
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><!-- CUSTOMIZE --></title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/white.css">
+  <link rel="stylesheet" href="../animations/core-animations.css">
+
+  <style>
+    :root {
+      --r-background-color: #ffffff;
+      --r-main-color: #374151;
+      --r-heading-color: #111827;
+      --accent: #3b82f6;
+      --border: #e5e7eb;
+      --muted: #9ca3af;
+    }
+
+    .reveal {
+      font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+      font-size: 28px;
+    }
+
+    .reveal h1 {
+      font-size: 2.5em;
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+    }
+
+    .reveal h2 {
+      font-size: 1.8em;
+      font-weight: 700;
+    }
+
+    .reveal .slides {
+      text-align: left;
+    }
+
+    .reveal .slides section {
+      padding: 2em 3em;
+    }
+
+    .reveal ul {
+      font-size: 0.9em;
+      line-height: 1.8;
+    }
+
+    .reveal li {
+      margin-bottom: 0.3em;
+    }
+
+    .subtle-divider {
+      width: 50px;
+      height: 3px;
+      background: var(--accent);
+      margin: 0.8em 0;
+    }
+
+    .meta {
+      font-size: 0.75em;
+      color: var(--muted);
+    }
+
+    .card-minimal {
+      background: #f9fafb;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5em;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2em;
+    }
+
+    .center {
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- SLIDE 1 -->
+      <section>
+        <h1 class="anim-fade-in-up"><!-- CUSTOMIZE: Title --></h1>
+        <div class="subtle-divider anim-reveal-wipe-right delay-200"></div>
+        <p class="meta anim-fade-in-up delay-300"><!-- CUSTOMIZE: Author · Date --></p>
+      </section>
+
+      <!-- SLIDE 2 -->
+      <section>
+        <h2><!-- CUSTOMIZE: Section title --></h2>
+        <ul>
+          <li class="fragment fade-in"><!-- CUSTOMIZE --></li>
+          <li class="fragment fade-in"><!-- CUSTOMIZE --></li>
+          <li class="fragment fade-in"><!-- CUSTOMIZE --></li>
+        </ul>
+      </section>
+
+      <!-- SLIDE 3 -->
+      <section>
+        <h2><!-- CUSTOMIZE --></h2>
+        <div class="grid-2">
+          <div class="card-minimal fragment fade-in">
+            <h3><!-- CUSTOMIZE --></h3>
+            <p style="font-size: 0.85em; color: var(--r-main-color);"><!-- CUSTOMIZE --></p>
+          </div>
+          <div class="card-minimal fragment fade-in">
+            <h3><!-- CUSTOMIZE --></h3>
+            <p style="font-size: 0.85em; color: var(--r-main-color);"><!-- CUSTOMIZE --></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 4 -->
+      <section>
+        <h2><!-- CUSTOMIZE --></h2>
+        <p style="font-size: 0.9em; line-height: 1.8; max-width: 700px;">
+          <!-- CUSTOMIZE: Paragraph content -->
+        </p>
+      </section>
+
+      <!-- SLIDE 5 -->
+      <section class="center">
+        <h2 class="anim-fade-in-up">Thank You</h2>
+        <p class="meta anim-fade-in-up delay-200">Questions?</p>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      transition: 'fade',
+      center: true,
+      width: 1920,
+      height: 1080,
+      margin: 0.08
+    });
+  </script>
+</body>
+
+</html>

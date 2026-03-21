@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{PRESENTATION_TITLE}}</title>
+
+  <!-- Reveal.js core -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/black.css" />
+
+  <!-- Animation libraries -->
+  <link rel="stylesheet" href="../animations/core-animations.css" />
+  <link rel="stylesheet" href="../animations/advanced-effects.css" />
+
+  <!-- Fonts: Corporate / Clean theme -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+
+  <style>
+    :root {
+      --primary: #6366f1;
+      --accent: #22c55e;
+      --danger: #ef4444;
+      --bg-dark: #0a0a1a;
+      --heading-font: "Inter", sans-serif;
+      --body-font: "Inter", sans-serif;
+      --mono-font: "IBM Plex Mono", monospace;
+    }
+
+    .reveal {
+      font-family: var(--body-font);
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    .reveal h1,
+    .reveal h2,
+    .reveal h3 {
+      font-family: var(--heading-font);
+      text-transform: none;
+      letter-spacing: -0.02em;
+    }
+
+    /* VS divider */
+    .vs-badge {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9em;
+      margin: 0 auto;
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+      z-index: 1;
+      position: relative;
+    }
+
+    /* Comparison column */
+    .compare-col {
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: left;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .compare-col.highlighted {
+      background: rgba(99, 102, 241, 0.06);
+      border-color: rgba(99, 102, 241, 0.25);
+    }
+
+    .compare-col h3 {
+      margin-top: 0;
+      font-size: 1.2em;
+    }
+
+    /* Status badges */
+    .badge-yes {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3em;
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      padding: 0.15em 0.5em;
+      border-radius: 100px;
+      font-size: 0.8em;
+      font-weight: 600;
+    }
+
+    .badge-no {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3em;
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      padding: 0.15em 0.5em;
+      border-radius: 100px;
+      font-size: 0.8em;
+      font-weight: 600;
+    }
+
+    .badge-partial {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3em;
+      background: rgba(251, 191, 36, 0.15);
+      color: #fbbf24;
+      padding: 0.15em 0.5em;
+      border-radius: 100px;
+      font-size: 0.8em;
+      font-weight: 600;
+    }
+
+    /* Score bar */
+    .score-bar {
+      height: 8px;
+      border-radius: 100px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+      margin-top: 0.3em;
+    }
+
+    .score-bar .fill {
+      height: 100%;
+      border-radius: 100px;
+      transition: width 1.5s ease;
+    }
+
+    /* Before/After card */
+    .ba-card {
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: left;
+    }
+
+    .ba-card.before {
+      background: rgba(239, 68, 68, 0.06);
+      border-left: 3px solid #ef4444;
+    }
+
+    .ba-card.after {
+      background: rgba(34, 197, 94, 0.06);
+      border-left: 3px solid #22c55e;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="reveal">
+    <div class="slides">
+      <!-- ========== SLIDE 1: Title ========== -->
+      <section data-background-color="var(--bg-dark)">
+        <h1 class="anim-fade-in-up" style="font-size: 2.5em">
+          {{OPTION_A}} <span style="color: rgba(255,255,255,0.3)">vs</span>
+          {{OPTION_B}}
+        </h1>
+        <p class="anim-fade-in-up delay-200" style="
+              color: rgba(255, 255, 255, 0.5);
+              font-size: 0.9em;
+              max-width: 600px;
+              margin: 0 auto;
+            ">
+          {{COMPARISON_SUBTITLE}}
+        </p>
+      </section>
+
+      <!-- ========== SLIDE 2: Side-by-Side Overview ========== -->
+      <section data-background-color="var(--bg-dark)">
+        <h2 class="anim-fade-in-up">At a Glance</h2>
+        <div style="
+              display: grid;
+              grid-template-columns: 1fr auto 1fr;
+              gap: 1.5rem;
+              align-items: start;
+              margin-top: 1.5rem;
+            ">
+          <!-- Option A -->
+          <div class="compare-col anim-fade-in-left">
+            <h3>{{OPTION_A}}</h3>
+            <p style="
+                  font-size: 0.75em;
+                  color: rgba(255, 255, 255, 0.5);
+                  margin: 0;
+                ">
+              {{OPTION_A_SUMMARY}}
+            </p>
+            <div style="
+                  margin-top: 1em;
+                  font-size: 0.75em;
+                  color: rgba(255, 255, 255, 0.6);
+                ">
+              <div style="padding: 0.3em 0">✦ {{A_STRENGTH_1}}</div>
+              <div style="padding: 0.3em 0">✦ {{A_STRENGTH_2}}</div>
+              <div style="padding: 0.3em 0">✦ {{A_STRENGTH_3}}</div>
+            </div>
+          </div>
+          <!-- VS -->
+          <div style="
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 200px;
+              ">
+            <div class="vs-badge anim-zoom-in">VS</div>
+          </div>
+          <!-- Option B -->
+          <div class="compare-col highlighted anim-fade-in-right">
+            <h3 style="color: var(--primary)">{{OPTION_B}}</h3>
+            <p style="
+                  font-size: 0.75em;
+                  color: rgba(255, 255, 255, 0.5);
+                  margin: 0;
+                ">
+              {{OPTION_B_SUMMARY}}
+            </p>
+            <div style="
+                  margin-top: 1em;
+                  font-size: 0.75em;
+                  color: rgba(255, 255, 255, 0.6);
+                ">
+              <div style="padding: 0.3em 0">✦ {{B_STRENGTH_1}}</div>
+              <div style="padding: 0.3em 0">✦ {{B_STRENGTH_2}}</div>
+              <div style="padding: 0.3em 0">✦ {{B_STRENGTH_3}}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SLIDE 3: Feature Matrix ========== -->
+      <section data-background-color="var(--bg-dark)">
+        <h2 class="anim-fade-in-up">Feature Comparison</h2>
+        <table class="anim-fade-in-up delay-200" style="
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 0.7em;
+              margin-top: 1rem;
+            ">
+          <thead>
+            <tr style="border-bottom: 2px solid rgba(255, 255, 255, 0.15)">
+              <th style="text-align: left; padding: 0.7em">Feature</th>
+              <th style="text-align: center; padding: 0.7em">
+                {{OPTION_A}}
+              </th>
+              <th style="
+                    text-align: center;
+                    padding: 0.7em;
+                    color: var(--primary);
+                  ">
+                {{OPTION_B}}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="
+                  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+                ">
+              <td style="padding: 0.7em">{{FEATURE_1}}</td>
+              <td style="text-align: center; padding: 0.7em">
+                <span class="badge-{{F1_A_STATUS}}">{{F1_A_LABEL}}</span>
+              </td>
+              <td style="text-align: center; padding: 0.7em">
+                <span class="badge-{{F1_B_STATUS}}">{{F1_B_LABEL}}</span>
+              </td>
+            </tr>
+            <tr style="
+                  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+                ">
+              <td style="padding: 0.7em">{{FEATURE_2}}</td>
+              <td style="text-align: center; padding: 0.7em">
+                <span class="badge-{{F2_A_STATUS}}">{{F2_A_LABEL}}</span>
+              </td>
+              <td style="text-align: center; padding: 0.7em">
+                <span class="badge-{{F2_B_STATUS}}">{{F2_B_LABEL}}</span>
+              </td>
+            </tr>
+            <tr style="
+                  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+                ">
+              <td style="padding: 0.7em">{{FEATURE_3}}</td>
+              <td style="text-align: center; padding: 0.7em">
+                <span class="badge-{{F3_A_STATUS}}">{{F3_A_LABEL}}</span>
+              </td>
+              <td style="text-align: center; padding: 0.7em">
+                <span class="badge-{{F3_B_STATUS}}">{{F3_B_LABEL}}</span>
+              </td>
+            </tr>
+            <tr style="
+                  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+                ">
+              <td style="padding: 0.7em">{{FEATURE_4}}</td>
+              <td style="text-align: center; padding: 0.7em">
+                <span class="badge-{{F4_A_STATUS}}">{{F4_A_LABEL}}</span>
+              </td>
+              <td style="text-align: center; padding: 0.7em">
+                <span class="badge-{{F4_B_STATUS}}">{{F4_B_LABEL}}</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 0.7em">{{FEATURE_5}}</td>
+              <td style="text-align: center; padding: 0.7em">
+                <span class="badge-{{F5_A_STATUS}}">{{F5_A_LABEL}}</span>
+              </td>
+              <td style="text-align: center; padding: 0.7em">
+                <span class="badge-{{F5_B_STATUS}}">{{F5_B_LABEL}}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="
+              font-size: 0.55em;
+              color: rgba(255, 255, 255, 0.3);
+              margin-top: 1em;
+            ">
+          Badge values: <span class="badge-yes">✓ Yes</span>
+          <span class="badge-no">✗ No</span>
+          <span class="badge-partial">~ Partial</span>
+        </p>
+      </section>
+
+      <!-- ========== SLIDE 4: Score / Rating Bars ========== -->
+      <section data-background-color="var(--bg-dark)">
+        <h2 class="anim-fade-in-up">Head-to-Head Scores</h2>
+        <div class="anim-stagger" style="
+              max-width: 600px;
+              margin: 1.5rem auto 0;
+              text-align: left;
+            ">
+          <!-- Category 1 -->
+          <div class="anim-fade-in-up" style="margin-bottom: 1.2rem">
+            <div style="
+                  display: flex;
+                  justify-content: space-between;
+                  font-size: 0.75em;
+                  margin-bottom: 0.4em;
+                ">
+              <span>{{SCORE_CATEGORY_1}}</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem">
+              <div>
+                <div style="
+                      font-size: 0.6em;
+                      color: rgba(255, 255, 255, 0.4);
+                      margin-bottom: 0.2em;
+                    ">
+                  {{OPTION_A}}: {{S1_A_SCORE}}/10
+                </div>
+                <div class="score-bar">
+                  <div class="fill" style="
+                        width: {{S1_A_PERCENT}}%;
+                        background: rgba(255, 255, 255, 0.4);
+                      "></div>
+                </div>
+              </div>
+              <div>
+                <div style="
+                      font-size: 0.6em;
+                      color: var(--primary);
+                      margin-bottom: 0.2em;
+                    ">
+                  {{OPTION_B}}: {{S1_B_SCORE}}/10
+                </div>
+                <div class="score-bar">
+                  <div class="fill" style="
+                        width: {{S1_B_PERCENT}}%;
+                        background: var(--primary);
+                      "></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Category 2 -->
+          <div class="anim-fade-in-up" style="margin-bottom: 1.2rem">
+            <div style="
+                  display: flex;
+                  justify-content: space-between;
+                  font-size: 0.75em;
+                  margin-bottom: 0.4em;
+                ">
+              <span>{{SCORE_CATEGORY_2}}</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem">
+              <div>
+                <div style="
+                      font-size: 0.6em;
+                      color: rgba(255, 255, 255, 0.4);
+                      margin-bottom: 0.2em;
+                    ">
+                  {{OPTION_A}}: {{S2_A_SCORE}}/10
+                </div>
+                <div class="score-bar">
+                  <div class="fill" style="
+                        width: {{S2_A_PERCENT}}%;
+                        background: rgba(255, 255, 255, 0.4);
+                      "></div>
+                </div>
+              </div>
+              <div>
+                <div style="
+                      font-size: 0.6em;
+                      color: var(--primary);
+                      margin-bottom: 0.2em;
+                    ">
+                  {{OPTION_B}}: {{S2_B_SCORE}}/10
+                </div>
+                <div class="score-bar">
+                  <div class="fill" style="
+                        width: {{S2_B_PERCENT}}%;
+                        background: var(--primary);
+                      "></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Category 3 -->
+          <div class="anim-fade-in-up">
+            <div style="
+                  display: flex;
+                  justify-content: space-between;
+                  font-size: 0.75em;
+                  margin-bottom: 0.4em;
+                ">
+              <span>{{SCORE_CATEGORY_3}}</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem">
+              <div>
+                <div style="
+                      font-size: 0.6em;
+                      color: rgba(255, 255, 255, 0.4);
+                      margin-bottom: 0.2em;
+                    ">
+                  {{OPTION_A}}: {{S3_A_SCORE}}/10
+                </div>
+                <div class="score-bar">
+                  <div class="fill" style="
+                        width: {{S3_A_PERCENT}}%;
+                        background: rgba(255, 255, 255, 0.4);
+                      "></div>
+                </div>
+              </div>
+              <div>
+                <div style="
+                      font-size: 0.6em;
+                      color: var(--primary);
+                      margin-bottom: 0.2em;
+                    ">
+                  {{OPTION_B}}: {{S3_B_SCORE}}/10
+                </div>
+                <div class="score-bar">
+                  <div class="fill" style="
+                        width: {{S3_B_PERCENT}}%;
+                        background: var(--primary);
+                      "></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SLIDE 5: Before / After ========== -->
+      <section data-background-color="var(--bg-dark)">
+        <h2 class="anim-fade-in-up">Before & After</h2>
+        <div style="
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 1.5rem;
+              margin-top: 1.5rem;
+            ">
+          <div class="ba-card before fragment fade-in">
+            <h3 style="color: #ef4444; margin-top: 0; font-size: 1em">
+              Before ({{OPTION_A}})
+            </h3>
+            <ul style="
+                  font-size: 0.75em;
+                  color: rgba(255, 255, 255, 0.6);
+                  padding-left: 1.2em;
+                ">
+              <li>{{BEFORE_POINT_1}}</li>
+              <li>{{BEFORE_POINT_2}}</li>
+              <li>{{BEFORE_POINT_3}}</li>
+            </ul>
+            <div style="
+                  text-align: center;
+                  margin-top: 1em;
+                  font-size: 2em;
+                  font-weight: 700;
+                  color: #ef4444;
+                ">
+              {{BEFORE_METRIC}}
+            </div>
+            <div style="
+                  text-align: center;
+                  font-size: 0.6em;
+                  color: rgba(255, 255, 255, 0.4);
+                ">
+              {{BEFORE_METRIC_LABEL}}
+            </div>
+          </div>
+          <div class="ba-card after fragment fade-in">
+            <h3 style="color: #22c55e; margin-top: 0; font-size: 1em">
+              After ({{OPTION_B}})
+            </h3>
+            <ul style="
+                  font-size: 0.75em;
+                  color: rgba(255, 255, 255, 0.6);
+                  padding-left: 1.2em;
+                ">
+              <li>{{AFTER_POINT_1}}</li>
+              <li>{{AFTER_POINT_2}}</li>
+              <li>{{AFTER_POINT_3}}</li>
+            </ul>
+            <div style="
+                  text-align: center;
+                  margin-top: 1em;
+                  font-size: 2em;
+                  font-weight: 700;
+                  color: #22c55e;
+                ">
+              {{AFTER_METRIC}}
+            </div>
+            <div style="
+                  text-align: center;
+                  font-size: 0.6em;
+                  color: rgba(255, 255, 255, 0.4);
+                ">
+              {{AFTER_METRIC_LABEL}}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SLIDE 6: Use Case Matrix ========== -->
+      <section data-background-color="var(--bg-dark)">
+        <h2 class="anim-fade-in-up">When to Use Each</h2>
+        <div style="
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 1.5rem;
+              margin-top: 1.5rem;
+            ">
+          <div class="compare-col anim-fade-in-left">
+            <h3 style="font-size: 1em">
+              Choose {{OPTION_A}} when…
+            </h3>
+            <ul style="
+                  font-size: 0.75em;
+                  color: rgba(255, 255, 255, 0.6);
+                  padding-left: 1.2em;
+                ">
+              <li class="fragment fade-in">{{A_USECASE_1}}</li>
+              <li class="fragment fade-in">{{A_USECASE_2}}</li>
+              <li class="fragment fade-in">{{A_USECASE_3}}</li>
+            </ul>
+          </div>
+          <div class="compare-col highlighted anim-fade-in-right">
+            <h3 style="font-size: 1em; color: var(--primary)">
+              Choose {{OPTION_B}} when…
+            </h3>
+            <ul style="
+                  font-size: 0.75em;
+                  color: rgba(255, 255, 255, 0.6);
+                  padding-left: 1.2em;
+                ">
+              <li class="fragment fade-in">{{B_USECASE_1}}</li>
+              <li class="fragment fade-in">{{B_USECASE_2}}</li>
+              <li class="fragment fade-in">{{B_USECASE_3}}</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SLIDE 7: Pricing Comparison ========== -->
+      <section data-background-color="var(--bg-dark)">
+        <h2 class="anim-fade-in-up">Pricing</h2>
+        <div style="
+              display: grid;
+              grid-template-columns: 1fr auto 1fr;
+              gap: 1.5rem;
+              align-items: center;
+              margin-top: 1.5rem;
+              max-width: 700px;
+              margin-left: auto;
+              margin-right: auto;
+            ">
+          <div class="anim-fade-in-left" style="
+                background: rgba(255, 255, 255, 0.04);
+                border-radius: 12px;
+                padding: 1.5rem;
+                text-align: center;
+              ">
+            <div style="
+                  font-size: 0.7em;
+                  font-weight: 600;
+                  color: rgba(255, 255, 255, 0.5);
+                ">
+              {{OPTION_A}}
+            </div>
+            <div style="
+                  font-size: 2.5em;
+                  font-weight: 700;
+                  margin: 0.15em 0;
+                ">
+              {{A_PRICE}}
+            </div>
+            <div style="font-size: 0.6em; color: rgba(255, 255, 255, 0.4)">
+              {{A_PRICE_PERIOD}}
+            </div>
+          </div>
+          <div class="vs-badge anim-zoom-in">VS</div>
+          <div class="anim-fade-in-right" style="
+                background: rgba(99, 102, 241, 0.08);
+                border: 2px solid var(--primary);
+                border-radius: 12px;
+                padding: 1.5rem;
+                text-align: center;
+              ">
+            <div style="
+                  font-size: 0.7em;
+                  font-weight: 600;
+                  color: var(--primary);
+                ">
+              {{OPTION_B}}
+            </div>
+            <div style="
+                  font-size: 2.5em;
+                  font-weight: 700;
+                  margin: 0.15em 0;
+                ">
+              {{B_PRICE}}
+            </div>
+            <div style="font-size: 0.6em; color: rgba(255, 255, 255, 0.4)">
+              {{B_PRICE_PERIOD}}
+            </div>
+          </div>
+        </div>
+        <p class="fragment fade-in" style="
+              font-size: 0.7em;
+              color: rgba(255, 255, 255, 0.5);
+              margin-top: 1.5em;
+            ">
+          {{PRICING_NOTE}}
+        </p>
+      </section>
+
+      <!-- ========== SLIDE 8: Verdict / Recommendation ========== -->
+      <section data-background-color="var(--bg-dark)">
+        <h2 class="anim-fade-in-up" style="font-size: 2.2em">
+          {{VERDICT_HEADLINE}}
+        </h2>
+        <div class="anim-fade-in-up delay-200" style="
+              background: rgba(99, 102, 241, 0.08);
+              border: 1px solid rgba(99, 102, 241, 0.2);
+              border-radius: 12px;
+              padding: 2rem;
+              max-width: 600px;
+              margin: 1.5rem auto 0;
+              text-align: left;
+            ">
+          <p style="font-size: 0.85em; line-height: 1.6; margin: 0">
+            {{VERDICT_BODY}}
+          </p>
+        </div>
+        <div class="anim-fade-in-up delay-400" style="
+              display: flex;
+              gap: 1rem;
+              justify-content: center;
+              margin-top: 2em;
+            ">
+          <a href="#" style="
+                display: inline-block;
+                background: var(--primary);
+                color: #fff;
+                padding: 0.7em 1.8em;
+                border-radius: 8px;
+                text-decoration: none;
+                font-weight: 600;
+              ">{{CTA_BUTTON_TEXT}}</a>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Reveal.js -->
+  <script type="module">
+    import Reveal from "https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.esm.js";
+    Reveal.initialize({
+      hash: true,
+      transition: "slide",
+      backgroundTransition: "fade",
+    });
+  </script>
+</body>
+
+</html>

@@ -5,6 +5,7 @@ import {
   Play,
   Plus,
   MessageSquare,
+  AlertTriangle,
 } from 'lucide-react';
 import { usePresentationStore } from '@/stores/presentationStore';
 import { useChatStore } from '@/stores/chatStore';
@@ -12,10 +13,11 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { downloadAuraFile } from '@/services/storage/fileFormat';
 import { openAuraFile } from '@/services/storage/fileFormat';
 import { buildPresentationData } from '@/services/storage/autosave';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 export function Toolbar({
   chatPanelOpen,
@@ -42,7 +44,21 @@ export function Toolbar({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [confirmNew, setConfirmNew] = useState(false);
+  const [confirmImport, setConfirmImport] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+
+  const hasContent = Boolean(slidesHtml);
+
   const handleNew = () => {
+    if (hasContent) {
+      setConfirmNew(true);
+      return;
+    }
+    doNew();
+  };
+
+  const doNew = () => {
     reset();
     clearMessages();
   };
@@ -59,6 +75,14 @@ export function Toolbar({
   };
 
   const handleOpen = () => {
+    if (hasContent) {
+      setConfirmImport(true);
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
+  const doOpen = () => {
     fileInputRef.current?.click();
   };
 
@@ -68,6 +92,7 @@ export function Toolbar({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setImportError(null);
     try {
       const data = await openAuraFile(file);
       setTitle(data.title);
@@ -75,6 +100,9 @@ export function Toolbar({
       setThemeCss(data.themeCss);
       setMessages(data.chatHistory);
     } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Unknown error reading file';
+      setImportError(message);
       console.error('Failed to open .aura file:', err);
     }
 
@@ -88,6 +116,7 @@ export function Toolbar({
   };
 
   return (
+    <>
     <header className="flex shrink-0 items-center justify-between border-b border-border px-4 py-2.5 sm:px-6">
       <div className="flex min-w-0 items-center gap-3">
         <span className="text-sm font-semibold text-foreground">Aura</span>
@@ -187,5 +216,42 @@ export function Toolbar({
         />
       </div>
     </header>
+
+    {/* Import error banner */}
+    {importError && (
+      <div className="flex items-center gap-2 border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-xs text-destructive">
+        <AlertTriangle className="size-3.5 shrink-0" />
+        <span className="min-w-0 truncate">
+          Failed to open file: {importError}
+        </span>
+        <button
+          className="ml-auto shrink-0 text-destructive/70 hover:text-destructive"
+          onClick={() => setImportError(null)}
+        >
+          Dismiss
+        </button>
+      </div>
+    )}
+
+    {/* Confirm new presentation */}
+    <ConfirmDialog
+      open={confirmNew}
+      onOpenChange={setConfirmNew}
+      title="Start a new presentation?"
+      description="Your current presentation and chat history will be lost. Make sure you've saved your work first."
+      confirmLabel="Discard & start new"
+      onConfirm={doNew}
+    />
+
+    {/* Confirm import over existing */}
+    <ConfirmDialog
+      open={confirmImport}
+      onOpenChange={setConfirmImport}
+      title="Import over current presentation?"
+      description="Opening a file will replace your current slides and chat history. Make sure you've saved your work first."
+      confirmLabel="Continue import"
+      onConfirm={doOpen}
+    />
+    </>
   );
 }

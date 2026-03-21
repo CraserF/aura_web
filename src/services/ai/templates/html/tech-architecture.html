@@ -1,0 +1,535 @@
+<!doctype html>
+<!--
+  TECH ARCHITECTURE TEMPLATE — Reveal.js
+  Purpose: System design, architecture reviews, technical overviews
+  Animation Level: Moderate (Level 2)
+  Recommended Background: Dark with subtle grid or particles
+  Includes: Code blocks, diagrams, architecture layouts
+  
+  CUSTOMIZATION POINTS (search for "CUSTOMIZE")
+-->
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><!-- CUSTOMIZE --></title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/black.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/plugin/highlight/monokai.css">
+  <link rel="stylesheet" href="../animations/core-animations.css">
+  <link rel="stylesheet" href="../animations/advanced-effects.css">
+
+  <style>
+    :root {
+      --r-background-color: #0d1117;
+      --r-main-color: #c9d1d9;
+      --r-heading-color: #f0f6fc;
+      --r-link-color: #58a6ff;
+      --code-bg: #161b22;
+      --accent: #58a6ff;
+      --accent-2: #3fb950;
+      --accent-3: #d29922;
+      --accent-4: #f85149;
+      --border: #30363d;
+    }
+
+    .reveal {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      font-size: 26px;
+    }
+
+    .reveal h1 {
+      font-size: 2.5em;
+      font-weight: 800;
+    }
+
+    .reveal h2 {
+      font-size: 1.8em;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .reveal h3 {
+      font-size: 1.3em;
+      font-weight: 600;
+    }
+
+    .reveal code {
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    }
+
+    /* Architecture diagram container */
+    .arch-diagram {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 2em;
+      position: relative;
+    }
+
+    /* Service box for architecture diagrams */
+    .service-box {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.8em 1.2em;
+      text-align: center;
+      font-size: 0.85em;
+      position: relative;
+    }
+
+    .service-box.primary {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px rgba(88, 166, 255, 0.2);
+    }
+
+    .service-box.success {
+      border-color: var(--accent-2);
+      box-shadow: 0 0 10px rgba(63, 185, 80, 0.2);
+    }
+
+    .service-box.warning {
+      border-color: var(--accent-3);
+      box-shadow: 0 0 10px rgba(210, 153, 34, 0.2);
+    }
+
+    .service-box.danger {
+      border-color: var(--accent-4);
+      box-shadow: 0 0 10px rgba(248, 81, 73, 0.2);
+    }
+
+    .service-icon {
+      font-size: 1.5em;
+      margin-bottom: 0.3em;
+    }
+
+    .service-name {
+      font-weight: 600;
+      color: var(--r-heading-color);
+    }
+
+    .service-detail {
+      font-size: 0.75em;
+      color: rgba(201, 209, 217, 0.6);
+      margin-top: 0.2em;
+    }
+
+    /* Arrow connectors (CSS-only) */
+    .arrow-right,
+    .arrow-down,
+    .arrow-left {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(201, 209, 217, 0.3);
+      font-size: 1.5em;
+    }
+
+    /* Code-inline */
+    .code-inline {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      padding: 0.15em 0.4em;
+      border-radius: 3px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85em;
+      color: var(--accent);
+    }
+
+    /* Tech stack badge */
+    .tech-badge {
+      display: inline-block;
+      background: rgba(88, 166, 255, 0.1);
+      border: 1px solid rgba(88, 166, 255, 0.3);
+      color: var(--accent);
+      padding: 0.2em 0.7em;
+      border-radius: 20px;
+      font-size: 0.75em;
+      font-weight: 500;
+      margin: 0.2em;
+    }
+
+    .tech-badge.green {
+      background: rgba(63, 185, 80, 0.1);
+      border-color: rgba(63, 185, 80, 0.3);
+      color: var(--accent-2);
+    }
+
+    .tech-badge.yellow {
+      background: rgba(210, 153, 34, 0.1);
+      border-color: rgba(210, 153, 34, 0.3);
+      color: var(--accent-3);
+    }
+
+    .tech-badge.red {
+      background: rgba(248, 81, 73, 0.1);
+      border-color: rgba(248, 81, 73, 0.3);
+      color: var(--accent-4);
+    }
+
+    /* Terminal block */
+    .terminal-block {
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      text-align: left;
+      font-size: 0.8em;
+    }
+
+    .terminal-header {
+      background: #30363d;
+      padding: 0.4em 0.8em;
+      display: flex;
+      gap: 0.4em;
+      align-items: center;
+    }
+
+    .terminal-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .terminal-dot.red {
+      background: #ff5f57;
+    }
+
+    .terminal-dot.yellow {
+      background: #febc2e;
+    }
+
+    .terminal-dot.green {
+      background: #28c840;
+    }
+
+    .terminal-body {
+      padding: 1em;
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1.6;
+      color: #c9d1d9;
+    }
+
+    .terminal-prompt {
+      color: var(--accent-2);
+    }
+
+    .terminal-comment {
+      color: #8b949e;
+    }
+
+    /* Layout helpers */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2em;
+      align-items: start;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1.5em;
+      align-items: start;
+    }
+
+    .grid-5col {
+      display: grid;
+      grid-template-columns: 2fr 1fr 2fr 1fr 2fr;
+      gap: 0.5em;
+      align-items: center;
+    }
+
+    .text-left {
+      text-align: left;
+    }
+
+    .z-content {
+      position: relative;
+      z-index: 1;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- SLIDE 1: Title -->
+      <section data-background-color="#0d1117">
+        <div class="scene-geo-grid"></div>
+        <div class="z-content">
+          <h1 class="anim-fade-in-up">
+            <!-- CUSTOMIZE: System name -->
+            System Architecture
+          </h1>
+          <p class="anim-fade-in-up delay-200" style="color: rgba(201,209,217,0.6);">
+            <!-- CUSTOMIZE: Subtitle -->
+            Technical Design Overview
+          </p>
+          <div class="anim-fade-in-up delay-400" style="margin-top: 1.5em;">
+            <!-- CUSTOMIZE: Tech badges -->
+            <span class="tech-badge">TypeScript</span>
+            <span class="tech-badge green">Node.js</span>
+            <span class="tech-badge yellow">PostgreSQL</span>
+            <span class="tech-badge">Docker</span>
+            <span class="tech-badge green">Kubernetes</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 2: High-Level Architecture -->
+      <section data-background-color="#0d1117">
+        <h2 class="anim-fade-in-up">High-Level Architecture</h2>
+        <div class="arch-diagram anim-fade-in-scale delay-200" style="margin-top: 1em;">
+          <div class="grid-5col">
+            <!-- CUSTOMIZE: Architecture boxes -->
+            <div class="service-box primary fragment slide-up">
+              <div class="service-icon">🌐</div>
+              <div class="service-name">Client Apps</div>
+              <div class="service-detail">React SPA, Mobile</div>
+            </div>
+            <div class="arrow-right fragment fade-in">→</div>
+            <div class="service-box primary fragment slide-up">
+              <div class="service-icon">⚡</div>
+              <div class="service-name">API Gateway</div>
+              <div class="service-detail">Kong / Express</div>
+            </div>
+            <div class="arrow-right fragment fade-in">→</div>
+            <div class="service-box success fragment slide-up">
+              <div class="service-icon">🔧</div>
+              <div class="service-name">Microservices</div>
+              <div class="service-detail">Node.js Cluster</div>
+            </div>
+          </div>
+          <div style="text-align: center; margin: 1em 0;">
+            <div class="arrow-down fragment fade-in" style="font-size: 1.5em;">↓</div>
+          </div>
+          <div class="grid-3">
+            <div class="service-box warning fragment slide-up">
+              <div class="service-icon">🗄️</div>
+              <div class="service-name">PostgreSQL</div>
+              <div class="service-detail">Primary DB</div>
+            </div>
+            <div class="service-box warning fragment slide-up">
+              <div class="service-icon">⚡</div>
+              <div class="service-name">Redis</div>
+              <div class="service-detail">Cache + Queue</div>
+            </div>
+            <div class="service-box danger fragment slide-up">
+              <div class="service-icon">📦</div>
+              <div class="service-name">S3 / Blob</div>
+              <div class="service-detail">Object Storage</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 3: Component Detail (Vertical Stack) -->
+      <section>
+        <section data-background-color="#0d1117">
+          <h2 class="anim-fade-in-up">Service Layer</h2>
+          <div class="grid-2 text-left" style="margin-top: 1em;">
+            <div>
+              <h3 class="fragment slide-up">Design Principles</h3>
+              <ul style="font-size: 0.85em;">
+                <!-- CUSTOMIZE -->
+                <li class="fragment slide-up">Domain-driven service boundaries</li>
+                <li class="fragment slide-up">Event-sourced for audit trail</li>
+                <li class="fragment slide-up">Circuit-breaker for resilience</li>
+                <li class="fragment slide-up">OpenTelemetry instrumented</li>
+              </ul>
+            </div>
+            <div class="fragment fade-in">
+              <div class="terminal-block">
+                <div class="terminal-header">
+                  <span class="terminal-dot red"></span>
+                  <span class="terminal-dot yellow"></span>
+                  <span class="terminal-dot green"></span>
+                  <span style="color: #8b949e; font-size: 0.8em; margin-left: 0.5em;">service-registry</span>
+                </div>
+                <div class="terminal-body">
+                  <span class="terminal-comment"># Services running</span><br>
+                  <span class="terminal-prompt">$</span> kubectl get pods<br>
+                  auth-service &nbsp;&nbsp;&nbsp;3/3 Running<br>
+                  user-service &nbsp;&nbsp;&nbsp;2/2 Running<br>
+                  order-service &nbsp;&nbsp;3/3 Running<br>
+                  notif-service &nbsp;&nbsp;2/2 Running<br>
+                  <span class="terminal-prompt">$</span> <span class="anim-typewriter"
+                    style="--anim-duration-glacial: 1.5s;">_</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Vertical sub-slide: Code Example -->
+        <section data-background-color="#0d1117">
+          <h2 class="anim-fade-in-up">Code Example</h2>
+          <div class="text-left" style="margin-top: 1em;">
+            <!-- CUSTOMIZE: Code snippet -->
+            <pre class="fragment fade-in"><code class="language-typescript" data-trim data-line-numbers="1-3|5-10|12-18">
+// Service definition with dependency injection
+@Injectable()
+export class OrderService {
+
+  constructor(
+    private readonly orderRepo: OrderRepository,
+    private readonly eventBus: EventBus,
+    private readonly cache: CacheService,
+    private readonly logger: Logger,
+  ) {}
+
+  async createOrder(dto: CreateOrderDto): Promise&lt;Order&gt; {
+    const order = Order.create(dto);
+    await this.orderRepo.save(order);
+    await this.eventBus.publish(new OrderCreatedEvent(order));
+    this.cache.invalidate(`orders:${dto.userId}`);
+    return order;
+  }
+}
+        </code></pre>
+          </div>
+        </section>
+      </section>
+
+      <!-- SLIDE 4: Data Flow -->
+      <section data-background-color="#0d1117">
+        <h2 class="anim-fade-in-up">Data Flow</h2>
+        <div class="text-left" style="margin-top: 1em; max-width: 900px; margin-left: auto; margin-right: auto;">
+          <!-- CUSTOMIZE: Steps -->
+          <div class="fragment slide-up"
+            style="display: flex; gap: 1em; align-items: center; padding: 0.6em 0; border-left: 3px solid var(--accent); padding-left: 1em; margin-bottom: 0.8em;">
+            <div style="color: var(--accent); font-weight: 700; font-size: 1.2em;">1</div>
+            <div>
+              <strong>Client Request</strong>
+              <div style="font-size: 0.8em; color: rgba(201,209,217,0.6);">REST/GraphQL → API Gateway → Auth middleware
+              </div>
+            </div>
+          </div>
+          <div class="fragment slide-up"
+            style="display: flex; gap: 1em; align-items: center; padding: 0.6em 0; border-left: 3px solid var(--accent-2); padding-left: 1em; margin-bottom: 0.8em;">
+            <div style="color: var(--accent-2); font-weight: 700; font-size: 1.2em;">2</div>
+            <div>
+              <strong>Service Processing</strong>
+              <div style="font-size: 0.8em; color: rgba(201,209,217,0.6);">Route → Service handler → Business logic →
+                Validation</div>
+            </div>
+          </div>
+          <div class="fragment slide-up"
+            style="display: flex; gap: 1em; align-items: center; padding: 0.6em 0; border-left: 3px solid var(--accent-3); padding-left: 1em; margin-bottom: 0.8em;">
+            <div style="color: var(--accent-3); font-weight: 700; font-size: 1.2em;">3</div>
+            <div>
+              <strong>Data Persistence</strong>
+              <div style="font-size: 0.8em; color: rgba(201,209,217,0.6);">PostgreSQL write → Cache invalidation → Event
+                emission</div>
+            </div>
+          </div>
+          <div class="fragment slide-up"
+            style="display: flex; gap: 1em; align-items: center; padding: 0.6em 0; border-left: 3px solid var(--accent-4); padding-left: 1em;">
+            <div style="color: var(--accent-4); font-weight: 700; font-size: 1.2em;">4</div>
+            <div>
+              <strong>Async Side Effects</strong>
+              <div style="font-size: 0.8em; color: rgba(201,209,217,0.6);">Event bus → Notification service → Analytics
+                pipeline</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 5: Performance / Metrics -->
+      <section data-background-color="#0d1117">
+        <h2 class="anim-fade-in-up">Performance Benchmarks</h2>
+        <div class="grid-3" style="margin-top: 1em;">
+          <!-- CUSTOMIZE: Metrics -->
+          <div class="service-box primary fragment scale-up" style="text-align: center; padding: 1.5em;">
+            <div style="font-size: 2.5em; font-weight: 800; color: var(--accent);">12ms</div>
+            <div style="color: rgba(201,209,217,0.5); font-size: 0.85em;">P99 Latency</div>
+          </div>
+          <div class="service-box success fragment scale-up" style="text-align: center; padding: 1.5em;">
+            <div style="font-size: 2.5em; font-weight: 800; color: var(--accent-2);">99.97%</div>
+            <div style="color: rgba(201,209,217,0.5); font-size: 0.85em;">Uptime SLA</div>
+          </div>
+          <div class="service-box warning fragment scale-up" style="text-align: center; padding: 1.5em;">
+            <div style="font-size: 2.5em; font-weight: 800; color: var(--accent-3);">50K</div>
+            <div style="color: rgba(201,209,217,0.5); font-size: 0.85em;">Requests/sec</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 6: Deployment -->
+      <section data-background-color="#0d1117">
+        <h2 class="anim-fade-in-up">Deployment Strategy</h2>
+        <div class="grid-2 text-left" style="margin-top: 1em;">
+          <div>
+            <ul style="list-style: none; padding: 0; font-size: 0.9em;">
+              <!-- CUSTOMIZE -->
+              <li class="fragment slide-up" style="padding: 0.5em 0; border-bottom: 1px solid var(--border);">
+                <span class="tech-badge">CI/CD</span> GitHub Actions → Container Registry → K8s
+              </li>
+              <li class="fragment slide-up" style="padding: 0.5em 0; border-bottom: 1px solid var(--border);">
+                <span class="tech-badge green">Rollout</span> Blue-green with canary verification
+              </li>
+              <li class="fragment slide-up" style="padding: 0.5em 0; border-bottom: 1px solid var(--border);">
+                <span class="tech-badge yellow">Monitoring</span> Datadog + PagerDuty + Grafana
+              </li>
+              <li class="fragment slide-up" style="padding: 0.5em 0;">
+                <span class="tech-badge red">Rollback</span> Automated on error-rate spike > 1%
+              </li>
+            </ul>
+          </div>
+          <div class="fragment fade-in">
+            <div class="terminal-block">
+              <div class="terminal-header">
+                <span class="terminal-dot red"></span>
+                <span class="terminal-dot yellow"></span>
+                <span class="terminal-dot green"></span>
+              </div>
+              <div class="terminal-body">
+                <span class="terminal-comment"># Deploy pipeline</span><br>
+                <span class="terminal-prompt">$</span> make deploy ENV=staging<br>
+                Building images... ✅<br>
+                Running tests... ✅<br>
+                Deploying canary... ✅<br>
+                Health check passed ✅<br>
+                Promoting to 100%... ✅<br>
+                <span style="color: var(--accent-2);">Deploy complete 🎉</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 7: Q&A -->
+      <section data-background-color="#0d1117">
+        <div class="scene-geo-grid"></div>
+        <div class="z-content" style="text-align: center;">
+          <h1 class="anim-fade-in-up" style="font-size: 3em;">Questions?</h1>
+          <p class="anim-fade-in-up delay-300" style="color: rgba(201,209,217,0.5); margin-top: 1em;">
+            <!-- CUSTOMIZE -->
+            Architecture decision records available in <span class="code-inline">/docs/adr/</span>
+          </p>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/plugin/notes/notes.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/plugin/highlight/highlight.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      transition: 'slide',
+      center: true,
+      width: 1920,
+      height: 1080,
+      margin: 0.08,
+      plugins: [RevealNotes, RevealHighlight]
+    });
+  </script>
+</body>
+
+</html>

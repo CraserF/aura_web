@@ -1,0 +1,397 @@
+<!doctype html>
+<!--
+  CREATIVE PORTFOLIO TEMPLATE — Reveal.js
+  Purpose: Design portfolios, brand showcases, visual storytelling
+  Animation Level: Heavy (Level 3)
+  Features: Full-bleed imagery, parallax, morphing shapes, minimal text
+  
+  CUSTOMIZATION POINTS (search for "CUSTOMIZE")
+-->
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><!-- CUSTOMIZE --></title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/black.css">
+  <link rel="stylesheet" href="../animations/core-animations.css">
+  <link rel="stylesheet" href="../animations/advanced-effects.css">
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;600&display=swap');
+
+    :root {
+      --r-background-color: #0f0f0f;
+      --r-main-color: #e0e0e0;
+      --r-heading-color: #ffffff;
+      --accent: #e94560;
+      --accent-2: #0f3460;
+      --accent-gradient: linear-gradient(135deg, var(--accent), #ff6b9d);
+    }
+
+    .reveal {
+      font-family: 'Inter', sans-serif;
+      font-size: 24px;
+    }
+
+    .reveal h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 4em;
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -0.03em;
+    }
+
+    .reveal h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.5em;
+      font-weight: 700;
+    }
+
+    .reveal h3 {
+      font-family: 'Inter', sans-serif;
+      font-size: 1.2em;
+      font-weight: 300;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* Full-bleed image with overlay */
+    .project-slide {
+      background-size: cover;
+      background-position: center;
+    }
+
+    .project-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 3em;
+      background: linear-gradient(0deg, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.4) 50%, transparent 100%);
+      text-align: left;
+    }
+
+    .project-category {
+      font-size: 0.7em;
+      text-transform: uppercase;
+      letter-spacing: 0.3em;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .project-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.5em;
+      font-weight: 900;
+      margin: 0.2em 0;
+      line-height: 1.1;
+    }
+
+    .project-desc {
+      font-size: 0.9em;
+      color: rgba(255, 255, 255, 0.6);
+      max-width: 500px;
+      line-height: 1.6;
+    }
+
+    /* Image grid for portfolio */
+    .image-grid {
+      display: grid;
+      gap: 8px;
+      height: 80vh;
+    }
+
+    .image-grid.layout-2x2 {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+    }
+
+    .image-grid.layout-hero-side {
+      grid-template-columns: 2fr 1fr;
+      grid-template-rows: 1fr 1fr;
+    }
+
+    .image-grid.layout-hero-side .grid-item:first-child {
+      grid-row: 1 / 3;
+    }
+
+    .grid-item {
+      background-size: cover;
+      background-position: center;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .grid-item::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.2);
+      transition: background 0.5s ease;
+    }
+
+    /* Detail tags */
+    .detail-row {
+      display: flex;
+      gap: 2em;
+      margin-top: 1.5em;
+    }
+
+    .detail-item {
+      text-align: left;
+    }
+
+    .detail-label {
+      font-size: 0.65em;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    .detail-value {
+      font-size: 0.85em;
+      color: rgba(255, 255, 255, 0.8);
+      margin-top: 0.2em;
+    }
+
+    /* Split layout */
+    .split-left-right {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      height: 100%;
+      gap: 0;
+    }
+
+    .split-content {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 3em;
+      text-align: left;
+    }
+
+    .split-image {
+      background-size: cover;
+      background-position: center;
+    }
+
+    /* Number accent */
+    .big-number {
+      font-family: 'Playfair Display', serif;
+      font-size: 8em;
+      font-weight: 900;
+      line-height: 0.8;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      opacity: 0.3;
+    }
+
+    /* Layout */
+    .z-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1.5em;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- SLIDE 1: Title -->
+      <section data-background-color="#0f0f0f">
+        <div class="z-content" style="text-align: center;">
+          <h3 class="anim-fade-in-up"><!-- CUSTOMIZE: Category -->Portfolio</h3>
+          <h1 class="anim-fade-in-scale delay-200">
+            <!-- CUSTOMIZE: Name or Brand -->
+            Creative<br>Vision
+          </h1>
+          <div style="width: 60px; height: 3px; background: var(--accent); margin: 1em auto;"
+            class="anim-reveal-wipe-right delay-400"></div>
+          <p class="anim-fade-in-up delay-500" style="color: rgba(255,255,255,0.4); font-size: 0.85em;">
+            <!-- CUSTOMIZE -->
+            Selected Works · 2024-2025
+          </p>
+        </div>
+      </section>
+
+      <!-- SLIDE 2: About / Intro -->
+      <section data-background-color="#0f0f0f">
+        <div class="split-left-right" style="max-width: 100%; margin: 0;">
+          <div class="split-content">
+            <h3 class="anim-fade-in-up">About</h3>
+            <h2 class="anim-fade-in-up delay-200" style="font-size: 2em;">
+              <!-- CUSTOMIZE: Tagline -->
+              Design that speaks.<br>Brands that resonate.
+            </h2>
+            <p class="fragment fade-in"
+              style="color: rgba(255,255,255,0.5); margin-top: 1em; line-height: 1.7; font-size: 0.9em;">
+              <!-- CUSTOMIZE: Bio -->
+              A multidisciplinary creative studio focused on brand identity, digital experiences, and visual
+              storytelling. Every project begins with a question and ends with something beautiful.
+            </p>
+            <div class="detail-row fragment slide-up">
+              <!-- CUSTOMIZE -->
+              <div class="detail-item">
+                <div class="detail-label">Founded</div>
+                <div class="detail-value">2018</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Projects</div>
+                <div class="detail-value">120+</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Awards</div>
+                <div class="detail-value">14</div>
+              </div>
+            </div>
+          </div>
+          <div class="split-image anim-fade-in-right delay-300" style="
+        background: linear-gradient(135deg, var(--accent-2), var(--accent));
+        display: flex; align-items: center; justify-content: center;
+      ">
+            <!-- CUSTOMIZE: Replace gradient with background-image -->
+            <div class="morph-circle anim-morph-blob"
+              style="--morph-size: 250px; --morph-color: rgba(255,255,255,0.1);"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 3: Project 1 (Full Bleed) -->
+      <section data-background-color="#0f0f0f" data-background-image="" data-background-size="cover"
+        data-background-opacity="0.6" data-transition="fade">
+        <!-- CUSTOMIZE: data-background-image with your project image URL -->
+        <div class="project-overlay">
+          <div class="project-category anim-fade-in-up"><!-- CUSTOMIZE -->Brand Identity</div>
+          <div class="project-title anim-fade-in-up delay-200">
+            <!-- CUSTOMIZE: Project name -->
+            Luminance
+          </div>
+          <p class="project-desc anim-fade-in-up delay-400">
+            <!-- CUSTOMIZE: Project description -->
+            Complete rebrand for a luxury lighting company, including wordmark, iconography, packaging, and digital
+            presence.
+          </p>
+          <div class="detail-row anim-fade-in-up delay-500">
+            <div class="detail-item">
+              <div class="detail-label">Client</div>
+              <div class="detail-value">Luminance Co.</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Year</div>
+              <div class="detail-value">2025</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Scope</div>
+              <div class="detail-value">Full Brand System</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 4: Project 1 Details (Image Grid) -->
+      <section data-background-color="#0f0f0f" data-transition="fade">
+        <div class="image-grid layout-hero-side anim-fade-in-scale">
+          <!-- CUSTOMIZE: Replace background colors with background-image URLs -->
+          <div class="grid-item fragment fade-in" style="background: linear-gradient(135deg, #1a1a3e, #2d1b69);"></div>
+          <div class="grid-item fragment fade-in delay-200"
+            style="background: linear-gradient(135deg, #2d1b69, #e94560);"></div>
+          <div class="grid-item fragment fade-in delay-400"
+            style="background: linear-gradient(135deg, #e94560, #ff6b9d);"></div>
+        </div>
+      </section>
+
+      <!-- SLIDE 5: Project 2 -->
+      <section data-background-color="#0f0f0f" data-background-image="" data-background-size="cover"
+        data-background-opacity="0.6" data-transition="fade">
+        <div class="project-overlay">
+          <div class="project-category anim-fade-in-up"><!-- CUSTOMIZE -->Digital Experience</div>
+          <div class="project-title anim-fade-in-up delay-200">
+            <!-- CUSTOMIZE -->
+            Horizon
+          </div>
+          <p class="project-desc anim-fade-in-up delay-400">
+            <!-- CUSTOMIZE -->
+            An immersive web experience for a global travel brand, featuring 3D landscapes and interactive storytelling.
+          </p>
+        </div>
+      </section>
+
+      <!-- SLIDE 6: Process -->
+      <section data-background-color="#0f0f0f">
+        <div class="z-content" style="text-align: center;">
+          <h3 class="anim-fade-in-up">How We Work</h3>
+          <h2 class="anim-fade-in-up delay-200">Our Process</h2>
+
+          <div class="grid-3" style="margin-top: 2em; text-align: left;">
+            <!-- CUSTOMIZE: Process steps -->
+            <div class="fragment slide-up">
+              <div class="big-number">01</div>
+              <h3 style="color: var(--accent); letter-spacing: 0.1em; font-size: 0.9em; margin-top: 0.5em;">Discover
+              </h3>
+              <p style="font-size: 0.85em; color: rgba(255,255,255,0.5); line-height: 1.6;">Research, strategy, and deep
+                understanding of your brand DNA.</p>
+            </div>
+            <div class="fragment slide-up">
+              <div class="big-number">02</div>
+              <h3 style="color: var(--accent); letter-spacing: 0.1em; font-size: 0.9em; margin-top: 0.5em;">Create</h3>
+              <p style="font-size: 0.85em; color: rgba(255,255,255,0.5); line-height: 1.6;">Conceptualize, design,
+                iterate—bringing ideas to life across every touchpoint.</p>
+            </div>
+            <div class="fragment slide-up">
+              <div class="big-number">03</div>
+              <h3 style="color: var(--accent); letter-spacing: 0.1em; font-size: 0.9em; margin-top: 0.5em;">Deliver</h3>
+              <p style="font-size: 0.85em; color: rgba(255,255,255,0.5); line-height: 1.6;">Launch, measure, and
+                refine—ensuring lasting impact and results.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 7: Contact / CTA -->
+      <section data-background-color="#0f0f0f">
+        <div class="z-content" style="text-align: center;">
+          <h2 class="anim-fade-in-scale" style="font-size: 3em;">
+            Let's Create<br>Together
+          </h2>
+          <div style="width: 60px; height: 3px; background: var(--accent); margin: 1em auto;"
+            class="anim-reveal-wipe-right delay-300"></div>
+          <p class="anim-fade-in-up delay-400" style="color: rgba(255,255,255,0.4);">
+            <!-- CUSTOMIZE: Contact info -->
+            hello@studio.com · @studiohandle · studio.com
+          </p>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      transition: 'fade',
+      transitionSpeed: 'slow',
+      backgroundTransition: 'fade',
+      center: true,
+      width: 1920,
+      height: 1080,
+      margin: 0
+    });
+  </script>
+</body>
+
+</html>

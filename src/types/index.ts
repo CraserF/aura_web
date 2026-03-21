@@ -13,10 +13,18 @@ export interface ChatMessage {
   timestamp: number;
 }
 
+/** Active workflow step info for progress display */
+export interface WorkflowStep {
+  id: string;
+  label: string;
+  status: 'pending' | 'active' | 'done' | 'error' | 'skipped';
+  retryAttempt?: number;
+}
+
 /** AI generation status */
 export type GenerationStatus =
   | { state: 'idle' }
-  | { state: 'generating'; startedAt: number }
+  | { state: 'generating'; startedAt: number; step?: string; pct?: number; steps?: WorkflowStep[] }
   | { state: 'error'; message: string };
 
 /** Supported AI providers */

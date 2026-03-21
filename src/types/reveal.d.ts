@@ -1,4 +1,9 @@
 declare module 'reveal.js' {
+  interface RevealPlugin {
+    id: string;
+    init: (deck: any) => void;
+  }
+
   interface RevealOptions {
     embedded?: boolean;
     hash?: boolean;
@@ -16,6 +21,7 @@ declare module 'reveal.js' {
     keyboard?: boolean;
     overview?: boolean;
     touch?: boolean;
+    plugins?: RevealPlugin[];
   }
 
   interface RevealIndices {
@@ -36,6 +42,8 @@ declare module 'reveal.js' {
     destroy(): void;
     on(event: string, callback: (...args: unknown[]) => void): void;
     off(event: string, callback: (...args: unknown[]) => void): void;
+    getSlides(): HTMLElement[];
+    getCurrentSlide(): HTMLElement | undefined;
   }
 
   export default Reveal;
