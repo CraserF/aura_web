@@ -10,6 +10,7 @@ import qualityChecklist from './docs/quality-checklist.md?raw';
 import threejsKnowledge from './docs/threejs-knowledge.md?raw';
 import svgDrawing from './docs/svg-drawing.md?raw';
 import svgDiagrams from './docs/svg-diagrams.md?raw';
+import heroScenes from './docs/hero-scenes.md?raw';
 import slideGeneration from './skills/slide-generation.md?raw';
 import advancedWorkflows from './skills/advanced-workflows.md?raw';
 import promptLibrary from './prompts/prompt-library.md?raw';
@@ -22,6 +23,7 @@ export type KnowledgeDocId =
   | 'threejs-knowledge'
   | 'svg-drawing'
   | 'svg-diagrams'
+  | 'hero-scenes'
   | 'slide-generation'
   | 'advanced-workflows'
   | 'prompt-library';
@@ -34,6 +36,7 @@ const KNOWLEDGE_BASE: Record<KnowledgeDocId, string> = {
   'threejs-knowledge': threejsKnowledge,
   'svg-drawing': svgDrawing,
   'svg-diagrams': svgDiagrams,
+  'hero-scenes': heroScenes,
   'slide-generation': slideGeneration,
   'advanced-workflows': advancedWorkflows,
   'prompt-library': promptLibrary,
@@ -56,6 +59,7 @@ export function getRelevantKnowledge(animLevel: 1 | 2 | 3 | 4): string[] {
   if (animLevel >= 2) {
     docs.push(animCheatsheet);
     docs.push(svgDrawing);
+    docs.push(heroScenes);
   }
 
   // Add advanced SVG diagrams for higher levels

@@ -73,13 +73,14 @@ export const ANTI_PATTERNS = [
   'Do NOT use SVG illustrations on animation level 1 (minimal) presentations — keep it text and CSS only.',
   'Inline SVG icons MUST have explicit width and height attributes because relying on the parent container for sizing is unreliable.',
 
-  // Visual Content (NEW — prevents CSS illustration failures)
-  'Do NOT attempt CSS illustrations of real-world objects (animals, people, faces, buildings, vehicles) because LLMs cannot reliably generate recognizable CSS art. Use emoji at large size (4-6em), Bootstrap Icons, or abstract geometric patterns instead.',
+  // Visual Content — SVG illustration rules
+  'NEVER draw recognizable real-world objects (animals, people, faces, buildings, vehicles, food) in SVG or CSS — LLMs always produce ugly geometric blobs. Use large emoji (5-8em) for real subjects, with abstract SVG accents (hearts, sparkles, flowing lines) around them.',
   'Do NOT create "visual placeholder" panels — large empty containers with only a vague tagline and decorative SVG. Every panel must contain substantive content (data, lists, diagrams, or concrete text).',
 
-  // Slide Structure (NEW — prevents thin decks)
+  // Slide Structure — prevents thin decks and monotony
   'A new presentation MUST have at least 8 slides. A 5-slide deck is NEVER acceptable because it cannot cover the narrative arc (title → context → solution → content → insight → closing).',
   'NEVER repeat the same layout pattern on consecutive slides because it makes the deck feel monotonous. Vary between: bento-grid, split-text-visual, metrics-row, timeline, comparison, icon-grid, pull-quote, process-steps, card-grid.',
+  'NEVER use the emoji-in-a-box card pattern (colored-box → emoji → heading → paragraph) more than twice per deck. It is the #1 most overused pattern.',
 
   // Palette Compliance (NEW — prevents color invention)
   'You MUST use exactly the color values provided in the palette. Do NOT invent new hex colors, because the palette colors are pre-tuned for contrast, harmony, and mode-awareness.',
@@ -136,7 +137,7 @@ export const GOTCHAS = [
   'When the palette is "Coral Energy" (light mode), the LLM tends to invent its own warm palette instead of using the provided tokens. Use the EXACT hex values from the palette table.',
   'CSS custom properties get duplicated on every <section> tag. They should ONLY be on the first <section>. All others inherit via var().',
   'The LLM loves to create "decorative visual panels" — large empty boxes with a tagline like "More Love, More Joy" and an abstract SVG. These are content-free. Replace with actual data, lists, or concrete statements.',
-  'CSS illustrations of real objects (dogs, people, buildings) always fail — the result is unrecognizable blobs of border-radius and skew. Use emoji (e.g., a 6em dog emoji) instead.',
+  'NEVER draw recognizable real objects (dogs, people, buildings) in SVG or CSS — the result is always ugly blobs. For real-world subjects, use large emoji (5-8em) as the focal visual with abstract animated SVG accents (hearts, flowing lines, pulsing dots) around them.',
   'On light-mode slides, the LLM sometimes applies backdrop-filter:blur() which makes everything look muddy. Light mode uses solid surfaces with box-shadow for depth.',
   'The LLM defaults to card-grid layout for everything. A good deck uses at least 4 different layout types across its slides.',
   'Font links are often omitted from the output. The FIRST line of output must be the Google Fonts <link> tag.',

@@ -10,7 +10,7 @@
  */
 
 import type { AIMessage } from '../../types';
-import { buildDesignerPrompt, buildEditDesignerPrompt } from '../../prompts';
+import { buildDesignerPrompt } from '../../prompts';
 import { selectTemplate } from '../../templates';
 import { extractHtmlFromResponse, countSlides, extractTitle } from '../../utils/extractHtml';
 import { sanitizeSlideHtml } from '../../utils/sanitizeHtml';
@@ -132,7 +132,8 @@ Generate the next batch of slides.
 
 /**
  * Generate slides for an edit operation (modify/refine_style/add_slides).
- * Uses a compact ~3K-token prompt.
+ * Uses the FULL designer prompt with prompt caching for rich SVG/knowledge access.
+ * Edit-specific instructions are in the user message.
  */
 export async function designEdit(
   planResult: PlanResult,
@@ -141,9 +142,15 @@ export async function designEdit(
   llm: LLMClient,
   onChunk?: (chunk: string) => void,
 ): Promise<DesignResult> {
-  const systemPrompt = buildEditDesignerPrompt(
-    planResult.blueprint.palette,
+  const templateId = selectTemplate(planResult.enhancedPrompt);
+  const existingSlideCount = countSlides(existingSlidesHtml);
+
+  // Full designer prompt with cache control — same as batch calls
+  const systemPrompt = buildDesignerPrompt(
+    planResult.blueprint,
+    templateId,
     planResult.animationLevel,
+    existingSlideCount,
   );
 
   const messages: AIMessage[] = [
@@ -158,7 +165,23 @@ export async function designEdit(
 
   messages.push({
     role: 'user',
-    content: `Here are the current slides:\n\n\`\`\`html\n${existingSlidesHtml}\n\`\`\`\n\nPlease modify them based on this request: ${planResult.enhancedPrompt}`,
+    content: `## EDIT MODE — Modify Existing Deck
+
+Here are the current slides (${existingSlideCount} slides total):
+
+\`\`\`html
+${existingSlidesHtml}
+\`\`\`
+
+**User request:** ${planResult.enhancedPrompt}
+
+**CRITICAL RULES FOR EDITING:**
+- You MUST output ALL ${existingSlideCount} slides (or more if adding new slides). Do NOT reduce the slide count.
+- Preserve slides that are NOT affected by the request — output them unchanged.
+- Keep the same palette, fonts, CSS custom properties, and overall design language.
+- If the user asks to "add" something (e.g., SVG animations, new slides), ADD to the existing deck — do NOT replace or remove existing content.
+- If enhancing slides with SVG illustrations, integrate them into the existing slide structure.
+- Output a single code block with the COMPLETE modified deck. NOTHING else.`,
   });
 
   const fullResponse = await llm.generate(messages, onChunk);

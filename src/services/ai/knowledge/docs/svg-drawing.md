@@ -18,8 +18,8 @@ Comprehensive reference for creating inline SVGs in presentation slides. Use thi
 | Animation level 1 presentations | Skip SVG | Minimal design, no illustrations |
 
 **Hard rules:**
-- Maximum 2 SVG-heavy slides per deck
-- Always pair SVG slides with simpler text/card slides for rhythm
+- Include at least 2-4 SVG-rich slides per deck for visual impact
+- Alternate SVG-heavy slides with simpler text/card slides for rhythm
 - SVG colors must match the palette tokens
 
 ---

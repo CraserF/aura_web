@@ -47,12 +47,15 @@ Usage: \`<i class="bi bi-rocket-takeoff" style="font-size:24px; color:var(--prim
 - DO use CSS gradients, shapes, and patterns for decoration.`;
 
   const rules = `**Rules:**
-- Max **2 SVG-heavy slides** per deck. Alternate with text/card slides for visual rhythm.
+- Include **at least 2-4 SVG-rich slides** per deck. Hero SVG scenes are what make slides spectacular.
 - Always include \`xmlns="http://www.w3.org/2000/svg"\` on all SVG elements.
 - Always set explicit \`width\` and \`height\` on the outer \`<svg>\` element.
 - Always include a \`viewBox\` attribute — without it, SVGs will not scale correctly.
 - SVG colors should use palette tokens (\`${primary}\` for strokes, \`${surfaceFill}\` for backgrounds).
-- NEVER use \`<image>\` elements inside SVGs with external URLs.`;
+- NEVER use \`<image>\` elements inside SVGs with external URLs.
+- Place \`@keyframes\` in a \`<style>\` tag inside the \`<section>\`, not in HTML attributes.
+- Limit to 5-8 animations per slide with staggered delays for visual rhythm.
+- Background SVG layers: use \`pointer-events:none\` and low opacity (0.04-0.12).`;
 
   // Level 1: Bootstrap Icons + decision guide + rules only (no SVG drawing recipes)
   if (animLevel < 2) {

@@ -39,8 +39,8 @@ ${principlesSections}`;
 }
 
 /**
- * Condensed anti-patterns — top 10 highest-impact rules for batch/edit prompts.
- * Covers contrast, palette compliance, text sizing, no external images, content fill.
+ * Condensed anti-patterns — highest-impact rules for batch/edit prompts.
+ * Covers contrast, palette compliance, text sizing, layout variety, SVG rules.
  */
 export function buildCondensedAntiPatterns(): string {
   // Hand-picked indices for the most critical rules
@@ -61,5 +61,10 @@ export function buildCondensedAntiPatterns(): string {
 
 ${critical.map((r, i) => `${i + 1}. ${r}`).join('\n')}
 
-Also: NO external image URLs (no Unsplash, no placeholders). Use Bootstrap Icons, emoji (3-6em), or CSS gradients instead.`;
+**Additional critical rules:**
+- NO external image URLs (no Unsplash, no placeholders). Use Bootstrap Icons, emoji (3-6em), or inline SVG.
+- NEVER draw recognizable real objects (animals, people, faces, buildings, vehicles) in SVG or CSS — the result is always ugly. Use large emoji (5-8em) for those subjects instead, surrounded by abstract SVG accents.
+- NEVER repeat card-grid/icon-grid layout more than twice per deck. NEVER use emoji-in-a-box card pattern more than twice. Vary layouts.
+- Do NOT use \`rgba(var(--custom-property), alpha)\` — it does not work with hex vars. Use opacity on the element instead.
+- The FIRST line of output MUST be the Google Fonts \`<link>\` tag.`;
 }
