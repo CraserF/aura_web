@@ -54,13 +54,24 @@ export async function initDeck(
 }
 
 /** Replace all slide content and re-sync the deck */
-export function updateContent(deck: DeckInstance, slidesHtml: string): void {
+export function updateContent(
+  deck: DeckInstance,
+  slidesHtml: string,
+  options?: { preservePosition?: boolean },
+): void {
   const slidesEl = deck.container.querySelector('.slides');
   if (!slidesEl) return;
 
+  const currentH = options?.preservePosition
+    ? deck.reveal.getIndices().h
+    : 0;
+
   slidesEl.innerHTML = slidesHtml;
   deck.reveal.sync();
-  deck.reveal.slide(0);
+
+  const totalSlides = deck.reveal.getTotalSlides();
+  const targetIndex = Math.min(currentH, Math.max(0, totalSlides - 1));
+  deck.reveal.slide(targetIndex);
 }
 
 /** Navigate to a specific slide by horizontal index */

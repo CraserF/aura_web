@@ -53,6 +53,8 @@ export type WorkflowEvent =
   | { type: 'branch-taken';    stepId: string; branch: string }
   | { type: 'retry-attempt';   stepId: string; attempt: number; maxAttempts: number }
   | { type: 'qa-loop-iteration'; iteration: number; maxIterations: number; issues: string }
+  | { type: 'batch-rendered';  batchIndex: number; totalBatches: number; accumulatedHtml: string }
+  | { type: 'draft-complete';  html: string }
   | { type: 'complete';        result: unknown };
 
 /** Subscribe to workflow events */

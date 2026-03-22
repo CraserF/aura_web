@@ -13,7 +13,7 @@
 
 import { createStep } from '../engine';
 import { plan } from '../agents/planner';
-import { design } from '../agents/designer';
+import { design, designBatch, designEdit } from '../agents/designer';
 import { validateSlides } from '../agents/qa-validator';
 import type { QAResult } from '../agents/qa-validator';
 import { review, buildCombinedRevisionPrompt } from '../agents/reviewer';
@@ -23,6 +23,7 @@ import { injectFonts } from '../../utils/injectFonts';
 import { buildRevisionSystemPrompt } from '../../prompts/composer';
 import type { AIMessage } from '../../types';
 import type { PlanResult } from '../agents/planner';
+import type { SlideOutline } from '../agents/planner';
 import type { DesignResult } from '../agents/designer';
 import type { ReviewResult } from '../agents/reviewer';
 import type { PresentationInput, PresentationOutput } from '../types';
@@ -38,7 +39,7 @@ export const planStep = createStep<PresentationInput, PlanStepOutput>({
   id: 'plan',
   description: 'Analyzing your request…',
   retry: { maxAttempts: 2, backoffMs: 1000 },
-  timeoutMs: 30_000,
+  timeoutMs: 60_000,
   execute: async ({ inputData, llm, emit }) => {
     emit({ type: 'progress', message: 'Understanding your request and planning slides…', pct: 10 });
 
@@ -231,7 +232,7 @@ export const reviewStep = createStep<QAStepOutput, ReviewStepOutput>({
   id: 'review',
   description: 'Reviewing design quality…',
   retry: { maxAttempts: 2, backoffMs: 1000 },
-  timeoutMs: 30_000,
+  timeoutMs: 90_000,
   execute: async ({ inputData, llm, emit }) => {
     const { designResult, planResult, qaResult } = inputData;
 
@@ -311,6 +312,150 @@ export const reviseStep = createStep<ReviewStepOutput, PresentationOutput>({
       title,
       slideCount: slideCount || designResult.slideCount,
       reviewPassed: false,
+    };
+  },
+});
+
+// ── Batch Design Step (create flow — generates in batches of 3) ──
+
+const BATCH_SIZE = 3;
+
+export const batchDesignStep = createStep<PlanStepOutput, DesignStepOutput>({
+  id: 'batch-design',
+  description: 'Generating slides in batches…',
+  retry: { maxAttempts: 2, backoffMs: 2000 },
+  timeoutMs: 180_000,
+  execute: async ({ inputData, llm, emit }) => {
+    const { planResult, originalInput } = inputData;
+    const outline = planResult.outline;
+
+    if (!outline || outline.length === 0) {
+      // Fallback to single-shot design if no outline
+      emit({ type: 'progress', message: 'Designing slides…', pct: 30 });
+      const designResult = await design(
+        planResult,
+        originalInput.existingSlidesHtml,
+        originalInput.chatHistory,
+        llm,
+        (chunk) => emit({ type: 'streaming', stepId: 'batch-design', chunk }),
+      );
+      return { designResult, planResult, originalInput };
+    }
+
+    // Safe to use — narrowed by the guard above
+    const slides = outline;
+
+    // Split outline into batches of BATCH_SIZE
+    const batches: SlideOutline[][] = [];
+    for (let i = 0; i < slides.length; i += BATCH_SIZE) {
+      batches.push(slides.slice(i, i + BATCH_SIZE));
+    }
+
+    let accumulatedHtml = '';
+    let totalSlideCount = 0;
+
+    for (let i = 0; i < batches.length; i++) {
+      const pct = 25 + Math.round((i / batches.length) * 45);
+      emit({
+        type: 'progress',
+        message: `Generating slides ${i * BATCH_SIZE + 1}–${Math.min((i + 1) * BATCH_SIZE, slides.length)} of ${slides.length}…`,
+        pct,
+      });
+
+      const batch = batches[i]!;
+      const batchResult = await designBatch(
+        batch,
+        planResult.enhancedPrompt.split('\n')[0] ?? planResult.enhancedPrompt, // topic = first line
+        planResult.blueprint,
+        planResult.animationLevel,
+        i,
+        batches.length,
+        accumulatedHtml,
+        llm,
+        (chunk) => emit({ type: 'streaming', stepId: 'batch-design', chunk }),
+      );
+
+      accumulatedHtml += (accumulatedHtml ? '\n' : '') + batchResult.html;
+      totalSlideCount += batchResult.slideCount;
+
+      // Emit progressive render event for canvas
+      emit({
+        type: 'batch-rendered',
+        batchIndex: i,
+        totalBatches: batches.length,
+        accumulatedHtml,
+      });
+    }
+
+    const designResult: DesignResult = {
+      html: accumulatedHtml,
+      title: extractTitle(accumulatedHtml),
+      slideCount: totalSlideCount,
+    };
+
+    emit({
+      type: 'progress',
+      message: `Generated ${totalSlideCount} slides`,
+      pct: 70,
+    });
+
+    return { designResult, planResult, originalInput };
+  },
+});
+
+// ── Targeted Design Step (edit flow — compact prompt) ────────
+
+export const targetedDesignStep = createStep<PlanStepOutput, DesignStepOutput>({
+  id: 'targeted-design',
+  description: 'Editing slides…',
+  retry: { maxAttempts: 2, backoffMs: 2000 },
+  timeoutMs: 120_000,
+  execute: async ({ inputData, llm, emit }) => {
+    const { planResult, originalInput } = inputData;
+
+    emit({ type: 'progress', message: 'Applying changes…', pct: 30 });
+
+    const designResult = await designEdit(
+      planResult,
+      originalInput.existingSlidesHtml!,
+      originalInput.chatHistory,
+      llm,
+      (chunk) => emit({ type: 'streaming', stepId: 'targeted-design', chunk }),
+    );
+
+    emit({
+      type: 'progress',
+      message: `Updated ${designResult.slideCount} slides`,
+      pct: 70,
+    });
+
+    return { designResult, planResult, originalInput };
+  },
+});
+
+// ── Draft Complete Step (signals canvas has full draft) ──────
+
+export const draftCompleteStep = createStep<DesignStepOutput, DesignStepOutput>({
+  id: 'draft-complete',
+  description: 'Draft ready',
+  execute: async ({ inputData, emit }) => {
+    emit({ type: 'draft-complete', html: inputData.designResult.html });
+    return inputData;
+  },
+});
+
+// ── Edit Finalize Step (converts QAStepOutput to PresentationOutput) ──
+
+export const editFinalizeStep = createStep<QAStepOutput, PresentationOutput>({
+  id: 'edit-finalize',
+  description: 'Finalizing…',
+  execute: async ({ inputData }) => {
+    const { designResult, qaResult } = inputData;
+    return {
+      html: designResult.html,
+      title: designResult.title,
+      slideCount: designResult.slideCount,
+      reviewPassed: qaResult.passed,
     };
   },
 });

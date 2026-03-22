@@ -3,7 +3,7 @@
  * Backward-compatible: re-exports buildSystemPrompt for existing consumers.
  */
 
-export { PromptComposer, buildDesignerPrompt, buildRevisionSystemPrompt } from './composer';
+export { PromptComposer, buildDesignerPrompt, buildRevisionSystemPrompt, buildBatchDesignerPrompt, buildEditDesignerPrompt } from './composer';
 
 // Backward compatibility — existing code imports buildSystemPrompt
 export { buildSystemPrompt } from './legacy';

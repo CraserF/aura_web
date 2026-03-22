@@ -15,7 +15,7 @@ import { buildSvgSection } from './sections/svg';
 import { buildAnimationSection } from './sections/animation';
 import { buildNarrativeSection } from './sections/narrative';
 import { buildQualitySection } from './sections/quality';
-import { buildAntiPatternsSection } from './sections/anti-patterns';
+import { buildAntiPatternsSection, buildCondensedAntiPatterns } from './sections/anti-patterns';
 import { buildTemplateExamplesSection } from './sections/template-examples';
 import { buildModernPatternsSection } from './sections/modern-patterns';
 import { getRelevantKnowledge } from '../knowledge';
@@ -175,5 +175,92 @@ You are revising an existing slide deck to fix specific design issues.
 - Do NOT re-order or remove slides unless instructed.
 - Preserve the overall design language, palette, and slide structure.
 - Output the COMPLETE corrected deck as HTML \`<section>\` elements.`)
+    .build();
+}
+
+/**
+ * Build a trimmed prompt for batch slide generation (~4K tokens vs ~35K).
+ * Includes palette, typography, layout, animation, condensed anti-patterns.
+ * Excludes knowledge docs, full SVG recipes, template examples, narrative, decorative catalog.
+ */
+export function buildBatchDesignerPrompt(
+  palette: TemplatePalette | undefined,
+  animLevel: 1 | 2 | 3 | 4,
+  batchContext: {
+    batchIndex: number;
+    totalBatches: number;
+    isFirstBatch: boolean;
+  },
+): string {
+  const composer = new PromptComposer()
+    .addBase(palette)
+    .addTypography()
+    .addLayout()
+    .addAnimation(animLevel)
+    .addCustom(buildCondensedAntiPatterns());
+
+  // First batch establishes CSS vars and fonts; subsequent batches must not re-declare them
+  if (batchContext.isFirstBatch) {
+    composer.addCustom(`## YOUR TASK — BATCH GENERATION (batch ${batchContext.batchIndex + 1}/${batchContext.totalBatches})
+
+Generate the first batch of slides. This is batch 1 of ${batchContext.totalBatches}.
+- Start with the Google Fonts \`<link>\` tag as the FIRST line.
+- Define CSS custom properties (--primary, --accent, --heading-font, --body-font) on the FIRST \`<section>\` ONLY.
+- Output ONLY the \`<section>\` elements for the slides specified in the outline below.
+- Use the palette colors EXACTLY as given. Do NOT invent new hex colors.
+- Output a single code block. NOTHING else — no explanation, no commentary.
+
+\`\`\`html
+<link href="..." rel="stylesheet">
+<section ...>...</section>
+<section ...>...</section>
+\`\`\``);
+  } else {
+    composer.addCustom(`## YOUR TASK — BATCH GENERATION (batch ${batchContext.batchIndex + 1}/${batchContext.totalBatches})
+
+Generate the next batch of slides. This is batch ${batchContext.batchIndex + 1} of ${batchContext.totalBatches}.
+- Do NOT include a Google Fonts \`<link>\` tag (already included in batch 1).
+- Do NOT define CSS custom properties (already defined in batch 1). Use var(--primary), var(--accent), etc.
+- Match the visual style of the previous slides exactly — same fonts, colors, spacing, card styles.
+- Output ONLY \`<section>\` elements. No explanation, no commentary.
+
+\`\`\`html
+<section ...>...</section>
+<section ...>...</section>
+\`\`\``);
+  }
+
+  return composer.build();
+}
+
+/**
+ * Build a compact prompt for edit operations (~3K tokens).
+ * Used for modify/refine_style/add_slides intents — much smaller than the full designer prompt.
+ */
+export function buildEditDesignerPrompt(
+  palette: TemplatePalette | undefined,
+  animLevel: 1 | 2 | 3 | 4,
+): string {
+  return new PromptComposer()
+    .addBase(palette)
+    .addTypography()
+    .addLayout()
+    .addAnimation(animLevel)
+    .addCustom(buildCondensedAntiPatterns())
+    .addCustom(`## YOUR TASK — EDIT MODE
+
+You are modifying an existing slide deck based on a user request.
+- Output the COMPLETE modified deck as HTML \`<section>\` elements.
+- Maintain visual consistency with the existing design.
+- Do NOT change slides that are not affected by the request.
+- Keep the same palette, fonts, and card styles.
+- No external image URLs. Use Bootstrap Icons, emoji, or CSS gradients.
+- Output a single code block. NOTHING else.
+
+\`\`\`html
+<link href="..." rel="stylesheet">
+<section ...>...</section>
+...
+\`\`\``)
     .build();
 }

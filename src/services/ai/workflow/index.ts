@@ -3,7 +3,7 @@
  */
 
 export { createStep, createWorkflow, createLLMClient, Workflow } from './engine';
-export { runPresentationWorkflow, presentationWorkflow } from './presentation';
+export { runPresentationWorkflow, createWorkflowPipeline, editWorkflowPipeline } from './presentation';
 export type {
   Step,
   StepContext,

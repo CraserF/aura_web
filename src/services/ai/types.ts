@@ -3,15 +3,17 @@
  *
  * ProviderEntry replaces the old AIProvider interface.
  * Instead of hand-rolled fetch/SSE adapters, each provider
- * creates a LanguageModelV1 instance via the Vercel AI SDK.
+ * creates a LanguageModel instance via the Vercel AI SDK.
  */
-import type { LanguageModelV1 } from 'ai';
+import type { LanguageModel } from 'ai';
 import type { ProviderId } from '@/types';
 
-/** Message format for AI conversations (compatible with AI SDK) */
+/** Message format for AI conversations (compatible with AI SDK ModelMessage) */
 export interface AIMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
+  /** Provider-specific options (e.g., Anthropic prompt caching). Passed through to AI SDK. */
+  providerOptions?: Record<string, Record<string, unknown>>;
 }
 
 /** Configuration needed to create an AI SDK model */
@@ -26,6 +28,6 @@ export interface ProviderEntry {
   id: ProviderId;
   name: string;
   defaultModel: string;
-  /** Create a LanguageModelV1 instance from the given config */
-  createModel: (config: ProviderModelConfig) => LanguageModelV1;
+  /** Create a LanguageModel instance from the given config */
+  createModel: (config: ProviderModelConfig) => LanguageModel;
 }

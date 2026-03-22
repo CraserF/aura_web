@@ -35,9 +35,8 @@ export function ChatBar() {
   /** Track workflow steps for the progress UI */
   const workflowStepsRef = useRef<WorkflowStep[]>([
     { id: 'plan', label: 'Plan', status: 'pending' },
-    { id: 'design', label: 'Design', status: 'pending' },
+    { id: 'batch-design', label: 'Design', status: 'pending' },
     { id: 'qa-validate', label: 'QA', status: 'pending' },
-    { id: 'qa-revise', label: 'QA Fix', status: 'pending' },
     { id: 'review', label: 'Review', status: 'pending' },
     { id: 'revise', label: 'Polish', status: 'pending' },
   ]);
@@ -76,14 +75,21 @@ export function ChatBar() {
       content: m.content,
     }));
 
-    // Reset workflow step tracking
-    workflowStepsRef.current = [
-      { id: 'plan', label: 'Plan', status: 'pending' },
-      { id: 'design', label: 'Design', status: 'pending' },
-      { id: 'qa-validate', label: 'QA', status: 'pending' },
-      { id: 'review', label: 'Review', status: 'pending' },
-      { id: 'revise', label: 'Polish', status: 'pending' },
-    ];
+    // Reset workflow step tracking — different steps for create vs edit
+    const isEditFlow = !!slidesHtml;
+    workflowStepsRef.current = isEditFlow
+      ? [
+          { id: 'plan', label: 'Plan', status: 'pending' },
+          { id: 'targeted-design', label: 'Design', status: 'pending' },
+          { id: 'qa-validate', label: 'QA', status: 'pending' },
+        ]
+      : [
+          { id: 'plan', label: 'Plan', status: 'pending' },
+          { id: 'batch-design', label: 'Design', status: 'pending' },
+          { id: 'qa-validate', label: 'QA', status: 'pending' },
+          { id: 'review', label: 'Review', status: 'pending' },
+          { id: 'revise', label: 'Polish', status: 'pending' },
+        ];
 
     setStatus({
       state: 'generating',
@@ -147,6 +153,28 @@ export function ChatBar() {
             break;
           case 'streaming':
             appendStreamingContent(event.chunk);
+            break;
+          case 'batch-rendered':
+            // Progressive rendering: show slides on canvas as each batch completes
+            setSlides(event.accumulatedHtml);
+            setStatus({
+              state: 'generating',
+              startedAt: Date.now(),
+              step: `Rendered batch ${event.batchIndex + 1}/${event.totalBatches}`,
+              pct: 25 + Math.round(((event.batchIndex + 1) / event.totalBatches) * 45),
+              steps: [...workflowStepsRef.current],
+            });
+            break;
+          case 'draft-complete':
+            // Draft is ready — show it on canvas, background polish continues
+            setSlides(event.html);
+            setStatus({
+              state: 'generating',
+              startedAt: Date.now(),
+              step: 'Polishing design…',
+              pct: 72,
+              steps: [...workflowStepsRef.current],
+            });
             break;
           case 'progress':
             setStatus({

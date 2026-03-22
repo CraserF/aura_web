@@ -208,8 +208,8 @@ src/
 
 | # | Task | Details |
 |---|---|---|
-| 11 | AI provider interface | `AIProvider { id, name, generateStream(messages, onChunk): Promise<string> }` |
-| 12 | Provider adapters | `openai.ts` (also Deepseek), `gemini.ts`, `anthropic.ts` — all via `fetch()`, no SDKs. Registry pattern. |
+| 11 | AI provider interface | `ProviderEntry { id, name, defaultModel, createModel(config): LanguageModelV1 }` via Vercel AI SDK |
+| 12 | Provider adapters | `ProviderEntry` configs in `registry.ts` using Vercel AI SDK factories (`@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/google`). DeepSeek and Ollama via OpenAI-compatible adapter. |
 | 13 | System prompt | Instruct AI to output `<section>` HTML with inline CSS. Enforce design principles, palettes, typography, `data-transition`, `fragment` animations. Include examples. |
 | 14 | Chat flow wiring | Prompt → stream → extract HTML → `setSlides()` → canvas re-renders → done |
 | 15 | Iterative refinement | Follow-up messages include current slides HTML as context; AI modifies specific slides |

@@ -12,8 +12,9 @@
  *  - Abort/cancel via AbortController
  */
 
-import { streamText, generateObject } from 'ai';
-import type { LanguageModelV1 } from 'ai';
+import { streamText, generateText, Output } from 'ai';
+import type { LanguageModel, ModelMessage } from 'ai';
+import type { AIMessage } from '../types';
 import type {
   Step,
   StepContext,
@@ -32,8 +33,17 @@ export function createStep<TIn, TOut>(def: Step<TIn, TOut>): Step<TIn, TOut> {
 
 // ── LLM Client factory ──────────────────────────────────────
 
+/** Map our AIMessage format to AI SDK ModelMessage, preserving providerOptions */
+function toModelMessages(messages: AIMessage[]): ModelMessage[] {
+  return messages.map((m): ModelMessage => ({
+    role: m.role,
+    content: m.content,
+    ...(m.providerOptions && { providerOptions: m.providerOptions }),
+  }) as ModelMessage);
+}
+
 export function createLLMClient(config: LLMConfig): LLMClient {
-  const model: LanguageModelV1 = config.providerEntry.createModel({
+  const model: LanguageModel = config.providerEntry.createModel({
     apiKey: config.apiKey,
     baseUrl: config.baseUrl,
     model: config.model,
@@ -43,9 +53,9 @@ export function createLLMClient(config: LLMConfig): LLMClient {
     async generate(messages, onChunk) {
       const result = streamText({
         model,
-        messages,
+        messages: toModelMessages(messages),
         temperature: 0.7,
-        maxTokens: 16384,
+        maxOutputTokens: 16384,
       });
 
       let fullText = '';
@@ -56,15 +66,15 @@ export function createLLMClient(config: LLMConfig): LLMClient {
       return fullText;
     },
 
-    async generateStructured(messages, schema, schemaName) {
-      const result = await generateObject({
+    async generateStructured(messages, schema, _schemaName) {
+      const result = await generateText({
         model,
-        messages,
-        schema,
-        schemaName,
+        messages: toModelMessages(messages),
+        output: Output.object({ schema }),
         maxRetries: 2,
       });
-      return result.object;
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      return result.output!;
     },
   };
 }

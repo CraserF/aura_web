@@ -5,16 +5,12 @@
  * - Palette compliance check added
  * - Slide count verification against plan
  * - Layout variety verification
- * - Gotchas section with highest-value corrections
  */
-import { GOTCHAS } from '../../workflow/skills/design-rules';
 
 export function buildQualitySection(slideCount?: number): string {
   const slideCountCheck = slideCount
     ? `- [ ] **Slide count is exactly ${slideCount}.** Count your <section> elements. This is non-negotiable.`
     : '- [ ] **Slide count is at least 8.** A deck with fewer than 8 slides cannot cover the narrative arc.';
-
-  const gotchasList = GOTCHAS.map((g) => `- ${g}`).join('\n');
 
   return `## QUALITY CHECKLIST — Verify EVERY item before outputting
 
@@ -51,10 +47,6 @@ ${slideCountCheck}
 - [ ] **Content fills the slide.** Does content cover at least 60-70% of the 1920×1080 area? If not, increase sizes and spacing.
 - [ ] **Cards are substantial.** Card/panel components should be at least 150-200px tall.
 - [ ] **Metric numbers are large and bold.** Stats should be 3.5-5em with font-weight 800.
-
-## GOTCHAS — Common LLM generation failures to avoid
-
-${gotchasList}
 
 ## WHEN MODIFYING EXISTING SLIDES
 

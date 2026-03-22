@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { Monitor, ChevronLeft, ChevronRight, Maximize } from 'lucide-react';
 import { usePresentationStore } from '@/stores/presentationStore';
+import { useChatStore } from '@/stores/chatStore';
 import { Button } from '@/components/ui/button';
 import {
   initDeck,
@@ -31,7 +32,8 @@ export function PresentationCanvas() {
 
     // If deck already exists, just update content
     if (deckRef.current) {
-      updateContent(deckRef.current, slidesHtml);
+      const isGenerating = useChatStore.getState().status.state === 'generating';
+      updateContent(deckRef.current, slidesHtml, { preservePosition: isGenerating });
       setSlideCount(getSlideCount(deckRef.current));
       return;
     }
