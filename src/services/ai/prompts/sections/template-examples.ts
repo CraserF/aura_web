@@ -2,8 +2,8 @@
  * Template examples section — injects rich HTML template as reference.
  * Uses the actual template files from the registry instead of generic examples.
  */
-import type { TemplateId } from '../../templates';
-import { getTemplateHtml } from '../../templates';
+import type { ExemplarPackId, TemplateId } from '../../templates';
+import { getExemplarPack, getTemplateHtml } from '../../templates';
 
 /**
  * Extract a representative subset of slides from a template HTML to keep
@@ -20,7 +20,6 @@ function extractExcerpt(html: string, maxSlides: number = 3): string {
 
   if (sections.length === 0) return '';
 
-  // Pick first (title), a middle content slide, and one more for variety
   const picks: string[] = [];
   const first = sections[0];
   if (first) picks.push(first);
@@ -44,24 +43,42 @@ function extractExcerpt(html: string, maxSlides: number = 3): string {
 
 export function buildTemplateExamplesSection(
   templateId: TemplateId,
+  exemplarPackId: ExemplarPackId,
   existingExamples?: string,
 ): string {
-  // Use rich template HTML from registry
   const templateHtml = getTemplateHtml(templateId);
   const excerpt = extractExcerpt(templateHtml);
+  const exemplarPack = getExemplarPack(exemplarPackId);
 
-  // Also include blueprint examples if provided (backward compat)
   const blueprintBlock = existingExamples
     ? `\n\n### Style Blueprint Examples:\n\`\`\`html\n${existingExamples}\n\`\`\``
     : '';
 
-  if (!excerpt && !existingExamples) return '';
+  if (!excerpt && !existingExamples && !exemplarPack.htmlExcerpt) return '';
 
   return `## REFERENCE SLIDES — This Is What Great Looks Like
 
 Study these examples carefully and match this level of visual quality.
 Adapt the layouts, spacing, and component patterns to the user's content.
 Do NOT copy them verbatim — use them as quality benchmarks.
+
+### Exemplar Pack (${exemplarPack.name})
+Visual thesis: ${exemplarPack.visualThesis}
+
+Composition rules:
+${exemplarPack.compositionRules.map((rule) => `- ${rule}`).join('\n')}
+
+Component rules:
+${exemplarPack.componentRules.map((rule) => `- ${rule}`).join('\n')}
+
+Motion rules:
+${exemplarPack.motionRules.map((rule) => `- ${rule}`).join('\n')}
+
+Representative excerpt:
+
+\`\`\`html
+${exemplarPack.htmlExcerpt}
+\`\`\`
 
 ### Template Reference (${templateId}):
 \`\`\`html

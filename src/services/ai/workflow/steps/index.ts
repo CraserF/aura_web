@@ -123,6 +123,8 @@ export const qaValidateStep = createStep<DesignStepOutput, QAStepOutput>({
       expectedSlideCount: planResult.outline?.length,
       expectedBgColor: planResult.blueprint.palette.bg,
       isCreate: planResult.intent === 'create',
+      styleManifest: planResult.styleManifest,
+      exemplarPackId: planResult.exemplarPackId,
     });
 
     if (qaResult.violations.length > 0) {
@@ -200,6 +202,8 @@ export const qaReviseStep = createStep<QAStepOutput, QAStepOutput>({
       expectedSlideCount: planResult.outline?.length,
       expectedBgColor: planResult.blueprint.palette.bg,
       isCreate: planResult.intent === 'create',
+      styleManifest: planResult.styleManifest,
+      exemplarPackId: planResult.exemplarPackId,
     });
 
     const updatedDesign: DesignResult = {
@@ -238,7 +242,12 @@ export const reviewStep = createStep<QAStepOutput, ReviewStepOutput>({
 
     emit({ type: 'progress', message: 'Design reviewer checking quality…', pct: 75 });
 
-    const reviewResult = await review(designResult.html, llm);
+    const reviewResult = await review(designResult.html, llm, {
+      selectedTemplate: planResult.selectedTemplate,
+      exemplarPackId: planResult.exemplarPackId,
+      styleManifest: planResult.styleManifest,
+      mode: planResult.intent === 'create' ? 'create' : 'edit',
+    });
 
     const errorCount = reviewResult.issues.filter((i) => i.severity === 'error').length;
     const warnCount = reviewResult.issues.filter((i) => i.severity === 'warning').length;
@@ -249,6 +258,49 @@ export const reviewStep = createStep<QAStepOutput, ReviewStepOutput>({
         ? `Review passed (score: ${reviewResult.score}/100)`
         : `Found ${errorCount} errors, ${warnCount} warnings — revising…`,
       pct: 85,
+    });
+
+    return { reviewResult, qaResult, designResult, planResult };
+  },
+});
+
+export const editStyleReviewStep = createStep<QAStepOutput, ReviewStepOutput>({
+  id: 'edit-review',
+  description: 'Reviewing style consistency…',
+  retry: { maxAttempts: 2, backoffMs: 1000 },
+  timeoutMs: 90_000,
+  execute: async ({ inputData, llm, emit }) => {
+    const { designResult, planResult, qaResult } = inputData;
+
+    if (planResult.intent === 'modify') {
+      return {
+        reviewResult: {
+          passed: true,
+          score: 100,
+          issues: [],
+          summary: 'Skipped style review for a content-focused edit.',
+        },
+        qaResult,
+        designResult,
+        planResult,
+      };
+    }
+
+    emit({ type: 'progress', message: 'Checking style consistency…', pct: 78 });
+
+    const reviewResult = await review(designResult.html, llm, {
+      selectedTemplate: planResult.selectedTemplate,
+      exemplarPackId: planResult.exemplarPackId,
+      styleManifest: planResult.styleManifest,
+      mode: 'edit',
+    });
+
+    emit({
+      type: 'progress',
+      message: reviewResult.passed
+        ? `Style review passed (score: ${reviewResult.score}/100)`
+        : `Style review found ${reviewResult.issues.length} issues`,
+      pct: 84,
     });
 
     return { reviewResult, qaResult, designResult, planResult };
@@ -367,6 +419,8 @@ export const batchDesignStep = createStep<PlanStepOutput, DesignStepOutput>({
         batch,
         planResult.enhancedPrompt.split('\n')[0] ?? planResult.enhancedPrompt, // topic = first line
         planResult.blueprint,
+        planResult.styleManifest,
+        planResult.exemplarPackId,
         planResult.animationLevel,
         i,
         batches.length,

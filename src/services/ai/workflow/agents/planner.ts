@@ -10,11 +10,16 @@
  */
 
 import {
-  detectTemplateStyle,
   detectAnimationLevel,
   getTemplateBlueprint,
+  resolveTemplatePlan,
 } from '../../templates';
-import type { TemplateStyle, TemplateBlueprint } from '../../templates';
+import type {
+  ExemplarPackId,
+  StyleManifest,
+  TemplateBlueprint,
+  TemplateStyle,
+} from '../../templates';
 import { classifyIntent } from '../../validation';
 import type { RequestIntent } from '../../validation';
 import { OutlineArraySchema, type SlideOutline } from '../../schemas';
@@ -27,14 +32,19 @@ export interface PlanResult {
   blocked: boolean;
   blockReason?: string;
   style: TemplateStyle;
+  selectedTemplate: ExemplarBackedTemplateId;
+  exemplarPackId: ExemplarPackId;
   animationLevel: 1 | 2 | 3 | 4;
   blueprint: TemplateBlueprint;
+  styleManifest: StyleManifest;
   enhancedPrompt: string;
   /** Structured outline produced by LLM (for create intent) */
   outline?: SlideOutline[];
   /** True if the outline came from the generic fallback (LLM parse failed) */
   outlineFallback?: boolean;
 }
+
+type ExemplarBackedTemplateId = ReturnType<typeof resolveTemplatePlan>['templateId'];
 
 // ── Outline Generation (LLM + Zod structured output) ────────
 
@@ -131,18 +141,23 @@ export async function plan(
 
   if (intent === 'blocked' || intent === 'off_topic') {
     const style = 'tech' as TemplateStyle;
+    const templatePlan = resolveTemplatePlan(prompt);
     return {
       intent,
       blocked: true,
       blockReason: reason,
       style,
+      selectedTemplate: templatePlan.templateId,
+      exemplarPackId: templatePlan.exemplarPackId,
       animationLevel: 2,
       blueprint: getTemplateBlueprint(style),
+      styleManifest: templatePlan.styleManifest,
       enhancedPrompt: prompt,
     };
   }
 
-  const style = detectTemplateStyle(prompt);
+  const templatePlan = resolveTemplatePlan(prompt);
+  const style = templatePlan.style;
   const animationLevel = detectAnimationLevel(prompt);
   const blueprint = getTemplateBlueprint(style);
 
@@ -155,17 +170,20 @@ export async function plan(
     const result = await generateOutline(prompt, llm);
     outline = result.outline;
     outlineFallback = result.fallback;
-    enhancedPrompt = buildEnhancedPrompt(prompt, outline, intent);
+    enhancedPrompt = buildEnhancedPrompt(prompt, outline, intent, templatePlan.styleManifest);
   } else {
-    enhancedPrompt = buildEnhancedPrompt(prompt, undefined, intent);
+    enhancedPrompt = buildEnhancedPrompt(prompt, undefined, intent, templatePlan.styleManifest);
   }
 
   return {
     intent,
     blocked: false,
     style,
+    selectedTemplate: templatePlan.templateId,
+    exemplarPackId: templatePlan.exemplarPackId,
     animationLevel,
     blueprint,
+    styleManifest: templatePlan.styleManifest,
     enhancedPrompt,
     outline,
     outlineFallback,
@@ -178,8 +196,23 @@ function buildEnhancedPrompt(
   prompt: string,
   outline: SlideOutline[] | undefined,
   intent: RequestIntent,
+  styleManifest: StyleManifest,
 ): string {
   const additions: string[] = [];
+
+  additions.push(`ART DIRECTION CONTRACT — Follow this visual system across the whole deck:
+- Composition mode: ${styleManifest.compositionMode}
+- Background treatment: ${styleManifest.backgroundTreatment}
+- Typography mood: ${styleManifest.typographyMood}
+- Motion language: ${styleManifest.motionLanguage}
+- SVG strategy: ${styleManifest.svgStrategy}
+- Density: ${styleManifest.density}
+- Hero pattern: ${styleManifest.heroPattern}
+- Card grammar: ${styleManifest.cardGrammar}
+- Accent strategy: ${styleManifest.accentStrategy}
+- Reusable component patterns: ${styleManifest.componentPatterns.join('; ')}
+
+CRITICAL: Reuse the same component family, spacing rhythm, and background logic across slides. Do not treat each slide as a different template.`);
 
   if (intent === 'create' && outline) {
     const outlineStr = outline

@@ -20,10 +20,10 @@ import {
   batchDesignStep,
   targetedDesignStep,
   draftCompleteStep,
-  editFinalizeStep,
   qaValidateStep,
   qaPassStep,
   qaReviseStep,
+  editStyleReviewStep,
   reviewStep,
   reviseStep,
 } from './steps';
@@ -72,7 +72,8 @@ export const editWorkflowPipeline = createWorkflow<PresentationInput, Presentati
   .then(draftCompleteStep)
   .then(qaValidateStep)
   .branch(qaBranchConfig)
-  .then(editFinalizeStep);
+  .then(editStyleReviewStep)
+  .then(reviseStep);
 
 // ── Convenience runner ───────────────────────────────────────
 

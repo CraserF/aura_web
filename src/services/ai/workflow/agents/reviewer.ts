@@ -11,6 +11,8 @@ import type { LLMClient } from '../types';
 import { buildReviewRules } from '../skills/design-rules';
 import { ReviewResultSchema } from '../../schemas';
 import type { QAResult } from './qa-validator';
+import { getExemplarPack } from '../../templates';
+import type { ExemplarPackId, StyleManifest, TemplateId } from '../../templates';
 
 export interface ReviewIssue {
   slide: number;
@@ -26,15 +28,71 @@ export interface ReviewResult {
   summary: string;
 }
 
-const REVIEW_SYSTEM = `You are an elite design reviewer for HTML/CSS presentation slides.
+export interface ReviewContext {
+  selectedTemplate?: TemplateId;
+  exemplarPackId?: ExemplarPackId;
+  styleManifest?: StyleManifest;
+  mode?: 'create' | 'edit';
+}
+
+function buildReviewSystem(context?: ReviewContext): string {
+  const exemplarPack = context?.exemplarPackId
+    ? getExemplarPack(context.exemplarPackId)
+    : undefined;
+
+  const styleContract = context?.styleManifest
+    ? `
+## STYLE CONTRACT
+
+- Template: ${context.selectedTemplate ?? 'unspecified'}
+- Exemplar pack: ${exemplarPack?.name ?? 'none'}
+- Composition mode: ${context.styleManifest.compositionMode}
+- Background treatment: ${context.styleManifest.backgroundTreatment}
+- Typography mood: ${context.styleManifest.typographyMood}
+- Motion language: ${context.styleManifest.motionLanguage}
+- SVG strategy: ${context.styleManifest.svgStrategy}
+- Density: ${context.styleManifest.density}
+- Hero pattern: ${context.styleManifest.heroPattern}
+- Card grammar: ${context.styleManifest.cardGrammar}
+- Accent strategy: ${context.styleManifest.accentStrategy}
+- Component patterns: ${context.styleManifest.componentPatterns.join('; ')}
+`
+    : '';
+
+  const exemplarChecks = exemplarPack
+    ? `
+## EXEMPLAR-SPECIFIC CHECKS
+
+Visual thesis: ${exemplarPack.visualThesis}
+
+Composition checks:
+${exemplarPack.compositionRules.map((rule) => `- ${rule}`).join('\n')}
+
+Component checks:
+${exemplarPack.componentRules.map((rule) => `- ${rule}`).join('\n')}
+
+Motion checks:
+${exemplarPack.motionRules.map((rule) => `- ${rule}`).join('\n')}
+`
+    : '';
+
+  const modeGuidance = context?.mode === 'edit'
+    ? 'For edit reviews, preserve unaffected content and focus on whether the requested style refinements actually unified the deck.'
+    : 'For create reviews, assess the whole deck as one designed system, not just independent valid slides.';
+
+  return `You are an elite design reviewer for HTML/CSS presentation slides.
 Your job: audit the slides against strict design rules and return a JSON verdict.
 
 ${buildReviewRules()}
+${styleContract}
+${exemplarChecks}
 
 ## YOUR TASK
 
 Review the provided HTML slides. For each issue found, create an issue object.
 Then score the deck 0-100 and decide pass/fail (≥ 75 = pass).
+
+${modeGuidance}
 
 ### Scoring priorities (errors are -10 points each, warnings are -3 points each):
 - Contrast issues (dark text on dark bg, light text on light bg) → ERROR
@@ -45,6 +103,9 @@ Then score the deck 0-100 and decide pass/fail (≥ 75 = pass).
 - Insufficient layout variety (< 4 types) → WARNING
 - CSS custom properties duplicated across sections → WARNING
 - Cards or content too small for 1920x1080 → WARNING
+- Title slide does not establish the declared hero/composition system → WARNING
+- Later slides abandon the chosen component family or exemplar pack grammar → WARNING
+- Diagram-heavy decks rely on generic cards instead of embedded explainers → WARNING
 
 IMPORTANT: Be practical. Minor spacing tweaks are warnings, not errors.
 Focus on contrast, palette compliance, slide count, and layout variety — these are the most common failures.
@@ -58,6 +119,7 @@ Output ONLY this JSON structure (no markdown, no explanation):
   ],
   "summary": "1-2 sentence overall assessment"
 }`;
+}
 
 /**
  * Review slide HTML for design quality.
@@ -66,9 +128,10 @@ Output ONLY this JSON structure (no markdown, no explanation):
 export async function review(
   html: string,
   llm: LLMClient,
+  context?: ReviewContext,
 ): Promise<ReviewResult> {
   const messages: AIMessage[] = [
-    { role: 'system', content: REVIEW_SYSTEM },
+    { role: 'system', content: buildReviewSystem(context) },
     { role: 'user', content: `Review these slides:\n\n\`\`\`html\n${html}\n\`\`\`` },
   ];
 

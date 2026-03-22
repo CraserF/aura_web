@@ -5,8 +5,7 @@
  * Each section is independently testable and can be included/excluded
  * based on the template, animation level, and generation context.
  */
-import type { TemplatePalette, TemplateBlueprint } from '../templates';
-import type { TemplateId } from '../templates';
+import type { ExemplarPackId, TemplateId, TemplatePalette, TemplateBlueprint } from '../templates';
 import { buildBaseSection } from './sections/base';
 import { buildTypographySection } from './sections/typography';
 import { buildLayoutSection } from './sections/layout';
@@ -92,8 +91,8 @@ export class PromptComposer {
   }
 
   /** Add rich template HTML examples from the registry */
-  addTemplateExamples(templateId: TemplateId, blueprintExamples?: string): this {
-    const section = buildTemplateExamplesSection(templateId, blueprintExamples);
+  addTemplateExamples(templateId: TemplateId, exemplarPackId: ExemplarPackId, blueprintExamples?: string): this {
+    const section = buildTemplateExamplesSection(templateId, exemplarPackId, blueprintExamples);
     if (section) this.sections.push(section);
     return this;
   }
@@ -127,6 +126,7 @@ export class PromptComposer {
 export function buildDesignerPrompt(
   blueprint: TemplateBlueprint,
   templateId: TemplateId,
+  exemplarPackId: ExemplarPackId,
   animLevel: 1 | 2 | 3 | 4,
   slideCount?: number,
 ): string {
@@ -140,7 +140,7 @@ export function buildDesignerPrompt(
     .addSvg()
     .addNarrative(slideCount)
     .addAntiPatterns()
-    .addTemplateExamples(templateId, blueprint.exampleSlides)
+    .addTemplateExamples(templateId, exemplarPackId, blueprint.exampleSlides)
     .addKnowledge()
     .addQuality()
     .build();

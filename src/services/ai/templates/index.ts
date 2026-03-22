@@ -24,3 +24,15 @@ export {
 export {
   selectTemplate,
 } from './selector';
+
+export {
+  resolveTemplatePlan,
+  type ExemplarPackId,
+  type StyleManifest,
+  type TemplatePlan,
+} from './resolver';
+
+export {
+  getExemplarPack,
+  type ExemplarPack,
+} from './exemplar-packs';

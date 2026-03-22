@@ -11,6 +11,8 @@
  * - CSS custom property duplication warning
  */
 
+import type { ExemplarPackId, StyleManifest } from '../../templates';
+
 export interface QAViolation {
   slide: number;
   rule: string;
@@ -30,6 +32,10 @@ export interface QAOptions {
   expectedBgColor?: string;
   /** Whether this is a new presentation (stricter checks) */
   isCreate?: boolean;
+  /** Visual system chosen by the planner */
+  styleManifest?: StyleManifest;
+  /** Exemplar family chosen by the planner */
+  exemplarPackId?: ExemplarPackId;
 }
 
 /**
@@ -59,12 +65,12 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
 
   // ── Slide count validation ──────────────────────────────────
   if (options.expectedSlideCount && options.isCreate) {
-    if (sections.length < options.expectedSlideCount) {
+    if (sections.length !== options.expectedSlideCount) {
       violations.push({
         slide: 0,
         rule: 'slide-count',
         severity: 'error',
-        detail: `Expected ${options.expectedSlideCount} slides but only found ${sections.length}. The planner outline specified ${options.expectedSlideCount} slides. Add the missing slides.`,
+        detail: `Expected exactly ${options.expectedSlideCount} slides but found ${sections.length}. The planner outline specified ${options.expectedSlideCount} slides. Match it exactly.`,
       });
     }
   } else if (options.isCreate && sections.length < 8) {
@@ -307,6 +313,10 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
     });
   }
 
+  if (options.styleManifest) {
+    applyStyleManifestChecks(sections, html, options, violations);
+  }
+
   const errorCount = violations.filter((v) => v.severity === 'error').length;
 
   return {
@@ -413,6 +423,92 @@ function isLightColor(color: string): boolean {
   }
 
   return false;
+}
+
+function applyStyleManifestChecks(
+  sections: string[],
+  html: string,
+  options: QAOptions,
+  violations: QAViolation[],
+): void {
+  const styleManifest = options.styleManifest;
+  if (!styleManifest) return;
+
+  const firstSection = sections[0] ?? '';
+  const svgSlides = sections.filter((section) => /<svg[\s>]/i.test(section)).length;
+  const sceneSlides = sections.filter((section) => /position\s*:\s*absolute|scene-|radial-gradient|linear-gradient/i.test(section)).length;
+  const asymSlides = sections.filter((section) => /grid-template-columns:\s*(?:3fr\s+2fr|2fr\s+3fr|1\.15fr\s+0\.85fr|0\.85fr\s+1\.15fr)/i.test(section) || /grid-column:\s*1\s*\/\s*-1/i.test(section)).length;
+
+  if (styleManifest.compositionMode === 'split-world' || styleManifest.compositionMode === 'hero-scene') {
+    if (!/<svg[\s>]|position\s*:\s*absolute|scene-|linear-gradient/i.test(firstSection)) {
+      violations.push({
+        slide: 1,
+        rule: 'hero-scene',
+        severity: 'warning',
+        detail: 'Title slide does not establish a strong scene background or integrated visual system. Use a full-canvas hero composition.',
+      });
+    }
+
+    if (options.exemplarPackId === 'split-world-title' && /repeat\((?:3|4),\s*1fr\)/i.test(firstSection)) {
+      violations.push({
+        slide: 1,
+        rule: 'title-slide-composition',
+        severity: 'warning',
+        detail: 'Split-world title slides should not default to a generic equal-card grid. Use a central hero lockup with a seam, bridge, or dual-world scene.',
+      });
+    }
+  }
+
+  if (
+    styleManifest.compositionMode === 'editorial-grid'
+    || styleManifest.compositionMode === 'infographic-grid'
+    || styleManifest.compositionMode === 'dashboard-grid'
+  ) {
+    if (svgSlides === 0) {
+      violations.push({
+        slide: 0,
+        rule: 'integrated-diagrams',
+        severity: 'warning',
+        detail: 'This deck family should include at least one inline SVG or embedded diagram, not text-only cards.',
+      });
+    }
+
+    if (asymSlides === 0) {
+      violations.push({
+        slide: 0,
+        rule: 'editorial-composition',
+        severity: 'warning',
+        detail: 'Editorial and infographic decks need at least one asymmetric grid, full-width strip, or tiered stack to avoid uniform card repetition.',
+      });
+    }
+  }
+
+  if (options.isCreate && sections.length >= 8 && svgSlides < 2) {
+    violations.push({
+      slide: 0,
+      rule: 'integrated-visual-density',
+      severity: 'warning',
+      detail: 'Longer decks should include at least two integrated visual or SVG-led slides so the narrative is not carried only by card layouts.',
+    });
+  }
+
+  if (options.exemplarPackId === 'editorial-infographic' && !/border-left\s*:\s*[34]px|class="(?:gcf-strip|stack-wrap|header)"|layer-flow|big-num/i.test(html)) {
+    violations.push({
+      slide: 0,
+      rule: 'editorial-signposting',
+      severity: 'warning',
+      detail: 'Editorial-infographic decks should use stronger signposting such as header bars, callout strips, accent rails, or tiered layers.',
+    });
+  }
+
+  if (options.exemplarPackId === 'split-world-title' && sceneSlides < 2) {
+    violations.push({
+      slide: 0,
+      rule: 'scene-continuity',
+      severity: 'warning',
+      detail: 'Split-world decks should reuse their scene language beyond a single slide through seams, connectors, atmospheric backgrounds, or node/pipeline motifs.',
+    });
+  }
 }
 
 /**

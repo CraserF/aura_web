@@ -10,14 +10,19 @@
  */
 
 import type { AIMessage } from '../../types';
-import { buildDesignerPrompt } from '../../prompts';
-import { selectTemplate } from '../../templates';
+import {
+  buildBatchDesignerPrompt,
+  buildDesignerPrompt,
+  buildEditDesignerPrompt,
+} from '../../prompts';
+import { getExemplarPack } from '../../templates';
 import { extractHtmlFromResponse, countSlides, extractTitle } from '../../utils/extractHtml';
 import { sanitizeSlideHtml } from '../../utils/sanitizeHtml';
 import { injectFonts } from '../../utils/injectFonts';
 import type { LLMClient } from '../types';
 import type { PlanResult, SlideOutline } from './planner';
 import type { TemplateBlueprint } from '../../templates';
+import type { StyleManifest } from '../../templates';
 
 /** Anthropic cache control marker — enables prompt caching on the system message */
 const CACHE_CONTROL = {
@@ -59,6 +64,8 @@ export async function designBatch(
   batchOutline: SlideOutline[],
   topic: string,
   blueprint: TemplateBlueprint,
+  styleManifest: StyleManifest,
+  exemplarPackId: PlanResult['exemplarPackId'],
   animLevel: 1 | 2 | 3 | 4,
   batchIndex: number,
   totalBatches: number,
@@ -67,14 +74,15 @@ export async function designBatch(
   onChunk?: (chunk: string) => void,
 ): Promise<BatchDesignResult> {
   const isFirstBatch = batchIndex === 0;
-  const templateId = selectTemplate(topic);
-
-  // Full designer prompt — identical across all batch calls for cache hits
-  const systemPrompt = buildDesignerPrompt(
-    blueprint,
-    templateId,
+  const exemplarPack = getExemplarPack(exemplarPackId);
+  const systemPrompt = buildBatchDesignerPrompt(
+    blueprint.palette,
     animLevel,
-    batchOutline.length, // slide count for this batch
+    {
+      batchIndex,
+      totalBatches,
+      isFirstBatch,
+    },
   );
 
   // Build user message with outline + batch instructions
@@ -99,7 +107,24 @@ Generate the next batch of slides.
 - Match the visual style of the previous slides exactly — same fonts, colors, spacing, card styles.
 - Output ONLY \`<section>\` elements. No explanation, no commentary.`;
 
-  let userContent = `${batchInstructions}\n\nTopic: ${topic}\n\nGenerate slides for this batch:\n${outlineStr}`;
+  let userContent = `${batchInstructions}
+
+Topic: ${topic}
+
+Art direction:
+- Exemplar pack: ${exemplarPack.name}
+- Visual thesis: ${exemplarPack.visualThesis}
+- Composition mode: ${styleManifest.compositionMode}
+- Background treatment: ${styleManifest.backgroundTreatment}
+- Typography mood: ${styleManifest.typographyMood}
+- Motion language: ${styleManifest.motionLanguage}
+- SVG strategy: ${styleManifest.svgStrategy}
+- Card grammar: ${styleManifest.cardGrammar}
+- Hero pattern: ${styleManifest.heroPattern}
+- Component patterns: ${styleManifest.componentPatterns.join('; ')}
+
+Generate slides for this batch:
+${outlineStr}`;
 
   // For non-first batches, include last 2 sections for visual continuity
   if (!isFirstBatch && previousHtml) {
@@ -142,15 +167,11 @@ export async function designEdit(
   llm: LLMClient,
   onChunk?: (chunk: string) => void,
 ): Promise<DesignResult> {
-  const templateId = selectTemplate(planResult.enhancedPrompt);
   const existingSlideCount = countSlides(existingSlidesHtml);
 
-  // Full designer prompt with cache control — same as batch calls
-  const systemPrompt = buildDesignerPrompt(
-    planResult.blueprint,
-    templateId,
+  const systemPrompt = buildEditDesignerPrompt(
+    planResult.blueprint.palette,
     planResult.animationLevel,
-    existingSlideCount,
   );
 
   const messages: AIMessage[] = [
@@ -174,6 +195,16 @@ ${existingSlidesHtml}
 \`\`\`
 
 **User request:** ${planResult.enhancedPrompt}
+
+**Style manifest:**
+- Exemplar pack: ${getExemplarPack(planResult.exemplarPackId).name}
+- Composition mode: ${planResult.styleManifest.compositionMode}
+- Background treatment: ${planResult.styleManifest.backgroundTreatment}
+- Typography mood: ${planResult.styleManifest.typographyMood}
+- Motion language: ${planResult.styleManifest.motionLanguage}
+- SVG strategy: ${planResult.styleManifest.svgStrategy}
+- Hero pattern: ${planResult.styleManifest.heroPattern}
+- Component patterns: ${planResult.styleManifest.componentPatterns.join('; ')}
 
 **CRITICAL RULES FOR EDITING:**
 - You MUST output ALL ${existingSlideCount} slides (or more if adding new slides). Do NOT reduce the slide count.
@@ -208,16 +239,14 @@ export async function design(
   llm: LLMClient,
   onChunk?: (chunk: string) => void,
 ): Promise<DesignResult> {
-  // Select the best matching template from the registry
-  const templateId = selectTemplate(planResult.enhancedPrompt);
-
   // Pass the planned slide count to the prompt composer for hard enforcement
   const plannedSlideCount = planResult.outline?.length;
 
   // Build the system prompt with all sections — including anti-patterns and template examples
   const systemPrompt = buildDesignerPrompt(
     planResult.blueprint,
-    templateId,
+    planResult.selectedTemplate,
+    planResult.exemplarPackId,
     planResult.animationLevel,
     plannedSlideCount,
   );
