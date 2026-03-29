@@ -61,6 +61,9 @@ export function buildTemplateExamplesSection(
 Study these examples carefully and match this level of visual quality.
 Adapt the layouts, spacing, and component patterns to the user's content.
 Do NOT copy them verbatim — use them as quality benchmarks.
+  Treat all nouns, organization names, domain terms, metrics, and footer labels in examples as placeholders only.
+  You MUST rewrite every content string to match the user's requested context.
+  Never copy example brand names, taglines, or company references into output.
 
 ### Exemplar Pack (${exemplarPack.name})
 Visual thesis: ${exemplarPack.visualThesis}

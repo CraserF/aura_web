@@ -3,6 +3,12 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import type { ProviderConfig } from '@/types';
 import { PROVIDER_OPTIONS as OPTIONS } from '@/types';
 import {
+  fetchOllamaModels,
+  normalizeOllamaHost,
+  OLLAMA_DEFAULT_HOST,
+  type OllamaModelOption,
+} from '@/services/ai/ollama';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -75,6 +81,8 @@ export function ProviderModal() {
   const setApiKey = useSettingsStore((s) => s.setApiKey);
   const setBaseUrl = useSettingsStore((s) => s.setBaseUrl);
   const setModel = useSettingsStore((s) => s.setModel);
+  const alwaysRunEvaluation = useSettingsStore((s) => s.alwaysRunEvaluation);
+  const setAlwaysRunEvaluation = useSettingsStore((s) => s.setAlwaysRunEvaluation);
 
   return (
     <Dialog open={showSettings} onOpenChange={setShowSettings}>
@@ -117,6 +125,34 @@ export function ProviderModal() {
             onBaseUrlChange={(url) => setBaseUrl(providerId, url)}
             onModelChange={(model) => setModel(providerId, model)}
           />
+
+          <div className="rounded-lg border border-border px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">Always Run Evaluation</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Run an independent LLM quality check after every generation. When off, evaluation only runs if programmatic QA fails.
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={alwaysRunEvaluation}
+                onClick={() => setAlwaysRunEvaluation(!alwaysRunEvaluation)}
+                className={cn(
+                  'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  alwaysRunEvaluation ? 'bg-foreground' : 'bg-input',
+                )}
+              >
+                <span
+                  className={cn(
+                    'pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg transition-transform',
+                    alwaysRunEvaluation ? 'translate-x-4' : 'translate-x-0',
+                  )}
+                />
+              </button>
+            </div>
+          </div>
         </div>
 
         <DialogFooter>
@@ -146,12 +182,22 @@ function ProviderConfigForm({
 }) {
   const [showKey, setShowKey] = useState(false);
   const [geminiModels, setGeminiModels] = useState<Array<{ id: string; name: string }>>(GEMINI_FALLBACK_MODELS);
+  const [ollamaModels, setOllamaModels] = useState<OllamaModelOption[]>([]);
   const [isFetchingModels, setIsFetchingModels] = useState(false);
   const [modelFetchError, setModelFetchError] = useState<string | null>(null);
   const fetchedForKey = useRef<string | null>(null);
+  const fetchedForOllamaHost = useRef<string | null>(null);
 
   const isOllama = config.id === 'ollama';
   const isGemini = config.id === 'gemini';
+
+  const mergeCurrentOllamaModel = (models: OllamaModelOption[]): OllamaModelOption[] => {
+    if (!config.model || models.some((model) => model.id === config.model)) {
+      return models;
+    }
+
+    return [{ id: config.model, name: config.model, meta: 'Saved selection' }, ...models];
+  };
 
   // Auto-fetch Gemini models whenever the user has a key
   useEffect(() => {
@@ -177,7 +223,69 @@ function ProviderConfigForm({
       .finally(() => setIsFetchingModels(false));
   }, [isGemini, config.apiKey, config.baseUrl]);
 
+  useEffect(() => {
+    if (!isOllama) return;
+
+    const normalizedHost = normalizeOllamaHost(config.baseUrl);
+    if (fetchedForOllamaHost.current === normalizedHost) return;
+
+    setIsFetchingModels(true);
+    setModelFetchError(null);
+
+    fetchOllamaModels(normalizedHost)
+      .then((models) => {
+        const nextModels = mergeCurrentOllamaModel(models);
+        setOllamaModels(nextModels);
+        fetchedForOllamaHost.current = normalizedHost;
+
+        const firstNextModel = nextModels[0];
+        if (!config.model && firstNextModel) {
+          onModelChange(firstNextModel.id);
+        }
+
+        const firstModel = models[0];
+        if (config.model && models.length > 0 && firstModel && !models.find((model) => model.id === config.model)) {
+          onModelChange(firstModel.id);
+        }
+      })
+      .catch((err: Error) => {
+        setOllamaModels(mergeCurrentOllamaModel([]));
+        setModelFetchError(`Could not load local Ollama models: ${err.message}`);
+      })
+      .finally(() => setIsFetchingModels(false));
+  }, [isOllama, config.baseUrl, config.model]);
+
   const handleRefreshModels = () => {
+    if (isOllama) {
+      const normalizedHost = normalizeOllamaHost(config.baseUrl);
+      fetchedForOllamaHost.current = null;
+      setIsFetchingModels(true);
+      setModelFetchError(null);
+
+      fetchOllamaModels(normalizedHost)
+        .then((models) => {
+          const nextModels = mergeCurrentOllamaModel(models);
+          setOllamaModels(nextModels);
+          fetchedForOllamaHost.current = normalizedHost;
+
+          const firstNextModel = nextModels[0];
+          if (!config.model && firstNextModel) {
+            onModelChange(firstNextModel.id);
+          }
+
+          const firstModel = models[0];
+          if (config.model && models.length > 0 && firstModel && !models.find((model) => model.id === config.model)) {
+            onModelChange(firstModel.id);
+          }
+        })
+        .catch((err: Error) => {
+          setOllamaModels(mergeCurrentOllamaModel([]));
+          setModelFetchError(`Could not load local Ollama models: ${err.message}`);
+        })
+        .finally(() => setIsFetchingModels(false));
+      return;
+    }
+
     fetchedForKey.current = null;
     setIsFetchingModels(true);
     setModelFetchError(null);
@@ -201,7 +309,7 @@ function ProviderConfigForm({
         <div className="rounded-lg bg-muted/60 px-4 py-3">
           <p className="text-sm text-foreground font-medium">Local model</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            No API key needed. Make sure Ollama is running locally.
+            No API key needed. Aura will connect to your Ollama host, list installed models, and use the one you select.
           </p>
         </div>
       ) : (
@@ -230,6 +338,56 @@ function ProviderConfigForm({
             <p className="flex items-center gap-1.5 text-xs text-emerald-600">
               <span className="size-1.5 rounded-full bg-emerald-500" />
               Key configured
+            </p>
+          )}
+        </div>
+      )}
+
+      {isOllama && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="ollama-model-select" className="text-sm">Model</Label>
+            <button
+              type="button"
+              onClick={handleRefreshModels}
+              disabled={isFetchingModels}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+            >
+              <RefreshCw className={cn('size-3', isFetchingModels && 'animate-spin')} />
+              {isFetchingModels ? 'Checking…' : 'Refresh'}
+            </button>
+          </div>
+          <select
+            id="ollama-model-select"
+            value={config.model ?? ''}
+            onChange={(e) => onModelChange(e.target.value)}
+            disabled={isFetchingModels || ollamaModels.length === 0}
+            aria-label="Select Ollama model"
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {ollamaModels.length === 0 ? (
+              <option value="" className="bg-background">
+                No models found
+              </option>
+            ) : (
+              ollamaModels.map((model) => (
+                <option key={model.id} value={model.id} className="bg-background">
+                  {model.meta ? `${model.name} (${model.meta})` : model.name}
+                </option>
+              ))
+            )}
+          </select>
+          {modelFetchError && (
+            <p className="text-xs text-amber-600">{modelFetchError}</p>
+          )}
+          {!modelFetchError && ollamaModels.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Connected to {normalizeOllamaHost(config.baseUrl) || OLLAMA_DEFAULT_HOST}.
+            </p>
+          )}
+          {!modelFetchError && ollamaModels.length === 0 && !isFetchingModels && (
+            <p className="text-xs text-muted-foreground">
+              No local models were returned by Ollama. Pull a model first, then refresh.
             </p>
           )}
         </div>
@@ -286,8 +444,13 @@ function ProviderConfigForm({
             type="url"
             value={config.baseUrl ?? ''}
             onChange={(e) => onBaseUrlChange(e.target.value)}
-            placeholder={isOllama ? 'http://localhost:11434/v1' : 'Custom base URL'}
+            placeholder={isOllama ? OLLAMA_DEFAULT_HOST : 'Custom base URL'}
           />
+          {isOllama && (
+            <p className="text-xs text-muted-foreground">
+              Use the Ollama host only. Aura will automatically use the correct API path.
+            </p>
+          )}
         </div>
       )}
     </div>

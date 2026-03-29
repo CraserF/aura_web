@@ -19,6 +19,7 @@ Aura is an open-source productivity tool where every slide deck is generated and
 
 - **Chat-driven creation** — describe a presentation in plain English and get a complete slide deck
 - **Iterative refinement** — follow up with changes ("make slide 3 more visual", "add a conclusion slide")
+- **Draft-first generation** — see the designed slide immediately while QA/review run in the background
 - **Multiple AI providers** — OpenAI, Gemini, DeepSeek, Anthropic (bring your own API key)
 - **Presentation mode** — full-screen reveal.js with rich transitions and animations
 - **`.aura` file format** — open zip-based format (HTML + CSS + JSON), no vendor lock-in
@@ -71,7 +72,7 @@ Open [http://localhost:5173](http://localhost:5173), configure your AI provider 
 | Presentation | reveal.js 5 |
 | State | Zustand 5 |
 | Styling | Tailwind CSS 4 + shadcn/ui + Radix Primitives |
-| AI | Provider-agnostic via `fetch()` (no SDK dependencies) |
+| AI | Vercel AI SDK (`ai`) + provider adapters (`@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/google`) |
 | File Format | JSZip + FileSaver |
 | Persistence | IndexedDB (idb-keyval) |
 

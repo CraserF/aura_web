@@ -6,8 +6,8 @@
  * Falls back to raw text + manual JSON parse if structured output fails.
  */
 
-import type { AIMessage } from '../../types';
-import type { LLMClient } from '../types';
+import { generateText, Output } from 'ai';
+import type { LanguageModel } from 'ai';
 import { buildReviewRules } from '../skills/design-rules';
 import { ReviewResultSchema } from '../../schemas';
 import type { QAResult } from './qa-validator';
@@ -97,7 +97,6 @@ ${modeGuidance}
 ### Scoring priorities (errors are -10 points each, warnings are -3 points each):
 - Contrast issues (dark text on dark bg, light text on light bg) → ERROR
 - Missing data-background-color → ERROR
-- Slide count below 8 for new decks → ERROR
 - Invented colors not from the palette → ERROR
 - Same layout on consecutive slides → WARNING
 - Insufficient layout variety (< 4 types) → WARNING
@@ -108,7 +107,8 @@ ${modeGuidance}
 - Diagram-heavy decks rely on generic cards instead of embedded explainers → WARNING
 
 IMPORTANT: Be practical. Minor spacing tweaks are warnings, not errors.
-Focus on contrast, palette compliance, slide count, and layout variety — these are the most common failures.
+Single-slide outputs are valid in this product. Do not penalize low slide count unless the user explicitly asked for multiple slides.
+Focus on contrast, palette compliance, and layout quality — these are the most common failures.
 
 Output ONLY this JSON structure (no markdown, no explanation):
 {
@@ -127,34 +127,42 @@ Output ONLY this JSON structure (no markdown, no explanation):
  */
 export async function review(
   html: string,
-  llm: LLMClient,
+  model: LanguageModel,
   context?: ReviewContext,
 ): Promise<ReviewResult> {
-  const messages: AIMessage[] = [
-    { role: 'system', content: buildReviewSystem(context) },
-    { role: 'user', content: `Review these slides:\n\n\`\`\`html\n${html}\n\`\`\`` },
-  ];
+  const systemPrompt = buildReviewSystem(context);
+  const userPrompt = `Review these slides:\n\n\`\`\`html\n${html}\n\`\`\``;
 
   // Try structured output first
   try {
-    return await llm.generateStructured(messages, ReviewResultSchema, 'review-result');
+    const result = await generateText({
+      model,
+      output: Output.object({ schema: ReviewResultSchema }),
+      system: systemPrompt,
+      prompt: userPrompt,
+      maxRetries: 2,
+    });
+    if (result.output) return result.output;
   } catch (structuredErr) {
     console.warn('[Reviewer] Structured output failed, falling back to raw parse:', structuredErr);
   }
 
   // Fallback: raw text generation with manual JSON parsing
   try {
-    const response = await llm.generate(messages);
-    const jsonStr = response.replace(/```json?\s*\n?/g, '').replace(/```/g, '').trim();
-    const result = JSON.parse(jsonStr) as ReviewResult;
+    const result = await generateText({
+      model,
+      system: systemPrompt,
+      prompt: userPrompt,
+    });
+    const jsonStr = result.text.replace(/```json?\s*\n?/g, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(jsonStr) as ReviewResult;
     return {
-      passed: typeof result.passed === 'boolean' ? result.passed : true,
-      score: typeof result.score === 'number' ? Math.min(100, Math.max(0, result.score)) : 75,
-      issues: Array.isArray(result.issues) ? result.issues : [],
-      summary: typeof result.summary === 'string' ? result.summary : 'Review complete.',
+      passed: typeof parsed.passed === 'boolean' ? parsed.passed : true,
+      score: typeof parsed.score === 'number' ? Math.min(100, Math.max(0, parsed.score)) : 75,
+      issues: Array.isArray(parsed.issues) ? parsed.issues : [],
+      summary: typeof parsed.summary === 'string' ? parsed.summary : 'Review complete.',
     };
   } catch {
-    // Both approaches failed — FAIL to trigger revision
     return {
       passed: false,
       score: 0,
@@ -225,8 +233,9 @@ export function buildCombinedRevisionPrompt(
   if (warnings.length > 0) parts.push(`SHOULD FIX (warnings):\n${warnings.join('\n')}`);
 
   return `A design reviewer and automated QA found issues with the slides.
-Fix ALL errors and as many warnings as possible while keeping the overall design intact.
-Output the complete corrected deck as HTML <section> elements.
+Fix ALL errors while keeping the overall design intact.
+Do NOT modify visual elements that are not required to fix a listed issue.
+Output the complete corrected HTML including the \`<link>\`, \`<style>\`, and all \`<section>\` elements.
 
 ${parts.join('\n\n')}`;
 }

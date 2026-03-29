@@ -69,56 +69,49 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
       violations.push({
         slide: 0,
         rule: 'slide-count',
-        severity: 'error',
-        detail: `Expected exactly ${options.expectedSlideCount} slides but found ${sections.length}. The planner outline specified ${options.expectedSlideCount} slides. Match it exactly.`,
+        severity: 'warning',
+        detail: `Expected ${options.expectedSlideCount} slide(s) but found ${sections.length}.`,
       });
     }
-  } else if (options.isCreate && sections.length < 8) {
+  }
+
+  // ── <style> block check (standalone slide architecture) ────
+  const hasStyleBlock = /<style[\s>][\s\S]*?<\/style>/i.test(html);
+  if (!hasStyleBlock) {
     violations.push({
       slide: 0,
-      rule: 'slide-count',
-      severity: 'error',
-      detail: `Only ${sections.length} slides found. New presentations must have at least 8 slides to cover the narrative arc.`,
-    });
-  }
-
-  // ── Layout variety detection ────────────────────────────────
-  const layoutPatterns = detectLayoutPatterns(sections);
-
-  // Check consecutive duplicates
-  for (let i = 1; i < layoutPatterns.length; i++) {
-    if (layoutPatterns[i] === layoutPatterns[i - 1] && layoutPatterns[i] !== 'hero' && layoutPatterns[i] !== 'unknown') {
-      violations.push({
-        slide: i + 1,
-        rule: 'layout-variety',
-        severity: 'warning',
-        detail: `Consecutive slides ${i} and ${i + 1} both use "${layoutPatterns[i]}" layout. Vary the layout.`,
-      });
-    }
-  }
-
-  // Check overall variety (for decks with 6+ slides)
-  if (sections.length >= 6) {
-    const uniqueLayouts = new Set(layoutPatterns.filter(l => l !== 'unknown'));
-    if (uniqueLayouts.size < 4) {
-      violations.push({
-        slide: 0,
-        rule: 'layout-variety',
-        severity: 'warning',
-        detail: `Only ${uniqueLayouts.size} distinct layout types detected (${[...uniqueLayouts].join(', ')}). Use at least 4 different layout types for variety.`,
-      });
-    }
-  }
-
-  // Check card-grid overuse
-  const cardGridCount = layoutPatterns.filter(l => l === 'card-grid').length;
-  if (cardGridCount > 2) {
-    violations.push({
-      slide: 0,
-      rule: 'layout-variety',
+      rule: 'style-block',
       severity: 'warning',
-      detail: `Card-grid layout used ${cardGridCount} times. Maximum 2 times per deck to avoid monotony.`,
+      detail: 'Missing <style> block. Standalone slides should use CSS classes and @keyframes defined in a <style> block, not inline styles on every element.',
     });
+  }
+
+  // ── @keyframes check ──────────────────────────────────────
+  const hasKeyframes = /@keyframes\s+\w+/i.test(html);
+  if (!hasKeyframes && hasStyleBlock) {
+    violations.push({
+      slide: 0,
+      rule: 'animations',
+      severity: 'warning',
+      detail: 'No @keyframes animations found in <style> block. Every slide should include at least 2-3 CSS animations.',
+    });
+  }
+
+  // ── Layout variety detection (only for multi-slide decks) ──
+  if (sections.length > 1) {
+    const layoutPatterns = detectLayoutPatterns(sections);
+
+    // Check consecutive duplicates
+    for (let i = 1; i < layoutPatterns.length; i++) {
+      if (layoutPatterns[i] === layoutPatterns[i - 1] && layoutPatterns[i] !== 'hero' && layoutPatterns[i] !== 'unknown') {
+        violations.push({
+          slide: i + 1,
+          rule: 'layout-variety',
+          severity: 'warning',
+          detail: `Consecutive slides ${i} and ${i + 1} both use "${layoutPatterns[i]}" layout. Vary the layout.`,
+        });
+      }
+    }
   }
 
   // ── CSS custom property duplication ─────────────────────────
@@ -152,14 +145,15 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
       });
     }
 
-    // Rule: first section must define CSS custom properties
+    // Rule: first section must define CSS custom properties — check the full HTML
+    // (standalone slides define vars in the <style> block, not on the section element)
     if (i === 0) {
-      if (!section.includes('--primary')) {
+      if (!html.includes('--primary')) {
         violations.push({
           slide: slideNum,
           rule: 'css-vars',
           severity: 'error',
-          detail: 'First section missing --primary CSS custom property.',
+          detail: 'Missing --primary CSS custom property (should be defined in <style> block on .slide-wrap).',
         });
       }
     }
@@ -170,8 +164,15 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
       if (bgColorMatch) {
         const actualBg = bgColorMatch[1]?.toLowerCase() ?? '';
         const expectedBg = options.expectedBgColor.toLowerCase();
-        // Allow bg and bgSubtle (close variants)
-        if (actualBg !== expectedBg && !isCloseColor(actualBg, expectedBg)) {
+        // Detect CSS variable references — they don't resolve in HTML attributes
+        if (actualBg.startsWith('var(')) {
+          violations.push({
+            slide: slideNum,
+            rule: 'palette-compliance',
+            severity: 'error',
+            detail: `data-background-color="${bgColorMatch[1]}" uses a CSS variable which won't resolve in Reveal.js. Use a concrete hex value: "${options.expectedBgColor}".`,
+          });
+        } else if (actualBg !== expectedBg && !isCloseColor(actualBg, expectedBg)) {
           violations.push({
             slide: slideNum,
             rule: 'palette-compliance',
@@ -254,21 +255,44 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
       }
     }
 
-    // Rule: text elements should have inline color
-    const textTags = section.match(/<(h[1-6]|p|span|li|td|th)\s[^>]*>/gi) ?? [];
-    let textWithoutColor = 0;
-    for (const tag of textTags) {
-      if (!tag.includes('color:') && !tag.includes('color :')) {
-        textWithoutColor++;
+    // Rule: do not leak branded/example terms from templates/knowledge docs
+    const leakedBrandPatterns = [
+      /waterborne\s+capital/i,
+      /waterbourne\s+capital/i,
+      /presented by\s+waterborne/i,
+      /presented by\s+waterbourne/i,
+    ];
+    for (const pattern of leakedBrandPatterns) {
+      if (pattern.test(section)) {
+        violations.push({
+          slide: slideNum,
+          rule: 'template-content-leak',
+          severity: 'error',
+          detail: `Example/template brand text leaked into output: ${pattern.source}`,
+        });
+        break;
       }
     }
-    if (textWithoutColor > 3) {
-      violations.push({
-        slide: slideNum,
-        rule: 'inline-styles',
-        severity: 'warning',
-        detail: `${textWithoutColor} text elements missing inline color style.`,
-      });
+
+    // Rule: text elements should have color (via inline style or CSS class)
+    // For standalone slides with <style> blocks, CSS classes handle colors
+    // so only flag this if there's no <style> block at all
+    if (!hasStyleBlock) {
+      const textTags = section.match(/<(h[1-6]|p|span|li|td|th)\s[^>]*>/gi) ?? [];
+      let textWithoutColor = 0;
+      for (const tag of textTags) {
+        if (!tag.includes('color:') && !tag.includes('color :') && !tag.includes('class=')) {
+          textWithoutColor++;
+        }
+      }
+      if (textWithoutColor > 3) {
+        violations.push({
+          slide: slideNum,
+          rule: 'inline-styles',
+          severity: 'warning',
+          detail: `${textWithoutColor} text elements missing color style or CSS class.`,
+        });
+      }
     }
 
     // Rule: detect potential contrast issues — light text on light backgrounds
@@ -301,6 +325,43 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
         }
       }
     }
+  }
+
+  // ── Deck-level fit checks (common overflow regressions) ─────
+  // A large wrapper base font-size causes all em/rem values to explode and clip.
+  const oversizedWrapperBase = /\.slide-wrap[\s\S]*?font-size\s*:\s*(3[0-9]|[4-9][0-9])px/i.test(html);
+  if (oversizedWrapperBase) {
+    violations.push({
+      slide: 0,
+      rule: 'fit-overflow-risk',
+      severity: 'warning',
+      detail: 'Wrapper font-size appears oversized (>=30px), which often causes card/footer clipping.',
+    });
+  }
+
+  // Very large min paddings on wrapper frequently push content outside 1080 height.
+  const oversizedWrapperPadding = /\.slide-wrap[\s\S]*?padding\s*:\s*clamp\(\s*(9[0-9]|[1-9][0-9]{2,})px/i.test(html);
+  if (oversizedWrapperPadding) {
+    violations.push({
+      slide: 0,
+      rule: 'fit-overflow-risk',
+      severity: 'warning',
+      detail: 'Wrapper clamp() minimum padding appears very large (>=90px), which can cause visible cutoff.',
+    });
+  }
+
+  // Rule: viewport units (vw/vh/vmin/vmax) cause double-scaling inside Reveal.js.
+  // The slide canvas is 1920×1080 scaled via CSS transform — vw/vh reference the
+  // browser viewport, not the slide, causing unpredictable sizing.
+  const styleContent = html.match(/<style[^>]*>([\s\S]*?)<\/style>/i)?.[1] ?? '';
+  const viewportUnitUsage = styleContent.match(/\d+(\.\d+)?v[wh]/gi);
+  if (viewportUnitUsage && viewportUnitUsage.length > 0) {
+    violations.push({
+      slide: 0,
+      rule: 'viewport-units',
+      severity: 'warning',
+      detail: `Found ${viewportUnitUsage.length} viewport unit(s) (vw/vh) in CSS. Use fixed px values instead — Reveal.js transform handles scaling.`,
+    });
   }
 
   // Rule: Google Fonts link should be present

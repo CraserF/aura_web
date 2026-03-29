@@ -111,12 +111,19 @@ This is the core flow of the application:
    b. Builds AI message array from chat history
    c. Sets status to 'generating'
    d. Calls runPresentationWorkflow() — the multi-agent pipeline:
-      Plan → Design → QA → [Branch] → Review → Revise
-   e. Workflow emits real-time events (progress, streaming, step status)
-   f. On completion: result contains sanitized HTML, title, slide count
-   g. Calls presentationStore.setSlides(html) — triggers canvas re-render
-   h. Adds assistant message to chatStore
-   i. Sets status to 'idle'
+      Plan → Design → Draft Complete → QA → [Branch] → Review → Revise
+   e. On draft-complete event: the canvas is updated immediately with the initial design
+   f. QA/review/polish continue in the background
+   g. Final HTML replaces draft only when actionable errors are detected
+   h. Workflow emits real-time events (progress, streaming, step status)
+   i. On completion: result contains sanitized HTML, title, slide count
+   j. Calls presentationStore.setSlides(html) — triggers canvas re-render when needed
+   k. Adds assistant message to chatStore
+   l. Sets status to 'idle'
+
+Edit-mode invariants:
+- For `add_slides` requests, existing slides are treated as immutable and new sections are appended.
+- Existing slides are modified only when the request is a true modify/refine-style operation.
 3. PresentationCanvas reacts to slidesHtml change:
    a. Calls engine.updateContent(deck, html)
    b. reveal.js re-renders slides
@@ -225,7 +232,7 @@ No other files need to change — the settings UI, workflow, and chat flow pick 
 | No backend | Client-only | User owns their API key; no server to maintain or trust |
 | Vercel AI SDK | Unified provider layer | Consistent streaming, structured output, and model interface across all providers |
 | Zod structured output | Schema-validated LLM responses | Reliable JSON parsing for outlines and reviews; automatic retry on validation failure |
-| Multi-agent pipeline | Plan → Design → QA → Review → Revise | Each stage has a clear role; QA catches programmatic issues, review catches design issues |
+| Multi-agent pipeline | Plan → Design → Draft Complete → QA → Review → Revise | Draft appears quickly, then polish runs only for actionable errors to avoid unnecessary quality regression |
 | reveal.js | Embedded presentation | Best programmatic API for dynamic slide manipulation |
 | Buffer then render | Full response buffering | Partial HTML injection into reveal.js causes layout breakage |
 | Zustand over Redux | Minimal state lib | Less boilerplate, selectors prevent over-rendering |

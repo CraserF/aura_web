@@ -8,6 +8,8 @@ This document describes Aura's multi-agent AI system — how presentation slides
 
 Aura uses a **5-stage multi-agent pipeline** powered by the Vercel AI SDK. Each stage is a discrete "agent" with a specific role, and the workflow engine orchestrates them with retry, timeout, branching, and event emission for real-time UI feedback.
 
+For create requests, Aura renders the initial draft immediately, then continues QA/review/polish in the background. Final output only replaces the draft when actionable errors are found.
+
 ```
 User Prompt
     │
@@ -82,6 +84,7 @@ User Prompt
 - Builds a comprehensive system prompt via `PromptComposer` (12 sections: base rules, typography, layout, modern patterns, decorative, animation, SVG, narrative, anti-patterns, template examples, knowledge, quality)
 - Streams the response for real-time UI feedback
 - Post-processes: extracts HTML from response, sanitizes external URLs, injects Google Fonts
+- For `add_slides` intent, preserves existing slide sections and appends only newly generated sections
 
 ### 3. QA Validator (`workflow/agents/qa-validator.ts`)
 
@@ -115,6 +118,7 @@ User Prompt
 - Uses Zod-validated structured output (`ReviewResultSchema`) via `generateStructured()`
 - Falls back to raw text parsing if structured output fails
 - On total parse failure: returns `passed: false, score: 0` to trigger revision (never silently passes)
+- Treats single-slide output as valid by default (no fixed minimum slide-count penalty)
 - Scoring: errors = -10 points each, warnings = -3 points each, pass threshold = 75
 
 ### 5. Revise (`workflow/steps/index.ts`)
@@ -125,7 +129,9 @@ User Prompt
 **Output:** `PresentationOutput` with final HTML
 
 **Key behaviors:**
-- Skips entirely if both review and QA passed (returns original HTML)
+- Skips entirely when no actionable errors are present (returns original HTML)
+- Ignores non-actionable review findings (for example, generic slide-count guidance in single-slide runs)
+- Sends only actionable error issues into revision prompts to minimize unnecessary style rewrites
 - Uses full revision system prompt via `buildRevisionSystemPrompt()` (includes palette, layout, anti-patterns, SVG guidance)
 - Merges all issues from both QA and reviewer into a single revision prompt
 - Post-processes revised output through the same sanitize pipeline

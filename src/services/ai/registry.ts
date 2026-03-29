@@ -9,6 +9,7 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import type { ProviderId } from '@/types';
 import type { ProviderEntry, ProviderModelConfig } from './types';
+import { toOllamaOpenAIBaseUrl } from './ollama';
 
 const providers: Record<ProviderId, ProviderEntry> = {
   openai: {
@@ -63,7 +64,7 @@ const providers: Record<ProviderId, ProviderEntry> = {
     createModel: (config: ProviderModelConfig) =>
       createOpenAI({
         apiKey: config.apiKey || 'ollama',
-        baseURL: config.baseUrl || 'http://localhost:11434/v1',
+        baseURL: toOllamaOpenAIBaseUrl(config.baseUrl),
       })(config.model || 'llama3.1'),
   },
 };

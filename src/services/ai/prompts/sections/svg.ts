@@ -1,63 +1,41 @@
 /**
- * SVG Skills section — inline SVG drawing, Bootstrap Icons, animation recipes.
+ * SVG section — inline SVG illustration guide for standalone HTML slides.
  *
- * Level 1: Bootstrap Icons + decision guide + rules (visual alternatives to images)
- * Level 2: + SVG drawing recipes
- * Level 3+: + SVG animation recipes
+ * Level 1: Bootstrap Icons + decision guide + rules
+ * Level 2+: + SVG element recipes, composition guide, common icon paths
+ * Level 3+: + animation recipes for SVG
+ *
+ * All SVG illustrations should be composed from atomic elements and
+ * animated with CSS @keyframes defined in the slide's <style> block.
  */
 import type { TemplatePalette } from '../../templates';
 
 export function buildSvgSection(pal?: TemplatePalette, animLevel: 1 | 2 | 3 | 4 = 2): string {
-  const primary = pal?.primary ?? '#3b82f6';
-  const accent = pal?.accent ?? '#8b5cf6';
-  const heading = pal?.heading ?? '#fff';
-  const mode = pal?.mode ?? 'dark';
-  const surfaceFill = mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
-  const subtleFill = mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+  const primary = pal?.primary ?? '#0090B8';
+  const accent = pal?.accent ?? '#008858';
 
-  const bootstrapIconsBlock = `### Bootstrap Icons (CDN — include when you need icons beyond the 10 inline SVGs):
+  const bootstrapIconsBlock = `### Bootstrap Icons (CDN — include when you need icons):
 \`\`\`html
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1/font/bootstrap-icons.min.css">
 \`\`\`
-Usage: \`<i class="bi bi-rocket-takeoff" style="font-size:24px; color:var(--primary);"></i>\`
-
-**Popular icons:** bi-lightning-charge, bi-shield-check, bi-graph-up-arrow, bi-gear, bi-people, bi-globe2, bi-code-slash, bi-bar-chart-line, bi-check-circle, bi-arrow-right, bi-heart, bi-star, bi-trophy, bi-cpu, bi-database, bi-clipboard-data, bi-diagram-3, bi-pie-chart, bi-chat-dots, bi-calendar-event
+Usage: \`<i class="bi bi-rocket-takeoff" style="font-size:24px; color:${primary};"></i>\`
 
 **When to use Bootstrap Icons vs inline SVG:**
-- **Bootstrap Icons:** Quick icons in cards, lists, badges, nav elements (use the CDN font class \`<i class="bi bi-NAME">\`)
+- **Bootstrap Icons:** Quick icons in cards, lists, badges
 - **Inline SVG:** Custom illustrations, animated visuals, diagrams, data charts, decorative scenes`;
 
-  const decisionGuide = `### When to Use SVGs — Decision Guide:
+  const decisionGuide = `### SVG Decision Guide:
 | Scenario | Approach |
 |----------|----------|
-| Quick icons in cards/lists | Bootstrap Icons CDN (\`<i class="bi bi-NAME">\`) |
-| Need a visual but no images allowed | Emoji at 3-6em, or Bootstrap Icons at 2-3em |
+| Quick icons in cards | Bootstrap Icons CDN |
 | Custom data visualization | Inline SVG (donut, bar chart, sparkline) |
-| Flowchart or diagram | Inline SVG with arrow markers |
-| Decorative illustration | Inline SVG shapes + CSS animation |
-| Simple accent shape | CSS-only (border-radius, gradients) — no SVG needed |
-| Text-only or minimal slides | Skip SVG entirely |
+| Flowchart or diagram | Inline SVG with animated paths |
+| Decorative background scene | Full-slide SVG overlay at z-index 2 |
+| Real-world subject (person, animal) | Large emoji (4-8em) + abstract SVG accents |
 
-**CRITICAL — What to use INSTEAD of images:**
-- Do NOT use \`<img>\` tags with external URLs — they will be stripped.
-- Do NOT use \`background-image: url(http...)\` — it will be removed.
-- DO use emoji at large size (3-6em) for visual impact.
-- DO use Bootstrap Icons for iconography.
-- DO use inline SVG for diagrams and data visualization.
-- DO use CSS gradients, shapes, and patterns for decoration.`;
+**CRITICAL:** No \`<img>\` tags, no external URLs, no \`background-image: url()\`. Use inline SVG, emoji, Bootstrap Icons, or CSS shapes.`;
 
-  const rules = `**Rules:**
-- Include **at least 2-4 SVG-rich slides** per deck. Hero SVG scenes are what make slides spectacular.
-- Always include \`xmlns="http://www.w3.org/2000/svg"\` on all SVG elements.
-- Always set explicit \`width\` and \`height\` on the outer \`<svg>\` element.
-- Always include a \`viewBox\` attribute — without it, SVGs will not scale correctly.
-- SVG colors should use palette tokens (\`${primary}\` for strokes, \`${surfaceFill}\` for backgrounds).
-- NEVER use \`<image>\` elements inside SVGs with external URLs.
-- Place \`@keyframes\` in a \`<style>\` tag inside the \`<section>\`, not in HTML attributes.
-- Limit to 5-8 animations per slide with staggered delays for visual rhythm.
-- Background SVG layers: use \`pointer-events:none\` and low opacity (0.04-0.12).`;
-
-  // Level 1: Bootstrap Icons + decision guide + rules only (no SVG drawing recipes)
+  // Level 1: basics only
   if (animLevel < 2) {
     return `## SVG & ICON SKILLS
 
@@ -65,144 +43,149 @@ ${bootstrapIconsBlock}
 
 ${decisionGuide}
 
-${rules}`;
+**Rules:**
+- Always include \`xmlns="http://www.w3.org/2000/svg"\` on SVG elements
+- Always set \`viewBox\` on SVGs — without it, they won't scale correctly
+- SVG colors should use palette tokens
+- Place @keyframes in the \`<style>\` block, not in HTML attributes`;
   }
 
-  const svgRecipes = `### Inline SVG Recipes
+  const svgCanvasSetup = `### SVG Canvas Setup
 
-**Arrow marker for diagrams (paste inside <svg> before using):**
+**Full-slide background overlay** (position absolute, covers entire slide):
 \`\`\`html
+<svg style="position:absolute; inset:0; width:100%; height:100%;
+            z-index:2; pointer-events:none;"
+     viewBox="0 0 1280 720"
+     preserveAspectRatio="xMidYMid slice"
+     xmlns="http://www.w3.org/2000/svg">
+  <!-- All background illustrations go here -->
+</svg>
+\`\`\`
+
+**Content-level SVG strip** (inside the content div):
+\`\`\`html
+<div style="width:100%; height:clamp(100px,18vh,165px);">
+  <svg width="100%" height="100%"
+       viewBox="0 0 900 140"
+       preserveAspectRatio="xMidYMid meet"
+       xmlns="http://www.w3.org/2000/svg">
+    <!-- Strip illustrations -->
+  </svg>
+</div>
+\`\`\`
+
+| Context | viewBox | preserveAspectRatio |
+|---------|---------|---------------------|
+| Full-slide background | 0 0 1280 720 | xMidYMid slice |
+| Content strip | 0 0 900 140 | xMidYMid meet |
+| Square icon | 0 0 100 100 | xMidYMid meet |`;
+
+  const elementRecipes = `### SVG Element Recipes
+
+**Wave Bands (background):**
+\`\`\`xml
+<g style="animation:waveFlow 8s linear infinite;">
+  <path d="M0,560 Q80,540 160,560 Q240,580 320,560 Q400,540 480,560
+           Q560,580 640,560 Q720,540 800,560 Q880,580 960,560
+           L960,720 L0,720 Z"
+        fill="${primary}" opacity="0.12"/>
+</g>
+\`\`\`
+
+**Flowing Pipeline / Connections:**
+\`\`\`xml
+<path style="animation:streamFlow 2s linear infinite;"
+      d="M180,70 Q250,55 330,70 Q410,85 450,70 Q490,55 570,70"
+      fill="none" stroke="${primary}" stroke-width="2.5"
+      stroke-dasharray="16 8" opacity="0.6"/>
+\`\`\`
+
+**Nexus / Hub Node with Ripple:**
+\`\`\`xml
+<circle cx="450" cy="70" r="22" fill="none" stroke="${primary}" stroke-width="2.5" opacity="0.9"/>
+<circle cx="450" cy="70" r="6" fill="${primary}" opacity="0.7"/>
+<circle style="animation:rippleOut 2.5s ease-out infinite;"
+        cx="450" cy="70" r="22" fill="none" stroke="${primary}" stroke-width="1.5"/>
+\`\`\`
+
+**Network Nodes + Dashed Connection:**
+\`\`\`xml
+<circle cx="100" cy="280" r="8" fill="none" stroke="${accent}" stroke-width="1.5" opacity="0.5"/>
+<circle cx="100" cy="280" r="4" fill="${accent}" opacity="0.4"/>
+<line x1="100" y1="280" x2="160" y2="350"
+      stroke="${accent}" stroke-width="1" stroke-dasharray="4 3" opacity="0.3"/>
+\`\`\`
+
+**Data Stream (floating particles + grid):**
+\`\`\`xml
+<line x1="720" y1="0" x2="720" y2="720" stroke="${accent}" stroke-width="1" opacity="0.08"/>
+<text style="animation:particleUp 3s ease-out infinite;"
+      x="700" y="600" font-family="monospace" font-size="9"
+      fill="${accent}" opacity="0.4">01</text>
+\`\`\`
+
+**Glowing Seam / Divider (vertical gradient that fades at edges):**
+\`\`\`xml
 <defs>
-  <marker id="arrow" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-    <polygon points="0 0, 10 3.5, 0 7" fill="${primary}"/>
-  </marker>
+  <linearGradient id="seamGrad" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="${primary}" stop-opacity="0"/>
+    <stop offset="50%" stop-color="${primary}" stop-opacity="1"/>
+    <stop offset="100%" stop-color="${primary}" stop-opacity="0"/>
+  </linearGradient>
 </defs>
-\`\`\`
-
-**SVG Donut Chart:**
-\`\`\`html
-<svg width="120" height="120" viewBox="0 0 42 42" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="21" cy="21" r="15.9" fill="none" stroke="${subtleFill}" stroke-width="3"/>
-  <circle cx="21" cy="21" r="15.9" fill="none" stroke="${primary}" stroke-width="3" stroke-dasharray="75 25" stroke-dashoffset="25" stroke-linecap="round" style="transform:rotate(-90deg); transform-origin:center;"/>
-  <text x="21" y="21" text-anchor="middle" dominant-baseline="central" fill="${heading}" font-size="8" font-weight="700">75%</text>
-</svg>
-\`\`\`
-
-**SVG Bar Chart (vertical):**
-\`\`\`html
-<svg width="200" height="120" viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg">
-  <rect x="10" y="80" width="30" height="40" rx="4" fill="${primary}" opacity="0.6"/>
-  <rect x="50" y="40" width="30" height="80" rx="4" fill="${primary}" opacity="0.8"/>
-  <rect x="90" y="20" width="30" height="100" rx="4" fill="${primary}"/>
-  <rect x="130" y="50" width="30" height="70" rx="4" fill="${accent}" opacity="0.7"/>
-  <rect x="170" y="60" width="30" height="60" rx="4" fill="${accent}" opacity="0.5"/>
-</svg>
-\`\`\`
-
-**SVG Horizontal Bar Chart (for comparisons):**
-\`\`\`html
-<svg width="300" height="100" viewBox="0 0 300 100" xmlns="http://www.w3.org/2000/svg">
-  <text x="0" y="20" fill="${heading}" font-size="11" font-weight="600">Category A</text>
-  <rect x="80" y="8" width="180" height="18" rx="3" fill="${primary}" opacity="0.85"/>
-  <text x="0" y="50" fill="${heading}" font-size="11" font-weight="600">Category B</text>
-  <rect x="80" y="38" width="130" height="18" rx="3" fill="${primary}" opacity="0.6"/>
-  <text x="0" y="80" fill="${heading}" font-size="11" font-weight="600">Category C</text>
-  <rect x="80" y="68" width="90" height="18" rx="3" fill="${accent}" opacity="0.7"/>
-</svg>
-\`\`\`
-
-**Simple Flowchart (3 nodes):**
-\`\`\`html
-<svg viewBox="0 0 500 80" width="100%" xmlns="http://www.w3.org/2000/svg">
-  <defs><marker id="arr" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="8" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="${primary}"/></marker></defs>
-  <rect x="10" y="15" width="120" height="50" rx="10" fill="${surfaceFill}" stroke="${primary}" stroke-width="1.5"/>
-  <text x="70" y="45" text-anchor="middle" fill="${heading}" font-size="13" font-weight="600">Input</text>
-  <line x1="130" y1="40" x2="180" y2="40" stroke="${primary}" stroke-width="1.5" marker-end="url(#arr)"/>
-  <rect x="180" y="15" width="120" height="50" rx="10" fill="${surfaceFill}" stroke="${primary}" stroke-width="1.5"/>
-  <text x="240" y="45" text-anchor="middle" fill="${heading}" font-size="13" font-weight="600">Process</text>
-  <line x1="300" y1="40" x2="350" y2="40" stroke="${primary}" stroke-width="1.5" marker-end="url(#arr)"/>
-  <rect x="350" y="15" width="120" height="50" rx="10" fill="${surfaceFill}" stroke="${primary}" stroke-width="1.5"/>
-  <text x="410" y="45" text-anchor="middle" fill="${heading}" font-size="13" font-weight="600">Output</text>
-</svg>
-\`\`\`
-
-**SVG Progress Ring:**
-\`\`\`html
-<svg width="80" height="80" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="18" cy="18" r="15.5" fill="none" stroke="${subtleFill}" stroke-width="2.5"/>
-  <circle cx="18" cy="18" r="15.5" fill="none" stroke="${primary}" stroke-width="2.5" stroke-dasharray="85 15" stroke-dashoffset="25" stroke-linecap="round" style="transform:rotate(-90deg);transform-origin:center;"/>
-  <text x="18" y="18" text-anchor="middle" dominant-baseline="central" fill="${heading}" font-size="7" font-weight="700">85%</text>
-</svg>
-\`\`\`
-
-**SVG Icon with Animated Glow Ring:**
-\`\`\`html
-<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="30" cy="30" r="25" fill="${surfaceFill}" stroke="${primary}" stroke-width="1"/>
-  <circle cx="30" cy="30" r="28" fill="none" stroke="${primary}" stroke-width="0.5" opacity="0.3" style="animation:svgPulseRing 2s ease-in-out infinite;transform-origin:center;"/>
-  <!-- Place a 24x24 icon centered at (18, 18) -->
-</svg>
+<rect x="635" y="0" width="10" height="720" fill="url(#seamGrad)" opacity="0.6"/>
 \`\`\``;
 
-  const animationRecipes = animLevel >= 3 ? `
+  const iconPaths = `### Common SVG Icon Paths (fit ~100×100 coordinate space)
 
-### SVG Animation Recipes (CSS keyframes — apply via inline \`<style>\` or style attribute)
+**Water Drop:** \`M50,10 Q72,35 78,55 Q85,80 50,92 Q15,80 22,55 Q28,35 50,10 Z\`
+**Shield:** \`M50,10 L80,25 L80,55 Q80,80 50,95 Q20,80 20,55 L20,25 Z\`
+**Gear:** \`M50,15 L55,25 L65,22 L62,32 L72,35 L65,42 L70,52 L60,50 L55,60 L50,50 L45,60 L40,50 L30,52 L35,42 L28,35 L38,32 L35,22 L45,25 Z\`
+**Globe:** \`<circle cx="50" cy="50" r="38"/> <ellipse cx="50" cy="50" rx="20" ry="38"/> <line x1="12" y1="50" x2="88" y2="50"/>\`
+**Bar Chart:** \`<rect x="15" y="50" w="15" h="40"/> <rect x="35" y="30" w="15" h="60"/> <rect x="55" y="15" w="15" h="75"/> <rect x="75" y="40" w="15" h="50"/>\`
+**Lightning:** \`M55,10 L30,50 L48,50 L42,90 L70,45 L52,45 Z\`
+**Leaf:** \`M50,90 Q30,70 20,50 Q10,25 40,15 Q55,10 65,20 Q80,35 75,55 Q70,75 50,90 Z\`
+**Cloud:** \`M25,65 Q10,65 10,52 Q10,40 22,38 Q20,22 38,20 Q52,18 58,30 Q62,20 75,25 Q88,30 88,45 Q88,58 78,62 Q80,65 75,65 Z\``;
 
-**Draw-in effect (stroke animation):**
-\`\`\`css
-@keyframes svgDrawIn { from { stroke-dashoffset: 200; } to { stroke-dashoffset: 0; } }
-\`\`\`
-Usage: set \`stroke-dasharray="200"\` on the path, then \`style="animation: svgDrawIn 1.5s ease forwards;"\`
+  const compositionGuide = `### Composing Custom SVG Illustrations
 
-**Pulse glow (scale + opacity):**
-\`\`\`css
-@keyframes svgPulse { 0%,100% { opacity:0.6; transform:scale(1); } 50% { opacity:1; transform:scale(1.08); } }
-\`\`\`
-Apply: \`style="animation: svgPulse 2.5s ease-in-out infinite; transform-origin:center;"\`
+1. **Identify the concepts** — What are the 2-3 key themes? (e.g., water + data)
+2. **Pick a representative icon for each** — Drop, gear, server, globe, chart, shield
+3. **Connect them** — Use flowing pipeline paths (Q-curve Béziers) or dashed connection lines
+4. **Add atmosphere** — Background grid lines (opacity 0.06-0.08), wave bands, floating particles
+5. **Add a nexus point** — Where concepts meet, place a hub node with ripple animation
+6. **Layer with clipPath** — For split layouts, clip elements to each panel's half`;
 
-**Float animation:**
-\`\`\`css
-@keyframes svgFloat { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-6px); } }
-\`\`\`
+  const svgRules = `### SVG Style Rules:
+| Property | Value Range | Notes |
+|----------|-------------|-------|
+| Stroke width (detail) | 0.5-1.2px | Grid lines, connections |
+| Stroke width (primary) | 1.5-2.5px | Icons, outlines, pipelines |
+| Fill opacity (shapes) | 0.08-0.25 | Low enough to be atmospheric |
+| Fill opacity (dots) | 0.4-0.7 | Visible but not dominant |
+| stroke-linecap | round | Always, for cleaner endings |
+| rx (rounded rects) | 3px | Server racks, badges |
 
-**Ripple outward (for status indicators):**
-\`\`\`css
-@keyframes svgRipple { from { r:8; opacity:0.5; } to { r:25; opacity:0; } }
-\`\`\`
-Apply to \`<circle>\` with \`style="animation: svgRipple 2s ease-out infinite;"\`
-
-**Flowing dashed line (pipeline/connection animation):**
-\`\`\`css
-@keyframes svgFlowDash { to { stroke-dashoffset: -20; } }
-\`\`\`
-Usage: \`stroke-dasharray="8 4"\` + \`style="animation: svgFlowDash 1s linear infinite;"\`
-
-**Spinning (for gears, loading, circular elements):**
-\`\`\`css
-@keyframes svgSpin { to { transform:rotate(360deg); } }
-\`\`\`
-Apply: \`style="animation: svgSpin 6s linear infinite; transform-origin:center;"\`
-
-**Staggered bar chart entrance:**
-\`\`\`css
-@keyframes svgBarGrow { from { transform:scaleY(0); } to { transform:scaleY(1); } }
-\`\`\`
-Apply to each bar: \`style="transform-origin:bottom; animation:svgBarGrow 0.6s ease-out forwards; animation-delay:0.1s;"\` (increment delay per bar)
-
-**Performance rules:**
-- Use \`will-change:transform\` on animated SVG elements
-- Prefer animating \`transform\` and \`opacity\` only
-- Limit to 3-4 animated SVGs per slide
-- Place \`@keyframes\` in a \`<style>\` tag inside the \`<section>\`, NOT in HTML attributes` : '';
+- Always include \`xmlns="http://www.w3.org/2000/svg"\`
+- Always set \`viewBox\` — without it, SVGs won't scale
+- SVG colors from palette tokens only
+- Place @keyframes in the \`<style>\` block
+- Use \`pointer-events:none\` on background SVG overlays`;
 
   return `## SVG & ICON SKILLS
 
 ${bootstrapIconsBlock}
 
-${svgRecipes}
-${animationRecipes}
+${svgCanvasSetup}
+
+${elementRecipes}
+
+${iconPaths}
+
+${compositionGuide}
 
 ${decisionGuide}
 
-${rules}`;
+${svgRules}`;
 }

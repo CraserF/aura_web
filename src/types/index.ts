@@ -101,6 +101,6 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
     id: 'ollama',
     name: 'Ollama',
     description: 'Local models — no API key needed',
-    defaultBaseUrl: 'http://localhost:11434/v1',
+    defaultBaseUrl: 'http://127.0.0.1:11434',
   },
 ];

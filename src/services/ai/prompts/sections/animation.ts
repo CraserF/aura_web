@@ -1,56 +1,135 @@
 /**
- * Animation section — animation framework, level-specific guidance.
+ * Animation section — CSS @keyframes animation framework for standalone HTML slides.
+ *
+ * Every slide must define its own @keyframes in the <style> block.
+ * Level-specific guidance controls how many and how complex the animations are.
  */
 
 const ANIMATION_LEVEL_GUIDANCE: Record<1 | 2 | 3 | 4, string> = {
-  1: 'Use ONLY `.anim-fade-in-up` for entrances. Fragments: `.fragment.fade-in` only. No scene backgrounds. Minimal delays (`.delay-200` max). Clean, professional motion.',
-  2: 'Use `.anim-fade-in-up`, `.anim-fade-in-left/right` for variety. Stagger containers (`.anim-stagger`) on card grids. Fragments: `.fragment.scale-up`, `.fragment.slide-up`. Delays up to `.delay-400`. Accent lines and glassmorphism cards.',
-  3: 'Use elastic/bounce entrances (`.anim-elastic-in`, `.anim-bounce-in-up`). Add `scene-particles` or `scene-aurora` on the title slide. Use `.anim-text-shimmer` on hero titles. Animated borders (`.border-gradient-anim`) on featured cards. Stagger everything. Use `.fragment.wipe-right`, `.fragment.glow`.',
-  4: 'Full scene backgrounds (particles, aurora, starfield) on 2-3 slides. `.anim-typewriter` on hero title. `.anim-reveal-circle` for dramatic reveals. `.border-neon` on key cards. `.anim-text-shimmer` + `.anim-float` on decorative elements. `.bg-gradient-shift` on transition slides. Layer multiple effects per slide.',
+  1: 'Use 1-2 simple entrance animations (fadeInUp, fadeIn). No background scene animations. Minimal delays. Clean, professional motion only.',
+  2: 'Use 2-4 animations including entrances (fadeInUp, fadeInScale) and at least one continuous animation (bob, breathe, dotPulse, streamFlow). Stagger animation-delay on groups. Simple SVG animations on background elements.',
+  3: 'Use 4-6 animations. Include entrance, continuous, and flowing effects (waveFlow, streamFlow, particleUp). Add ripple effects on nexus points. Full SVG background scene with animated elements. Use staggered delays extensively.',
+  4: 'Use 6+ animations with complex orchestration. Include draw-in effects (svgDrawIn), flowing data streams (floatData, particleUp), pulsing indicators (blinkLED, serverScan), wave bands, and particle systems. Full-canvas animated SVG scene. Layer multiple effects per element.',
 };
 
 export function buildAnimationSection(animLevel: 1 | 2 | 3 | 4): string {
-  return `## ANIMATION FRAMEWORK
+  return `## CSS ANIMATION FRAMEWORK
 
-### Entrance Animations (trigger on slide visible):
-\`.anim-fade-in-up\` \`.anim-fade-in-down\` \`.anim-fade-in-left\` \`.anim-fade-in-right\` \`.anim-fade-in-scale\`
-\`.anim-zoom-in\` \`.anim-zoom-in-bounce\` \`.anim-elastic-in\` \`.anim-bounce-in\` \`.anim-bounce-in-up\`
-\`.anim-flip-in-x\` \`.anim-flip-in-y\` \`.anim-reveal-circle\` \`.anim-reveal-wipe-right\` \`.anim-reveal-diamond\`
+All animations must be defined as @keyframes in the \`<style>\` block. Apply via CSS classes or inline style attributes on elements.
 
-### Stagger Container (auto-delays children):
-\`\`\`html
-<div class="anim-stagger" style="display:grid; ...">
-  <div class="anim-fade-in-up">...</div>
-  <div class="anim-fade-in-up">...</div>
-</div>
+### Core @keyframes Library (copy the ones you need into your <style> block):
+
+#### Entrance Animations (play once):
+\`\`\`css
+@keyframes fadeInUp {
+  from { opacity:0; transform:translateY(20px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity:0; }
+  to   { opacity:1; }
+}
+@keyframes fadeInScale {
+  from { opacity:0; transform:scale(0.9); }
+  to   { opacity:1; transform:scale(1); }
+}
 \`\`\`
 
-### Fragment Extensions (click-to-reveal):
-\`.fragment.blur\` \`.fragment.scale-up\` \`.fragment.slide-up\` \`.fragment.bounce\` \`.fragment.wipe-right\` \`.fragment.glow\`
-
-### Text Effects:
-\`.anim-text-shimmer\` (moving highlight) \`.anim-typewriter\` (set \`--tw-chars:N\`) \`.anim-text-glow\`
-
-### Emphasis (add \`.anim-infinite\` for continuous):
-\`.anim-pulse\` \`.anim-heartbeat\` \`.anim-float\`
-
-### Timing: \`.delay-100\` through \`.delay-2000\` (100ms steps) | \`.duration-fast\` \`.duration-normal\` \`.duration-slow\`
-
-### Scene Backgrounds (place inside \`<section>\`, before content div):
-\`\`\`html
-<!-- Particles -->
-<div class="scene-particles"><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div></div>
-<!-- Aurora -->
-<div class="scene-aurora"><div class="aurora-band"></div><div class="aurora-band"></div><div class="aurora-band"></div></div>
-<!-- Starfield -->
-<div class="scene-starfield"><div class="star-layer"></div><div class="star-layer"></div><div class="star-layer"></div></div>
-<!-- Fireflies -->
-<div class="scene-fireflies"><div class="firefly"></div><div class="firefly"></div><div class="firefly"></div><div class="firefly"></div><div class="firefly"></div></div>
+#### Continuous Oscillation (infinite):
+\`\`\`css
+@keyframes bob {
+  0%, 100% { transform:translateY(0); }
+  50%      { transform:translateY(-7px); }
+}
+@keyframes breathe {
+  0%, 100% { opacity:1; }
+  50%      { opacity:0.5; }
+}
+@keyframes dotPulse {
+  0%, 100% { transform:scale(1);   opacity:1; }
+  50%      { transform:scale(1.6); opacity:0.4; }
+}
 \`\`\`
-Content after scene: \`<div style="position:relative; z-index:1;">\`
 
-### Animated Borders: \`.border-gradient-anim\` \`.border-neon\` (set \`--neon-color\`) \`.border-draw\`
-### Background: \`class="bg-gradient-shift"\` with \`--grad-1\`, \`--grad-2\`, \`--grad-3\` vars
+#### Flowing / Streaming (infinite):
+\`\`\`css
+@keyframes waveFlow {
+  from { transform:translateX(0); }
+  to   { transform:translateX(-320px); }
+}
+@keyframes streamFlow {
+  to { stroke-dashoffset:-40; }
+}
+\`\`\`
+
+#### Expansion / Ripple (infinite):
+\`\`\`css
+@keyframes rippleOut {
+  0%   { transform:scale(0.2); opacity:0.7; }
+  100% { transform:scale(1.6); opacity:0; }
+}
+\`\`\`
+
+#### Particle / Data Effects (infinite):
+\`\`\`css
+@keyframes particleUp {
+  0%   { transform:translateY(0); opacity:0; }
+  20%  { opacity:1; }
+  100% { transform:translateY(-60px); opacity:0; }
+}
+@keyframes floatData {
+  0%   { transform:translateY(0) translateX(0); opacity:0; }
+  20%  { opacity:0.7; }
+  80%  { opacity:0.4; }
+  100% { transform:translateY(-40px) translateX(8px); opacity:0; }
+}
+\`\`\`
+
+#### Blinking / Scanning (infinite):
+\`\`\`css
+@keyframes blinkLED {
+  0%, 100% { opacity:0.4; }
+  50%      { opacity:1; }
+}
+@keyframes serverScan {
+  0%   { transform:translateY(-100%); opacity:0; }
+  10%  { opacity:0.6; }
+  90%  { opacity:0.6; }
+  100% { transform:translateY(200%); opacity:0; }
+}
+\`\`\`
+
+#### Rotation:
+\`\`\`css
+@keyframes spin {
+  from { transform:rotate(0deg); }
+  to   { transform:rotate(360deg); }
+}
+\`\`\`
+
+### Animation Timing Cheatsheet:
+| Property | Values |
+|----------|--------|
+| Duration | 1.2s (blink), 2-3s (bob/pulse), 3-4s (particle), 8s (wave scroll) |
+| Timing function | ease-in-out (oscillation), linear (scroll/spin), ease-out (particles) |
+| Iteration | \`infinite\` for decorative, once for entrances |
+| Stagger delay | +0.2-0.4s per element in a group |
+
+### Staggering Pattern:
+For groups of similar elements, increment animation-delay:
+\`\`\`css
+.stagger-1 { animation-delay: 0s; }
+.stagger-2 { animation-delay: 0.3s; }
+.stagger-3 { animation-delay: 0.6s; }
+.stagger-4 { animation-delay: 0.9s; }
+\`\`\`
+Or use inline \`style="animation-delay: 0.3s"\` on SVG elements.
+
+### Performance Rules:
+- **Only animate \`transform\` and \`opacity\`** — never width, height, top, left, margin, padding
+- Use \`will-change: transform\` sparingly on heavily animated elements
+- Keep total animated elements under ~50 per slide for 60fps
+- For SVG animations: set \`transform-box: fill-box\` and \`transform-origin: center\` on the element
 
 ## ANIMATION LEVEL: ${animLevel}
 ${ANIMATION_LEVEL_GUIDANCE[animLevel]}`;

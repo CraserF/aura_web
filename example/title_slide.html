@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Water and Data Centre Opportunities in Africa</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700;900&family=Source+Sans+3:wght@300;400;600;700&display=swap');
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; background:#C0DCE8; display:flex; align-items:center; justify-content:center; }
+
+  .slide {
+    width:min(100vw,177.78vh); height:min(56.25vw,100vh);
+    position:relative; overflow:hidden;
+    font-family:'Source Sans 3',sans-serif;
+    background:#EAF6FA;
+    display:flex; flex-direction:column;
+  }
+
+  /* ══ SPLIT BACKGROUND ══ */
+  .bg-left {
+    position:absolute; left:0; top:0; bottom:0; width:50%;
+    background:linear-gradient(135deg, #D8EEF8 0%, #C8E6F4 60%, #D4ECF8 100%);
+    z-index:0;
+  }
+  .bg-right {
+    position:absolute; right:0; top:0; bottom:0; width:50%;
+    background:linear-gradient(225deg, #D4F0E8 0%, #C8EDE0 60%, #D0EEE8 100%);
+    z-index:0;
+  }
+  /* Diagonal divider slash */
+  .bg-slash {
+    position:absolute; top:0; bottom:0;
+    left:calc(50% - 2px); width:4px;
+    background:linear-gradient(to bottom, #00C8A0, #0098B8, #00C8A0);
+    z-index:1;
+    opacity:0.6;
+  }
+
+  /* ══ CONTENT ══ */
+  .content {
+    position:relative; z-index:10;
+    width:100%; height:100%;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    padding:3% 4%;
+    gap:clamp(10px,1.6vh,22px);
+  }
+
+  /* ── Brand ── */
+  .brand-tag {
+    flex-shrink:0; text-align:center;
+    font-size:clamp(8px,0.8vw,11px); font-weight:700;
+    letter-spacing:4px; text-transform:uppercase;
+    color:#008870;
+    animation:tagFade 2s ease-in-out infinite;
+  }
+  @keyframes tagFade { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+  /* ── MAIN VISUAL STRIP ── */
+  .vis-strip {
+    flex-shrink:0;
+    width:100%;
+    height:clamp(100px,18vh,165px);
+    position:relative;
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  /* ── TITLES ── */
+  .title-block { flex-shrink:0; text-align:center; }
+  .title-eyebrow {
+    font-size:clamp(9px,0.88vw,12px); font-weight:700;
+    letter-spacing:4px; text-transform:uppercase;
+    color:#0070A0; margin-bottom:4px;
+  }
+  .title-main {
+    font-family:'Barlow Condensed',sans-serif;
+    font-size:clamp(32px,5.2vw,70px);
+    font-weight:900; line-height:0.9;
+    text-transform:uppercase; color:#041828;
+    letter-spacing:-1px;
+  }
+  .title-accent-water { color:#0090B8; }
+  .title-accent-data  { color:#008858; }
+  .title-sub {
+    font-family:'Barlow Condensed',sans-serif;
+    font-size:clamp(20px,3.2vw,44px);
+    font-weight:700; text-transform:uppercase;
+    color:#2A6878; line-height:1; margin-top:4px;
+    letter-spacing:1px;
+  }
+
+  /* ── DIVIDER + TAGLINE ── */
+  .divider-row {
+    flex-shrink:0; display:flex; align-items:center;
+    gap:clamp(10px,1.2vw,18px); width:80%;
+  }
+  .divider-line { flex:1; height:1px; background:linear-gradient(to right,transparent,#0098B8,transparent); opacity:0.4; }
+  .divider-text {
+    font-size:clamp(10px,1vw,13.5px);
+    color:#2A7888; font-weight:400;
+    letter-spacing:2px; text-transform:uppercase;
+    white-space:nowrap; flex-shrink:0;
+    font-style:italic;
+  }
+
+  /* ── TWO PILLARS ── */
+  .pillars {
+    flex-shrink:0; display:flex;
+    gap:clamp(12px,1.5vw,22px);
+    align-items:center;
+  }
+  .pillar {
+    display:flex; align-items:center; gap:8px;
+    padding:clamp(5px,0.6vh,9px) clamp(12px,1.3vw,18px);
+    border-radius:30px; font-size:clamp(10px,1vw,13.5px);
+    font-weight:700; letter-spacing:0.5px;
+  }
+  .pillar.water { background:rgba(0,140,184,0.12); border:1.5px solid rgba(0,152,184,0.5); color:#004870; }
+  .pillar.data  { background:rgba(0,160,100,0.12); border:1.5px solid rgba(0,168,120,0.5); color:#003A28; }
+  .pillar-dot   { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .pillar.water .pillar-dot { background:#0098B8; animation:dotPulse 2s ease-in-out infinite; }
+  .pillar.data  .pillar-dot { background:#00A868; animation:dotPulse 2s ease-in-out infinite 0.4s; }
+  @keyframes dotPulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.6);opacity:0.4} }
+
+  /* ── Presented by ── */
+  .presented {
+    flex-shrink:0; text-align:center;
+    font-size:clamp(9px,0.88vw,12px); color:#4A7888;
+    letter-spacing:2px; text-transform:uppercase;
+  }
+  .presented strong { color:#1A3848; font-weight:700; }
+
+  /* ══ ANIMATIONS ══ */
+  @keyframes waveFlow   { 0%{transform:translateX(0)} 100%{transform:translateX(-320px)} }
+  @keyframes dropBob    { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
+  @keyframes ripOut     { 0%{transform:scale(0.2);opacity:0.7} 100%{transform:scale(1.6);opacity:0} }
+  @keyframes blinkLED   { 0%,100%{opacity:0.4} 50%{opacity:1} }
+  @keyframes serverScan { 0%{transform:translateY(-100%);opacity:0} 10%{opacity:0.6} 90%{opacity:0.6} 100%{transform:translateY(200%);opacity:0} }
+  @keyframes floatData  { 0%{transform:translateY(0) translateX(0);opacity:0} 20%{opacity:0.7} 80%{opacity:0.4} 100%{transform:translateY(-40px) translateX(8px);opacity:0} }
+  @keyframes streamFlow { to{stroke-dashoffset:-40} }
+  @keyframes particleUp { 0%{transform:translateY(0);opacity:0} 20%{opacity:1} 100%{transform:translateY(-60px);opacity:0} }
+  @keyframes globeSpin  { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+  .wav  { animation:waveFlow   8s linear infinite; }
+  .dbob { animation:dropBob    3s ease-in-out infinite; }
+  .rip  { animation:ripOut     2.5s ease-out infinite; }
+  .blink{ animation:blinkLED   1.2s ease-in-out infinite; }
+  .scan { animation:serverScan 3s ease-in-out infinite; }
+  .fd   { animation:streamFlow 2s linear infinite; }
+</style>
+</head>
+<body>
+<div class="slide">
+
+  <!-- Split background panels -->
+  <div class="bg-left"></div>
+  <div class="bg-right"></div>
+  <div class="bg-slash"></div>
+
+  <!-- Full-canvas animated background SVG -->
+  <svg style="position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+
+    <!-- ── LEFT: Water world ── -->
+    <!-- Animated wave bands rolling left -->
+    <g clip-path="url(#leftClip)" opacity="0.55">
+      <clipPath id="leftClip"><rect x="0" y="0" width="638" height="720"/></clipPath>
+      <!-- Wave layer 1 -->
+      <g class="wav">
+        <path d="M0,560 Q80,540 160,560 Q240,580 320,560 Q400,540 480,560 Q560,580 640,560 Q720,540 800,560 Q880,580 960,560 L960,720 L0,720 Z" fill="#0090B8" opacity="0.12"/>
+        <path d="M0,590 Q80,575 160,590 Q240,605 320,590 Q400,575 480,590 Q560,605 640,590 Q720,575 800,590 Q880,605 960,590 L960,720 L0,720 Z" fill="#0090B8" opacity="0.08"/>
+      </g>
+      <!-- Wave layer 2 offset -->
+      <g class="wav" style="animation-delay:-4s;">
+        <path d="M0,580 Q80,562 160,580 Q240,598 320,580 Q400,562 480,580 Q560,598 640,580 Q720,562 800,580 Q880,598 960,580 L960,720 L0,720 Z" fill="#00A8C0" opacity="0.18"/>
+      </g>
+
+      <!-- Floating water drops left side -->
+      <ellipse class="rip" cx="120" cy="480" rx="12" ry="4" fill="none" stroke="#00C8E8" stroke-width="1.2" style="animation-delay:0s"/>
+      <ellipse class="rip" cx="120" cy="480" rx="12" ry="4" fill="none" stroke="#00C8E8" stroke-width="0.8" style="animation-delay:1.2s"/>
+      <ellipse class="rip" cx="300" cy="520" rx="16" ry="5" fill="none" stroke="#0098B8" stroke-width="1" style="animation-delay:0.6s"/>
+      <ellipse class="rip" cx="300" cy="520" rx="16" ry="5" fill="none" stroke="#0098B8" stroke-width="0.7" style="animation-delay:1.8s"/>
+      <ellipse class="rip" cx="480" cy="495" rx="10" ry="3.5" fill="none" stroke="#00C8E8" stroke-width="1" style="animation-delay:1s"/>
+
+      <!-- Large drop icon left -->
+      <g class="dbob" style="transform-origin:160px 340px;">
+        <path d="M160,280 Q185,305 192,330 Q200,358 160,372 Q120,358 128,330 Q135,305 160,280 Z" fill="#0098B8" opacity="0.22"/>
+        <path d="M160,280 Q185,305 192,330 Q200,358 160,372 Q120,358 128,330 Q135,305 160,280 Z" fill="none" stroke="#00C8E8" stroke-width="2"/>
+        <path d="M144,300 Q152,294 160,300" fill="none" stroke="#60D8F0" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+      </g>
+
+      <!-- Flowing stream lines -->
+      <path class="fd" d="M0,420 Q100,408 200,420 Q300,432 400,420 Q500,408 600,420" fill="none" stroke="#00B8D8" stroke-width="1.5" stroke-dasharray="12 8" opacity="0.35"/>
+      <path class="fd" d="M0,445 Q100,435 200,445 Q300,455 400,445 Q500,435 600,445" fill="none" stroke="#0098B8" stroke-width="1"   stroke-dasharray="8 6"  opacity="0.25" style="animation-delay:-2s"/>
+
+      <!-- Corner water texture arcs -->
+      <path d="M0,150 Q60,110 120,150 Q180,190 240,150" fill="none" stroke="#00C8E8" stroke-width="1" opacity="0.15"/>
+      <path d="M0,180 Q60,145 120,180 Q180,215 240,180" fill="none" stroke="#00C8E8" stroke-width="0.7" opacity="0.1"/>
+    </g>
+
+    <!-- ── RIGHT: Data centre world ── -->
+    <g clip-path="url(#rightClip)" opacity="0.55">
+      <clipPath id="rightClip"><rect x="642" y="0" width="638" height="720"/></clipPath>
+
+      <!-- Data stream lines (vertical, falling) -->
+      <line x1="720" y1="0" x2="720" y2="720" stroke="#00D898" stroke-width="1" opacity="0.08"/>
+      <line x1="800" y1="0" x2="800" y2="720" stroke="#00D898" stroke-width="0.7" opacity="0.06"/>
+      <line x1="880" y1="0" x2="880" y2="720" stroke="#00D898" stroke-width="1" opacity="0.08"/>
+      <line x1="960" y1="0" x2="960" y2="720" stroke="#00D898" stroke-width="0.7" opacity="0.06"/>
+      <line x1="1040" y1="0" x2="1040" y2="720" stroke="#00D898" stroke-width="1" opacity="0.08"/>
+      <line x1="1120" y1="0" x2="1120" y2="720" stroke="#00D898" stroke-width="0.7" opacity="0.06"/>
+      <line x1="1200" y1="0" x2="1200" y2="720" stroke="#00D898" stroke-width="1" opacity="0.08"/>
+
+      <!-- Horizontal grid lines -->
+      <line x1="642" y1="180" x2="1280" y2="180" stroke="#00B878" stroke-width="0.5" opacity="0.08"/>
+      <line x1="642" y1="360" x2="1280" y2="360" stroke="#00B878" stroke-width="0.5" opacity="0.08"/>
+      <line x1="642" y1="540" x2="1280" y2="540" stroke="#00B878" stroke-width="0.5" opacity="0.08"/>
+
+      <!-- Server racks illustration right -->
+      <rect x="820" y="260" width="90" height="18" rx="3" fill="#D8F4EC" stroke="#00C888" stroke-width="1.2" opacity="0.8"/>
+      <rect x="820" y="282" width="90" height="18" rx="3" fill="#D8F4EC" stroke="#00C888" stroke-width="1.2" opacity="0.8"/>
+      <rect x="820" y="304" width="90" height="18" rx="3" fill="#D8F4EC" stroke="#00C888" stroke-width="1.2" opacity="0.8"/>
+      <rect x="820" y="326" width="90" height="18" rx="3" fill="#D8F4EC" stroke="#00C888" stroke-width="1.2" opacity="0.8"/>
+      <circle class="blink" cx="832" cy="269" r="3.5" fill="#00D898" style="animation-delay:0s"/>
+      <circle class="blink" cx="832" cy="291" r="3.5" fill="#00D898" style="animation-delay:0.3s"/>
+      <circle class="blink" cx="832" cy="313" r="3.5" fill="#00D898" style="animation-delay:0.6s"/>
+      <circle class="blink" cx="832" cy="335" r="3.5" fill="#00C878" style="animation-delay:0.9s"/>
+      <circle class="blink" cx="843" cy="269" r="2.5" fill="#00A870" opacity="0.7" style="animation-delay:0.15s"/>
+      <circle class="blink" cx="843" cy="291" r="2.5" fill="#00A870" opacity="0.7" style="animation-delay:0.45s"/>
+      <circle class="blink" cx="843" cy="313" r="2.5" fill="#00A870" opacity="0.7" style="animation-delay:0.75s"/>
+      <circle class="blink" cx="843" cy="335" r="2.5" fill="#00A870" opacity="0.7" style="animation-delay:1.05s"/>
+      <!-- Server horizontal lines -->
+      <line x1="856" y1="269" x2="902" y2="269" stroke="#00C878" stroke-width="1" opacity="0.5"/>
+      <line x1="856" y1="291" x2="902" y2="291" stroke="#00C878" stroke-width="1" opacity="0.5"/>
+      <line x1="856" y1="313" x2="902" y2="313" stroke="#00C878" stroke-width="1" opacity="0.5"/>
+      <line x1="856" y1="335" x2="902" y2="335" stroke="#00C878" stroke-width="1" opacity="0.5"/>
+      <!-- Scan line animation -->
+      <rect class="scan" x="820" y="256" width="90" height="3" rx="1" fill="#00D898" opacity="0.5" style="transform-box:fill-box;"/>
+
+      <!-- Connection nodes floating right -->
+      <circle cx="1100" cy="280" r="8" fill="none" stroke="#00D898" stroke-width="1.5" opacity="0.5"/>
+      <circle cx="1100" cy="280" r="4" fill="#00D898" opacity="0.4"/>
+      <circle cx="1160" cy="350" r="6" fill="none" stroke="#00B878" stroke-width="1.2" opacity="0.5"/>
+      <circle cx="1160" cy="350" r="3" fill="#00B878" opacity="0.4"/>
+      <circle cx="1080" cy="400" r="7" fill="none" stroke="#00D898" stroke-width="1.2" opacity="0.4"/>
+      <line x1="1100" y1="280" x2="1160" y2="350" stroke="#00C888" stroke-width="1" stroke-dasharray="4 3" opacity="0.3"/>
+      <line x1="1160" y1="350" x2="1080" y2="400" stroke="#00C888" stroke-width="1" stroke-dasharray="4 3" opacity="0.3"/>
+
+      <!-- Data particles drifting upward -->
+      <text style="animation:particleUp 3s ease-out infinite; animation-delay:0s; transform-box:fill-box; transform-origin:center;" x="700" y="600" font-family="monospace" font-size="9" fill="#00D898" opacity="0.4">01</text>
+      <text style="animation:particleUp 3.5s ease-out infinite; animation-delay:0.7s; transform-box:fill-box; transform-origin:center;" x="740" y="580" font-family="monospace" font-size="8" fill="#00B878" opacity="0.3">10</text>
+      <text style="animation:particleUp 2.8s ease-out infinite; animation-delay:1.4s; transform-box:fill-box; transform-origin:center;" x="780" y="610" font-family="monospace" font-size="9" fill="#00D898" opacity="0.35">11</text>
+      <text style="animation:particleUp 4s ease-out infinite; animation-delay:0.3s; transform-box:fill-box; transform-origin:center;" x="1150" y="590" font-family="monospace" font-size="8" fill="#00C878" opacity="0.3">00</text>
+      <text style="animation:particleUp 3.2s ease-out infinite; animation-delay:1.8s; transform-box:fill-box; transform-origin:center;" x="1190" y="600" font-family="monospace" font-size="9" fill="#00D898" opacity="0.35">AI</text>
+    </g>
+
+    <!-- ── CENTRE: Connection arc where water meets data ── -->
+    <!-- Teal glowing vertical seam glow -->
+    <rect x="635" y="0" width="10" height="720" fill="url(#seamGrad)" opacity="0.6"/>
+    <defs>
+      <linearGradient id="seamGrad" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+        <stop offset="0%"   stop-color="#00C8A0" stop-opacity="0"/>
+        <stop offset="30%"  stop-color="#00C8E8" stop-opacity="0.8"/>
+        <stop offset="50%"  stop-color="#00D8A8" stop-opacity="1"/>
+        <stop offset="70%"  stop-color="#00C8E8" stop-opacity="0.8"/>
+        <stop offset="100%" stop-color="#00C8A0" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+
+    <!-- Africa continent outline (simplified) -->
+    <path d="M580,130 Q600,118 624,125 Q640,130 642,145 Q645,165 638,188 Q630,215 635,240 Q642,270 636,295 Q628,325 615,348 Q600,372 590,400 Q578,432 572,458 Q565,488 560,510 Q554,535 548,555 Q538,572 530,590 Q520,610 510,625 Q498,638 488,648 Q474,660 460,668 Q444,675 428,678 Q410,680 392,676 Q374,670 356,660 Q338,648 322,632 Q305,614 292,592 Q278,568 268,542 Q256,514 248,486 Q240,455 236,425 Q232,392 232,360 Q232,328 238,298 Q244,268 255,242 Q268,214 285,192 Q304,170 328,154 Q354,138 382,128 Q410,118 440,115 Q470,112 498,118 Q524,124 548,132 Z" fill="none" stroke="#00C8A0" stroke-width="1.5" opacity="0.2"/>
+
+  </svg>
+
+  <!-- Content layer -->
+  <div class="content">
+
+    <div class="brand-tag"> Presentation</div>
+
+    <!-- Visual strip: water drop | connector | server rack -->
+    <div class="vis-strip">
+      <svg width="100%" height="100%" viewBox="0 0 900 140" preserveAspectRatio="xMidYMid meet">
+
+        <!-- Water drop cluster left -->
+        <g class="dbob" style="transform-origin:130px 70px;">
+          <path d="M130,18 Q150,38 158,60 Q165,84 130,98 Q95,84 102,60 Q110,38 130,18 Z" fill="#00C8E8" opacity="0.25"/>
+          <path d="M130,18 Q150,38 158,60 Q165,84 130,98 Q95,84 102,60 Q110,38 130,18 Z" fill="none" stroke="#00C8E8" stroke-width="2.5"/>
+          <path d="M116,36 Q123,28 130,36" fill="none" stroke="#80E8FF" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+          <!-- Ripples -->
+          <ellipse class="rip" cx="130" cy="104" rx="18" ry="6" fill="none" stroke="#0098B8" stroke-width="1.5" style="animation-delay:0s"/>
+          <ellipse class="rip" cx="130" cy="104" rx="18" ry="6" fill="none" stroke="#0098B8" stroke-width="1"   style="animation-delay:1.2s"/>
+        </g>
+
+        <!-- Flowing data-water pipeline connecting the two -->
+        <path class="fd" d="M180,70 Q250,55 330,70 Q410,85 450,70 Q490,55 570,70 Q650,85 720,70" fill="none" stroke="#00C8A0" stroke-width="2.5" stroke-dasharray="16 8" opacity="0.6"/>
+        <!-- Extra flow line -->
+        <path class="fd" d="M180,82 Q250,70 330,82 Q410,94 450,82 Q490,70 570,82 Q650,94 720,82" fill="none" stroke="#0098B8" stroke-width="1.5" stroke-dasharray="10 6" opacity="0.35" style="animation-delay:-1s"/>
+
+        <!-- Server rack right -->
+        <g class="dbob" style="transform-origin:790px 70px; animation-delay:0.8s;">
+          <rect x="740" y="22" width="100" height="16" rx="3" fill="#D8F4EC" stroke="#00D898" stroke-width="2"/>
+          <rect x="740" y="42" width="100" height="16" rx="3" fill="#D8F4EC" stroke="#00D898" stroke-width="2"/>
+          <rect x="740" y="62" width="100" height="16" rx="3" fill="#D8F4EC" stroke="#00D898" stroke-width="2"/>
+          <rect x="740" y="82" width="100" height="16" rx="3" fill="#D8F4EC" stroke="#00D898" stroke-width="2"/>
+          <circle class="blink" cx="752" cy="30" r="3" fill="#00D898" style="animation-delay:0s"/>
+          <circle class="blink" cx="752" cy="50" r="3" fill="#00D898" style="animation-delay:0.25s"/>
+          <circle class="blink" cx="752" cy="70" r="3" fill="#00D898" style="animation-delay:0.5s"/>
+          <circle class="blink" cx="752" cy="90" r="3" fill="#00C878" style="animation-delay:0.75s"/>
+          <circle class="blink" cx="762" cy="30" r="2" fill="#00A870" opacity="0.7" style="animation-delay:0.12s"/>
+          <circle class="blink" cx="762" cy="50" r="2" fill="#00A870" opacity="0.7" style="animation-delay:0.37s"/>
+          <circle class="blink" cx="762" cy="70" r="2" fill="#00A870" opacity="0.7" style="animation-delay:0.62s"/>
+          <circle class="blink" cx="762" cy="90" r="2" fill="#00A870" opacity="0.7" style="animation-delay:0.87s"/>
+          <line x1="773" y1="30" x2="832" y2="30" stroke="#00C878" stroke-width="1.2" opacity="0.5"/>
+          <line x1="773" y1="50" x2="832" y2="50" stroke="#00C878" stroke-width="1.2" opacity="0.5"/>
+          <line x1="773" y1="70" x2="832" y2="70" stroke="#00C878" stroke-width="1.2" opacity="0.5"/>
+          <line x1="773" y1="90" x2="832" y2="90" stroke="#00C878" stroke-width="1.2" opacity="0.5"/>
+          <!-- Scan line -->
+          <rect class="scan" x="740" y="18" width="100" height="3" rx="1" fill="#00D898" opacity="0.6" style="transform-box:fill-box;"/>
+        </g>
+
+        <!-- Centre nexus node -->
+        <circle cx="450" cy="70" r="22" fill="#E8F8F4" stroke="#00C8A0" stroke-width="2.5" opacity="0.9"/>
+        <circle cx="450" cy="70" r="14" fill="#00C8A0" opacity="0.15"/>
+        <circle cx="450" cy="70" r="6"  fill="#00C8A0" opacity="0.7"/>
+        <!-- Pulsing ring on nexus -->
+        <circle class="rip" cx="450" cy="70" r="22" fill="none" stroke="#00C8A0" stroke-width="1.5" style="animation-delay:0s"/>
+        <circle class="rip" cx="450" cy="70" r="22" fill="none" stroke="#00C8A0" stroke-width="1" style="animation-delay:1.2s"/>
+      </svg>
+    </div>
+
+    <!-- Main title -->
+    <div class="title-block">
+      <div class="title-eyebrow">Title Slide · Strategic Advisory</div>
+      <div class="title-main">
+        <span class="title-accent-water">Water</span> &amp; <span class="title-accent-data">Data Centre</span>
+      </div>
+      <div class="title-main" style="font-size:clamp(28px,4.4vw,60px); color:#1A4858;">Opportunities in Africa</div>
+    </div>
+
+    <!-- Divider -->
+    <div class="divider-row">
+      <div class="divider-line"></div>
+      <div class="divider-text">The Future of Company</div>
+      <div class="divider-line"></div>
+    </div>
+
+    <!-- Two pillars -->
+    <div class="pillars">
+      <div class="pillar water">
+        <div class="pillar-dot"></div>
+        Water Infrastructure Finance
+      </div>
+      <div style="font-size:clamp(14px,1.5vw,20px); color:#2A7888; font-weight:300;">+</div>
+      <div class="pillar data">
+        <div class="pillar-dot"></div>
+        AI Data Centre Advisory
+      </div>
+    </div>
+
+    <div class="presented">Presented by <strong>Company</strong></div>
+
+  </div>
+
+  <!-- Footer dots -->
+  <div style="position:absolute; bottom:clamp(10px,1.5vh,16px); right:clamp(18px,2.2vw,28px); display:flex; gap:6px; z-index:10;">
+    <div class="fdot" style="width:clamp(6px,0.6vw,9px);height:clamp(6px,0.6vw,9px);background:#00C8E8;animation-delay:0s;"></div>
+    <div class="fdot" style="width:clamp(6px,0.6vw,9px);height:clamp(6px,0.6vw,9px);background:#00D898;animation-delay:.3s;"></div>
+    <div class="fdot" style="width:clamp(6px,0.6vw,9px);height:clamp(6px,0.6vw,9px);background:#00C8A0;animation-delay:.6s;"></div>
+    <div class="fdot" style="width:clamp(6px,0.6vw,9px);height:clamp(6px,0.6vw,9px);background:#00B8D8;animation-delay:.9s;"></div>
+    <div class="fdot" style="width:clamp(6px,0.6vw,9px);height:clamp(6px,0.6vw,9px);background:#00D898;animation-delay:1.2s;"></div>
+  </div>
+
+</div>
+</body>
+</html>

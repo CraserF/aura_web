@@ -1,6 +1,5 @@
 /**
- * PromptComposer — Modular prompt builder with chainable methods.
- * Replaces the monolithic buildSystemPrompt() with composable sections.
+ * PromptComposer — Modular prompt builder for standalone HTML slide generation.
  *
  * Each section is independently testable and can be included/excluded
  * based on the template, animation level, and generation context.
@@ -71,20 +70,20 @@ export class PromptComposer {
     return this;
   }
 
-  /** Add slide structure / narrative arc with optional planned slide count */
+  /** Add slide composition guidance */
   addNarrative(slideCount?: number): this {
     this._slideCount = slideCount;
     this.sections.push(buildNarrativeSection(slideCount));
     return this;
   }
 
-  /** Add quality checklist and response format with optional planned slide count */
+  /** Add quality checklist and response format */
   addQuality(): this {
     this.sections.push(buildQualitySection(this._slideCount));
     return this;
   }
 
-  /** Add design anti-patterns (previously only in review — now in generation too) */
+  /** Add design anti-patterns */
   addAntiPatterns(): this {
     this.sections.push(buildAntiPatternsSection());
     return this;
@@ -120,15 +119,15 @@ export class PromptComposer {
 }
 
 /**
- * Build the full designer prompt with all sections.
- * This is the primary entry point — replaces buildSystemPrompt().
+ * Build the full designer prompt for single-slide generation.
+ * This is the primary entry point for creating a new slide.
  */
 export function buildDesignerPrompt(
   blueprint: TemplateBlueprint,
   templateId: TemplateId,
   exemplarPackId: ExemplarPackId,
   animLevel: 1 | 2 | 3 | 4,
-  slideCount?: number,
+  _slideCount?: number,
 ): string {
   return new PromptComposer()
     .addBase(blueprint.palette)
@@ -138,7 +137,7 @@ export function buildDesignerPrompt(
     .addDecorative()
     .addAnimation(animLevel)
     .addSvg()
-    .addNarrative(slideCount)
+    .addNarrative()
     .addAntiPatterns()
     .addTemplateExamples(templateId, exemplarPackId, blueprint.exampleSlides)
     .addKnowledge()
@@ -149,93 +148,35 @@ export function buildDesignerPrompt(
 /**
  * Build a system prompt for the revision step.
  * Includes palette, layout, anti-patterns, and SVG guidance but
- * excludes narrative arc, template examples, and knowledge docs
- * (since revision is fixing, not creating from scratch).
+ * excludes narrative, template examples, and knowledge docs.
  */
 export function buildRevisionSystemPrompt(
   palette: TemplatePalette | undefined,
-  animLevel: 1 | 2 | 3 | 4,
+  _animLevel: 1 | 2 | 3 | 4,
 ): string {
   return new PromptComposer()
     .addBase(palette)
-    .addTypography()
-    .addLayout()
-    .addModernPatterns()
-    .addDecorative()
-    .addAnimation(animLevel)
-    .addSvg()
     .addAntiPatterns()
-    .addQuality()
-    .addCustom(`## YOUR TASK — REVISION MODE
+    .addCustom(`## YOUR TASK — SURGICAL REVISION
 
-You are revising an existing slide deck to fix specific design issues.
-- Fix ALL listed errors (MUST FIX items).
-- Fix as many warnings (SHOULD FIX items) as possible.
-- Do NOT change content that is not flagged as an issue.
-- Do NOT re-order or remove slides unless instructed.
-- Preserve the overall design language, palette, and slide structure.
-- Output the COMPLETE corrected deck as HTML \`<section>\` elements.`)
+You are making MINIMAL, TARGETED fixes to a specific list of design errors in an existing slide.
+
+**STRICT RULES — read every one before writing a single character:**
+1. Fix ONLY the explicitly listed errors. Touch NOTHING else.
+2. Do NOT rewrite, refactor, or modernize CSS that is not directly related to a listed error.
+3. Do NOT change the CSS unit system — if the existing slide uses \`clamp()\`, keep \`clamp()\`. If it uses \`px\`, keep \`px\`. Never convert between unit systems.
+4. Do NOT add or change \`font-size\` on wrapper or container elements unless a font-size error is explicitly listed.
+5. Do NOT change \`padding\` values unless a padding error is explicitly listed.
+6. Do NOT remove or alter \`@keyframes\`, background SVG layers, z-index layering, or CSS custom-property definitions.
+7. Do NOT alter \`<section style="padding:0; overflow:hidden;">\` unless a layout error on that element is explicitly listed.
+8. Copy the existing \`<style>\` block AS-IS and change ONLY the specific property values that fix the listed errors.
+9. Output the COMPLETE corrected HTML — \`<link>\` (if present), \`<style>\`, and all \`<section>\` elements.`)
     .build();
 }
 
 /**
- * Build a trimmed prompt for batch slide generation (~4K tokens vs ~35K).
- * Includes palette, typography, layout, animation, condensed anti-patterns.
- * Excludes knowledge docs, full SVG recipes, template examples, narrative, decorative catalog.
- */
-export function buildBatchDesignerPrompt(
-  palette: TemplatePalette | undefined,
-  animLevel: 1 | 2 | 3 | 4,
-  batchContext: {
-    batchIndex: number;
-    totalBatches: number;
-    isFirstBatch: boolean;
-  },
-): string {
-  const composer = new PromptComposer()
-    .addBase(palette)
-    .addTypography()
-    .addLayout()
-    .addAnimation(animLevel)
-    .addCustom(buildCondensedAntiPatterns());
-
-  // First batch establishes CSS vars and fonts; subsequent batches must not re-declare them
-  if (batchContext.isFirstBatch) {
-    composer.addCustom(`## YOUR TASK — BATCH GENERATION (batch ${batchContext.batchIndex + 1}/${batchContext.totalBatches})
-
-Generate the first batch of slides. This is batch 1 of ${batchContext.totalBatches}.
-- Start with the Google Fonts \`<link>\` tag as the FIRST line.
-- Define CSS custom properties (--primary, --accent, --heading-font, --body-font) on the FIRST \`<section>\` ONLY.
-- Output ONLY the \`<section>\` elements for the slides specified in the outline below.
-- Use the palette colors EXACTLY as given. Do NOT invent new hex colors.
-- Output a single code block. NOTHING else — no explanation, no commentary.
-
-\`\`\`html
-<link href="..." rel="stylesheet">
-<section ...>...</section>
-<section ...>...</section>
-\`\`\``);
-  } else {
-    composer.addCustom(`## YOUR TASK — BATCH GENERATION (batch ${batchContext.batchIndex + 1}/${batchContext.totalBatches})
-
-Generate the next batch of slides. This is batch ${batchContext.batchIndex + 1} of ${batchContext.totalBatches}.
-- Do NOT include a Google Fonts \`<link>\` tag (already included in batch 1).
-- Do NOT define CSS custom properties (already defined in batch 1). Use var(--primary), var(--accent), etc.
-- Match the visual style of the previous slides exactly — same fonts, colors, spacing, card styles.
-- Output ONLY \`<section>\` elements. No explanation, no commentary.
-
-\`\`\`html
-<section ...>...</section>
-<section ...>...</section>
-\`\`\``);
-  }
-
-  return composer.build();
-}
-
-/**
- * Build a compact prompt for edit operations (~3K tokens).
- * Used for modify/refine_style/add_slides intents — much smaller than the full designer prompt.
+ * Build a compact prompt for edit operations.
+ * Used for modify/refine_style/add_slides intents.
  */
 export function buildEditDesignerPrompt(
   palette: TemplatePalette | undefined,
@@ -243,24 +184,22 @@ export function buildEditDesignerPrompt(
 ): string {
   return new PromptComposer()
     .addBase(palette)
-    .addTypography()
-    .addLayout()
     .addAnimation(animLevel)
+    .addSvg()
     .addCustom(buildCondensedAntiPatterns())
     .addCustom(`## YOUR TASK — EDIT MODE
 
-You are modifying an existing slide deck based on a user request.
-- Output the COMPLETE modified deck as HTML \`<section>\` elements.
-- Maintain visual consistency with the existing design.
-- Do NOT change slides that are not affected by the request.
-- Keep the same palette, fonts, and card styles.
-- No external image URLs. Use Bootstrap Icons, emoji, or CSS gradients.
-- Output a single code block. NOTHING else.
+You are modifying existing slide(s) based on a user request.
 
-\`\`\`html
-<link href="..." rel="stylesheet">
-<section ...>...</section>
-...
-\`\`\``)
+**CRITICAL RULES:**
+- Make ONLY the minimum changes required to satisfy the user request. Do NOT rewrite unrelated CSS.
+- Do NOT change the CSS unit system — if existing CSS uses \`clamp()\`, keep \`clamp()\`. Never convert \`px\` → \`em\`, \`rem\` → \`px\`, etc.
+- Do NOT add \`font-size\` to wrapper elements (e.g. \`.slide-wrap\`) unless the user explicitly asked to change font size.
+- Do NOT change \`padding\` on the wrapper unless the user explicitly asked to change padding.
+- Keep the exact same CSS architecture, palette, fonts, animation patterns, and variable definitions.
+- If the request is to add slides, treat existing slides as immutable unless the user explicitly requested edits to specific existing slides.
+- For add-slide requests, append new slide sections and keep existing \`<style>\` and \`<section>\` elements unchanged.
+- No external image URLs. Use Bootstrap Icons, emoji, or inline SVG.
+- Output the COMPLETE slide(s) in a single code block. NOTHING else.`)
     .build();
 }

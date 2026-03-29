@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Pop Quiz!</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;900&family=Source+Sans+3:wght@300;400;600;700&display=swap');
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; background:#041018; display:flex; align-items:center; justify-content:center; }
+
+  .slide {
+    width: min(100vw, 177.78vh);
+    height: min(56.25vw, 100vh);
+    position:relative; overflow:hidden;
+    font-family:'Source Sans 3', sans-serif;
+    background:#E8F5FA;
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  /* ── Animated ripple rings in background ── */
+  .bg-rings {
+    position:absolute; inset:0; z-index:0;
+    display:flex; align-items:center; justify-content:center;
+    pointer-events:none;
+  }
+
+  /* ── Content centred ── */
+  .content {
+    position:relative; z-index:2;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:clamp(10px,2vh,22px);
+    width:100%; height:100%;
+    padding:3%;
+  }
+
+  /* ══ BUZZER ASSEMBLY ══ */
+  .buzzer-wrap {
+    position:relative;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+
+  /* Spinning outer ring */
+  .spin-ring {
+    position:absolute;
+    border-radius:50%;
+    border-style:dashed;
+    animation:spinRing 2.5s linear infinite;
+  }
+  @keyframes spinRing { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+  /* Counter-spin ring */
+  .spin-ring-rev {
+    position:absolute;
+    border-radius:50%;
+    border-style:dashed;
+    animation:spinRingRev 3s linear infinite;
+  }
+  @keyframes spinRingRev { from{transform:rotate(0deg)} to{transform:rotate(-360deg)} }
+
+  /* Pulsing glow rings */
+  .glow-ring {
+    position:absolute; border-radius:50%;
+    border:2px solid rgba(0,180,210,0.4);
+    animation:glowExpand 2s ease-out infinite;
+  }
+  @keyframes glowExpand {
+    0%   { transform:scale(0.85); opacity:0.8; }
+    100% { transform:scale(1.5);  opacity:0; }
+  }
+
+  /* Buzzer base */
+  .buzzer-base {
+    border-radius:50%;
+    background:#0090B8;
+    display:flex; align-items:center; justify-content:center;
+    position:relative; z-index:3;
+    box-shadow: 0 0 0 0 rgba(0,180,220,0.5);
+    animation:buzzerPulse 0.9s ease-in-out infinite;
+  }
+  @keyframes buzzerPulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(0,180,220,0.5), inset 0 4px 8px rgba(0,0,0,0.2); }
+    50%      { box-shadow: 0 0 30px 12px rgba(0,200,230,0.35), inset 0 4px 8px rgba(0,0,0,0.2); }
+  }
+  @keyframes kahootPulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(70,23,143,0.6), 0 0 0 0 rgba(0,200,230,0.4); transform:scale(1); }
+    50%      { box-shadow: 0 0 28px 10px rgba(70,23,143,0.35), 0 0 40px 18px rgba(0,200,230,0.2); transform:scale(1.04); }
+  }
+
+  /* Button dome on top of buzzer */
+  .buzzer-dome {
+    position:absolute;
+    top:50%; left:50%;
+    transform:translate(-50%,-58%);
+    border-radius:50%;
+    background: #00C8E8;
+    animation:domeBlink 0.9s ease-in-out infinite;
+    display:flex; align-items:center; justify-content:center;
+    z-index:4;
+  }
+  @keyframes domeBlink {
+    0%,100% { background:#00C8E8; transform:translate(-50%,-58%) scale(1); }
+    50%      { background:#80E8FF; transform:translate(-50%,-58%) scale(1.06); }
+  }
+
+  /* Exclamation inside dome */
+  .dome-text {
+    font-family:'Barlow Condensed',sans-serif;
+    font-weight:900;
+    color:#041828;
+    line-height:1;
+    user-select:none;
+  }
+
+  /* Buzzer legs / stand */
+  .buzzer-stand {
+    position:absolute;
+    bottom:-8%;
+    width:35%; height:12%;
+    background:#0070A0;
+    border-radius:0 0 6px 6px;
+    z-index:2;
+  }
+
+  /* Lightning bolts radiating from buzzer */
+  .bolt {
+    position:absolute; z-index:5;
+    animation:boltFlash 0.9s ease-in-out infinite;
+  }
+  @keyframes boltFlash {
+    0%,100% { opacity:1; transform:var(--base-transform) scale(1); }
+    50%      { opacity:0.4; transform:var(--base-transform) scale(0.85); }
+  }
+
+  /* ══ TEXT ══ */
+  .eyebrow {
+    font-size:clamp(11px,1.1vw,15px);
+    font-weight:700; letter-spacing:4px;
+    text-transform:uppercase; color:#0090B8;
+    text-align:center;
+    animation:textFade 1.8s ease-in-out infinite;
+  }
+  @keyframes textFade { 0%,100%{opacity:1} 50%{opacity:0.6} }
+
+  .headline {
+    font-family:'Barlow Condensed',sans-serif;
+    font-size:clamp(48px,7.5vw,100px);
+    font-weight:900; line-height:0.9;
+    text-transform:uppercase;
+    text-align:center;
+    color:#041828;
+    letter-spacing:-1px;
+  }
+  .headline-accent { color:#0090B8; }
+
+  .subline {
+    font-size:clamp(14px,1.5vw,20px);
+    color:#2A6070; font-weight:400;
+    text-align:center; line-height:1.5;
+    max-width:55%;
+  }
+
+  /* Question marks floating */
+  .qmark {
+    position:absolute;
+    font-family:'Barlow Condensed',sans-serif;
+    font-weight:900; color:#0090B8;
+    opacity:0;
+    animation:qFloat 3s ease-in-out infinite;
+    z-index:1; user-select:none;
+    pointer-events:none;
+  }
+  @keyframes qFloat {
+    0%   { opacity:0; transform:translateY(0) scale(0.8); }
+    20%  { opacity:0.35; }
+    80%  { opacity:0.2; }
+    100% { opacity:0; transform:translateY(-60px) scale(1.1); }
+  }
+
+  /* Footer dots */
+  .foot {
+    position:absolute; bottom:1.5%; left:50%; transform:translateX(-50%);
+    display:flex; gap:6px; z-index:3;
+  }
+  .fdot { border-radius:50%; animation:fdotAnim 2.5s ease-in-out infinite; }
+  @keyframes fdotAnim { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.8);opacity:0.3} }
+</style>
+</head>
+<body>
+<div class="slide">
+
+  <!-- Background ripple rings -->
+  <div class="bg-rings">
+    <svg width="100%" height="100%" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="640" cy="360" r="120" fill="none" stroke="#0090B8" stroke-width="1" opacity="0.15" style="animation:glowExpand 2s ease-out 0s infinite;transform-origin:640px 360px;"/>
+      <circle cx="640" cy="360" r="120" fill="none" stroke="#0090B8" stroke-width="1" opacity="0.12" style="animation:glowExpand 2s ease-out 0.66s infinite;transform-origin:640px 360px;"/>
+      <circle cx="640" cy="360" r="120" fill="none" stroke="#0090B8" stroke-width="1" opacity="0.09" style="animation:glowExpand 2s ease-out 1.33s infinite;transform-origin:640px 360px;"/>
+      <!-- Corner teal accents -->
+      <circle cx="0"    cy="0"   r="180" fill="none" stroke="#00A890" stroke-width="60" opacity="0.06"/>
+      <circle cx="1280" cy="720" r="180" fill="none" stroke="#0090B8" stroke-width="60" opacity="0.06"/>
+    </svg>
+  </div>
+
+  <!-- Floating question marks -->
+  <div class="qmark" style="font-size:clamp(28px,3.5vw,48px); left:6%;  top:15%; animation-delay:0s;   animation-duration:3.2s;">?</div>
+  <div class="qmark" style="font-size:clamp(20px,2.5vw,34px); left:12%; top:55%; animation-delay:0.8s; animation-duration:2.8s;">?</div>
+  <div class="qmark" style="font-size:clamp(24px,3vw,40px);   left:80%; top:20%; animation-delay:0.4s; animation-duration:3.5s;">?</div>
+  <div class="qmark" style="font-size:clamp(18px,2.2vw,30px); left:88%; top:60%; animation-delay:1.2s; animation-duration:2.6s;">?</div>
+  <div class="qmark" style="font-size:clamp(22px,2.8vw,36px); left:4%;  top:75%; animation-delay:1.6s; animation-duration:3s;">?</div>
+  <div class="qmark" style="font-size:clamp(16px,2vw,28px);   left:76%; top:72%; animation-delay:0.2s; animation-duration:3.8s;">?</div>
+  <div class="qmark" style="font-size:clamp(20px,2.5vw,34px); left:50%; top:8%;  animation-delay:2s;   animation-duration:3.1s;">?</div>
+  <div class="qmark" style="font-size:clamp(14px,1.8vw,24px); left:94%; top:35%; animation-delay:1s;   animation-duration:2.9s;">?</div>
+
+  <div class="content">
+
+    <div class="eyebrow" style="display:flex;align-items:center;gap:clamp(8px,1vw,14px);justify-content:center;">
+      <svg width="clamp(18px,2vw,26px)" height="clamp(18px,2vw,26px)" viewBox="0 0 28 28" style="flex-shrink:0;animation:boltFlash 0.9s ease-in-out infinite;"><rect width="28" height="28" rx="6" fill="#46178F"/><text x="14" y="20" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="900" fill="#fff">K!</text></svg>
+      <span>Kahoot Quiz Time </span>
+    </div>
+
+    <!-- Kahoot icon assembly -->
+    <div class="buzzer-wrap" style="width:clamp(130px,15vw,200px); height:clamp(130px,15vw,200px);">
+
+      <!-- Glow rings (teal, matching deck aesthetic) -->
+      <div class="glow-ring" style="width:165%; height:165%; animation-delay:0s;"></div>
+      <div class="glow-ring" style="width:165%; height:165%; animation-delay:0.66s;"></div>
+      <div class="glow-ring" style="width:165%; height:165%; animation-delay:1.33s;"></div>
+
+      <!-- Outer spinning dashed rings -->
+      <div class="spin-ring" style="width:135%; height:135%; border:clamp(2px,0.25vw,3.5px) dashed #0090B8; opacity:0.5;"></div>
+      <div class="spin-ring-rev" style="width:118%; height:118%; border:clamp(1.5px,0.2vw,3px) dashed #00C8A0; opacity:0.45;"></div>
+
+      <!-- Kahoot icon — purple rounded square, pulsing -->
+      <div class="buzzer-base" style="
+        width:100%; height:100%;
+        background:#46178F;
+        border-radius:22%;
+        animation: kahootPulse 0.9s ease-in-out infinite;
+      ">
+        <!-- Inner K! text in white, large -->
+        <svg width="80%" height="80%" viewBox="0 0 80 80" style="position:absolute; z-index:4;">
+          <!-- K -->
+          <text x="12" y="60" font-family="'Barlow Condensed',sans-serif" font-size="58" font-weight="900" fill="#ffffff">K</text>
+          <!-- ! in teal accent -->
+          <text x="55" y="60" font-family="'Barlow Condensed',sans-serif" font-size="58" font-weight="900" fill="#00D8F0">!</text>
+        </svg>
+        <!-- Subtle radial shimmer on background -->
+        <svg width="100%" height="100%" viewBox="0 0 100 100" style="position:absolute;inset:0;opacity:0.08;">
+          <line x1="50" y1="0"  x2="50" y2="100" stroke="#fff" stroke-width="2"/>
+          <line x1="0"  y1="50" x2="100" y2="50" stroke="#fff" stroke-width="2"/>
+          <line x1="15" y1="15" x2="85" y2="85"  stroke="#fff" stroke-width="1.5"/>
+          <line x1="85" y1="15" x2="15" y2="85"  stroke="#fff" stroke-width="1.5"/>
+        </svg>
+      </div>
+
+      <!-- Lightning bolts in deck colours -->
+      <svg class="bolt" style="--base-transform:rotate(-45deg) translate(-10%,-10%); top:-20%; right:-20%; animation-delay:0s;"
+        width="clamp(20px,2.4vw,32px)" height="clamp(20px,2.4vw,32px)" viewBox="0 0 30 30">
+        <polygon points="18,2 8,16 14,16 12,28 22,12 16,12" fill="#00C8A0" stroke="#00A880" stroke-width="1"/>
+      </svg>
+      <svg class="bolt" style="--base-transform:rotate(45deg) translate(10%,-10%); top:-20%; left:-20%; animation-delay:0.3s;"
+        width="clamp(20px,2.4vw,32px)" height="clamp(20px,2.4vw,32px)" viewBox="0 0 30 30">
+        <polygon points="18,2 8,16 14,16 12,28 22,12 16,12" fill="#0090B8" stroke="#0070A0" stroke-width="1"/>
+      </svg>
+      <svg class="bolt" style="--base-transform:rotate(135deg) translate(-10%,10%); bottom:-20%; right:-20%; animation-delay:0.15s;"
+        width="clamp(16px,2vw,26px)" height="clamp(16px,2vw,26px)" viewBox="0 0 30 30">
+        <polygon points="18,2 8,16 14,16 12,28 22,12 16,12" fill="#00C8E8" stroke="#0098B8" stroke-width="1"/>
+      </svg>
+      <svg class="bolt" style="--base-transform:rotate(-135deg) translate(10%,10%); bottom:-20%; left:-20%; animation-delay:0.45s;"
+        width="clamp(16px,2vw,26px)" height="clamp(16px,2vw,26px)" viewBox="0 0 30 30">
+        <polygon points="18,2 8,16 14,16 12,28 22,12 16,12" fill="#00A890" stroke="#008870" stroke-width="1"/>
+      </svg>
+
+    </div><!-- /buzzer-wrap -->
+
+    <!-- Text -->
+    <div class="headline">
+      Pop<br><span class="headline-accent">Quiz</span>
+    </div>
+
+    <div class="subline">
+      Get ready — it's time to test what you know about <strong style="color:#0090B8;">AI Data Centres</strong> and <strong style="color:#00A890;">Water Infrastructure</strong>
+    </div>
+
+  </div>
+
+  <!-- Footer dots -->
+  <div class="foot">
+    <div class="fdot" style="width:clamp(6px,0.6vw,9px);height:clamp(6px,0.6vw,9px);background:#0090B8;animation-delay:0s;"></div>
+    <div class="fdot" style="width:clamp(6px,0.6vw,9px);height:clamp(6px,0.6vw,9px);background:#00C8A0;animation-delay:.25s;"></div>
+    <div class="fdot" style="width:clamp(6px,0.6vw,9px);height:clamp(6px,0.6vw,9px);background:#00A890;animation-delay:.5s;"></div>
+    <div class="fdot" style="width:clamp(6px,0.6vw,9px);height:clamp(6px,0.6vw,9px);background:#0090B8;animation-delay:.75s;"></div>
+    <div class="fdot" style="width:clamp(6px,0.6vw,9px);height:clamp(6px,0.6vw,9px);background:#00C8E8;animation-delay:1s;"></div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,56 +1,59 @@
 /**
- * Quality section — self-verification checklist for the designer.
+ * Quality section — single-slide self-verification checklist.
  *
- * Key improvements:
- * - Palette compliance check added
- * - Slide count verification against plan
- * - Layout variety verification
+ * Focused on the CSS architecture, SVG composition, animation quality,
+ * and responsive sizing requirements for standalone HTML slides.
  */
 
-export function buildQualitySection(slideCount?: number): string {
-  const slideCountCheck = slideCount
-    ? `- [ ] **Slide count is exactly ${slideCount}.** Count your <section> elements. This is non-negotiable.`
-    : '- [ ] **Slide count is at least 8.** A deck with fewer than 8 slides cannot cover the narrative arc.';
-
+export function buildQualitySection(_slideCount?: number): string {
   return `## QUALITY CHECKLIST — Verify EVERY item before outputting
 
 ### Structure:
 - [ ] Google Fonts \`<link>\` is the FIRST line of output
-${slideCountCheck}
-- [ ] First slide is hero-title, last slide is closing-cta
-- [ ] No two consecutive slides share the same layout pattern
-- [ ] At least 4 different layout types used across the deck
+- [ ] \`<style>\` block is present with CSS classes and @keyframes
+- [ ] Exactly ONE \`<section>\` element with \`data-background-color\` and \`style="padding:0; overflow:hidden;"\`
+- [ ] A \`.slide-wrap\` (or similar) container div inside the section handles all layout
+- [ ] Content uses CSS classes from the \`<style>\` block — NOT inline styles on every element
 
-### Palette Compliance:
-- [ ] CSS vars (--primary, --accent, --heading-font, --body-font) defined on FIRST section ONLY — not duplicated on subsequent sections
-- [ ] Every \`data-background-color\` uses the palette background or bgSubtle value — no invented colors
-- [ ] Primary color used ONLY for accents (icons, badges, metrics, buttons) — never as body text
-- [ ] Body text uses the body color token, NOT the heading color
-- [ ] All text colors come from the palette table (heading, body, muted tokens)
+### CSS Architecture:
+- [ ] At least 2-3 @keyframes animations defined in the \`<style>\` block
+- [ ] Animation utility classes defined (e.g., .fd, .bob, .rip, .spin, .pulse)
+- [ ] All sizing uses fixed **px** values only (font-size, padding, gap, margin)
+- [ ] **Never** vw, vh, vmin, vmax, or clamp() with viewport units
+- [ ] CSS class names are descriptive and scoped (won't collide with parent document)
 
-### Styling:
-- [ ] Every \`<section>\` has \`data-background-color\` set
-- [ ] No markdown — pure HTML with inline styles
-- [ ] No external image URLs (no Unsplash, no placeholders)
-- [ ] Every text element has color, font-size, font-family
-- [ ] Card styles match the palette mode (glass+blur for dark, shadow for light)
-- [ ] Animation classes on all content blocks
-- [ ] Stagger containers on grids/lists
-- [ ] Heading hierarchy: h1 only on title slide, h2 on content slides, h3 inside cards
-- [ ] Generous padding: 4rem 5rem section padding, 2rem card padding, 1.5-2rem grid gaps
+### Visual Quality:
+- [ ] Inline SVG illustrations present for visual slides (not just text or emoji)
+- [ ] SVG elements have \`viewBox\` attribute set correctly
+- [ ] SVG elements have \`xmlns="http://www.w3.org/2000/svg"\` where needed
+- [ ] All text is clearly legible — dark text on light bg, light text on dark bg
+- [ ] Content fills the 1920×1080 canvas — no large empty areas
+- [ ] Content fits the 1920×1080 canvas — no cards, labels, or footer text cut off at edges
+- [ ] Colors come ONLY from the provided palette — no invented hex values
+- [ ] Footer text is subtle (around 10-13px visual size), never as large as body/subtitle text
+- [ ] Wrapper/container padding stays within safe bounds (roughly 28-72px)
 
-### SIZE & LEGIBILITY (slides render at 1920×1080):
-- [ ] **Body text is at LEAST 1.1em.** If text looks like fine print, it's too small.
-- [ ] **Hero titles are at LEAST 4em.** They should feel impactful and dominant.
-- [ ] **H2 slide titles are at LEAST 2.4em.** They must command attention.
-- [ ] **No text element is smaller than 0.75em.** Even labels/badges must be readable.
-- [ ] **Content fills the slide.** Does content cover at least 60-70% of the 1920×1080 area? If not, increase sizes and spacing.
-- [ ] **Cards are substantial.** Card/panel components should be at least 150-200px tall.
-- [ ] **Metric numbers are large and bold.** Stats should be 3.5-5em with font-weight 800.
+### Context Integrity:
+- [ ] Do NOT copy brand names, companies, taglines, or domain-specific nouns from examples/templates/knowledge docs
+- [ ] All labels, footer text, and metadata are rewritten to the user's requested context
+- [ ] Example text is treated as placeholder structure, not reusable content
 
-## WHEN MODIFYING EXISTING SLIDES
+### Animation:
+- [ ] Animations are smooth (only transform and opacity — never animate width/height/top/left)
+- [ ] Staggered animation-delay on repeated elements (0s, 0.3s, 0.6s, 0.9s...)
+- [ ] Total animated elements under ~50 for 60fps performance
+- [ ] SVG animations use \`transform-box: fill-box\` and \`transform-origin: center\` where needed
 
-Output ALL slides (complete deck). Always return every \`<section>\`, not just changed ones.
+### Integrity:
+- [ ] No external images, scripts, or stylesheets (except Google Fonts and optionally Bootstrap Icons CDN)
+- [ ] No JavaScript
+- [ ] No markdown syntax — pure HTML
+- [ ] HTML is valid (no unclosed tags)
+- [ ] No \`<img>\` tags anywhere
+
+## WHEN ADDING TO AN EXISTING DECK
+
+If there are existing slides, output ALL slides (the complete deck). Return every \`<section>\`, not just the new/changed ones. The \`<style>\` block should be merged/updated to cover all slides.
 
 ## RESPONSE FORMAT
 
@@ -58,7 +61,13 @@ Output a single code block. NOTHING else — no explanation, no commentary.
 
 \`\`\`html
 <link href="..." rel="stylesheet">
-<section ...>...</section>
-<section ...>...</section>
+<style>
+  /* CSS classes, @keyframes, etc. */
+</style>
+<section data-background-color="..." style="padding:0; overflow:hidden;">
+  <div class="slide-wrap">
+    ...
+  </div>
+</section>
 \`\`\``;
 }

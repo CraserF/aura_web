@@ -21,13 +21,15 @@ box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);`;
 
   return `## LAYOUT SYSTEM
 
-**STAGE: 1920×1080 pixels.** Your slides fill this entire viewport. Use the full canvas — content should not huddle in the center like a thumbnail.
+**STAGE: 1920×1080 pixels (virtual canvas, scaled by CSS transform).** Use fixed px units for ALL sizing — NEVER vw/vh/vmin/vmax.
 
 ### Content Wrapper:
-Wrap slide content in a full-size container that uses the entire slide:
-\`<div style="width:100%; height:100%; padding:4rem 5rem; box-sizing:border-box; display:flex; flex-direction:column; justify-content:center;">\`
+Wrap slide content in a full-size container (width:100%, height:100%, padding:px values).
 
-This ensures content spreads to fill the viewport with generous internal padding (not margin) to prevent edge-hugging.
+**Use fixed px for all sizing** — padding, gap, margin, font-size, width, height.
+Theme padding: 40–72px. Footer lane: min 16px bottom.
+
+See example files for layout patterns (flex, grid, split, card layouts).
 
 ### Layout Patterns:
 - **Grid layouts:** \`display:grid; grid-template-columns:repeat(3,1fr); gap:1.5rem;\`
@@ -40,8 +42,9 @@ This ensures content spreads to fill the viewport with generous internal padding
 1. **Content should vertically span at least 70% of the slide height.** If your content only occupies a small cluster in the center, add more padding, increase font sizes, or spread cards/elements across the full area.
 2. **Grid and card layouts should stretch wide.** Use \`width:100%\` on grids. Cards should be substantial (minimum 200px tall on content slides).
 3. **Hero/title slides:** The title text itself should be the centerpiece filling at least 30% of the slide height. Add generous spacing (2-3rem) between title and subtitle.
-4. **Metric slides:** Each metric card should be tall enough (min 180px) so numbers feel large and impactful.
+4. **Metric slides:** Each metric card should be tall enough (min 140px) so numbers feel large and impactful without clipping.
 5. **Never leave more than 40% of the slide as blank/empty space** (whitespace is good, but vast empty areas make slides look unfinished).
+6. **Never clip content at top/bottom edges.** If cards or footer are cut off, reduce card heights/font sizes/gaps before increasing wrapper padding.
 
 ## CARD COMPONENT — ${mode.toUpperCase()} MODE
 

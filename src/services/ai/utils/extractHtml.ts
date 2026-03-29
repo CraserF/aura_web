@@ -26,7 +26,7 @@ export function extractHtmlFromResponse(response: string): ExtractedHtml {
   if (!html) {
     // If no code block, check if the response starts with <link or <section
     const trimmed = response.trim();
-    if (trimmed.startsWith('<section') || trimmed.startsWith('<link')) {
+    if (trimmed.startsWith('<section') || trimmed.startsWith('<link') || trimmed.startsWith('<style')) {
       html = trimmed;
     } else {
       // Last resort: find all complete <section> elements
