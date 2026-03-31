@@ -28,15 +28,45 @@ const BLOCKED_ATTR_PREFIXES = ['on']; // onclick, onload, onerror …
 
 const URL_ATTRS = ['src', 'href', 'action', 'formaction', 'data', 'poster', 'srcset'];
 
-/** Returns true if a URL should be stripped (external or javascript: protocol) */
+/** Safe data URI MIME type prefixes (images and fonts only) */
+const SAFE_DATA_URI_PREFIXES = [
+  'data:image/png',
+  'data:image/jpeg',
+  'data:image/jpg',
+  'data:image/gif',
+  'data:image/webp',
+  'data:image/svg+xml',
+  'data:image/avif',
+  'data:font/woff',
+  'data:font/woff2',
+];
+
+/** Returns true if a URL should be stripped (external or dangerous protocol) */
 function isExternalOrDangerous(url: string): boolean {
   const trimmed = url.trim().toLowerCase();
+  // Block all script-injection protocols
   if (trimmed.startsWith('javascript:')) return true;
-  if (trimmed.startsWith('data:')) return false; // allow data URIs
+  if (trimmed.startsWith('vbscript:')) return true;
+  // Allow only safe data URI types (images/fonts); block data:text/html, data:application/*, etc.
+  if (trimmed.startsWith('data:')) {
+    return !SAFE_DATA_URI_PREFIXES.some((prefix) => trimmed.startsWith(prefix));
+  }
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return true;
   if (trimmed.startsWith('//')) return true; // protocol-relative
   if (trimmed.startsWith('ftp:') || trimmed.startsWith('file:')) return true;
   return false;
+}
+
+/** Returns true if an attribute value contains a dangerous protocol */
+function hasDangerousProtocol(value: string): boolean {
+  const trimmed = value.trim().toLowerCase();
+  return (
+    trimmed.startsWith('javascript:') ||
+    trimmed.startsWith('vbscript:') ||
+    // Catch data:text/html injections in non-URL attributes too
+    (trimmed.startsWith('data:') &&
+      !SAFE_DATA_URI_PREFIXES.some((prefix) => trimmed.startsWith(prefix)))
+  );
 }
 
 /** Sanitize a single HTML element in place */
@@ -61,8 +91,8 @@ function sanitizeElement(el: Element): void {
       continue;
     }
 
-    // Strip javascript: in any attribute value
-    if (value.trim().toLowerCase().startsWith('javascript:')) {
+    // Strip javascript:, vbscript:, or unsafe data: in any attribute value
+    if (hasDangerousProtocol(value)) {
       attrsToRemove.push(attr.name);
     }
   }

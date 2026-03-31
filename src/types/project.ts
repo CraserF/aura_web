@@ -62,7 +62,7 @@ export interface ProjectManifest {
   title: string;
   description?: string;
   documentCount: number;
-  visibility: ProjectVisibility;
+  visibility?: ProjectVisibility;
   createdAt: number;
   updatedAt: number;
 }

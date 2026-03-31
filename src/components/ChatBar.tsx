@@ -12,7 +12,6 @@ import type { AIMessage } from '@/services/ai/types';
 import type { ChatMessage as ChatMessageType, WorkflowStep } from '@/types';
 import type { ProjectDocument } from '@/types/project';
 import { commitVersion } from '@/services/storage/versionHistory';
-import { sanitizeInnerHtml } from '@/services/html/sanitizer';
 import { cn } from '@/lib/utils';
 
 /** Detect if the user wants to create/edit a document or presentation */
@@ -199,12 +198,11 @@ export function ChatBar() {
         });
 
         if (result.html) {
-          const sanitized = sanitizeInnerHtml(result.html);
-
+          // HTML is already sanitized by runPresentationWorkflow
           if (activeDocument?.type === 'presentation') {
             // Update existing presentation document
             updateDocument(activeDocument.id, {
-              contentHtml: sanitized,
+              contentHtml: result.html,
               title: result.title || activeDocument.title,
               slideCount: result.slideCount,
             });
@@ -214,7 +212,7 @@ export function ChatBar() {
               id: crypto.randomUUID(),
               title: result.title || 'Presentation',
               type: 'presentation',
-              contentHtml: sanitized,
+              contentHtml: result.html,
               themeCss: '',
               slideCount: result.slideCount,
               order: project.documents.length,
@@ -225,7 +223,7 @@ export function ChatBar() {
           }
 
           if (result.title) setTitle(result.title);
-          setSlides(sanitized);
+          setSlides(result.html);
         }
 
         const reviewNote = result.reviewPassed ? '' : ' (QA flagged issues)';
@@ -240,6 +238,7 @@ export function ChatBar() {
 
         // Auto-commit version after generation
         const commitMsg = `Generated presentation: ${prompt.slice(0, 60)}`;
+        // Read latest state after addDocument/updateDocument mutation (getState avoids stale closure)
         const updatedProject = useProjectStore.getState().project;
         commitVersion(updatedProject, commitMsg).catch(console.warn);
 
@@ -346,6 +345,7 @@ export function ChatBar() {
 
         // Auto-commit version
         const commitMsg = `Created document: ${prompt.slice(0, 60)}`;
+        // Read latest state after addDocument/updateDocument mutation (getState avoids stale closure)
         const updatedProject = useProjectStore.getState().project;
         commitVersion(updatedProject, commitMsg).catch(console.warn);
 

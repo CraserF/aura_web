@@ -121,6 +121,10 @@ export function DocumentCanvas({ html, onNavigate }: DocumentCanvasProps) {
     <iframe
       ref={iframeRef}
       className="size-full border-0"
+      // allow-same-origin is required so we can access iframe.contentDocument
+      // to intercept relative anchor clicks for in-project document navigation.
+      // Scripts are NOT allowed (no allow-scripts), so XSS risk is minimal
+      // given the content is already sanitized.
       sandbox="allow-same-origin"
       title="Document preview"
       aria-label="Document content"

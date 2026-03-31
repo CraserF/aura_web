@@ -32,7 +32,8 @@ const DOC_COLORS = [
 ];
 
 function getDocColor(index: number): string {
-  return DOC_COLORS[index % DOC_COLORS.length] as string;
+  const color = DOC_COLORS[index % DOC_COLORS.length];
+  return color ?? DOC_COLORS[0]!;
 }
 
 interface NewDocMenuProps {

@@ -35,7 +35,7 @@ async function ensureRepo(): Promise<void> {
     await git.resolveRef({ fs, dir: REPO_DIR, ref: 'HEAD' });
   } catch {
     // Not yet initialised — create the repo
-    await fs.promises.mkdir(REPO_DIR).catch(() => {/* already exists */});
+    await fs.promises.mkdir(REPO_DIR).catch(() => { /* directory already exists — ignore */ });
     await git.init({ fs, dir: REPO_DIR });
   }
 }
@@ -51,7 +51,7 @@ async function writeProjectFiles(project: ProjectData): Promise<void> {
   );
 
   // Write each document
-  await fs.promises.mkdir(`${REPO_DIR}/documents`).catch(() => {/* ok */});
+    await fs.promises.mkdir(`${REPO_DIR}/documents`).catch(() => { /* directory already exists — ignore */ });
   for (const doc of project.documents) {
     const docObj = {
       id: doc.id,
