@@ -1,0 +1,175 @@
+/**
+ * Project File Format — .aura zip for projects with multiple documents.
+ *
+ * Structure:
+ *   manifest.json             — project metadata
+ *   chat-history.json         — project-level chat
+ *   documents/
+ *     {id}.html               — document or presentation HTML
+ *     {id}.css                — theme CSS (presentations)
+ *     {id}.meta.json          — document metadata
+ */
+
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
+import type { ProjectData, ProjectDocument, ProjectManifest } from '@/types/project';
+import type { ChatMessage } from '@/types';
+
+const FORMAT_VERSION = '2.0';
+
+/** Pack a full project into a .aura zip and trigger download */
+export async function downloadProjectFile(project: ProjectData): Promise<void> {
+  const zip = new JSZip();
+
+  const manifest: ProjectManifest = {
+    version: FORMAT_VERSION,
+    schemaType: 'project',
+    id: project.id,
+    title: project.title,
+    description: project.description,
+    documentCount: project.documents.length,
+    visibility: project.visibility,
+    createdAt: project.createdAt,
+    updatedAt: Date.now(),
+  };
+
+  zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+  zip.file('chat-history.json', JSON.stringify(project.chatHistory, null, 2));
+
+  const docsFolder = zip.folder('documents')!;
+  for (const doc of project.documents) {
+    const meta = {
+      id: doc.id,
+      title: doc.title,
+      type: doc.type,
+      slideCount: doc.slideCount,
+      order: doc.order,
+      description: doc.description,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+    };
+    docsFolder.file(`${doc.id}.meta.json`, JSON.stringify(meta, null, 2));
+    docsFolder.file(`${doc.id}.html`, doc.contentHtml);
+    if (doc.themeCss) {
+      docsFolder.file(`${doc.id}.css`, doc.themeCss);
+    }
+  }
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const filename = `${sanitizeFilename(project.title)}.aura`;
+  saveAs(blob, filename);
+}
+
+/** Read and unpack a project .aura zip */
+export async function openProjectFile(file: File): Promise<ProjectData> {
+  const zip = await JSZip.loadAsync(file);
+
+  const manifestJson = await zip.file('manifest.json')?.async('string');
+  if (!manifestJson) throw new Error('Invalid .aura file: missing manifest.json');
+
+  const manifest = JSON.parse(manifestJson) as ProjectManifest;
+
+  // Support both v1 (presentation-only) and v2 (project) formats
+  if (manifest.schemaType !== 'project') {
+    return upgradeV1ToProject(zip, manifest as unknown as Record<string, unknown>);
+  }
+
+  const chatHistoryJson =
+    (await zip.file('chat-history.json')?.async('string')) ?? '[]';
+  const chatHistory = JSON.parse(chatHistoryJson) as ChatMessage[];
+
+  const documents: ProjectDocument[] = [];
+  const docsFolder = zip.folder('documents');
+
+  if (docsFolder) {
+    // Find all meta files
+    const metaFiles = Object.keys(zip.files).filter(
+      (f) => f.startsWith('documents/') && f.endsWith('.meta.json'),
+    );
+
+    for (const metaPath of metaFiles) {
+      const metaJson = await zip.file(metaPath)?.async('string');
+      if (!metaJson) continue;
+
+      const meta = JSON.parse(metaJson) as ProjectDocument;
+      const docId = meta.id;
+
+      const contentHtml =
+        (await zip.file(`documents/${docId}.html`)?.async('string')) ?? '';
+      const themeCss =
+        (await zip.file(`documents/${docId}.css`)?.async('string')) ?? '';
+
+      documents.push({
+        ...meta,
+        contentHtml,
+        themeCss,
+      });
+    }
+
+    // Sort by order
+    documents.sort((a, b) => a.order - b.order);
+  }
+
+  return {
+    id: manifest.id,
+    title: manifest.title,
+    description: manifest.description,
+    visibility: manifest.visibility ?? 'private',
+    documents,
+    activeDocumentId: documents[0]?.id ?? null,
+    chatHistory,
+    sections: { drafts: [], main: [], suggestions: [], issues: [] },
+    createdAt: manifest.createdAt,
+    updatedAt: manifest.updatedAt,
+  };
+}
+
+/** Upgrade a v1 presentation .aura file to the v2 project format */
+async function upgradeV1ToProject(
+  zip: JSZip,
+  v1Manifest: Record<string, unknown>,
+): Promise<ProjectData> {
+  const slidesHtml = (await zip.file('slides.html')?.async('string')) ?? '';
+  const themeCss = (await zip.file('theme.css')?.async('string')) ?? '';
+  const chatHistoryJson =
+    (await zip.file('chat-history.json')?.async('string')) ?? '[]';
+  const chatHistory = JSON.parse(chatHistoryJson) as ChatMessage[];
+
+  const docId = crypto.randomUUID();
+  const now = Date.now();
+  const title = (v1Manifest.title as string) ?? 'Untitled Presentation';
+
+  const doc: ProjectDocument = {
+    id: docId,
+    title,
+    type: 'presentation',
+    contentHtml: slidesHtml,
+    themeCss,
+    slideCount: (v1Manifest.slideCount as number) ?? 0,
+    order: 0,
+    createdAt: (v1Manifest.createdAt as number) ?? now,
+    updatedAt: (v1Manifest.updatedAt as number) ?? now,
+  };
+
+  return {
+    id: crypto.randomUUID(),
+    title,
+    visibility: 'private',
+    documents: [doc],
+    activeDocumentId: docId,
+    chatHistory,
+    sections: { drafts: [], main: [], suggestions: [], issues: [] },
+    createdAt: (v1Manifest.createdAt as number) ?? now,
+    updatedAt: (v1Manifest.updatedAt as number) ?? now,
+  };
+}
+
+function sanitizeFilename(name: string): string {
+  return (
+    name
+      .replace(/[^a-zA-Z0-9\s\-_]/g, '')
+      .replace(/\s+/g, '-')
+      .toLowerCase()
+      .slice(0, 50) || 'untitled'
+  );
+}
