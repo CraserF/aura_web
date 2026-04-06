@@ -14,6 +14,7 @@ import { streamText } from 'ai';
 import { createModel } from './engine';
 import { withDefaults } from '../middleware';
 import { sanitizeHtml } from '@/services/html/sanitizer';
+import { CACHE_CONTROL } from './engine';
 import type {
   LLMConfig,
   EventListener,
@@ -137,11 +138,12 @@ export async function runDocumentWorkflow(
 
     const stream = streamText({
       model,
-      system: systemPrompt,
       messages: [
+        { role: 'system', content: systemPrompt, providerOptions: CACHE_CONTROL } as ModelMessage,
         ...historyMessages,
         { role: 'user', content: userPrompt },
       ],
+      maxOutputTokens: 16384,
       abortSignal: signal,
     });
 

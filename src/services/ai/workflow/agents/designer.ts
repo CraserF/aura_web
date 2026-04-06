@@ -28,12 +28,7 @@ import { validateSlides } from './qa-validator';
 import type { PlanResult } from './planner';
 import type { StyleManifest } from '../../templates';
 import type { EventListener } from '../types';
-import { toModelMessages } from '../engine';
-
-/** Anthropic cache control marker — enables prompt caching on the system message */
-const CACHE_CONTROL = {
-  anthropic: { cacheControl: { type: 'ephemeral' } },
-} as const;
+import { toModelMessages, CACHE_CONTROL } from '../engine';
 
 export interface DesignResult {
   html: string;
@@ -161,7 +156,7 @@ export async function design(
 
   // Build conversation messages
   const messages: ModelMessage[] = [];
-  const recentHistory = chatHistory.slice(-20);
+  const recentHistory = chatHistory.slice(-10);
   if (recentHistory.length > 0) {
     messages.push(...toModelMessages(recentHistory));
   }

@@ -9,11 +9,12 @@
  */
 
 import { generateText, Output } from 'ai';
-import type { LanguageModel } from 'ai';
+import type { LanguageModel, ModelMessage } from 'ai';
 import { z } from 'zod';
 import { buildRevisionSystemPrompt } from '../../prompts';
 import { extractHtmlFromResponse } from '../../utils/extractHtml';
 import { sanitizeSlideHtml } from '../../utils/sanitizeHtml';
+import { CACHE_CONTROL } from '../engine';
 import type { PlanResult } from './planner';
 import type { EventListener } from '../types';
 
@@ -96,8 +97,11 @@ export async function evaluateAndRevise(
     const evalResult = await generateText({
       model,
       output: Output.object({ schema: EvaluationSchema }),
-      system: buildEvaluatorPrompt(planResult),
-      prompt: `Evaluate this slide HTML against the design brief:\n\nDesign brief: ${planResult.enhancedPrompt}\n\nSlide HTML:\n\`\`\`html\n${currentHtml}\n\`\`\``,
+      messages: [
+        { role: 'system', content: buildEvaluatorPrompt(planResult), providerOptions: CACHE_CONTROL } as ModelMessage,
+        { role: 'user', content: `Evaluate this slide HTML against the design brief:\n\nDesign brief: ${planResult.enhancedPrompt}\n\nSlide HTML:\n\`\`\`html\n${currentHtml}\n\`\`\`` },
+      ],
+      maxOutputTokens: 1024,
       abortSignal: signal,
     });
 
@@ -134,8 +138,10 @@ export async function evaluateAndRevise(
 
     const revisionResult = await generateText({
       model,
-      system: revisionSystem,
-      prompt: revisionPrompt,
+      messages: [
+        { role: 'system', content: revisionSystem, providerOptions: CACHE_CONTROL } as ModelMessage,
+        { role: 'user', content: revisionPrompt },
+      ],
       maxOutputTokens: 16384,
       abortSignal: signal,
     });
