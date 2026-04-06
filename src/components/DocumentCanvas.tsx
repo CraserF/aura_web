@@ -14,6 +14,7 @@ import { useProjectStore } from '@/stores/projectStore';
 
 interface DocumentCanvasProps {
   html: string;
+  pagesEnabled?: boolean;
   onNavigate?: (docId: string) => void;
 }
 
@@ -31,14 +32,98 @@ const WRAPPER_STYLES = `
   }
 `;
 
+/** Styles injected when pages mode is ON -- A4 page-flow view */
+const PAGES_STYLES = `
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #e5e7eb;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    color: #1a1a1a;
+    line-height: 1.6;
+    counter-reset: page;
+  }
+  * {
+    box-sizing: border-box;
+  }
+
+  /* A4: 210mm x 297mm at 96 dpi ~= 794px x 1123px */
+  body > * {
+    display: block;
+    width: 794px;
+    min-height: 1123px;
+    margin: 24px auto;
+    padding: 72px 80px;
+    background: #ffffff;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+    border-radius: 2px;
+    position: relative;
+    page-break-after: always;
+    counter-increment: page;
+  }
+
+  /* Page number badge at bottom of each page */
+  body > *::after {
+    content: counter(page);
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: #9ca3af;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    letter-spacing: 0.05em;
+  }
+
+  @media print {
+    html, body {
+      background: white;
+    }
+    body > * {
+      width: 100%;
+      min-height: auto;
+      margin: 0;
+      padding: 20mm 25mm;
+      box-shadow: none;
+      border-radius: 0;
+      page-break-after: always;
+    }
+    body > *::after {
+      content: counter(page);
+      position: fixed;
+      bottom: 10mm;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    @page {
+      size: A4;
+      margin: 0;
+    }
+  }
+`;
+
+/** Print styles for standard (non-paged) documents */
+const PRINT_STYLES = `
+  @media print {
+    @page {
+      size: A4;
+      margin: 20mm 25mm;
+    }
+    body {
+      background: white;
+    }
+  }
+`;
+
 /** Build the full HTML document for the iframe */
-function buildIframeDocument(bodyHtml: string): string {
+function buildIframeDocument(bodyHtml: string, pagesEnabled: boolean): string {
+  const styles = pagesEnabled ? PAGES_STYLES : WRAPPER_STYLES + PRINT_STYLES;
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <style>${WRAPPER_STYLES}</style>
+  <style>${styles}</style>
 </head>
 <body>
 ${bodyHtml}
@@ -46,14 +131,14 @@ ${bodyHtml}
 </html>`;
 }
 
-export function DocumentCanvas({ html, onNavigate }: DocumentCanvasProps) {
+export function DocumentCanvas({ html, pagesEnabled = false, onNavigate }: DocumentCanvasProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const updateContent = useCallback((bodyHtml: string) => {
     const iframe = iframeRef.current;
     if (!iframe) return;
 
-    const fullDoc = buildIframeDocument(bodyHtml);
+    const fullDoc = buildIframeDocument(bodyHtml, pagesEnabled);
     const blob = new Blob([fullDoc], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
 
@@ -93,7 +178,7 @@ export function DocumentCanvas({ html, onNavigate }: DocumentCanvasProps) {
     };
 
     iframe.src = url;
-  }, [onNavigate]);
+  }, [onNavigate, pagesEnabled]);
 
   useEffect(() => {
     if (html) {

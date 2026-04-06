@@ -15,6 +15,9 @@ import {
   getProjectAutosave,
 } from '@/services/storage/projectAutosave';
 import type { ProjectDocument } from '@/types/project';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { BookOpen, Printer } from 'lucide-react';
 
 export default function App() {
   const project = useProjectStore((s) => s.project);
@@ -82,7 +85,7 @@ export default function App() {
   }, [messages.length]);
 
   const handleAddDocument = useCallback(
-    (type: 'document' | 'presentation') => {
+    (type: 'document' | 'presentation', parentId?: string) => {
       const doc: ProjectDocument = {
         id: crypto.randomUUID(),
         title: type === 'presentation' ? 'New Presentation' : 'New Document',
@@ -91,6 +94,7 @@ export default function App() {
         themeCss: '',
         slideCount: 0,
         order: project.documents.length,
+        parentId,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -101,6 +105,21 @@ export default function App() {
 
   const showPresentation = activeDocument?.type === 'presentation';
   const showDocument = activeDocument?.type === 'document';
+
+  const pagesEnabled = activeDocument?.type === 'document' && !!activeDocument.pagesEnabled;
+
+  const handleTogglePages = () => {
+    if (!activeDocument || activeDocument.type !== 'document') return;
+    useProjectStore.getState().updateDocument(activeDocument.id, {
+      pagesEnabled: !activeDocument.pagesEnabled,
+    });
+  };
+
+  const handlePrint = () => {
+    // Find the document iframe and trigger its print dialog
+    const iframe = document.querySelector<HTMLIFrameElement>('iframe[title="Document preview"]');
+    iframe?.contentWindow?.print();
+  };
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -126,8 +145,46 @@ export default function App() {
           )}
           {showPresentation && <PresentationCanvas />}
           {showDocument && (
-            <div className="flex flex-1 overflow-hidden">
-              <DocumentCanvas html={activeDocument.contentHtml} />
+            <div className="flex flex-1 flex-col overflow-hidden">
+              {/* Document toolbar: pages toggle + print */}
+              <div className="flex shrink-0 items-center gap-1 border-b border-border px-3 py-1.5">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={pagesEnabled ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="h-7 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
+                      onClick={handleTogglePages}
+                    >
+                      <BookOpen className="size-3.5" />
+                      Pages
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {pagesEnabled ? 'Disable page view' : 'Enable A4 page view'}
+                  </TooltipContent>
+                </Tooltip>
+                {activeDocument.contentHtml && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
+                        onClick={handlePrint}
+                      >
+                        <Printer className="size-3.5" />
+                        Print
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Print document (A4)</TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+              <DocumentCanvas
+                html={activeDocument.contentHtml}
+                pagesEnabled={pagesEnabled}
+              />
             </div>
           )}
           <ChatBar />
