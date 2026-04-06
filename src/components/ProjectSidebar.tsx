@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   FileText,
   Presentation,
@@ -7,6 +7,8 @@ import {
   ChevronRight,
   FolderOpen,
   MoreHorizontal,
+  FilePlus,
+  Pencil,
 } from 'lucide-react';
 import { useProjectStore } from '@/stores/projectStore';
 import type { ProjectDocument } from '@/types/project';
@@ -16,6 +18,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -66,27 +69,92 @@ function NewDocMenu({ onAdd }: NewDocMenuProps) {
   );
 }
 
+/** Inline editable title input */
+function InlineEdit({
+  value,
+  onSave,
+  onCancel,
+  className,
+}: {
+  value: string;
+  onSave: (v: string) => void;
+  onCancel: () => void;
+  className?: string;
+}) {
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, []);
+
+  const commit = () => {
+    const trimmed = draft.trim();
+    if (trimmed) onSave(trimmed);
+    else onCancel();
+  };
+
+  return (
+    <input
+      ref={inputRef}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') commit();
+        if (e.key === 'Escape') onCancel();
+        e.stopPropagation();
+      }}
+      onClick={(e) => e.stopPropagation()}
+      className={cn(
+        'w-full rounded border border-border bg-background px-1 py-0 text-xs font-medium leading-tight outline-none ring-1 ring-ring',
+        className,
+      )}
+    />
+  );
+}
+
 interface DocItemProps {
   doc: ProjectDocument;
   index: number;
   isActive: boolean;
+  depth: number;
   onClick: () => void;
   onDelete: () => void;
+  onRename: (title: string) => void;
+  onAddSubDocument: (type: 'document' | 'presentation') => void;
 }
 
-function DocItem({ doc, index, isActive, onClick, onDelete }: DocItemProps) {
+function DocItem({
+  doc,
+  index,
+  isActive,
+  depth,
+  onClick,
+  onDelete,
+  onRename,
+  onAddSubDocument,
+}: DocItemProps) {
   const [showMenu, setShowMenu] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   return (
     <div
       className={cn(
-        'group relative flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-all',
+        'group flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm transition-all',
         isActive
           ? 'bg-accent text-accent-foreground shadow-sm'
           : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
       )}
+      style={{ paddingLeft: depth > 0 ? `${depth * 16 + 8}px` : undefined }}
       onClick={onClick}
     >
+      {/* Indent indicator for nested docs */}
+      {depth > 0 && (
+        <span className="mr-0.5 text-muted-foreground/30 text-[10px]">└</span>
+      )}
+
       {/* Color dot */}
       <div
         className={cn(
@@ -101,50 +169,156 @@ function DocItem({ doc, index, isActive, onClick, onDelete }: DocItemProps) {
         )}
       </div>
 
+      {/* Title */}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-medium leading-tight">
-          {doc.title || 'Untitled'}
-        </p>
-        <p className="truncate text-[10px] capitalize text-muted-foreground/70">
-          {doc.type}
-        </p>
+        {editing ? (
+          <InlineEdit
+            value={doc.title || 'Untitled'}
+            onSave={(v) => {
+              onRename(v);
+              setEditing(false);
+            }}
+            onCancel={() => setEditing(false)}
+          />
+        ) : (
+          <>
+            <p className="truncate text-xs font-medium leading-tight">
+              {doc.title || 'Untitled'}
+            </p>
+            <p className="truncate text-[10px] capitalize text-muted-foreground/70">
+              {doc.type}
+            </p>
+          </>
+        )}
       </div>
 
-      {isActive && <ChevronRight className="size-3 shrink-0 text-muted-foreground" />}
+      {/* Active chevron + context menu side by side */}
+      <div className="flex shrink-0 items-center gap-0.5">
+        {isActive && <ChevronRight className="size-3 text-muted-foreground" />}
 
-      {/* Context menu */}
-      <DropdownMenu open={showMenu} onOpenChange={setShowMenu}>
-        <DropdownMenuTrigger asChild>
-          <button
-            className={cn(
-              'absolute right-1.5 flex size-5 items-center justify-center rounded opacity-0 transition-opacity group-hover:opacity-100',
-              showMenu && 'opacity-100',
-            )}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <MoreHorizontal className="size-3.5 text-muted-foreground" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-36">
-          <DropdownMenuItem
-            className="text-destructive focus:text-destructive"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-          >
-            <Trash2 className="mr-2 size-3.5" />
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        <DropdownMenu open={showMenu} onOpenChange={setShowMenu}>
+          <DropdownMenuTrigger asChild>
+            <button
+              className={cn(
+                'flex size-5 items-center justify-center rounded opacity-0 transition-opacity group-hover:opacity-100',
+                showMenu && 'opacity-100',
+              )}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreHorizontal className="size-3.5 text-muted-foreground" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditing(true);
+                setShowMenu(false);
+              }}
+            >
+              <Pencil className="mr-2 size-3.5" />
+              Rename
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddSubDocument('document');
+                setShowMenu(false);
+              }}
+            >
+              <FilePlus className="mr-2 size-3.5" />
+              Add sub-document
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddSubDocument('presentation');
+                setShowMenu(false);
+              }}
+            >
+              <Presentation className="mr-2 size-3.5 text-violet-500" />
+              Add sub-presentation
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+            >
+              <Trash2 className="mr-2 size-3.5" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
+  );
+}
+
+/** Recursive tree renderer */
+function DocTree({
+  docs,
+  allDocs,
+  parentId,
+  depth,
+  activeDocumentId,
+  onSelect,
+  onDelete,
+  onRename,
+  onAddSubDocument,
+}: {
+  docs: ProjectDocument[];
+  allDocs: ProjectDocument[];
+  parentId: string | undefined;
+  depth: number;
+  activeDocumentId: string | null;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+  onRename: (id: string, title: string) => void;
+  onAddSubDocument: (parentId: string, type: 'document' | 'presentation') => void;
+}) {
+  const children = docs
+    .filter((d) => d.parentId === parentId)
+    .sort((a, b) => a.order - b.order);
+
+  return (
+    <>
+      {children.map((doc) => (
+        <div key={doc.id}>
+          <DocItem
+            doc={doc}
+            index={allDocs.indexOf(doc)}
+            isActive={doc.id === activeDocumentId}
+            depth={depth}
+            onClick={() => onSelect(doc.id)}
+            onDelete={() => onDelete(doc.id)}
+            onRename={(title) => onRename(doc.id, title)}
+            onAddSubDocument={(type) => onAddSubDocument(doc.id, type)}
+          />
+          {/* Render children */}
+          <DocTree
+            docs={docs}
+            allDocs={allDocs}
+            parentId={doc.id}
+            depth={depth + 1}
+            activeDocumentId={activeDocumentId}
+            onSelect={onSelect}
+            onDelete={onDelete}
+            onRename={onRename}
+            onAddSubDocument={onAddSubDocument}
+          />
+        </div>
+      ))}
+    </>
   );
 }
 
 interface ProjectSidebarProps {
   open: boolean;
-  onRequestAddDocument?: (type: 'document' | 'presentation') => void;
+  onRequestAddDocument?: (type: 'document' | 'presentation', parentId?: string) => void;
 }
 
 export function ProjectSidebar({ open, onRequestAddDocument }: ProjectSidebarProps) {
@@ -152,6 +326,10 @@ export function ProjectSidebar({ open, onRequestAddDocument }: ProjectSidebarPro
   const activeDocumentId = useProjectStore((s) => s.project.activeDocumentId);
   const setActiveDocumentId = useProjectStore((s) => s.setActiveDocumentId);
   const removeDocument = useProjectStore((s) => s.removeDocument);
+  const updateDocument = useProjectStore((s) => s.updateDocument);
+  const setProjectTitle = useProjectStore((s) => s.setProjectTitle);
+
+  const [editingProjectTitle, setEditingProjectTitle] = useState(false);
 
   if (!open) return null;
 
@@ -161,15 +339,39 @@ export function ProjectSidebar({ open, onRequestAddDocument }: ProjectSidebarPro
     onRequestAddDocument?.(type);
   };
 
+  const handleAddSubDocument = (parentId: string, type: 'document' | 'presentation') => {
+    onRequestAddDocument?.(type, parentId);
+  };
+
+  const handleRename = (id: string, title: string) => {
+    updateDocument(id, { title });
+  };
+
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-background/80">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
-        <div className="flex items-center gap-1.5 min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
           <FolderOpen className="size-3.5 shrink-0 text-violet-500" />
-          <span className="truncate text-xs font-semibold text-foreground">
-            {project.title}
-          </span>
+          {editingProjectTitle ? (
+            <InlineEdit
+              value={project.title}
+              onSave={(v) => {
+                setProjectTitle(v);
+                setEditingProjectTitle(false);
+              }}
+              onCancel={() => setEditingProjectTitle(false)}
+              className="flex-1"
+            />
+          ) : (
+            <button
+              className="truncate text-xs font-semibold text-foreground hover:text-violet-500 transition-colors text-left min-w-0 flex-1"
+              onClick={() => setEditingProjectTitle(true)}
+              title="Click to rename project"
+            >
+              {project.title}
+            </button>
+          )}
         </div>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -195,16 +397,17 @@ export function ProjectSidebar({ open, onRequestAddDocument }: ProjectSidebarPro
           </div>
         ) : (
           <div className="space-y-0.5">
-            {sortedDocs.map((doc, i) => (
-              <DocItem
-                key={doc.id}
-                doc={doc}
-                index={i}
-                isActive={doc.id === activeDocumentId}
-                onClick={() => setActiveDocumentId(doc.id)}
-                onDelete={() => removeDocument(doc.id)}
-              />
-            ))}
+            <DocTree
+              docs={sortedDocs}
+              allDocs={sortedDocs}
+              parentId={undefined}
+              depth={0}
+              activeDocumentId={activeDocumentId}
+              onSelect={setActiveDocumentId}
+              onDelete={removeDocument}
+              onRename={handleRename}
+              onAddSubDocument={handleAddSubDocument}
+            />
           </div>
         )}
       </div>

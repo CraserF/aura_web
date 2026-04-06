@@ -23,6 +23,10 @@ export interface ProjectDocument {
   slideCount: number;
   /** Short description shown in sidebar */
   description?: string;
+  /** Parent document ID for nesting */
+  parentId?: string;
+  /** Whether paginated A4-style view is enabled (documents only) */
+  pagesEnabled?: boolean;
   createdAt: number;
   updatedAt: number;
   order: number;
