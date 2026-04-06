@@ -114,7 +114,7 @@ export async function evaluateAndRevise(
             content: `Brief: ${planResult.style}, ${planResult.styleManifest.compositionMode}\n\nSlide HTML:\n\`\`\`html\n${truncatedHtml}\n\`\`\``,
           },
         ],
-        maxOutputTokens: 512,
+        maxOutputTokens: 1024,
         abortSignal: signal,
       });
       evaluation = evalResult.object;

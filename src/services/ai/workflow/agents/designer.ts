@@ -370,14 +370,18 @@ export async function designEdit(
     onEvent({ type: 'draft-complete', html: processedDraft });
   }
 
-  // Fast-path QA check on the merged draft
+  // Fast-path QA check.
+  // For add_slides: validate ONLY the newly generated slide (draftHtml), not the
+  // merged deck (processedDraft). Existing slides may have different palettes and
+  // are not the agent's responsibility — validating them creates unfixable violations.
   const qaOptions = {
     expectedBgColor: planResult.blueprint.palette.bg,
     isCreate: false,
     styleManifest: planResult.styleManifest,
     exemplarPackId: planResult.exemplarPackId,
   };
-  const draftQa = validateSlides(processedDraft, qaOptions);
+  const htmlToQA = isAddSlides ? draftHtml : processedDraft;
+  const draftQa = validateSlides(htmlToQA, qaOptions);
   if (draftQa.passed && countSlides(processedDraft) > 0) {
     const elapsed = (performance.now() - t0).toFixed(0);
     aiDebugLog('designer:edit', `fast-path QA passed in ${elapsed}ms`);
@@ -390,7 +394,9 @@ export async function designEdit(
     };
   }
 
-  // Phase 2: ToolLoopAgent validate→fix loop (only when QA found errors)
+  // Phase 2: ToolLoopAgent validate→fix loop (only when QA found errors in the new slide)
+  const qaViolations = draftQa.violations.filter((v) => v.severity === 'error');
+  aiDebugLog('designer:edit', `QA failed, entering agent loop`, { errorCount: qaViolations.length, errors: qaViolations.map((v) => `[${v.rule}] ${v.detail}`) });
   onEvent({ type: 'progress', message: 'Fixing QA issues…', pct: 65 });
 
   const agent = createDesignAgent(model, systemPrompt, planResult);

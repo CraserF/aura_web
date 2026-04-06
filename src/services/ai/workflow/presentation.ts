@@ -124,15 +124,30 @@ export async function runPresentationWorkflow(
       exemplarPackId: planResult.exemplarPackId,
     });
 
-    // Skip LLM evaluation when the designer's ToolLoopAgent already self-corrected
-    // (fastPath=false means the agent ran and fixed errors itself).
-    // Only run when: QA still failed, OR alwaysRunEvaluation AND the fast-path was taken
-    // (so the slide was never agent-corrected and a second LLM opinion adds value).
-    const shouldEvaluate = !qaResult.passed || (alwaysRunEvaluation && designResult.fastPath);
+    if (!qaResult.passed) {
+      const errors = qaResult.violations.filter((v) => v.severity === 'error');
+      const warnings = qaResult.violations.filter((v) => v.severity === 'warning');
+      aiDebugLog('workflow', `QA failed on final output`, {
+        errorCount: errors.length,
+        warningCount: warnings.length,
+        errors: errors.map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
+        warnings: warnings.map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
+      });
+    }
+
+    // Evaluator runs only when:
+    // 1. The designer took the fast path (QA passed on draft, no agent loop ran)
+    // 2. The intent supports LLM evaluation (add_slides validates new-slide-only internally)
+    // 3. alwaysRunEvaluation is enabled OR QA somehow failed on the fast-path output
+    // When fastPath=false (agent loop ran), the agent already self-corrected — don't pile on.
+    const canEvaluate = planResult.intent !== 'add_slides';
+    const shouldEvaluate = canEvaluate && designResult.fastPath && (alwaysRunEvaluation || !qaResult.passed);
     aiDebugLog('workflow', `phase 3 decision`, {
+      intent: planResult.intent,
       fastPath: designResult.fastPath,
       qaPassed: qaResult.passed,
       alwaysRunEvaluation,
+      canEvaluate,
       shouldEvaluate,
     });
 
@@ -158,7 +173,9 @@ export async function runPresentationWorkflow(
       onEvent({ type: 'progress', message: 'QA passed — skipping evaluation', pct: 85 });
     }
 
-    reviewPassed = qaResult.passed;
+    // For add_slides the merged deck's QA mixes old slides with new; use the designer's
+    // result (fastPath = new slide passed, agent ran = agent corrected it) instead.
+    reviewPassed = planResult.intent === 'add_slides' ? designResult.fastPath : qaResult.passed;
 
     if (signal?.aborted) throw new DOMException('Workflow aborted', 'AbortError');
 

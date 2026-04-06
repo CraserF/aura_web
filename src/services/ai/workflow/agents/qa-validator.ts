@@ -364,13 +364,19 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
     });
   }
 
-  // Rule: Google Fonts link should be present
-  if (!html.includes('fonts.googleapis.com')) {
+  // Rule: when custom fonts are used, a source declaration should exist.
+  // System/browser fonts are valid and should not require a Google Fonts link.
+  const hasGoogleFontLink = /fonts\.googleapis\.com/i.test(html);
+  const hasLocalFontFace = /@font-face\s*\{/i.test(styleContent);
+  const declaredFamilies = extractFontFamilies(html);
+  const customFamilies = declaredFamilies.filter((family) => !isGenericSystemFontFamily(family));
+
+  if (customFamilies.length > 0 && !hasGoogleFontLink && !hasLocalFontFace) {
     violations.push({
       slide: 0,
       rule: 'google-fonts',
-      severity: 'error',
-      detail: 'Missing Google Fonts <link> element.',
+      severity: 'warning',
+      detail: `Custom font family used without a source declaration: ${customFamilies.slice(0, 3).join(', ')}. Add a Google Fonts <link> or @font-face, or switch to system fonts.`,
     });
   }
 
@@ -484,6 +490,57 @@ function isLightColor(color: string): boolean {
   }
 
   return false;
+}
+
+function extractFontFamilies(html: string): string[] {
+  const families = new Set<string>();
+  const fontFamilyRegex = /font-family\s*:\s*([^;\n}]+)/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = fontFamilyRegex.exec(html)) !== null) {
+    const rawValue = match[1] ?? '';
+    for (const part of rawValue.split(',')) {
+      const clean = part.trim().replace(/^['"]|['"]$/g, '');
+      if (clean) families.add(clean.toLowerCase());
+    }
+  }
+
+  return [...families];
+}
+
+function isGenericSystemFontFamily(family: string): boolean {
+  const f = family.toLowerCase();
+  const genericFamilies = new Set([
+    'serif',
+    'sans-serif',
+    'monospace',
+    'cursive',
+    'fantasy',
+    'system-ui',
+    'ui-sans-serif',
+    'ui-serif',
+    'ui-monospace',
+    'ui-rounded',
+    'emoji',
+    'math',
+    'fangsong',
+  ]);
+
+  const systemAliases = new Set([
+    'arial',
+    'helvetica',
+    'times new roman',
+    'georgia',
+    'verdana',
+    'tahoma',
+    'trebuchet ms',
+    'courier new',
+    'segoe ui',
+    '-apple-system',
+    'blinkmacsystemfont',
+  ]);
+
+  return genericFamilies.has(f) || systemAliases.has(f);
 }
 
 function applyStyleManifestChecks(
