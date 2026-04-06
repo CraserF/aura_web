@@ -102,9 +102,9 @@ function InlineEdit({
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => {
+        e.stopPropagation();
         if (e.key === 'Enter') commit();
         if (e.key === 'Escape') onCancel();
-        e.stopPropagation();
       }}
       onClick={(e) => e.stopPropagation()}
       className={cn(

@@ -32,7 +32,7 @@ const WRAPPER_STYLES = `
   }
 `;
 
-/** Styles injected when pages mode is ON — A4 page-flow view */
+/** Styles injected when pages mode is ON -- A4 page-flow view */
 const PAGES_STYLES = `
   html, body {
     margin: 0;
@@ -47,7 +47,7 @@ const PAGES_STYLES = `
     box-sizing: border-box;
   }
 
-  /* A4: 210mm × 297mm at 96 dpi ≈ 794px × 1123px */
+  /* A4: 210mm x 297mm at 96 dpi ~= 794px x 1123px */
   body > * {
     display: block;
     width: 794px;
