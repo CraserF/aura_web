@@ -145,15 +145,15 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
       });
     }
 
-    // Rule: first section must define CSS custom properties — check the full HTML
-    // (standalone slides define vars in the <style> block, not on the section element)
-    if (i === 0) {
-      if (!html.includes('--primary')) {
+    // Rule: CSS custom properties are strongly recommended for maintainable themes,
+    // but not strictly required (some valid slides use static color tokens only).
+    if (i === 0 && hasStyleBlock) {
+      if (!/--(?:primary|accent|bg|surface)\s*:/.test(html)) {
         violations.push({
           slide: slideNum,
           rule: 'css-vars',
-          severity: 'error',
-          detail: 'Missing --primary CSS custom property (should be defined in <style> block on .slide-wrap).',
+          severity: 'warning',
+          detail: 'No theme CSS variables detected. Consider defining variables (for example --primary/--bg) in <style> for easier style consistency.',
         });
       }
     }
@@ -219,12 +219,13 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
       });
     }
 
-    // Rule: no raw markdown syntax
-    if (/(?:^|\n)#{1,3}\s/m.test(section) && !section.includes('<pre')) {
+    // Rule: avoid rendering raw markdown headings in slide content
+    // Keep as warning to avoid blocking legitimate hash-prefixed content.
+    if (/(?:^|\n)\s*#{1,3}\s+[A-Za-z]/m.test(section) && !section.includes('<pre')) {
       violations.push({
         slide: slideNum,
         rule: 'no-markdown',
-        severity: 'error',
+        severity: 'warning',
         detail: 'Raw markdown heading syntax detected (# or ## or ###).',
       });
     }

@@ -113,12 +113,15 @@ function createDesignAgent(
           });
           const errors = result.violations.filter((v) => v.severity === 'error');
           const warnings = result.violations.filter((v) => v.severity === 'warning');
+          const maxListedIssues = 8;
           return {
             passed: result.passed,
             errorCount: errors.length,
             warningCount: warnings.length,
-            errors: errors.map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
-            warnings: warnings.map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
+            errors: errors.slice(0, maxListedIssues).map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
+            warnings: warnings.slice(0, maxListedIssues).map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
+            omittedErrors: Math.max(0, errors.length - maxListedIssues),
+            omittedWarnings: Math.max(0, warnings.length - maxListedIssues),
           };
         },
       }),
