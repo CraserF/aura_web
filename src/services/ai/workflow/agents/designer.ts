@@ -8,8 +8,8 @@
  * - Single <section> with class-based content and inline SVG
  *
  * Streaming: The initial generation streams to the canvas for instant preview.
- * After the agent loop finishes (validate → fix if needed), the final polished
- * HTML silently replaces the draft.
+ * If the draft already passes QA, it is returned immediately (fast path).
+ * Otherwise the ToolLoopAgent runs a validate→fix loop before returning.
  */
 
 import { ToolLoopAgent, tool, stepCountIs, streamText } from 'ai';
@@ -58,12 +58,17 @@ function preserveExistingSlidesForAddIntent(existingHtml: string, candidateHtml:
   if (existingSections.length === 0) return candidateHtml;
 
   const generatedSections = extractSections(candidateHtml);
-  if (generatedSections.length <= existingSections.length) {
-    return existingHtml;
+  if (generatedSections.length === 0) return existingHtml;
+
+  // Case 1: LLM returned the full deck (existing + new) — slice off only the new sections
+  if (generatedSections.length > existingSections.length) {
+    const newSections = generatedSections.slice(existingSections.length);
+    return `${existingHtml}\n${newSections.join('\n')}`;
   }
 
-  const appended = generatedSections.slice(existingSections.length).join('\n');
-  return appended ? `${existingHtml}\n${appended}` : existingHtml;
+  // Case 2: LLM returned only the new slide(s) — just append them
+  // This is the common case when the agent generates only the requested new section
+  return `${existingHtml}\n${generatedSections.join('\n')}`;
 }
 
 /**
@@ -136,7 +141,8 @@ function createDesignAgent(
  *
  * Two-phase approach:
  * 1. Initial streaming generation for instant canvas preview
- * 2. ToolLoopAgent run for self-validation and fixes (draft + final swap)
+ * 2. Fast-path QA check — if draft passes with 0 errors, return immediately
+ *    Otherwise run the ToolLoopAgent validate→fix loop for self-correction
  */
 export async function design(
   planResult: PlanResult,
@@ -214,8 +220,25 @@ After generating the slide HTML, call the validateSlideHtml tool to check for is
     onEvent({ type: 'draft-complete', html: draftHtml });
   }
 
-  // Phase 2: Run the ToolLoopAgent for self-validation and fixes
-  onEvent({ type: 'progress', message: 'Validating and polishing…', pct: 65 });
+  // Fast-path QA check: if the draft passes all rules, skip the agent loop entirely
+  const qaOptions = {
+    expectedBgColor: planResult.blueprint.palette.bg,
+    isCreate: planResult.intent === 'create',
+    styleManifest: planResult.styleManifest,
+    exemplarPackId: planResult.exemplarPackId,
+  };
+  const draftQa = validateSlides(draftHtml, qaOptions);
+  if (draftQa.passed && countSlides(draftHtml) > 0) {
+    onEvent({ type: 'progress', message: 'QA passed — slide ready', pct: 90 });
+    return {
+      html: draftHtml,
+      title: extractTitle(draftHtml),
+      slideCount: countSlides(draftHtml),
+    };
+  }
+
+  // Phase 2: ToolLoopAgent validate→fix loop (only when QA found errors)
+  onEvent({ type: 'progress', message: 'Fixing QA issues…', pct: 65 });
 
   const agent = createDesignAgent(model, systemPrompt, planResult);
 
@@ -273,7 +296,10 @@ After generating the slide HTML, call the validateSlideHtml tool to check for is
 
 /**
  * Generate slides for an edit operation (modify/refine_style/add_slides).
- * Uses the compact edit prompt. Same ToolLoopAgent self-validation pattern.
+ * Uses the compact edit prompt. Same fast-path QA + ToolLoopAgent pattern.
+ *
+ * For add_slides: asks the agent to generate ONLY the new slide(s), then
+ * appends them to the existing deck. This prevents accidental overwrites.
  */
 export async function designEdit(
   planResult: PlanResult,
@@ -284,6 +310,7 @@ export async function designEdit(
   signal?: AbortSignal,
 ): Promise<DesignResult> {
   const existingSlideCount = countSlides(existingSlidesHtml);
+  const isAddSlides = planResult.intent === 'add_slides';
 
   const systemPrompt = buildEditDesignerPrompt(
     planResult.blueprint.palette,
@@ -296,29 +323,12 @@ export async function designEdit(
     messages.push(...toModelMessages(recentHistory));
   }
 
-  messages.push({
-    role: 'user',
-    content: `## EDIT MODE — Modify Existing Slide(s)
+  // Build the user prompt — add_slides gets a focused "new slide only" prompt
+  const userContent = isAddSlides
+    ? buildAddSlidesPrompt(planResult, existingSlidesHtml, existingSlideCount)
+    : buildEditPrompt(planResult, existingSlidesHtml, existingSlideCount);
 
-Here are the current slides (${existingSlideCount} slide(s) total):
-
-\`\`\`html
-${existingSlidesHtml}
-\`\`\`
-
-**User request:** ${planResult.enhancedPrompt}
-
-**CRITICAL RULES FOR EDITING:**
-- Output the COMPLETE deck including the \`<style>\` block and ALL \`<section>\` elements.
-- Preserve slides that are NOT affected by the request — output them unchanged.
-- Keep the same CSS architecture, palette, fonts, and animation patterns.
-- If enhancing with SVG illustrations, integrate them into the existing CSS class system.
-- If this is an add-slide request, keep ALL existing \`<section>\` elements and existing \`<style>\` unchanged, and append only the new slide section(s).
-- For add-slide requests, do not rewrite existing slide copy, structure, animations, or background layers.
-- Output a single code block. NOTHING else.
-
-After generating the HTML, call the validateSlideHtml tool to check for issues. Fix any errors found, then call submitFinalSlide with the validated HTML.`,
-  });
+  messages.push({ role: 'user', content: userContent });
 
   // Phase 1: Stream for instant preview
   const streamResult = streamText({
@@ -338,7 +348,7 @@ After generating the HTML, call the validateSlideHtml tool to check for issues. 
 
   const { html: draftHtml, fontLinks: draftFontLinks } = postProcess(draftText);
   let processedDraft = draftHtml;
-  if (planResult.intent === 'add_slides') {
+  if (isAddSlides) {
     processedDraft = preserveExistingSlidesForAddIntent(existingSlidesHtml, draftHtml);
   }
   if (countSlides(processedDraft) > 0) {
@@ -346,11 +356,29 @@ After generating the HTML, call the validateSlideHtml tool to check for issues. 
     onEvent({ type: 'draft-complete', html: processedDraft });
   }
 
-  // Phase 2: ToolLoopAgent self-validation
-  onEvent({ type: 'progress', message: 'Validating and polishing…', pct: 65 });
+  // Fast-path QA check on the merged draft
+  const qaOptions = {
+    expectedBgColor: planResult.blueprint.palette.bg,
+    isCreate: false,
+    styleManifest: planResult.styleManifest,
+    exemplarPackId: planResult.exemplarPackId,
+  };
+  const draftQa = validateSlides(processedDraft, qaOptions);
+  if (draftQa.passed && countSlides(processedDraft) > 0) {
+    onEvent({ type: 'progress', message: 'QA passed — slides ready', pct: 90 });
+    return {
+      html: processedDraft,
+      title: extractTitle(processedDraft),
+      slideCount: countSlides(processedDraft),
+    };
+  }
+
+  // Phase 2: ToolLoopAgent validate→fix loop (only when QA found errors)
+  onEvent({ type: 'progress', message: 'Fixing QA issues…', pct: 65 });
 
   const agent = createDesignAgent(model, systemPrompt, planResult);
 
+  // For the agent loop, pass the raw draft (not the merged version) so it sees what it generated
   const validationMessages: ModelMessage[] = [...messages];
   validationMessages.push({ role: 'assistant', content: draftText });
   validationMessages.push({
@@ -372,7 +400,7 @@ After generating the HTML, call the validateSlideHtml tool to check for issues. 
       if (call.toolName === 'submitFinalSlide') {
         const { html: submittedRaw, title } = call.input as { html: string; title: string };
         let { html: submittedHtml, fontLinks } = postProcess(submittedRaw);
-        if (planResult.intent === 'add_slides') {
+        if (isAddSlides) {
           submittedHtml = preserveExistingSlidesForAddIntent(existingSlidesHtml, submittedHtml);
         }
         if (countSlides(submittedHtml) > 0) {
@@ -387,7 +415,7 @@ After generating the HTML, call the validateSlideHtml tool to check for issues. 
   // Fallback
   if (finalHtml === processedDraft && agentResult.text) {
     let { html: fallbackHtml, fontLinks } = postProcess(agentResult.text);
-    if (planResult.intent === 'add_slides') {
+    if (isAddSlides) {
       fallbackHtml = preserveExistingSlidesForAddIntent(existingSlidesHtml, fallbackHtml);
     }
     if (countSlides(fallbackHtml) > 0) {
@@ -421,4 +449,77 @@ function buildArtDirectionBlock(manifest: StyleManifest, exemplarName: string): 
 - SVG strategy: ${manifest.svgStrategy}
 - Hero pattern: ${manifest.heroPattern}
 - Component patterns: ${manifest.componentPatterns.join('; ')}`;
+}
+
+/**
+ * Build the user prompt for a standard edit operation (modify/refine_style).
+ */
+function buildEditPrompt(
+  planResult: PlanResult,
+  existingSlidesHtml: string,
+  existingSlideCount: number,
+): string {
+  return `## EDIT MODE — Modify Existing Slide(s)
+
+Here are the current slides (${existingSlideCount} slide(s) total):
+
+\`\`\`html
+${existingSlidesHtml}
+\`\`\`
+
+**User request:** ${planResult.enhancedPrompt}
+
+**CRITICAL RULES:**
+- Output the COMPLETE deck: \`<style>\` block and ALL \`<section>\` elements.
+- Preserve slides not affected by the request — output them unchanged.
+- Keep the same CSS architecture, palette, fonts, and animation patterns.
+- Output a single code block. NOTHING else.
+
+After generating the HTML, call validateSlideHtml, fix any errors, then call submitFinalSlide.`;
+}
+
+/**
+ * Build the user prompt for an add-slides operation.
+ * Asks the agent to generate ONLY the new section(s) — they will be appended
+ * to the existing deck automatically. This prevents overwrite bugs.
+ *
+ * Deck structure guidance:
+ *   Slide 1 — Title/hero
+ *   Slide 2 — Agenda/overview
+ *   Slide 3+ — Content slides (one topic per slide)
+ *   Last — Summary/CTA/closing
+ */
+function buildAddSlidesPrompt(
+  planResult: PlanResult,
+  existingSlidesHtml: string,
+  existingSlideCount: number,
+): string {
+  const lastSlides = extractLastNSections(existingSlidesHtml, 2);
+
+  // Suggest what slide type comes next based on deck position
+  const nextSlideHint = existingSlideCount === 1
+    ? 'This is slide 2 — make it an Agenda/Overview slide listing the topics to be covered.'
+    : existingSlideCount === 2
+    ? 'This is slide 3 — start the first content slide diving into the main topic.'
+    : `This is slide ${existingSlideCount + 1} — continue with the next content point or transition toward a closing slide.`;
+
+  return `## ADD NEW SLIDE — Append to existing ${existingSlideCount}-slide deck
+
+**Existing deck context** (last ${Math.min(existingSlideCount, 2)} slide(s) — match this visual style):
+\`\`\`html
+${lastSlides}
+\`\`\`
+
+**User request:** ${planResult.enhancedPrompt}
+
+**Slide position hint:** ${nextSlideHint}
+
+**OUTPUT RULES — CRITICAL:**
+- Output ONLY the NEW \`<section>\` element(s) to append. Do NOT repeat existing slides.
+- Do NOT output a \`<style>\` block — the new section uses the existing deck's CSS classes.
+- Match the background color, CSS class naming patterns, and animation style of the existing slides.
+- The new section MUST have a \`data-background-color\` attribute.
+- Make it visually consistent and breathtaking.
+
+After generating the new section(s), call validateSlideHtml, fix any errors, then call submitFinalSlide.`;
 }

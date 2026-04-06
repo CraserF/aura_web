@@ -111,7 +111,7 @@ function buildEnhancedPrompt(
 ): string {
   const additions: string[] = [];
 
-  additions.push(`ART DIRECTION — Visual system for this slide:
+  const artDirection = `ART DIRECTION — Visual system:
 - Composition mode: ${styleManifest.compositionMode}
 - Background treatment: ${styleManifest.backgroundTreatment}
 - Typography mood: ${styleManifest.typographyMood}
@@ -121,18 +121,25 @@ function buildEnhancedPrompt(
 - Hero pattern: ${styleManifest.heroPattern}
 - Card grammar: ${styleManifest.cardGrammar}
 - Accent strategy: ${styleManifest.accentStrategy}
-- Component patterns: ${styleManifest.componentPatterns.join('; ')}
+- Component patterns: ${styleManifest.componentPatterns.join('; ')}`;
 
-Create ONE stunning slide with rich CSS architecture (<style> block with classes and @keyframes) and inline SVG illustrations. Make it breathtaking.`);
+  if (intent === 'create') {
+    additions.push(`${artDirection}
 
-  if (intent === 'modify') {
-    additions.push('Modify the existing slide(s) while maintaining visual consistency. Output ALL slides including the <style> block.');
-  }
-  if (intent === 'refine_style') {
-    additions.push('Apply style changes to existing slide(s). Keep content, change visual styling. Output the complete result.');
-  }
-  if (intent === 'add_slides') {
-    additions.push('Add a new slide that matches the existing visual language. Keep all existing slides unchanged unless the user explicitly requested edits to specific existing slides. Output the complete deck with the new slide integrated.');
+Create ONE stunning title/hero slide with rich CSS architecture (<style> block with classes and @keyframes) and inline SVG illustrations. Make it breathtaking.`);
+  } else if (intent === 'modify') {
+    additions.push(`${artDirection}
+
+Modify the existing slide(s) while maintaining visual consistency. Output ALL slides including the <style> block.`);
+  } else if (intent === 'refine_style') {
+    additions.push(`${artDirection}
+
+Apply style changes to existing slide(s). Keep content, change visual styling. Output the complete result.`);
+  } else if (intent === 'add_slides') {
+    additions.push(`${artDirection}
+
+Generate the NEXT slide for this deck. Typical deck order: slide 1 = title/hero, slide 2 = agenda/overview, slides 3+ = content slides (one topic each), last = summary/CTA.
+Output ONLY the new <section> — do NOT repeat or include existing slides.`);
   }
 
   return additions.length > 0
