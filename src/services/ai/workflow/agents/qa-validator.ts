@@ -16,13 +16,28 @@ import type { ExemplarPackId, StyleManifest } from '../../templates';
 export interface QAViolation {
   slide: number;
   rule: string;
+  tier?: 'blocking' | 'advisory';
   severity: 'error' | 'warning';
   detail: string;
 }
 
 export interface QAResult {
   passed: boolean;
+  blockingCount: number;
+  advisoryCount: number;
   violations: QAViolation[];
+}
+
+const BLOCKING_RULES = new Set([
+  'structure',
+  'background-color',
+  'palette-compliance',
+  'no-external-images',
+  'template-content-leak',
+]);
+
+function getViolationTier(rule: string): QAViolation['tier'] {
+  return BLOCKING_RULES.has(rule) ? 'blocking' : 'advisory';
 }
 
 export interface QAOptions {
@@ -57,10 +72,11 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
     violations.push({
       slide: 0,
       rule: 'structure',
+      tier: 'blocking',
       severity: 'error',
       detail: 'No <section> elements found in output.',
     });
-    return { passed: false, violations };
+    return { passed: false, blockingCount: 1, advisoryCount: 0, violations };
   }
 
   // ── Slide count validation ──────────────────────────────────
@@ -385,11 +401,18 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
     applyStyleManifestChecks(sections, html, options, violations);
   }
 
-  const errorCount = violations.filter((v) => v.severity === 'error').length;
+  const normalizedViolations = violations.map((violation) => ({
+    ...violation,
+    tier: violation.tier ?? getViolationTier(violation.rule),
+  }));
+  const blockingCount = normalizedViolations.filter((v) => v.tier === 'blocking').length;
+  const advisoryCount = normalizedViolations.length - blockingCount;
 
   return {
-    passed: errorCount === 0,
-    violations,
+    passed: blockingCount === 0,
+    blockingCount,
+    advisoryCount,
+    violations: normalizedViolations,
   };
 }
 

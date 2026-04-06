@@ -98,7 +98,7 @@ function createDesignAgent(
     },
     tools: {
       validateSlideHtml: tool({
-        description: 'Validate slide HTML against quality rules. Call this AFTER generating your slide to check for structural errors, palette compliance, contrast issues, and other design problems. Fix any errors found, then validate again.',
+        description: 'Validate slide HTML against quality rules. Call this AFTER generating your slide to check for blocking issues and advisory quality guidance. Fix blocking issues first; advisory items are optional improvements.',
         inputSchema: z.object({
           html: z.string().describe('The complete slide HTML including <link>, <style>, and <section> elements'),
         }),
@@ -111,17 +111,23 @@ function createDesignAgent(
             styleManifest: planResult.styleManifest,
             exemplarPackId: planResult.exemplarPackId,
           });
-          const errors = result.violations.filter((v) => v.severity === 'error');
-          const warnings = result.violations.filter((v) => v.severity === 'warning');
+          const blockingIssues = result.violations.filter((v) => v.tier === 'blocking');
+          const advisories = result.violations.filter((v) => v.tier === 'advisory');
           const maxListedIssues = 8;
           return {
             passed: result.passed,
-            errorCount: errors.length,
-            warningCount: warnings.length,
-            errors: errors.slice(0, maxListedIssues).map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
-            warnings: warnings.slice(0, maxListedIssues).map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
-            omittedErrors: Math.max(0, errors.length - maxListedIssues),
-            omittedWarnings: Math.max(0, warnings.length - maxListedIssues),
+            blockingCount: result.blockingCount,
+            advisoryCount: result.advisoryCount,
+            errorCount: result.blockingCount,
+            warningCount: result.advisoryCount,
+            blockingIssues: blockingIssues.slice(0, maxListedIssues).map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
+            advisories: advisories.slice(0, maxListedIssues).map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
+            errors: blockingIssues.slice(0, maxListedIssues).map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
+            warnings: advisories.slice(0, maxListedIssues).map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
+            omittedBlocking: Math.max(0, blockingIssues.length - maxListedIssues),
+            omittedAdvisories: Math.max(0, advisories.length - maxListedIssues),
+            omittedErrors: Math.max(0, blockingIssues.length - maxListedIssues),
+            omittedWarnings: Math.max(0, advisories.length - maxListedIssues),
           };
         },
       }),
@@ -398,8 +404,8 @@ export async function designEdit(
   }
 
   // Phase 2: ToolLoopAgent validate→fix loop (only when QA found errors in the new slide)
-  const qaViolations = draftQa.violations.filter((v) => v.severity === 'error');
-  aiDebugLog('designer:edit', `QA failed, entering agent loop`, { errorCount: qaViolations.length, errors: qaViolations.map((v) => `[${v.rule}] ${v.detail}`) });
+  const qaViolations = draftQa.violations.filter((v) => v.tier === 'blocking');
+  aiDebugLog('designer:edit', `QA failed, entering agent loop`, { blockingCount: qaViolations.length, blockingIssues: qaViolations.map((v) => `[${v.rule}] ${v.detail}`) });
   onEvent({ type: 'progress', message: 'Fixing QA issues…', pct: 65 });
 
   const agent = createDesignAgent(model, systemPrompt, planResult);

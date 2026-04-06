@@ -124,14 +124,14 @@ export async function runPresentationWorkflow(
       exemplarPackId: planResult.exemplarPackId,
     });
 
-    if (!qaResult.passed) {
-      const errors = qaResult.violations.filter((v) => v.severity === 'error');
-      const warnings = qaResult.violations.filter((v) => v.severity === 'warning');
-      aiDebugLog('workflow', `QA failed on final output`, {
-        errorCount: errors.length,
-        warningCount: warnings.length,
-        errors: errors.map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
-        warnings: warnings.map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
+    if (qaResult.violations.length > 0) {
+      const blockingIssues = qaResult.violations.filter((v) => v.tier === 'blocking');
+      const advisories = qaResult.violations.filter((v) => v.tier === 'advisory');
+      aiDebugLog('workflow', qaResult.passed ? 'QA advisories on final output' : 'QA blocking issues on final output', {
+        blockingCount: qaResult.blockingCount,
+        advisoryCount: qaResult.advisoryCount,
+        blockingIssues: blockingIssues.map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
+        advisories: advisories.map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
       });
     }
 
@@ -146,6 +146,8 @@ export async function runPresentationWorkflow(
       intent: planResult.intent,
       fastPath: designResult.fastPath,
       qaPassed: qaResult.passed,
+      blockingCount: qaResult.blockingCount,
+      advisoryCount: qaResult.advisoryCount,
       alwaysRunEvaluation,
       canEvaluate,
       shouldEvaluate,
