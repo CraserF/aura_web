@@ -60,7 +60,10 @@ function postProcess(raw: string): string {
 /**
  * Run the evaluate-and-revise loop on generated HTML.
  * Returns the (possibly improved) final HTML.
- * Uses generateObject for reliable structured output without provider-specific JSON mode issues.
+ *
+ * Uses generateObject for reliable structured output without provider-specific
+ * JSON mode issues. Defaults to a single evaluate→revise pass (maxIterations=1)
+ * because the designer's fast-path QA already filters well-formed slides.
  */
 export async function evaluateAndRevise(
   model: LanguageModel,

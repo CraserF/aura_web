@@ -60,15 +60,13 @@ function preserveExistingSlidesForAddIntent(existingHtml: string, candidateHtml:
   const generatedSections = extractSections(candidateHtml);
   if (generatedSections.length === 0) return existingHtml;
 
-  // Case 1: LLM returned the full deck (existing + new) — slice off only the new sections
-  if (generatedSections.length > existingSections.length) {
-    const newSections = generatedSections.slice(existingSections.length);
-    return `${existingHtml}\n${newSections.join('\n')}`;
-  }
+  // If the LLM returned the full deck (existing + new), only keep the truly new sections.
+  // Otherwise the LLM returned only the new slide(s) — append them all.
+  const newSections = generatedSections.length > existingSections.length
+    ? generatedSections.slice(existingSections.length)
+    : generatedSections;
 
-  // Case 2: LLM returned only the new slide(s) — just append them
-  // This is the common case when the agent generates only the requested new section
-  return `${existingHtml}\n${generatedSections.join('\n')}`;
+  return `${existingHtml}\n${newSections.join('\n')}`;
 }
 
 /**
