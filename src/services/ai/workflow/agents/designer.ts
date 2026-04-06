@@ -551,6 +551,18 @@ export async function designEdit(
   const continuity = isAddSlides ? assessContinuity(existingSlidesHtml, draftHtml) : null;
   if (continuity) {
     aiDebugLog('designer:edit', 'continuity assessment', continuity);
+    onEvent({
+      type: 'progress',
+      message: `Continuity score: ${continuity.score}/100${continuity.passes ? ' (aligned)' : ' (needs refinement)'}`,
+      pct: continuity.passes ? 88 : 60,
+    });
+    if (!continuity.passes && continuity.issues.length > 0) {
+      onEvent({
+        type: 'progress',
+        message: `Continuity issues: ${continuity.issues.join(' | ')}`,
+        pct: 61,
+      });
+    }
   }
 
   const continuityPassed = continuity?.passes ?? true;
@@ -575,7 +587,11 @@ export async function designEdit(
     continuityScore: continuity?.score,
     continuityIssues: continuity?.issues,
   });
-  onEvent({ type: 'progress', message: 'Fixing QA issues…', pct: 65 });
+  onEvent({
+    type: 'progress',
+    message: continuity && !continuity.passes ? 'Fixing continuity and QA issues…' : 'Fixing QA issues…',
+    pct: 65,
+  });
 
   const agent = createDesignAgent(model, systemPrompt, planResult);
 
