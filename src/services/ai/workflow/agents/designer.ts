@@ -39,6 +39,12 @@ export interface DesignResult {
   fastPath: boolean;
 }
 
+interface ContinuityAssessment {
+  score: number;
+  passes: boolean;
+  issues: string[];
+}
+
 /**
  * Extract the last N <section> elements from accumulated HTML for continuity context.
  */
@@ -51,6 +57,157 @@ function extractLastNSections(html: string, n: number): string {
 
 function extractSections(html: string): string[] {
   return html.match(/<section[\s\S]*?<\/section>/gi) ?? [];
+}
+
+function extractStyleBlock(html: string): string {
+  return html.match(/<style[^>]*>[\s\S]*?<\/style>/i)?.[0] ?? '';
+}
+
+function summarizeExistingClasses(html: string, maxClasses = 18): string[] {
+  const classMatches = [...html.matchAll(/class=["']([^"']+)["']/gi)];
+  const classCounts = new Map<string, number>();
+
+  for (const match of classMatches) {
+    const classList = (match[1] ?? '')
+      .split(/\s+/)
+      .map((name) => name.trim())
+      .filter(Boolean);
+
+    for (const className of classList) {
+      classCounts.set(className, (classCounts.get(className) ?? 0) + 1);
+    }
+  }
+
+  return [...classCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, maxClasses)
+    .map(([className]) => className);
+}
+
+function extractClassNames(html: string): string[] {
+  const classMatches = [...html.matchAll(/class=["']([^"']+)["']/gi)];
+  const classes = new Set<string>();
+
+  for (const match of classMatches) {
+    const classList = (match[1] ?? '')
+      .split(/\s+/)
+      .map((name) => name.trim())
+      .filter(Boolean);
+
+    for (const className of classList) {
+      classes.add(className);
+    }
+  }
+
+  return [...classes];
+}
+
+function extractCssVariableNames(html: string): string[] {
+  const styleBlock = extractStyleBlock(html);
+  const matches = [...styleBlock.matchAll(/--([a-z0-9-]+)\s*:/gi)];
+  return [...new Set(matches.map((match) => `--${match[1]}`))];
+}
+
+function extractCssVariableRefs(html: string): string[] {
+  const matches = [...html.matchAll(/var\((--[a-z0-9-]+)\)/gi)];
+  return [...new Set(matches.map((match) => match[1]).filter((name): name is string => !!name))];
+}
+
+function extractBackgroundColors(html: string): string[] {
+  const matches = [...html.matchAll(/data-background-color=["']([^"']+)["']/gi)];
+  return [...new Set(matches.map((match) => (match[1] ?? '').toLowerCase()).filter(Boolean))];
+}
+
+function isUtilityClass(className: string): boolean {
+  return /^delay-\d+$/.test(className)
+    || /^anim-/.test(className)
+    || /^fragment$/.test(className)
+    || /^fade-/.test(className)
+    || /^slide-/.test(className)
+    || /^scale-/.test(className)
+    || /^glow$/.test(className);
+}
+
+function isColorClose(a: string, b: string): boolean {
+  const normalize = (value: string) => value.trim().toLowerCase();
+  return normalize(a) === normalize(b);
+}
+
+function assessContinuity(existingSlidesHtml: string, newSlideHtml: string): ContinuityAssessment {
+  const issues: string[] = [];
+
+  const existingClasses = extractClassNames(existingSlidesHtml);
+  const newClasses = extractClassNames(newSlideHtml);
+  const reusableNewClasses = newClasses.filter((className) => !isUtilityClass(className));
+  const reusedClasses = reusableNewClasses.filter((className) => existingClasses.includes(className));
+  const novelClasses = reusableNewClasses.filter((className) => !existingClasses.includes(className));
+
+  const existingVars = extractCssVariableNames(existingSlidesHtml);
+  const newVarRefs = extractCssVariableRefs(newSlideHtml);
+  const reusedVarRefs = newVarRefs.filter((variableName) => existingVars.includes(variableName));
+
+  const existingBackgrounds = extractBackgroundColors(existingSlidesHtml);
+  const newBackgrounds = extractBackgroundColors(newSlideHtml);
+  const backgroundAligned = newBackgrounds.length === 0
+    ? false
+    : newBackgrounds.every((bg) => existingBackgrounds.some((existingBg) => isColorClose(bg, existingBg)));
+
+  let score = 0;
+
+  const classReuseRatio = reusableNewClasses.length === 0
+    ? 0.6
+    : reusedClasses.length / reusableNewClasses.length;
+  score += classReuseRatio * 55;
+
+  const varReuseRatio = newVarRefs.length === 0
+    ? 0.5
+    : reusedVarRefs.length / newVarRefs.length;
+  score += varReuseRatio * 25;
+
+  if (backgroundAligned) {
+    score += 20;
+  }
+
+  if (reusedClasses.length === 0 && reusableNewClasses.length > 0) {
+    issues.push('Reuse more of the deck\'s existing component classes instead of inventing a fresh class vocabulary.');
+  }
+
+  if (novelClasses.length >= 6) {
+    issues.push(`Too many new class names were introduced (${novelClasses.slice(0, 6).join(', ')}). Prefer existing deck classes.`);
+  }
+
+  if (newVarRefs.length > 0 && reusedVarRefs.length === 0) {
+    issues.push('Use the existing CSS variable tokens from the deck\'s style system for typography, spacing, and color references.');
+  }
+
+  if (!backgroundAligned) {
+    issues.push('Align the new slide background with the existing deck palette/background treatment.');
+  }
+
+  const passes = score >= 58 && issues.length <= 1;
+  return {
+    score: Math.round(score),
+    passes,
+    issues,
+  };
+}
+
+function buildStyleContinuityContext(existingSlidesHtml: string): string {
+  const styleBlock = extractStyleBlock(existingSlidesHtml);
+  const styleExcerpt = styleBlock ? styleBlock.slice(0, 3500) : '';
+  const existingClasses = summarizeExistingClasses(existingSlidesHtml);
+
+  const parts: string[] = [];
+
+  if (styleExcerpt) {
+    parts.push(`**Existing style system excerpt** (reuse this visual language, typography, spacing, and motion):\n\`\`\`html\n${styleExcerpt}\n\`\`\``);
+  }
+
+  if (existingClasses.length > 0) {
+    parts.push(`**Existing class vocabulary** (prefer reusing these instead of inventing new classes): ${existingClasses.join(', ')}`);
+  }
+
+  return parts.join('\n\n');
 }
 
 /**
@@ -391,7 +548,14 @@ export async function designEdit(
   };
   const htmlToQA = isAddSlides ? draftHtml : processedDraft;
   const draftQa = validateSlides(htmlToQA, qaOptions);
-  if (draftQa.passed && countSlides(processedDraft) > 0) {
+  const continuity = isAddSlides ? assessContinuity(existingSlidesHtml, draftHtml) : null;
+  if (continuity) {
+    aiDebugLog('designer:edit', 'continuity assessment', continuity);
+  }
+
+  const continuityPassed = continuity?.passes ?? true;
+
+  if (draftQa.passed && continuityPassed && countSlides(processedDraft) > 0) {
     const elapsed = (performance.now() - t0).toFixed(0);
     aiDebugLog('designer:edit', `fast-path QA passed in ${elapsed}ms`);
     onEvent({ type: 'progress', message: 'QA passed — slides ready', pct: 90 });
@@ -405,7 +569,12 @@ export async function designEdit(
 
   // Phase 2: ToolLoopAgent validate→fix loop (only when QA found errors in the new slide)
   const qaViolations = draftQa.violations.filter((v) => v.tier === 'blocking');
-  aiDebugLog('designer:edit', `QA failed, entering agent loop`, { blockingCount: qaViolations.length, blockingIssues: qaViolations.map((v) => `[${v.rule}] ${v.detail}`) });
+  aiDebugLog('designer:edit', `QA failed, entering agent loop`, {
+    blockingCount: qaViolations.length,
+    blockingIssues: qaViolations.map((v) => `[${v.rule}] ${v.detail}`),
+    continuityScore: continuity?.score,
+    continuityIssues: continuity?.issues,
+  });
   onEvent({ type: 'progress', message: 'Fixing QA issues…', pct: 65 });
 
   const agent = createDesignAgent(model, systemPrompt, planResult);
@@ -413,6 +582,12 @@ export async function designEdit(
   // For the agent loop, pass the raw draft (not the merged version) so it sees what it generated
   const validationMessages: ModelMessage[] = [...messages];
   validationMessages.push({ role: 'assistant', content: draftText });
+  if (continuity && !continuity.passes) {
+    validationMessages.push({
+      role: 'user',
+      content: `Before validation, improve continuity with the existing deck. Current continuity score: ${continuity.score}/100. Fix these continuity issues first:\n- ${continuity.issues.join('\n- ')}\n\nKeep the content topic the same, but make the slide feel like it belongs to the same design system as the existing deck. Reuse existing classes, CSS variables, typography rhythm, card language, and motion cadence.`,
+    });
+  }
   validationMessages.push({
     role: 'user',
     content: 'Now validate the slide HTML you just generated by calling the validateSlideHtml tool. If there are any errors, fix them and validate again. Once it passes with 0 errors, call submitFinalSlide.',
@@ -531,6 +706,7 @@ function buildAddSlidesPrompt(
   existingSlideCount: number,
 ): string {
   const lastSlides = extractLastNSections(existingSlidesHtml, 2);
+  const styleContinuity = buildStyleContinuityContext(existingSlidesHtml);
 
   // Suggest what slide type comes next based on deck position
   const nextSlideHint = existingSlideCount === 1
@@ -540,6 +716,8 @@ function buildAddSlidesPrompt(
     : `This is slide ${existingSlideCount + 1} — continue with the next content point or transition toward a closing slide.`;
 
   return `## ADD NEW SLIDE — Append to existing ${existingSlideCount}-slide deck
+
+${styleContinuity}
 
 **Existing deck context** (last ${Math.min(existingSlideCount, 2)} slide(s) — match this visual style):
 \`\`\`html
@@ -553,6 +731,7 @@ ${lastSlides}
 **OUTPUT RULES — CRITICAL:**
 - Output ONLY the NEW \`<section>\` element(s) to append. Do NOT repeat existing slides.
 - Do NOT output a \`<style>\` block — the new section uses the existing deck's CSS classes.
+- Reuse the existing class vocabulary and visual system. Prefer using the deck's existing classes, spacing rhythm, typography scale, and animation cadence.
 - Match the background color, CSS class naming patterns, and animation style of the existing slides.
 - The new section MUST have a \`data-background-color\` attribute.
 - Make it visually consistent and breathtaking.

@@ -139,6 +139,15 @@ export function buildDesignerPrompt(
     .addSvg()
     .addNarrative()
     .addAntiPatterns()
+    .addCustom(`## DECK SYSTEM FOUNDATION
+
+You are designing the first slide as the reusable foundation for future slides in the same deck.
+
+Requirements:
+- define a coherent style system in the <style> block using reusable CSS variables and semantic component classes
+- prefer deck-level class names such as wrappers, grids, cards, metric rows, labels, dividers, media panes, and callouts over one-off hero-only class names
+- establish reusable type, spacing, border-radius, shadow, and motion tokens so later slides can be appended with minimal additional CSS
+- make the hero slide beautiful, but do not spend all the design complexity on a composition that cannot be extended to agenda/content/closing slides`)
     .addTemplateExamples(templateId, exemplarPackId, blueprint.exampleSlides)
     .addKnowledge()
     .addQuality()

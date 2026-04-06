@@ -132,7 +132,13 @@ function buildEnhancedPrompt(
   if (intent === 'create') {
     additions.push(`${artDirection}
 
-Create ONE stunning title/hero slide with rich CSS architecture (<style> block with classes and @keyframes) and inline SVG illustrations. Make it breathtaking.`);
+Create ONE stunning title/hero slide with rich CSS architecture (<style> block with classes and @keyframes) and inline SVG illustrations. Make it breathtaking.
+
+Design the first slide as the FOUNDATION for the rest of the deck:
+- establish reusable semantic classes for wrappers, grids, cards, labels, dividers, stat blocks, and callouts
+- define reusable CSS variables for palette, type, spacing, borders, and motion timing
+- avoid one-off class names that only make sense for this single slide
+- create a style system that future agenda/content/closing slides can inherit with minimal new CSS`);
   } else if (intent === 'modify') {
     additions.push(`${artDirection}
 
