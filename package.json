@@ -26,6 +26,7 @@
     "@vitejs/plugin-react": "^4.7.0",
     "ai": "^6.0.146",
     "class-variance-authority": "^0.7.1",
+    "buffer": "^6.0.3",
     "clsx": "^2.1.1",
     "file-saver": "^2.0.5",
     "idb-keyval": "^6.2.2",

@@ -9,6 +9,7 @@
  * Users can browse history and restore to any past commit.
  */
 
+import { Buffer } from 'buffer';
 import git from 'isomorphic-git';
 import LightningFS from '@isomorphic-git/lightning-fs';
 import type { ProjectData } from '@/types/project';
@@ -17,6 +18,11 @@ import type { VersionEntry } from '@/types/project';
 const FS_NAME = 'aura-project-fs';
 const REPO_DIR = '/project';
 const AUTHOR = { name: 'Aura', email: 'aura@local' };
+const globalWithBuffer = globalThis as typeof globalThis & { Buffer?: typeof Buffer };
+
+if (!globalWithBuffer.Buffer) {
+  globalWithBuffer.Buffer = Buffer;
+}
 
 // Singleton filesystem instance
 let _fs: InstanceType<typeof LightningFS> | null = null;
