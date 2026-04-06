@@ -237,10 +237,12 @@ export function ChatBar() {
         });
 
         // Auto-commit version after generation
-        const commitMsg = `Generated presentation: ${prompt.slice(0, 60)}`;
+        const action = isEditFlow ? 'Edited' : 'Created';
+        const slideInfo = result.slideCount > 0 ? ` (${result.slideCount} slide${result.slideCount !== 1 ? 's' : ''})` : '';
+        const commitMsg = `${action} presentation${slideInfo}: ${prompt.slice(0, 50)}`;
         // Read latest state after addDocument/updateDocument mutation (getState avoids stale closure)
         const updatedProject = useProjectStore.getState().project;
-        commitVersion(updatedProject, commitMsg).catch(console.warn);
+        commitVersion(updatedProject, commitMsg).catch((e) => console.warn('[VersionHistory] commit failed:', e));
 
         setStatus({ state: 'idle' });
         setStreamingContent('');
@@ -344,10 +346,11 @@ export function ChatBar() {
         });
 
         // Auto-commit version
-        const commitMsg = `Created document: ${prompt.slice(0, 60)}`;
+        const docAction = existingDoc ? 'Edited' : 'Created';
+        const commitMsg = `${docAction} document: ${prompt.slice(0, 60)}`;
         // Read latest state after addDocument/updateDocument mutation (getState avoids stale closure)
         const updatedProject = useProjectStore.getState().project;
-        commitVersion(updatedProject, commitMsg).catch(console.warn);
+        commitVersion(updatedProject, commitMsg).catch((e) => console.warn('[VersionHistory] commit failed:', e));
 
         setStatus({ state: 'idle' });
         setStreamingContent('');

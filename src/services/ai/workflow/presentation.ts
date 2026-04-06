@@ -125,16 +125,20 @@ export async function runPresentationWorkflow(
 
     if (shouldEvaluate) {
       onEvent({ type: 'step-start', stepId: 'evaluate', label: 'Evaluating quality…' });
-
-      finalHtml = await evaluateAndRevise(
-        model,
-        designResult.html,
-        planResult,
-        onEvent,
-        signal,
-      );
-
-      onEvent({ type: 'step-done', stepId: 'evaluate', label: 'Evaluating quality…' });
+      try {
+        finalHtml = await evaluateAndRevise(
+          model,
+          designResult.html,
+          planResult,
+          onEvent,
+          signal,
+        );
+        onEvent({ type: 'step-done', stepId: 'evaluate', label: 'Evaluating quality…' });
+      } catch (evalErr) {
+        // Evaluation failed — log and continue with designer output unchanged
+        console.warn('[Workflow] evaluator error, using designer output:', evalErr);
+        onEvent({ type: 'step-skipped', stepId: 'evaluate', label: 'Evaluating quality…' });
+      }
     } else {
       onEvent({ type: 'step-skipped', stepId: 'evaluate', label: 'Evaluating quality…' });
       onEvent({ type: 'progress', message: 'QA passed — skipping evaluation', pct: 85 });

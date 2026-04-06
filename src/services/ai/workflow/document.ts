@@ -81,11 +81,12 @@ You will receive existing document HTML and instructions for what to change.
 Return the COMPLETE updated document HTML (not just the changed parts).
 
 ## Requirements
-- Preserve the overall design style unless asked to change it
-- Make precise edits while maintaining document coherence
-- All styles inline (in <style> tags)
-- No external links, no JavaScript
-- Output ONLY the HTML content`;
+- **APPEND by default** — when adding new content, add it after the existing content rather than replacing it unless the user explicitly asks to replace or rewrite.
+- Preserve the overall design style unless asked to change it.
+- Make precise edits while maintaining document coherence.
+- All styles inline (in <style> tags).
+- No external links, no JavaScript.
+- Output ONLY the HTML content.`;
 
 function buildCreatePrompt(input: DocumentInput): string {
   const typeHint = input.documentType ? `Document type: ${input.documentType}\n` : '';
@@ -100,6 +101,8 @@ ${input.existingHtml}
 \`\`\`
 
 User instruction: ${input.prompt}
+
+**IMPORTANT:** If this instruction adds new content (sections, paragraphs, etc.), append it after the existing content. Only replace or rewrite existing content if explicitly asked to do so.
 
 Return the complete updated document HTML.`;
 }
