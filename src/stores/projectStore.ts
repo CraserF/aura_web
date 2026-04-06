@@ -48,7 +48,22 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     return project.documents.find((d) => d.id === project.activeDocumentId) ?? null;
   },
 
-  setProject: (project) => set({ project }),
+  setProject: (project) =>
+    set(() => {
+      const hasActive =
+        !!project.activeDocumentId &&
+        project.documents.some((d) => d.id === project.activeDocumentId);
+      const activeDocumentId = hasActive
+        ? project.activeDocumentId
+        : (project.documents[0]?.id ?? null);
+
+      return {
+        project: {
+          ...project,
+          activeDocumentId,
+        },
+      };
+    }),
 
   setProjectTitle: (title) =>
     set((s) => ({ project: { ...s.project, title, updatedAt: Date.now() } })),

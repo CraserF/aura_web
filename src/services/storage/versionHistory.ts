@@ -47,7 +47,16 @@ async function writeProjectFiles(project: ProjectData): Promise<void> {
   // Write manifest
   await fs.promises.writeFile(
     `${REPO_DIR}/manifest.json`,
-    JSON.stringify({ id: project.id, title: project.title, updatedAt: project.updatedAt }, null, 2),
+    JSON.stringify(
+      {
+        id: project.id,
+        title: project.title,
+        activeDocumentId: project.activeDocumentId,
+        updatedAt: project.updatedAt,
+      },
+      null,
+      2,
+    ),
   );
 
   // Write each document

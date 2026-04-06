@@ -28,6 +28,7 @@ export async function downloadProjectFile(project: ProjectData): Promise<void> {
     title: project.title,
     description: project.description,
     documentCount: project.documents.length,
+    activeDocumentId: project.activeDocumentId,
     visibility: project.visibility,
     createdAt: project.createdAt,
     updatedAt: Date.now(),
@@ -110,13 +111,18 @@ export async function openProjectFile(file: File): Promise<ProjectData> {
     documents.sort((a, b) => a.order - b.order);
   }
 
+  const restoredActiveDocumentId =
+    manifest.activeDocumentId && documents.some((d) => d.id === manifest.activeDocumentId)
+      ? manifest.activeDocumentId
+      : (documents[0]?.id ?? null);
+
   return {
     id: manifest.id,
     title: manifest.title,
     description: manifest.description,
     visibility: manifest.visibility ?? 'private',
     documents,
-    activeDocumentId: documents[0]?.id ?? null,
+    activeDocumentId: restoredActiveDocumentId,
     chatHistory,
     sections: { drafts: [], main: [], suggestions: [], issues: [] },
     createdAt: manifest.createdAt,

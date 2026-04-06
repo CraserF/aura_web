@@ -52,17 +52,28 @@ export function VersionHistoryPanel({ open, onClose }: VersionHistoryPanelProps)
         return;
       }
 
-      const manifest = JSON.parse(snapshot.manifest) as { id: string; title: string; updatedAt: number };
+      const manifest = JSON.parse(snapshot.manifest) as {
+        id: string;
+        title: string;
+        updatedAt: number;
+        activeDocumentId?: string | null;
+      };
       const chatHistory = JSON.parse(snapshot.chatHistory) as ChatMessage[];
 
       const documents: ProjectDocument[] = Object.values(snapshot.documents).map(
         (raw) => JSON.parse(raw) as ProjectDocument,
       );
 
+      const restoredActiveDocumentId =
+        manifest.activeDocumentId && documents.some((d) => d.id === manifest.activeDocumentId)
+          ? manifest.activeDocumentId
+          : (documents[0]?.id ?? null);
+
       setProject({
         ...project,
         title: manifest.title,
         documents,
+        activeDocumentId: restoredActiveDocumentId,
         chatHistory,
         updatedAt: manifest.updatedAt,
       });
