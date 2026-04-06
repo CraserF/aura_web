@@ -20,6 +20,7 @@ import { plan } from './agents/planner';
 import { design, designEdit } from './agents/designer';
 import { validateSlides } from './agents/qa-validator';
 import { evaluateAndRevise } from './agents/evaluator';
+import { sanitizeInnerHtml } from '@/services/html/sanitizer';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type {
   PresentationInput,
@@ -147,7 +148,7 @@ export async function runPresentationWorkflow(
     onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing slide…' });
 
     const output: PresentationOutput = {
-      html: finalHtml,
+      html: sanitizeInnerHtml(finalHtml),
       title: designResult.title,
       slideCount: designResult.slideCount,
       reviewPassed,

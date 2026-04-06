@@ -4,6 +4,8 @@
 
 export { createModel, toModelMessages } from './engine';
 export { runPresentationWorkflow } from './presentation';
+export { runDocumentWorkflow } from './document';
+export type { DocumentInput, DocumentOutput } from './document';
 export type {
   WorkflowEvent,
   EventListener,
