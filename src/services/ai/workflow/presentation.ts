@@ -22,6 +22,7 @@ import { validateSlides } from './agents/qa-validator';
 import { evaluateAndRevise } from './agents/evaluator';
 import { sanitizeInnerHtml } from '@/services/html/sanitizer';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { aiDebugLog, toErrorInfo } from '../debug';
 import type {
   PresentationInput,
   PresentationOutput,
@@ -47,10 +48,12 @@ export async function runPresentationWorkflow(
 ): Promise<PresentationOutput> {
   const { input, llmConfig, onEvent, signal } = opts;
   const isEdit = !!input.existingSlidesHtml;
+  const workflowStart = performance.now();
 
   // Create the AI SDK model with shared defaults (temperature, maxOutputTokens)
   const baseModel: LanguageModel = createModel(llmConfig);
   const model = withDefaults(baseModel);
+  aiDebugLog('workflow', `starting ${isEdit ? 'edit' : 'create'} workflow`, { model: llmConfig.model });
 
   try {
     // ── Phase 1: Plan (rule-based, no LLM) ──────────────────────
@@ -121,7 +124,17 @@ export async function runPresentationWorkflow(
       exemplarPackId: planResult.exemplarPackId,
     });
 
-    const shouldEvaluate = alwaysRunEvaluation || !qaResult.passed;
+    // Skip LLM evaluation when the designer's ToolLoopAgent already self-corrected
+    // (fastPath=false means the agent ran and fixed errors itself).
+    // Only run when: QA still failed, OR alwaysRunEvaluation AND the fast-path was taken
+    // (so the slide was never agent-corrected and a second LLM opinion adds value).
+    const shouldEvaluate = !qaResult.passed || (alwaysRunEvaluation && designResult.fastPath);
+    aiDebugLog('workflow', `phase 3 decision`, {
+      fastPath: designResult.fastPath,
+      qaPassed: qaResult.passed,
+      alwaysRunEvaluation,
+      shouldEvaluate,
+    });
 
     if (shouldEvaluate) {
       onEvent({ type: 'step-start', stepId: 'evaluate', label: 'Evaluating quality…' });
@@ -136,6 +149,7 @@ export async function runPresentationWorkflow(
         onEvent({ type: 'step-done', stepId: 'evaluate', label: 'Evaluating quality…' });
       } catch (evalErr) {
         // Evaluation failed — log and continue with designer output unchanged
+        aiDebugLog('workflow', 'evaluator error, using designer output', toErrorInfo(evalErr));
         console.warn('[Workflow] evaluator error, using designer output:', evalErr);
         onEvent({ type: 'step-skipped', stepId: 'evaluate', label: 'Evaluating quality…' });
       }
@@ -160,6 +174,13 @@ export async function runPresentationWorkflow(
 
     onEvent({ type: 'step-done', stepId: 'finalize', label: 'Finalizing slide…' });
     onEvent({ type: 'complete', result: output });
+
+    aiDebugLog('workflow', `workflow complete in ${(performance.now() - workflowStart).toFixed(0)}ms`, {
+      slideCount: output.slideCount,
+      reviewPassed,
+      fastPath: designResult.fastPath,
+      evaluationRan: shouldEvaluate,
+    });
 
     return output;
   } catch (err) {

@@ -14,6 +14,7 @@ import {
   getTemplateBlueprint,
   resolveTemplatePlan,
 } from '../../templates';
+import { aiDebugLog } from '../../debug';
 import type {
   ExemplarPackId,
   StyleManifest,
@@ -51,6 +52,7 @@ export async function plan(
   prompt: string,
   hasExistingSlides: boolean,
 ): Promise<PlanResult> {
+  const t0 = performance.now();
   const { intent, reason } = classifyIntent(prompt, hasExistingSlides);
 
   if (intent === 'blocked' || intent === 'off_topic') {
@@ -74,6 +76,7 @@ export async function plan(
   const style = templatePlan.style;
   const animationLevel = detectAnimationLevel(prompt);
   const blueprint = getTemplateBlueprint(style);
+  aiDebugLog('planner', `classified`, { intent, style, animationLevel, template: templatePlan.templateId });
 
   let outline: SlideOutline[] | undefined;
   let outlineFallback: boolean | undefined;
@@ -85,6 +88,9 @@ export async function plan(
   } else {
     enhancedPrompt = buildEnhancedPrompt(prompt, undefined, intent, templatePlan.styleManifest);
   }
+
+  const elapsed = (performance.now() - t0).toFixed(0);
+  aiDebugLog('planner', `plan complete in ${elapsed}ms`, { promptLen: enhancedPrompt.length });
 
   return {
     intent,

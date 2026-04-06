@@ -29,11 +29,14 @@ import type { PlanResult } from './planner';
 import type { StyleManifest } from '../../templates';
 import type { EventListener } from '../types';
 import { toModelMessages, CACHE_CONTROL } from '../engine';
+import { aiDebugLog } from '../../debug';
 
 export interface DesignResult {
   html: string;
   title?: string;
   slideCount: number;
+  /** True when the draft passed QA without the ToolLoopAgent correction loop. */
+  fastPath: boolean;
 }
 
 /**
@@ -129,7 +132,7 @@ function createDesignAgent(
       }),
     },
     stopWhen: [
-      stepCountIs(6), // Safety: generate + validate + fix + validate + fix + final
+      stepCountIs(4), // generate + validate + fix + submit
     ],
   });
 }
@@ -150,6 +153,7 @@ export async function design(
   onEvent: EventListener,
   signal?: AbortSignal,
 ): Promise<DesignResult> {
+  const t0 = performance.now();
   // Build the system prompt with all sections
   const systemPrompt = buildDesignerPrompt(
     planResult.blueprint,
@@ -213,6 +217,8 @@ After generating the slide HTML, call the validateSlideHtml tool to check for is
 
   // Show the draft immediately
   const { html: draftHtml, fontLinks: draftFontLinks } = postProcess(draftText);
+  const streamMs = (performance.now() - t0).toFixed(0);
+  aiDebugLog('designer', `streaming complete in ${streamMs}ms`, { draftChars: draftText.length, slideCount: countSlides(draftHtml) });
   if (countSlides(draftHtml) > 0) {
     injectFonts(draftFontLinks);
     onEvent({ type: 'draft-complete', html: draftHtml });
@@ -227,11 +233,14 @@ After generating the slide HTML, call the validateSlideHtml tool to check for is
   };
   const draftQa = validateSlides(draftHtml, qaOptions);
   if (draftQa.passed && countSlides(draftHtml) > 0) {
+    const elapsed = (performance.now() - t0).toFixed(0);
+    aiDebugLog('designer', `fast-path QA passed in ${elapsed}ms`);
     onEvent({ type: 'progress', message: 'QA passed — slide ready', pct: 90 });
     return {
       html: draftHtml,
       title: extractTitle(draftHtml),
       slideCount: countSlides(draftHtml),
+      fastPath: true,
     };
   }
 
@@ -256,6 +265,9 @@ After generating the slide HTML, call the validateSlideHtml tool to check for is
   // Extract the final HTML from the submitFinalSlide tool call
   let finalHtml = draftHtml;
   let finalTitle = extractTitle(draftHtml);
+  const agentMs = (performance.now() - t0).toFixed(0);
+  const totalSteps = agentResult.steps.length;
+  aiDebugLog('designer', `agent loop complete in ${agentMs}ms`, { steps: totalSteps });
 
   for (const step of agentResult.steps) {
     for (const call of step.toolCalls) {
@@ -289,6 +301,7 @@ After generating the slide HTML, call the validateSlideHtml tool to check for is
     html: finalHtml,
     title: finalTitle,
     slideCount: countSlides(finalHtml),
+    fastPath: false,
   };
 }
 
@@ -307,6 +320,7 @@ export async function designEdit(
   onEvent: EventListener,
   signal?: AbortSignal,
 ): Promise<DesignResult> {
+  const t0 = performance.now();
   const existingSlideCount = countSlides(existingSlidesHtml);
   const isAddSlides = planResult.intent === 'add_slides';
 
@@ -345,6 +359,8 @@ export async function designEdit(
   }
 
   const { html: draftHtml, fontLinks: draftFontLinks } = postProcess(draftText);
+  const streamMs = (performance.now() - t0).toFixed(0);
+  aiDebugLog('designer:edit', `streaming complete in ${streamMs}ms`, { draftChars: draftText.length, slideCount: countSlides(draftHtml), isAddSlides });
   let processedDraft = draftHtml;
   if (isAddSlides) {
     processedDraft = preserveExistingSlidesForAddIntent(existingSlidesHtml, draftHtml);
@@ -363,11 +379,14 @@ export async function designEdit(
   };
   const draftQa = validateSlides(processedDraft, qaOptions);
   if (draftQa.passed && countSlides(processedDraft) > 0) {
+    const elapsed = (performance.now() - t0).toFixed(0);
+    aiDebugLog('designer:edit', `fast-path QA passed in ${elapsed}ms`);
     onEvent({ type: 'progress', message: 'QA passed — slides ready', pct: 90 });
     return {
       html: processedDraft,
       title: extractTitle(processedDraft),
       slideCount: countSlides(processedDraft),
+      fastPath: true,
     };
   }
 
@@ -392,6 +411,9 @@ export async function designEdit(
   // Extract final HTML from submitFinalSlide
   let finalHtml = processedDraft;
   let finalTitle = extractTitle(processedDraft);
+  const agentMs = (performance.now() - t0).toFixed(0);
+  const totalSteps = agentResult.steps.length;
+  aiDebugLog('designer:edit', `agent loop complete in ${agentMs}ms`, { steps: totalSteps });
 
   for (const step of agentResult.steps) {
     for (const call of step.toolCalls) {
@@ -431,6 +453,7 @@ export async function designEdit(
     html: finalHtml,
     title: finalTitle,
     slideCount: countSlides(finalHtml),
+    fastPath: false,
   };
 }
 
