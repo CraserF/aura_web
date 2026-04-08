@@ -254,6 +254,24 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
       });
     }
 
+    // Rule: design-first slides should stay concise and scannable.
+    const visibleText = extractVisibleText(section);
+    const wordCount = visibleText ? visibleText.split(/\s+/).filter(Boolean).length : 0;
+    const copyHeavyRecipes = new Set<ExemplarPackId>(['editorial-infographic', 'case-study-spotlight']);
+    const maxWords = copyHeavyRecipes.has(options.exemplarPackId ?? 'default-template') ? 110 : 80;
+    const hasLongSentence = visibleText
+      .split(/[.!?•·]/)
+      .some((part) => part.trim().split(/\s+/).filter(Boolean).length > 24);
+
+    if (wordCount > maxWords || (hasLongSentence && !copyHeavyRecipes.has(options.exemplarPackId ?? 'default-template'))) {
+      violations.push({
+        slide: slideNum,
+        rule: 'copy-density',
+        severity: 'warning',
+        detail: `Slide copy appears dense (${wordCount} words). Keep slides visual-first with shorter labels, tighter headings, and less paragraph text.`,
+      });
+    }
+
     // Rule: no empty placeholder text
     const placeholderPatterns = [
       /\{\{[A-Z_]+\}\}/,
@@ -456,6 +474,17 @@ function detectLayoutPatterns(sections: string[]): string[] {
 
     return 'unknown';
   });
+}
+
+function extractVisibleText(section: string): string {
+  return section
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<svg[\s\S]*?<\/svg>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 // ── Color utility functions ───────────────────────────────────

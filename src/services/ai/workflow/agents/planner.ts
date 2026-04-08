@@ -116,7 +116,13 @@ function buildEnhancedPrompt(
   styleManifest: StyleManifest,
 ): string {
   const additions: string[] = [];
+  const contentPattern = detectContentPattern(prompt, styleManifest.exemplarPackId);
   const recipeGuidance = buildRecipeGuidance(styleManifest.exemplarPackId, intent);
+  const compactDesignDoctrine = buildCompactDesignDoctrine(
+    contentPattern,
+    styleManifest.motionLanguage,
+    intent,
+  );
 
   const artDirection = `ART DIRECTION — Visual system:
 - Composition mode: ${styleManifest.compositionMode}
@@ -129,10 +135,13 @@ function buildEnhancedPrompt(
 - Card grammar: ${styleManifest.cardGrammar}
 - Accent strategy: ${styleManifest.accentStrategy}
 - Component patterns: ${styleManifest.componentPatterns.join('; ')}
-- Recipe target: ${styleManifest.exemplarPackId}`;
+- Recipe target: ${styleManifest.exemplarPackId}
+- Content pattern: ${contentPattern}`;
 
   if (intent === 'create') {
     additions.push(`${artDirection}
+
+${compactDesignDoctrine}
 
 ${recipeGuidance}
 
@@ -146,17 +155,23 @@ Design this slide as part of a reusable deck system:
   } else if (intent === 'modify') {
     additions.push(`${artDirection}
 
+${compactDesignDoctrine}
+
 ${recipeGuidance}
 
 Modify the existing slide(s) while maintaining visual consistency and the selected recipe direction. Output ALL slides including the <style> block.`);
   } else if (intent === 'refine_style') {
     additions.push(`${artDirection}
 
+${compactDesignDoctrine}
+
 ${recipeGuidance}
 
 Apply style changes to existing slide(s). Keep content, change visual styling while preserving the intended slide recipe. Output the complete result.`);
   } else if (intent === 'add_slides') {
     additions.push(`${artDirection}
+
+${compactDesignDoctrine}
 
 ${recipeGuidance}
 
@@ -167,6 +182,106 @@ Output ONLY the new <section> — do NOT repeat or include existing slides.`);
   return additions.length > 0
     ? `${prompt}\n\n${additions.join('\n')}`
     : prompt;
+}
+
+type ContentPattern =
+  | 'title-hero'
+  | 'agenda'
+  | 'process-flow'
+  | 'comparison'
+  | 'metrics'
+  | 'statement'
+  | 'case-study'
+  | 'editorial-explainer'
+  | 'mixed';
+
+function detectContentPattern(
+  prompt: string,
+  exemplarPackId: StyleManifest['exemplarPackId'],
+): ContentPattern {
+  const normalized = prompt.toLowerCase();
+
+  switch (exemplarPackId) {
+    case 'split-world-title':
+      return 'title-hero';
+    case 'agenda-overview':
+      return 'agenda';
+    case 'process-timeline':
+      return 'process-flow';
+    case 'comparison':
+      return 'comparison';
+    case 'metrics-dashboard':
+      return 'metrics';
+    case 'quote-statement':
+    case 'closing-cta':
+      return 'statement';
+    case 'case-study-spotlight':
+      return 'case-study';
+    case 'editorial-infographic':
+      return 'editorial-explainer';
+    default:
+      break;
+  }
+
+  if (/\b(process|timeline|roadmap|journey|steps?|phases?)\b/.test(normalized)) {
+    return 'process-flow';
+  }
+  if (/\b(compare|comparison|versus|vs\.?|before.*after|trade[- ]?off)\b/.test(normalized)) {
+    return 'comparison';
+  }
+  if (/\b(kpi|metric|dashboard|stats?|scorecard|numbers?)\b/.test(normalized)) {
+    return 'metrics';
+  }
+  if (/\b(quote|statement|big idea|key message|closing|summary|cta)\b/.test(normalized)) {
+    return 'statement';
+  }
+  if (/\b(case study|customer story|spotlight|proof point)\b/.test(normalized)) {
+    return 'case-study';
+  }
+  if (/\b(agenda|overview|contents?)\b/.test(normalized)) {
+    return 'agenda';
+  }
+
+  return 'mixed';
+}
+
+function buildCompactDesignDoctrine(
+  contentPattern: ContentPattern,
+  motionLanguage: StyleManifest['motionLanguage'],
+  intent: RequestIntent,
+): string {
+  const structureRule: Record<ContentPattern, string> = {
+    'title-hero': 'lead with one bold thesis lockup and a single scene-level visual anchor',
+    agenda: 'show 3-6 short topics in a calm ordered rhythm, not a wall of explanation',
+    'process-flow': 'make direction unmistakable with staged steps, connectors, and short labels',
+    comparison: 'build two clearly contrasted sides with one shared verdict or midpoint',
+    metrics: 'prioritize a few large numbers first, then one supporting strip or insight panel',
+    statement: 'let one statement dominate the slide and keep supporting elements minimal',
+    'case-study': 'use one proof point with a focused evidence pane rather than many examples',
+    'editorial-explainer': 'pair one strong headline area with one structured explainer zone',
+    mixed: 'pick one dominant focal area and one supporting information zone; avoid equal-weight clutter',
+  };
+
+  const copyRule = contentPattern === 'editorial-explainer' || contentPattern === 'case-study'
+    ? 'keep explanations tight and scannable; use short paragraphs only where they earn their space'
+    : 'compress copy aggressively: 2-8 word headings, short labels, and no filler sentences';
+
+  const motionRule = motionLanguage === 'hero-kinetic'
+    ? 'use 1-2 bold but disciplined structural motions only; never loop body text'
+    : motionLanguage === 'scene-continuous'
+      ? 'let background seams, particles, or scene layers move gently while text stays stable'
+      : 'animate with small transform/opacity/stroke changes and stagger siblings instead of moving everything at once';
+
+  const editBias = intent === 'add_slides' || intent === 'modify' || intent === 'refine_style'
+    ? ' Preserve the deck’s established visual language instead of inventing a new one.'
+    : '';
+
+  return `COMPACT DESIGN DOCTRINE:
+- Structure: ${structureRule[contentPattern]}.
+- Hierarchy: one dominant focal zone + one supporting zone; do not let all cards carry equal weight.
+- Palette: work only with background, surface, primary accent, readable text, and muted labels.
+- Copy: ${copyRule}.
+- Motion: ${motionRule}.${editBias}`;
 }
 
 function buildRecipeGuidance(

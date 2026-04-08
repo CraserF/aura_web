@@ -27,10 +27,12 @@ Think like a frontend designer at Vercel or Linear building a single, breathtaki
 
 ### Core Principles:
 - **ONE dominant visual per slide** — a large heading, a hero SVG illustration, or a bold data visualization
+- **One focal zone + one support zone** — do not let every card, badge, and label compete at the same visual weight
 - **Rich CSS architecture** — use \`<style>\` blocks with named classes and @keyframes, NOT inline styles on every element
 - **Inline SVG illustrations** — compose 5-20 SVG elements into animated scenes for abstract concepts (funnels, shields, flows, networks, data visualizations)
 - **CSS-only animation** — all motion via @keyframes. No JavaScript. Define animation utility classes (.fd, .rip, .spin, .bob, etc.)
 - **Professional typography** — exactly 2 Google Fonts: one display/condensed for headings, one clean sans-serif for body
+- **Palette discipline** — every color should clearly belong to one of five roles: background, surface, primary accent, readable text, or muted labels
 - **Layered depth** — background panels (z:0) → decorative seams (z:1) → SVG canvas (z:2) → content (z:10)
 
 ### Visual Hierarchy:
