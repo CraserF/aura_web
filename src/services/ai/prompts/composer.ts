@@ -89,10 +89,9 @@ export class PromptComposer {
     return this;
   }
 
-  /** Add rich template HTML examples from the registry */
-  addTemplateExamples(templateId: TemplateId, exemplarPackId: ExemplarPackId, blueprintExamples?: string): this {
-    const section = buildTemplateExamplesSection(templateId, exemplarPackId, blueprintExamples);
-    if (section) this.sections.push(section);
+  /** Add a prebuilt template examples section */
+  addTemplateExamples(section: string): this {
+    if (section.trim()) this.sections.push(section);
     return this;
   }
 
@@ -122,14 +121,14 @@ export class PromptComposer {
  * Build the full designer prompt for single-slide generation.
  * This is the primary entry point for creating a new slide.
  */
-export function buildDesignerPrompt(
+export async function buildDesignerPrompt(
   blueprint: TemplateBlueprint,
   templateId: TemplateId,
   exemplarPackId: ExemplarPackId,
   animLevel: 1 | 2 | 3 | 4,
   _slideCount?: number,
-): string {
-  return new PromptComposer()
+): Promise<string> {
+  const composer = new PromptComposer()
     .addBase(blueprint.palette)
     .addTypography()
     .addLayout()
@@ -147,8 +146,16 @@ Requirements:
 - define a coherent style system in the <style> block using reusable CSS variables and semantic component classes
 - prefer deck-level class names such as wrappers, grids, cards, metric rows, labels, dividers, media panes, and callouts over one-off hero-only class names
 - establish reusable type, spacing, border-radius, shadow, and motion tokens so later slides can be appended with minimal additional CSS
-- make the hero slide beautiful, but do not spend all the design complexity on a composition that cannot be extended to agenda/content/closing slides`)
-    .addTemplateExamples(templateId, exemplarPackId, blueprint.exampleSlides)
+- make the hero slide beautiful, but do not spend all the design complexity on a composition that cannot be extended to agenda/content/closing slides`);
+
+  const templateExamplesSection = await buildTemplateExamplesSection(
+    templateId,
+    exemplarPackId,
+    blueprint.exampleSlides,
+  );
+
+  return composer
+    .addTemplateExamples(templateExamplesSection)
     .addKnowledge()
     .addQuality()
     .build();

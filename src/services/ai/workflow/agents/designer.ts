@@ -321,7 +321,7 @@ export async function design(
 ): Promise<DesignResult> {
   const t0 = performance.now();
   // Build the system prompt with all sections
-  const systemPrompt = buildDesignerPrompt(
+  const systemPrompt = await buildDesignerPrompt(
     planResult.blueprint,
     planResult.selectedTemplate,
     planResult.exemplarPackId,
@@ -337,7 +337,11 @@ export async function design(
 
   // Build the user message with art direction context
   const exemplarPack = getExemplarPack(planResult.exemplarPackId);
-  const artDirection = buildArtDirectionBlock(planResult.styleManifest, exemplarPack.name);
+  const artDirection = buildArtDirectionBlock(
+    planResult.styleManifest,
+    exemplarPack.name,
+    exemplarPack.visualThesis,
+  );
 
   let userContent: string;
   if (existingSlidesHtml) {
@@ -666,10 +670,15 @@ export async function designEdit(
 /**
  * Build an art direction block from the style manifest for the user message.
  */
-function buildArtDirectionBlock(manifest: StyleManifest, exemplarName: string): string {
+function buildArtDirectionBlock(
+  manifest: StyleManifest,
+  exemplarName: string,
+  visualThesis?: string,
+): string {
   return `Art direction:
 - Exemplar: ${exemplarName}
-- Composition: ${manifest.compositionMode}
+${visualThesis ? `- Visual thesis: ${visualThesis}
+` : ''}- Composition: ${manifest.compositionMode}
 - Background: ${manifest.backgroundTreatment}
 - Typography mood: ${manifest.typographyMood}
 - Motion: ${manifest.motionLanguage}
@@ -731,6 +740,12 @@ function buildAddSlidesPrompt(
     ? 'This is slide 3 — start the first content slide diving into the main topic.'
     : `This is slide ${existingSlideCount + 1} — continue with the next content point or transition toward a closing slide.`;
 
+  const preferredRecipe = existingSlideCount === 1
+    ? 'agenda-overview'
+    : existingSlideCount === 2
+    ? 'editorial-infographic / metrics-dashboard / process-timeline (choose the best fit for the content)'
+    : 'match the current deck’s established recipe and visual system';
+
   return `## ADD NEW SLIDE — Append to existing ${existingSlideCount}-slide deck
 
 ${styleContinuity}
@@ -743,6 +758,7 @@ ${lastSlides}
 **User request:** ${planResult.enhancedPrompt}
 
 **Slide position hint:** ${nextSlideHint}
+**Preferred recipe:** ${preferredRecipe}
 
 **OUTPUT RULES — CRITICAL:**
 - Output ONLY the NEW \`<section>\` element(s) to append. Do NOT repeat existing slides.

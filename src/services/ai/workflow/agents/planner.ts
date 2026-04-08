@@ -116,6 +116,7 @@ function buildEnhancedPrompt(
   styleManifest: StyleManifest,
 ): string {
   const additions: string[] = [];
+  const recipeGuidance = buildRecipeGuidance(styleManifest.exemplarPackId, intent);
 
   const artDirection = `ART DIRECTION — Visual system:
 - Composition mode: ${styleManifest.compositionMode}
@@ -127,14 +128,17 @@ function buildEnhancedPrompt(
 - Hero pattern: ${styleManifest.heroPattern}
 - Card grammar: ${styleManifest.cardGrammar}
 - Accent strategy: ${styleManifest.accentStrategy}
-- Component patterns: ${styleManifest.componentPatterns.join('; ')}`;
+- Component patterns: ${styleManifest.componentPatterns.join('; ')}
+- Recipe target: ${styleManifest.exemplarPackId}`;
 
   if (intent === 'create') {
     additions.push(`${artDirection}
 
-Create ONE stunning title/hero slide with rich CSS architecture (<style> block with classes and @keyframes) and inline SVG illustrations. Make it breathtaking.
+${recipeGuidance}
 
-Design the first slide as the FOUNDATION for the rest of the deck:
+Create ONE stunning slide with rich CSS architecture (<style> block with classes and @keyframes) and inline SVG illustrations. Make it breathtaking.
+
+Design this slide as part of a reusable deck system:
 - establish reusable semantic classes for wrappers, grids, cards, labels, dividers, stat blocks, and callouts
 - define reusable CSS variables for palette, type, spacing, borders, and motion timing
 - avoid one-off class names that only make sense for this single slide
@@ -142,13 +146,19 @@ Design the first slide as the FOUNDATION for the rest of the deck:
   } else if (intent === 'modify') {
     additions.push(`${artDirection}
 
-Modify the existing slide(s) while maintaining visual consistency. Output ALL slides including the <style> block.`);
+${recipeGuidance}
+
+Modify the existing slide(s) while maintaining visual consistency and the selected recipe direction. Output ALL slides including the <style> block.`);
   } else if (intent === 'refine_style') {
     additions.push(`${artDirection}
 
-Apply style changes to existing slide(s). Keep content, change visual styling. Output the complete result.`);
+${recipeGuidance}
+
+Apply style changes to existing slide(s). Keep content, change visual styling while preserving the intended slide recipe. Output the complete result.`);
   } else if (intent === 'add_slides') {
     additions.push(`${artDirection}
+
+${recipeGuidance}
 
 Generate the NEXT slide for this deck. Typical deck order: slide 1 = title/hero, slide 2 = agenda/overview, slides 3+ = content slides (one topic each), last = summary/CTA.
 Output ONLY the new <section> — do NOT repeat or include existing slides.`);
@@ -157,4 +167,38 @@ Output ONLY the new <section> — do NOT repeat or include existing slides.`);
   return additions.length > 0
     ? `${prompt}\n\n${additions.join('\n')}`
     : prompt;
+}
+
+function buildRecipeGuidance(
+  exemplarPackId: StyleManifest['exemplarPackId'],
+  intent: RequestIntent,
+): string {
+  const prefix = intent === 'add_slides' ? 'Preferred slide recipe:' : 'Preferred recipe:';
+
+  switch (exemplarPackId) {
+    case 'split-world-title':
+      return `${prefix} split-world title hero — build a cover/opening slide with one dominant thesis, a scene-led background, and very few supporting components.`;
+    case 'agenda-overview':
+      return `${prefix} agenda overview — use 3-6 ordered topics, crisp sequencing, and a calm premium layout.`;
+    case 'section-divider':
+      return `${prefix} section divider — use oversized section language, a minimal supporting line, and lots of intentional space.`;
+    case 'comparison':
+      return `${prefix} comparison stage — show two clearly differentiated sides with a shared heading and a decisive midpoint or verdict.`;
+    case 'process-timeline':
+      return `${prefix} process timeline — map 3-6 phases in a clear sequence with direction, connectors, and concise stage labels.`;
+    case 'metrics-dashboard':
+      return `${prefix} metrics dashboard — lead with a few big numbers, then one supporting insight or mini-chart panel.`;
+    case 'case-study-spotlight':
+      return `${prefix} case-study spotlight — use one proof point, one narrative headline, and a compact evidence pane.`;
+    case 'quote-statement':
+      return `${prefix} quote / statement slide — let one unforgettable line dominate the canvas with minimal support copy.`;
+    case 'closing-cta':
+      return `${prefix} closing CTA — finish with one synthesis statement and a strong next-step prompt, not a generic thank-you slide.`;
+    case 'quiz-interstitial':
+      return `${prefix} quiz interstitial — use a centered focal object, oversized type, and playful but disciplined motion.`;
+    case 'editorial-infographic':
+      return `${prefix} editorial infographic — use an asymmetric explainer layout with strong labels, card hierarchy, and embedded diagrammatic thinking.`;
+    default:
+      return `${prefix} template-native premium slide — keep one strong focal area and a disciplined supporting component family.`;
+  }
 }

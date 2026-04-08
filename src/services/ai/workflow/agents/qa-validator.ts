@@ -278,6 +278,9 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
       /waterbourne\s+capital/i,
       /presented by\s+waterborne/i,
       /presented by\s+waterbourne/i,
+      /the future of waterborne/i,
+      /kahoot\s+quiz\s+time/i,
+      /\bkahoot\b/i,
     ];
     for (const pattern of leakedBrandPatterns) {
       if (pattern.test(section)) {

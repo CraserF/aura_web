@@ -1,26 +1,7 @@
-import keynoteHtml from './html/keynote.html?raw';
-import corporateHtml from './html/corporate.html?raw';
-import techArchitectureHtml from './html/tech-architecture.html?raw';
-import dataDashboardHtml from './html/data-dashboard.html?raw';
-import sciFiHtml from './html/sci-fi.html?raw';
-import creativePortfolioHtml from './html/creative-portfolio.html?raw';
-import storytellingHtml from './html/storytelling.html?raw';
-import educationalHtml from './html/educational.html?raw';
-import minimalHtml from './html/minimal.html?raw';
-import cinematicHtml from './html/cinematic.html?raw';
-import pitchDeckHtml from './html/pitch-deck.html?raw';
-import workshopHtml from './html/workshop.html?raw';
-import codeWalkthroughHtml from './html/code-walkthrough.html?raw';
-import productDemoHtml from './html/product-demo.html?raw';
-import comparisonHtml from './html/comparison.html?raw';
-import timelineHtml from './html/timeline.html?raw';
-import editorialMagazineHtml from './html/editorial-magazine.html?raw';
-import infographicGridHtml from './html/infographic-grid.html?raw';
-import interactiveQuizHtml from './html/interactive-quiz.html?raw';
-import splitWorldHtml from './html/split-world.html?raw';
-import landscapeIllustrationHtml from './html/landscape-illustration.html?raw';
-import multiPanelDashboardHtml from './html/multi-panel-dashboard.html?raw';
-import sidebarCardsHtml from './html/sidebar-cards.html?raw';
+const TEMPLATE_HTML_MODULES = import.meta.glob('./html/*.html', {
+  query: '?raw',
+  import: 'default',
+}) as Record<string, () => Promise<string>>;
 
 export type TemplateId =
   | 'keynote' | 'corporate' | 'tech-architecture' | 'data-dashboard'
@@ -33,17 +14,43 @@ export type TemplateId =
 
 export interface TemplateEntry {
   id: TemplateId;
-  html: string;
+  htmlPath: string;
   animationLevel: 1 | 2 | 3 | 4;
   description: string;
   bestFor: string[];
   slideCount: { min: number; max: number };
 }
 
+const TEMPLATE_HTML_PATHS: Record<TemplateId, string> = {
+  keynote: './html/keynote.html',
+  corporate: './html/corporate.html',
+  'tech-architecture': './html/tech-architecture.html',
+  'data-dashboard': './html/data-dashboard.html',
+  'sci-fi': './html/sci-fi.html',
+  'creative-portfolio': './html/creative-portfolio.html',
+  storytelling: './html/storytelling.html',
+  educational: './html/educational.html',
+  minimal: './html/minimal.html',
+  cinematic: './html/cinematic.html',
+  'pitch-deck': './html/pitch-deck.html',
+  workshop: './html/workshop.html',
+  'code-walkthrough': './html/code-walkthrough.html',
+  'product-demo': './html/product-demo.html',
+  comparison: './html/comparison.html',
+  timeline: './html/timeline.html',
+  'editorial-magazine': './html/editorial-magazine.html',
+  'infographic-grid': './html/infographic-grid.html',
+  'interactive-quiz': './html/interactive-quiz.html',
+  'split-world': './html/split-world.html',
+  'landscape-illustration': './html/landscape-illustration.html',
+  'multi-panel-dashboard': './html/multi-panel-dashboard.html',
+  'sidebar-cards': './html/sidebar-cards.html',
+};
+
 export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   keynote: {
     id: 'keynote',
-    html: keynoteHtml,
+    htmlPath: TEMPLATE_HTML_PATHS.keynote,
     animationLevel: 4,
     description: 'High-impact keynote for product launches and conferences',
     bestFor: ['product launch', 'conference talk', 'announcement'],
@@ -51,7 +58,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   corporate: {
     id: 'corporate',
-    html: corporateHtml,
+    htmlPath: TEMPLATE_HTML_PATHS.corporate,
     animationLevel: 2,
     description: 'Clean professional presentation for board meetings and business updates',
     bestFor: ['board meeting', 'quarterly review', 'business update'],
@@ -59,7 +66,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   'tech-architecture': {
     id: 'tech-architecture',
-    html: techArchitectureHtml,
+    htmlPath: TEMPLATE_HTML_PATHS['tech-architecture'],
     animationLevel: 3,
     description: 'Modern tech presentation for architecture reviews and engineering talks',
     bestFor: ['system design', 'architecture review', 'tech talk'],
@@ -67,7 +74,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   'data-dashboard': {
     id: 'data-dashboard',
-    html: dataDashboardHtml,
+    htmlPath: TEMPLATE_HTML_PATHS['data-dashboard'],
     animationLevel: 3,
     description: 'Data-driven dashboard for analytics reviews and KPI reports',
     bestFor: ['analytics review', 'KPI report', 'data presentation'],
@@ -75,7 +82,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   'sci-fi': {
     id: 'sci-fi',
-    html: sciFiHtml,
+    htmlPath: TEMPLATE_HTML_PATHS['sci-fi'],
     animationLevel: 4,
     description: 'Futuristic sci-fi theme for AI, cybersecurity, and space topics',
     bestFor: ['AI presentation', 'cybersecurity', 'futurism'],
@@ -83,7 +90,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   'creative-portfolio': {
     id: 'creative-portfolio',
-    html: creativePortfolioHtml,
+    htmlPath: TEMPLATE_HTML_PATHS['creative-portfolio'],
     animationLevel: 3,
     description: 'Vibrant creative showcase for portfolios and design presentations',
     bestFor: ['portfolio', 'design showcase', 'creative work'],
@@ -91,7 +98,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   storytelling: {
     id: 'storytelling',
-    html: storytellingHtml,
+    htmlPath: TEMPLATE_HTML_PATHS.storytelling,
     animationLevel: 3,
     description: 'Elegant storytelling format for case studies and narratives',
     bestFor: ['case study', 'narrative', 'brand story'],
@@ -99,7 +106,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   educational: {
     id: 'educational',
-    html: educationalHtml,
+    htmlPath: TEMPLATE_HTML_PATHS.educational,
     animationLevel: 2,
     description: 'Teaching and training format for lectures and workshops',
     bestFor: ['lecture', 'training', 'educational'],
@@ -107,7 +114,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   minimal: {
     id: 'minimal',
-    html: minimalHtml,
+    htmlPath: TEMPLATE_HTML_PATHS.minimal,
     animationLevel: 1,
     description: 'Ultra-clean minimal design for quick updates and simple briefs',
     bestFor: ['quick update', 'brief', 'summary'],
@@ -115,7 +122,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   cinematic: {
     id: 'cinematic',
-    html: cinematicHtml,
+    htmlPath: TEMPLATE_HTML_PATHS.cinematic,
     animationLevel: 4,
     description: 'Cinematic presentation for photography, art, and high-impact storytelling',
     bestFor: ['photography', 'art', 'cinematic storytelling'],
@@ -123,7 +130,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   'pitch-deck': {
     id: 'pitch-deck',
-    html: pitchDeckHtml,
+    htmlPath: TEMPLATE_HTML_PATHS['pitch-deck'],
     animationLevel: 3,
     description: 'Investor pitch deck with compelling metrics and clear narrative',
     bestFor: ['investor pitch', 'startup', 'fundraising'],
@@ -131,7 +138,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   workshop: {
     id: 'workshop',
-    html: workshopHtml,
+    htmlPath: TEMPLATE_HTML_PATHS.workshop,
     animationLevel: 2,
     description: 'Interactive workshop format with exercises and timing',
     bestFor: ['workshop', 'interactive training', 'hands-on session'],
@@ -139,7 +146,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   'code-walkthrough': {
     id: 'code-walkthrough',
-    html: codeWalkthroughHtml,
+    htmlPath: TEMPLATE_HTML_PATHS['code-walkthrough'],
     animationLevel: 3,
     description: 'Developer-focused code walkthrough with syntax highlighting',
     bestFor: ['code review', 'developer talk', 'API walkthrough'],
@@ -147,7 +154,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   'product-demo': {
     id: 'product-demo',
-    html: productDemoHtml,
+    htmlPath: TEMPLATE_HTML_PATHS['product-demo'],
     animationLevel: 3,
     description: 'Product demonstration with feature highlights and comparisons',
     bestFor: ['product demo', 'SaaS demo', 'feature showcase'],
@@ -155,7 +162,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   comparison: {
     id: 'comparison',
-    html: comparisonHtml,
+    htmlPath: TEMPLATE_HTML_PATHS.comparison,
     animationLevel: 2,
     description: 'Side-by-side comparison format for evaluating options',
     bestFor: ['comparison', 'evaluation', 'A vs B analysis'],
@@ -163,7 +170,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   timeline: {
     id: 'timeline',
-    html: timelineHtml,
+    htmlPath: TEMPLATE_HTML_PATHS.timeline,
     animationLevel: 3,
     description: 'Timeline-focused presentation for roadmaps and histories',
     bestFor: ['roadmap', 'project timeline', 'history'],
@@ -171,7 +178,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   'editorial-magazine': {
     id: 'editorial-magazine',
-    html: editorialMagazineHtml,
+    htmlPath: TEMPLATE_HTML_PATHS['editorial-magazine'],
     animationLevel: 2,
     description: 'Magazine-style editorial with serif typography and asymmetric layouts',
     bestFor: ['editorial', 'magazine', 'long-form article', 'thought leadership'],
@@ -179,7 +186,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   'infographic-grid': {
     id: 'infographic-grid',
-    html: infographicGridHtml,
+    htmlPath: TEMPLATE_HTML_PATHS['infographic-grid'],
     animationLevel: 3,
     description: 'Data-rich infographic with SVG visualizations in grid cells',
     bestFor: ['infographic', 'data report', 'statistics overview', 'research findings'],
@@ -187,7 +194,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   'interactive-quiz': {
     id: 'interactive-quiz',
-    html: interactiveQuizHtml,
+    htmlPath: TEMPLATE_HTML_PATHS['interactive-quiz'],
     animationLevel: 3,
     description: 'Game-show style quiz with multiple-choice cards and score reveals',
     bestFor: ['quiz', 'trivia', 'knowledge check', 'interactive learning'],
@@ -195,7 +202,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   'split-world': {
     id: 'split-world',
-    html: splitWorldHtml,
+    htmlPath: TEMPLATE_HTML_PATHS['split-world'],
     animationLevel: 3,
     description: 'Dual-world split screen comparing contrasting concepts',
     bestFor: ['comparison', 'before and after', 'problem vs solution', 'dual perspective'],
@@ -203,7 +210,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   'landscape-illustration': {
     id: 'landscape-illustration',
-    html: landscapeIllustrationHtml,
+    htmlPath: TEMPLATE_HTML_PATHS['landscape-illustration'],
     animationLevel: 4,
     description: 'Illustrated SVG landscape scenes with animated backgrounds',
     bestFor: ['nature', 'environmental', 'immersive storytelling', 'visual journey'],
@@ -211,7 +218,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   'multi-panel-dashboard': {
     id: 'multi-panel-dashboard',
-    html: multiPanelDashboardHtml,
+    htmlPath: TEMPLATE_HTML_PATHS['multi-panel-dashboard'],
     animationLevel: 2,
     description: 'Multi-column panel dashboard with category color coding',
     bestFor: ['dashboard overview', 'multi-category report', 'admin panel', 'status board'],
@@ -219,7 +226,7 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
   'sidebar-cards': {
     id: 'sidebar-cards',
-    html: sidebarCardsHtml,
+    htmlPath: TEMPLATE_HTML_PATHS['sidebar-cards'],
     animationLevel: 2,
     description: 'Luxury sidebar navigation with card content grid',
     bestFor: ['portfolio', 'agency', 'premium brand', 'service showcase'],
@@ -227,8 +234,30 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
   },
 };
 
-export function getTemplateHtml(id: TemplateId): string {
-  return TEMPLATE_REGISTRY[id].html;
+const templateHtmlCache = new Map<TemplateId, string>();
+
+export async function getTemplateHtml(id: TemplateId): Promise<string> {
+  const cached = templateHtmlCache.get(id);
+  if (cached) return cached;
+
+  const htmlPath = TEMPLATE_REGISTRY[id]?.htmlPath;
+  const loader = htmlPath ? TEMPLATE_HTML_MODULES[htmlPath] : undefined;
+
+  if (!loader) {
+    if (id !== 'keynote') return getTemplateHtml('keynote');
+    throw new Error(`Missing template HTML loader for ${id}`);
+  }
+
+  try {
+    const html = (await loader()) as string;
+    templateHtmlCache.set(id, html);
+    return html;
+  } catch (error) {
+    if (id !== 'keynote') return getTemplateHtml('keynote');
+    throw error instanceof Error
+      ? error
+      : new Error(`Failed to load template HTML for ${id}`);
+  }
 }
 
 export function getTemplateEntry(id: TemplateId): TemplateEntry {
