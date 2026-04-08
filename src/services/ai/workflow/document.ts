@@ -123,7 +123,7 @@ export async function runDocumentWorkflow(
   const { input, llmConfig, onEvent, signal } = opts;
   const isEdit = !!input.existingHtml;
 
-  const baseModel: LanguageModel = createModel(llmConfig);
+  const baseModel: LanguageModel = await createModel(llmConfig);
   const model = withDefaults(baseModel);
 
   try {

@@ -29,5 +29,5 @@ export interface ProviderEntry {
   name: string;
   defaultModel: string;
   /** Create a LanguageModel instance from the given config */
-  createModel: (config: ProviderModelConfig) => LanguageModel;
+  createModel: (config: ProviderModelConfig) => Promise<LanguageModel>;
 }

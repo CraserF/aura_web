@@ -1,29 +1,14 @@
 /**
  * Knowledge Base — Structured access to reference docs for standalone HTML slide generation.
- * All docs imported at build time via Vite's ?raw imports.
+ * Docs are loaded on demand via Vite raw imports and cached in memory.
  */
 
-// Core standalone slide knowledge (always included)
-import standaloneSlideKnowledge from './docs/standalone-slide-knowledge.md?raw';
-import standaloneSlideExtended from './docs/standalone-slide-extended.md?raw';
-import slidePromptTemplate from './docs/slide-prompt-template.md?raw';
-
-// Example slides (gold standard references)
-import exampleTitleSlide from './docs/example-title-slide.html?raw';
-import exampleEditorial from './docs/example-editorial.html?raw';
-import exampleInterstitial from './docs/example-interstitial.html?raw';
-
-// Supplementary reference docs
-import animCheatsheet from './docs/animation-cheatsheet.md?raw';
-import components from './docs/components.md?raw';
-import iconsAndFonts from './docs/icons-and-fonts.md?raw';
-import qualityChecklist from './docs/quality-checklist.md?raw';
-import svgDrawing from './docs/svg-drawing.md?raw';
-import svgDiagrams from './docs/svg-diagrams.md?raw';
-import heroScenes from './docs/hero-scenes.md?raw';
-import slideGeneration from './skills/slide-generation.md?raw';
-import advancedWorkflows from './skills/advanced-workflows.md?raw';
-import promptLibrary from './prompts/prompt-library.md?raw';
+const KNOWLEDGE_MODULES = {
+  ...import.meta.glob('./docs/*.md', { query: '?raw', import: 'default' }),
+  ...import.meta.glob('./docs/*.html', { query: '?raw', import: 'default' }),
+  ...import.meta.glob('./skills/*.md', { query: '?raw', import: 'default' }),
+  ...import.meta.glob('./prompts/*.md', { query: '?raw', import: 'default' }),
+} as Record<string, () => Promise<string>>;
 
 export type KnowledgeDocId =
   | 'standalone-slide-knowledge'
@@ -43,24 +28,26 @@ export type KnowledgeDocId =
   | 'advanced-workflows'
   | 'prompt-library';
 
-const KNOWLEDGE_BASE: Record<KnowledgeDocId, string> = {
-  'standalone-slide-knowledge': standaloneSlideKnowledge,
-  'standalone-slide-extended': standaloneSlideExtended,
-  'slide-prompt-template': slidePromptTemplate,
-  'example-title-slide': exampleTitleSlide,
-  'example-editorial': exampleEditorial,
-  'example-interstitial': exampleInterstitial,
-  'animation-cheatsheet': animCheatsheet,
-  'components': components,
-  'icons-and-fonts': iconsAndFonts,
-  'quality-checklist': qualityChecklist,
-  'svg-drawing': svgDrawing,
-  'svg-diagrams': svgDiagrams,
-  'hero-scenes': heroScenes,
-  'slide-generation': slideGeneration,
-  'advanced-workflows': advancedWorkflows,
-  'prompt-library': promptLibrary,
+const KNOWLEDGE_PATHS: Record<KnowledgeDocId, string> = {
+  'standalone-slide-knowledge': './docs/standalone-slide-knowledge.md',
+  'standalone-slide-extended': './docs/standalone-slide-extended.md',
+  'slide-prompt-template': './docs/slide-prompt-template.md',
+  'example-title-slide': './docs/example-title-slide.html',
+  'example-editorial': './docs/example-editorial.html',
+  'example-interstitial': './docs/example-interstitial.html',
+  'animation-cheatsheet': './docs/animation-cheatsheet.md',
+  components: './docs/components.md',
+  'icons-and-fonts': './docs/icons-and-fonts.md',
+  'quality-checklist': './docs/quality-checklist.md',
+  'svg-drawing': './docs/svg-drawing.md',
+  'svg-diagrams': './docs/svg-diagrams.md',
+  'hero-scenes': './docs/hero-scenes.md',
+  'slide-generation': './skills/slide-generation.md',
+  'advanced-workflows': './skills/advanced-workflows.md',
+  'prompt-library': './prompts/prompt-library.md',
 };
+
+const knowledgeCache = new Map<KnowledgeDocId, string>();
 
 function sanitizeReferenceContent(content: string): string {
   return content
@@ -72,51 +59,66 @@ function sanitizeReferenceContent(content: string): string {
     .replace(/Kahoot Quiz Time\s*·\s*[^<\n]+/gi, 'Interactive Quiz Moment · Example Organization');
 }
 
+async function loadKnowledge(id: KnowledgeDocId): Promise<string> {
+  const cached = knowledgeCache.get(id);
+  if (cached) return cached;
+
+  const path = KNOWLEDGE_PATHS[id];
+  const loader = path ? KNOWLEDGE_MODULES[path] : undefined;
+  if (!loader) {
+    throw new Error(`Missing knowledge loader for ${id}`);
+  }
+
+  const content = sanitizeReferenceContent((await loader()) as string);
+  knowledgeCache.set(id, content);
+  return content;
+}
+
 /** Get a knowledge doc by ID */
-export function getKnowledge(id: KnowledgeDocId): string {
-  return sanitizeReferenceContent(KNOWLEDGE_BASE[id]);
+export async function getKnowledge(id: KnowledgeDocId): Promise<string> {
+  return loadKnowledge(id);
 }
 
 /**
  * Get knowledge docs relevant to a given animation level.
  * Structured for standalone HTML slide generation with rich CSS/SVG.
- *
- * The three core knowledge docs (knowledge base, extended, prompt template)
- * are ALWAYS included — they contain the comprehensive guidance the agent
- * needs to produce high-quality slides. Supplementary docs are level-gated.
  */
-export function getRelevantKnowledge(animLevel: 1 | 2 | 3 | 4): string[] {
-  const docs: string[] = [];
+export async function getRelevantKnowledge(animLevel: 1 | 2 | 3 | 4): Promise<string[]> {
+  const requiredIds: KnowledgeDocId[] = [
+    'standalone-slide-knowledge',
+    'standalone-slide-extended',
+    'slide-prompt-template',
+    'example-title-slide',
+    'example-editorial',
+    'example-interstitial',
+  ];
 
-  // ── Always included: three core knowledge documents ─────────
-  // These contain the comprehensive architecture, component library,
-  // layout patterns, animation cookbook, SVG recipes, and prompt
-  // structure the agent needs to match the gold-standard examples.
-  docs.push(sanitizeReferenceContent(standaloneSlideKnowledge));
-  docs.push(sanitizeReferenceContent(standaloneSlideExtended));
-  docs.push(sanitizeReferenceContent(slidePromptTemplate));
-
-  // ── Always included: example slides as gold-standard references ──
-  // NOTE: Example files demonstrate correct sizing (fixed px), composition, and component patterns.
-  docs.push(`## EXAMPLE: Title Slide\n\`\`\`html\n${sanitizeReferenceContent(exampleTitleSlide)}\n\`\`\``);
-  docs.push(`## EXAMPLE: Editorial/Infographic Slide\n\`\`\`html\n${sanitizeReferenceContent(exampleEditorial)}\n\`\`\``);
-  docs.push(`## EXAMPLE: Interstitial/Pop Slide\n\`\`\`html\n${sanitizeReferenceContent(exampleInterstitial)}\n\`\`\``);
-
-  // ── Level 2+: supplementary reference docs ──────────────────
   if (animLevel >= 2) {
-    docs.push(sanitizeReferenceContent(svgDrawing));
-    docs.push(sanitizeReferenceContent(heroScenes));
+    requiredIds.push('svg-drawing', 'hero-scenes');
   }
 
-  // ── Level 3+: advanced SVG diagrams ─────────────────────────
   if (animLevel >= 3) {
-    docs.push(sanitizeReferenceContent(svgDiagrams));
+    requiredIds.push('svg-diagrams');
   }
 
-  return docs;
+  const loaded = await Promise.all(
+    requiredIds.map(async (id) => [id, await loadKnowledge(id)] as const),
+  );
+  const docMap = Object.fromEntries(loaded) as Record<KnowledgeDocId, string>;
+
+  return [
+    docMap['standalone-slide-knowledge'],
+    docMap['standalone-slide-extended'],
+    docMap['slide-prompt-template'],
+    `## EXAMPLE: Title Slide\n\`\`\`html\n${docMap['example-title-slide']}\n\`\`\``,
+    `## EXAMPLE: Editorial/Infographic Slide\n\`\`\`html\n${docMap['example-editorial']}\n\`\`\``,
+    `## EXAMPLE: Interstitial/Pop Slide\n\`\`\`html\n${docMap['example-interstitial']}\n\`\`\``,
+    ...(animLevel >= 2 ? [docMap['svg-drawing'], docMap['hero-scenes']] : []),
+    ...(animLevel >= 3 ? [docMap['svg-diagrams']] : []),
+  ].filter(Boolean);
 }
 
 /** Get condensed quality checklist for validation */
-export function getQualityChecklist(): string {
-  return qualityChecklist;
+export async function getQualityChecklist(): Promise<string> {
+  return loadKnowledge('quality-checklist');
 }

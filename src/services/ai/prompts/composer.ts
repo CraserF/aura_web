@@ -95,9 +95,8 @@ export class PromptComposer {
     return this;
   }
 
-  /** Add relevant knowledge base docs based on animation level */
-  addKnowledge(): this {
-    const docs = getRelevantKnowledge(this._animLevel);
+  /** Add preloaded knowledge-base docs */
+  addKnowledge(docs: string[]): this {
     if (docs.length > 0) {
       const section = `## ADDITIONAL REFERENCE MATERIAL\n\n${docs.join('\n\n---\n\n')}`;
       this.sections.push(section);
@@ -148,15 +147,18 @@ Requirements:
 - establish reusable type, spacing, border-radius, shadow, and motion tokens so later slides can be appended with minimal additional CSS
 - make the hero slide beautiful, but do not spend all the design complexity on a composition that cannot be extended to agenda/content/closing slides`);
 
-  const templateExamplesSection = await buildTemplateExamplesSection(
-    templateId,
-    exemplarPackId,
-    blueprint.exampleSlides,
-  );
+  const [templateExamplesSection, knowledgeDocs] = await Promise.all([
+    buildTemplateExamplesSection(
+      templateId,
+      exemplarPackId,
+      blueprint.exampleSlides,
+    ),
+    getRelevantKnowledge(animLevel),
+  ]);
 
   return composer
     .addTemplateExamples(templateExamplesSection)
-    .addKnowledge()
+    .addKnowledge(knowledgeDocs)
     .addQuality()
     .build();
 }

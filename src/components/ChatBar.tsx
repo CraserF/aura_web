@@ -4,9 +4,6 @@ import { useChatStore } from '@/stores/chatStore';
 import { usePresentationStore } from '@/stores/presentationStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { getProviderEntry } from '@/services/ai/registry';
-import { runPresentationWorkflow } from '@/services/ai/workflow';
-import { runDocumentWorkflow } from '@/services/ai/workflow';
 import type { WorkflowEvent } from '@/services/ai/workflow';
 import type { AIMessage } from '@/services/ai/types';
 import type { ChatMessage as ChatMessageType, WorkflowStep } from '@/types';
@@ -140,8 +137,12 @@ export function ChatBar() {
       abortControllerRef.current = abortController;
 
       try {
-        const providerEntry = getProviderEntry(providerId);
         const config = getActiveProvider();
+        const [{ getProviderEntry }, { runPresentationWorkflow }] = await Promise.all([
+          import('@/services/ai/registry'),
+          import('@/services/ai/workflow/presentation'),
+        ]);
+        const providerEntry = getProviderEntry(providerId);
 
         const onEvent = (event: WorkflowEvent) => {
           switch (event.type) {
@@ -271,8 +272,12 @@ export function ChatBar() {
       abortControllerRef.current = abortController;
 
       try {
-        const providerEntry = getProviderEntry(providerId);
         const config = getActiveProvider();
+        const [{ getProviderEntry }, { runDocumentWorkflow }] = await Promise.all([
+          import('@/services/ai/registry'),
+          import('@/services/ai/workflow/document'),
+        ]);
+        const providerEntry = getProviderEntry(providerId);
 
         const onEvent = (event: WorkflowEvent) => {
           switch (event.type) {

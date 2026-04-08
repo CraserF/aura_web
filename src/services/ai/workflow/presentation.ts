@@ -51,7 +51,7 @@ export async function runPresentationWorkflow(
   const workflowStart = performance.now();
 
   // Create the AI SDK model with shared defaults (temperature, maxOutputTokens)
-  const baseModel: LanguageModel = createModel(llmConfig);
+  const baseModel: LanguageModel = await createModel(llmConfig);
   const model = withDefaults(baseModel);
   aiDebugLog('workflow', `starting ${isEdit ? 'edit' : 'create'} workflow`, { model: llmConfig.model });
 

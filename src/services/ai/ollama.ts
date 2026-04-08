@@ -1,4 +1,4 @@
-import { Ollama } from 'ollama/browser';
+import type { Ollama } from 'ollama/browser';
 
 export interface OllamaModelOption {
   id: string;
@@ -28,12 +28,13 @@ export function toOllamaOpenAIBaseUrl(baseUrl?: string): string {
   return `${normalizeOllamaHost(baseUrl)}/v1`;
 }
 
-export function createOllamaClient(baseUrl?: string): Ollama {
+export async function createOllamaClient(baseUrl?: string): Promise<Ollama> {
+  const { Ollama } = await import('ollama/browser');
   return new Ollama({ host: normalizeOllamaHost(baseUrl) });
 }
 
 export async function fetchOllamaModels(baseUrl?: string): Promise<OllamaModelOption[]> {
-  const client = createOllamaClient(baseUrl);
+  const client = await createOllamaClient(baseUrl);
   const response = await client.list();
 
   return (response.models ?? [])

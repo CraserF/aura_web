@@ -29,7 +29,7 @@ export function toModelMessages(messages: AIMessage[]): ModelMessage[] {
 }
 
 /** Create an AI SDK LanguageModel from provider config */
-export function createModel(config: LLMConfig): LanguageModel {
+export async function createModel(config: LLMConfig): Promise<LanguageModel> {
   return config.providerEntry.createModel({
     apiKey: config.apiKey,
     baseUrl: config.baseUrl,

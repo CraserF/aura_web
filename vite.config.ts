@@ -38,7 +38,14 @@ export default defineConfig({
           if (id.includes('node_modules/')) {
             return 'vendor';
           }
-          // App AI layer (knowledge docs + prompts) — large static text content
+          // Keep lazily requested raw knowledge/template assets out of the main AI chunk.
+          if (
+            id.includes('/src/services/ai/knowledge/') ||
+            id.includes('/src/services/ai/templates/html/')
+          ) {
+            return undefined;
+          }
+          // App AI layer (workflow, prompts, orchestration)
           if (id.includes('/src/services/ai/')) {
             return 'ai-layer';
           }
