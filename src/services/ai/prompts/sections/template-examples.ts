@@ -9,7 +9,7 @@ import { getExemplarPack, getTemplateHtml } from '../../templates';
  * Extract a representative subset of slides from a template HTML to keep
  * the prompt within reasonable token limits (~3 slides).
  */
-function extractExcerpt(html: string, maxSlides: number = 3): string {
+function extractExcerpt(html: string, maxSlides: number = 2): string {
   const sectionRegex = /<section[\s\S]*?<\/section>/gi;
   const sections: string[] = [];
 
@@ -75,41 +75,30 @@ export async function buildTemplateExamplesSection(
   const sanitizedExemplarExcerpt = sanitizeExampleHtml(exemplarPack.htmlExcerpt);
   const sanitizedExamples = existingExamples ? sanitizeExampleHtml(existingExamples) : '';
 
-  const blueprintBlock = sanitizedExamples
-    ? `\n\n### Style Blueprint Examples:\n\`\`\`html\n${sanitizedExamples}\n\`\`\``
+  const blueprintBlock = !excerpt && sanitizedExamples
+    ? `\n\n### Backup Example:\n\`\`\`html\n${sanitizedExamples}\n\`\`\``
     : '';
 
   if (!excerpt && !sanitizedExamples && !sanitizedExemplarExcerpt) return '';
 
-  return `## REFERENCE SLIDES — This Is What Great Looks Like
+  return `## TARGET REFERENCE — Match the Design Quality, Not the Wording
 
-Study these examples carefully and match this level of visual quality.
-Adapt the layouts, spacing, and component patterns to the user's content.
-Do NOT copy them verbatim — use them as quality benchmarks.
-The excerpts below are sanitized/anonymized on purpose.
-Treat all nouns, organization names, domain terms, metrics, and footer labels in examples as placeholders only.
-You MUST rewrite every content string to match the user's requested context.
-Never copy example brand names, taglines, presenter labels, or company references into output.
+Use this as the visual truth source for spacing, hierarchy, and component rhythm.
+Treat all example nouns, numbers, and labels as placeholders only.
+Never copy example brands, taglines, or presenter names.
 
-### Exemplar Pack (${exemplarPack.name})
-Visual thesis: ${exemplarPack.visualThesis}
+### Recipe: ${exemplarPack.name}
+- Visual thesis: ${exemplarPack.visualThesis}
+- Composition: ${exemplarPack.compositionRules.slice(0, 3).join(' ')}
+- Components: ${exemplarPack.componentRules.slice(0, 3).join(' ')}
+- Motion: ${exemplarPack.motionRules.slice(0, 2).join(' ')}
 
-Composition rules:
-${exemplarPack.compositionRules.map((rule) => `- ${rule}`).join('\n')}
-
-Component rules:
-${exemplarPack.componentRules.map((rule) => `- ${rule}`).join('\n')}
-
-Motion rules:
-${exemplarPack.motionRules.map((rule) => `- ${rule}`).join('\n')}
-
-Representative excerpt:
-
+### Primary Excerpt
 \`\`\`html
 ${sanitizedExemplarExcerpt}
 \`\`\`
 
-### Template Reference (${templateId}):
+### Target Structure (${templateId})
 \`\`\`html
 ${excerpt}
 \`\`\`${blueprintBlock}`;

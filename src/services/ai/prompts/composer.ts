@@ -16,7 +16,6 @@ import { buildQualitySection } from './sections/quality';
 import { buildAntiPatternsSection, buildCondensedAntiPatterns } from './sections/anti-patterns';
 import { buildTemplateExamplesSection } from './sections/template-examples';
 import { buildModernPatternsSection } from './sections/modern-patterns';
-import { getRelevantKnowledge } from '../knowledge';
 
 export class PromptComposer {
   private sections: string[] = [];
@@ -131,12 +130,9 @@ export async function buildDesignerPrompt(
     .addBase(blueprint.palette)
     .addTypography()
     .addLayout()
-    .addModernPatterns()
-    .addDecorative()
     .addAnimation(animLevel)
     .addSvg()
-    .addNarrative()
-    .addAntiPatterns()
+    .addCustom(buildCondensedAntiPatterns())
     .addCustom(`## DECK SYSTEM FOUNDATION
 
 You are designing the first slide as the reusable foundation for future slides in the same deck.
@@ -145,20 +141,17 @@ Requirements:
 - define a coherent style system in the <style> block using reusable CSS variables and semantic component classes
 - prefer deck-level class names such as wrappers, grids, cards, metric rows, labels, dividers, media panes, and callouts over one-off hero-only class names
 - establish reusable type, spacing, border-radius, shadow, and motion tokens so later slides can be appended with minimal additional CSS
-- make the hero slide beautiful, but do not spend all the design complexity on a composition that cannot be extended to agenda/content/closing slides`);
+- make the hero slide beautiful, but do not spend all the design complexity on a composition that cannot be extended to agenda/content/closing slides
+- use the chosen recipe and one targeted exemplar as the main source of visual truth instead of inventing new layout families`);
 
-  const [templateExamplesSection, knowledgeDocs] = await Promise.all([
-    buildTemplateExamplesSection(
-      templateId,
-      exemplarPackId,
-      blueprint.exampleSlides,
-    ),
-    getRelevantKnowledge(animLevel),
-  ]);
+  const templateExamplesSection = await buildTemplateExamplesSection(
+    templateId,
+    exemplarPackId,
+    blueprint.exampleSlides,
+  );
 
   return composer
     .addTemplateExamples(templateExamplesSection)
-    .addKnowledge(knowledgeDocs)
     .addQuality()
     .build();
 }
