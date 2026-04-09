@@ -29,7 +29,7 @@ import type { PlanResult } from './planner';
 import type { StyleManifest } from '../../templates';
 import type { EventListener } from '../types';
 import { toModelMessages, CACHE_CONTROL } from '../engine';
-import { aiDebugLog } from '../../debug';
+import { aiDebugLog, logPromptMetrics } from '../../debug';
 
 export interface DesignResult {
   html: string;
@@ -370,12 +370,19 @@ After generating the slide HTML, call the validateSlideHtml tool to check for is
   messages.push({ role: 'user', content: userContent });
 
   // Phase 1: Stream the initial generation for instant canvas preview
+  const requestMessages = [
+    { role: 'system', content: systemPrompt, providerOptions: CACHE_CONTROL } as ModelMessage,
+    ...messages,
+  ];
+  logPromptMetrics('designer', requestMessages, {
+    intent: planResult.intent,
+    template: planResult.selectedTemplate,
+    recipe: planResult.exemplarPackId,
+  });
+
   const streamResult = streamText({
     model,
-    messages: [
-      { role: 'system', content: systemPrompt, providerOptions: CACHE_CONTROL } as ModelMessage,
-      ...messages,
-    ],
+    messages: requestMessages,
     abortSignal: signal,
   });
 
@@ -513,12 +520,20 @@ export async function designEdit(
   messages.push({ role: 'user', content: userContent });
 
   // Phase 1: Stream for instant preview
+  const requestMessages = [
+    { role: 'system', content: systemPrompt, providerOptions: CACHE_CONTROL } as ModelMessage,
+    ...messages,
+  ];
+  logPromptMetrics('designer:edit', requestMessages, {
+    intent: planResult.intent,
+    template: planResult.selectedTemplate,
+    recipe: planResult.exemplarPackId,
+    existingSlideCount,
+  });
+
   const streamResult = streamText({
     model,
-    messages: [
-      { role: 'system', content: systemPrompt, providerOptions: CACHE_CONTROL } as ModelMessage,
-      ...messages,
-    ],
+    messages: requestMessages,
     abortSignal: signal,
   });
 
