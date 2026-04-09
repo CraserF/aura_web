@@ -23,70 +23,65 @@ import { toModelMessages } from './engine';
 export interface DocumentInput {
   prompt: string;
   existingHtml?: string;
+  existingMarkdown?: string;
   chatHistory: AIMessage[];
   documentType?: string; // hints like "report", "notes", "wiki", "readme"
 }
 
 export interface DocumentOutput {
   html: string;
+  markdown: string;
   title: string;
 }
 
 type ResolvedDocumentType = 'report' | 'brief' | 'proposal' | 'notes' | 'wiki' | 'readme' | 'article';
 
-const DOCUMENT_SYSTEM_PROMPT = `You are a professional editorial writer and information designer.
-Create polished, presentation-quality documents as STRUCTURED MARKDOWN, not raw HTML.
-Aura will render your markdown into a premium HTML document shell automatically.
+const DOCUMENT_SYSTEM_PROMPT = `You are a professional editorial designer and writer.
+Create polished, beautiful documents where the visual reading experience is the highest priority.
 
-## Output Format
-Return MARKDOWN ONLY.
-Do not return HTML unless the user explicitly asks for raw HTML.
-Do not wrap the response in explanations.
+## Preferred output
+Return a COMPLETE document body as rich HTML (no <html>, <head>, or <body> tags).
+Use semantic HTML and include an inline <style> block at the top when needed.
 
-## Default structure
-# Document Title
-> One-sentence executive summary / lead
+Structured markdown is acceptable only as a fallback if HTML is genuinely unnecessary.
+Prefer premium HTML when it improves beauty and scannability.
 
-## Section Heading
-Short paragraph introducing the section.
-- Key point
-- Key point
-- Key point
+## Design goals
+- Make it feel like a premium brief, report, memo, proposal, or editorial article
+- Strong typography hierarchy
+- Beautiful spacing and readable margins
+- Clear section rhythm with cards, dividers, quotes, highlights, or stat blocks where appropriate
+- Tasteful color accents and polished surfaces
+- Visually intentional, not plain text dumped into a page
 
-### Optional subsection
-Use numbered steps, checklists, blockquotes, or tables when useful.
-
-## Writing style
-- Elegant, concise, highly scannable
-- Short paragraphs (2-4 sentences max)
-- Clear headings and subheadings
-- Prefer bullets, numbered lists, and compact tables over long prose
-- Sound like a premium brief, memo, report, wiki page, or proposal
-- Make the content feel well-structured and intentional, like a document equivalent of a well-designed deck
-
-## Content rules
-- Start with a strong title and a short lead summary
-- Use 3-6 major sections unless the user asks for something shorter or longer
-- Keep headings concrete and informative
-- Use quotes / callouts / tables only when they improve clarity
+## Writing rules
+- Concise, elegant, highly scannable
+- Strong title and short lead summary
+- Clear section headings and subheadings
+- Short paragraphs, bullets, and compact tables where useful
 - No filler, no generic fluff, no walls of text
 
 ## Technical rules
-- Markdown only
-- No raw HTML unless explicitly requested
 - No JavaScript
-- Relative links only if links are necessary`;
+- No external assets, remote fonts, or external stylesheets
+- Use only inline CSS inside a <style> block when styling is needed
+- Relative links only if necessary
+- Output only the document HTML body or, if truly needed, structured markdown`;
 
-const EDIT_DOCUMENT_SYSTEM_PROMPT = `You are a professional document editor.
-You will receive a concise outline of the current document and a requested change.
-Return the COMPLETE updated document as STRUCTURED MARKDOWN.
+const EDIT_DOCUMENT_SYSTEM_PROMPT = `You are a professional document editor and designer.
+You will receive the current document outline and a requested change.
+Return the COMPLETE updated document, preserving or improving its beauty and structure.
+
+## Preferred output
+Return rich HTML with inline styling when that best preserves quality.
+Structured markdown is acceptable only as a fallback.
 
 ## Rules
 - Preserve the document's tone and information hierarchy unless explicitly asked to change them
 - APPEND by default when the user adds new material
-- Prefer tightening and clarifying over rewriting everything
-- Keep the result highly scannable with strong headings, bullets, callouts, and short paragraphs
-- Return markdown only`;
+- Prefer tightening and clarifying over flattening or simplifying the design
+- Keep the result visually polished and highly scannable
+- Output only the updated document content`;
 
 interface DocumentTheme {
   name: string;
@@ -99,6 +94,8 @@ interface DocumentTheme {
   accent: string;
   text: string;
   muted: string;
+  shellBg?: string;
+  glow?: string;
 }
 
 function inferDocumentType(prompt: string): ResolvedDocumentType {
@@ -128,22 +125,118 @@ function resolveDocumentType(input: DocumentInput): ResolvedDocumentType {
   }
 }
 
+export function deriveDocumentTextSource(html: string): string {
+  return summarizeExistingDocument(html);
+}
+
+export function renderDocumentFromSource(opts: {
+  text: string;
+  titleHint?: string;
+  prompt?: string;
+  documentType?: string;
+}): DocumentOutput {
+  const prompt = opts.prompt?.trim() || opts.titleHint?.trim() || 'Document';
+  const input: DocumentInput = {
+    prompt,
+    chatHistory: [],
+    documentType: opts.documentType,
+  };
+
+  const rawContent = opts.text.trim();
+  const renderedHtml = renderDocumentContent(rawContent, input);
+  const sanitized = sanitizeHtml(renderedHtml);
+  const title = extractDocumentTitle(sanitized) || extractTitleFromPrompt(opts.titleHint || prompt);
+  const markdown = looksLikeHtml(rawContent)
+    ? summarizeExistingDocument(sanitized)
+    : rawContent;
+
+  return {
+    html: sanitized,
+    markdown,
+    title,
+  };
+}
+
+export function renderDocumentTextEdits(opts: {
+  existingHtml?: string;
+  text: string;
+  titleHint?: string;
+  prompt?: string;
+  documentType?: string;
+}): DocumentOutput {
+  const fallback = renderDocumentFromSource(opts);
+  const existingHtml = opts.existingHtml?.trim();
+
+  if (!existingHtml || !looksLikeHtml(existingHtml)) {
+    return fallback;
+  }
+
+  try {
+    const parser = new DOMParser();
+    const existingDoc = parser.parseFromString(existingHtml, 'text/html');
+    const updatedDoc = parser.parseFromString(fallback.html, 'text/html');
+
+    const selectors = 'h1, h2, h3, p, li, blockquote, td, th';
+    const targetNodes = Array.from(existingDoc.body.querySelectorAll<HTMLElement>(selectors));
+    const sourceNodes = Array.from(updatedDoc.body.querySelectorAll<HTMLElement>(selectors));
+
+    if (targetNodes.length === 0 || sourceNodes.length === 0) {
+      return fallback;
+    }
+
+    const nodeDelta = Math.abs(targetNodes.length - sourceNodes.length);
+    if (nodeDelta > Math.max(4, Math.floor(sourceNodes.length * 0.45))) {
+      return fallback;
+    }
+
+    const limit = Math.min(targetNodes.length, sourceNodes.length);
+    for (let index = 0; index < limit; index += 1) {
+      const nextText = sourceNodes[index]?.textContent?.trim();
+      const targetNode = targetNodes[index];
+      if (nextText && targetNode) {
+        targetNode.textContent = nextText;
+      }
+    }
+
+    const prompt = opts.prompt?.trim() || opts.titleHint?.trim() || fallback.title;
+    const theme = pickDocumentTheme(prompt, inferDocumentType(prompt));
+    const preservedHtml = enhanceDocumentHtml(existingDoc.body.innerHTML, theme);
+    const sanitized = sanitizeHtml(preservedHtml);
+    const title = extractDocumentTitle(sanitized) || fallback.title;
+
+    return {
+      html: sanitized,
+      markdown: fallback.markdown,
+      title,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
 function buildCreatePrompt(input: DocumentInput): string {
   const documentType = resolveDocumentType(input);
+  const theme = pickDocumentTheme(input.prompt, documentType);
   return `Document type: ${documentType}
+Visual tone: ${theme.label}
 
 ${getDocumentStructureGuide(documentType)}
 
 User request: ${input.prompt}
 
-Return MARKDOWN ONLY.`;
+Important:
+- Design and visual polish come first
+- Prefer elegant HTML with beautiful layout and spacing
+- Use markdown only if a simpler text-first response is clearly better`;
 }
 
 function buildEditPrompt(input: DocumentInput): string {
   const documentType = resolveDocumentType(input);
-  const existingSummary = summarizeExistingDocument(input.existingHtml ?? '');
+  const existingSummary = input.existingMarkdown?.trim() || summarizeExistingDocument(input.existingHtml ?? '');
+  const theme = pickDocumentTheme(input.prompt, documentType);
 
   return `Document type: ${documentType}
+Visual tone: ${theme.label}
 
 Existing document outline:
 \`\`\`markdown
@@ -154,8 +247,8 @@ User instruction: ${input.prompt}
 
 IMPORTANT:
 - Append new sections by default unless the user asked to rewrite or replace content
-- Preserve the document's structure and tone where possible
-- Return the COMPLETE updated document as MARKDOWN ONLY.`;
+- Preserve the document's structure, polish, and tone where possible
+- Prefer a visually rich HTML result if that best maintains beauty and readability`;
 }
 
 function getDocumentStructureGuide(documentType: ResolvedDocumentType): string {
@@ -216,13 +309,15 @@ function pickDocumentTheme(prompt: string, documentType: ResolvedDocumentType): 
       name: 'forest',
       label: 'Field Notes',
       bg: '#f3f8f4',
-      surface: '#ffffff',
-      surfaceAlt: '#eef7f0',
-      border: '#d7e7db',
+      surface: 'rgba(45, 106, 79, 0.05)',
+      surfaceAlt: 'rgba(82, 183, 136, 0.10)',
+      border: 'rgba(45, 106, 79, 0.14)',
       primary: '#2d6a4f',
       accent: '#52b788',
       text: '#183024',
       muted: '#587164',
+      shellBg: 'rgba(255,255,255,0.92)',
+      glow: 'rgba(82, 183, 136, 0.16)',
     };
   }
 
@@ -231,13 +326,15 @@ function pickDocumentTheme(prompt: string, documentType: ResolvedDocumentType): 
       name: 'studio',
       label: 'Studio Brief',
       bg: '#faf7ff',
-      surface: '#ffffff',
-      surfaceAlt: '#f4eeff',
-      border: '#e7ddff',
+      surface: 'rgba(109, 74, 255, 0.05)',
+      surfaceAlt: 'rgba(255, 107, 154, 0.10)',
+      border: 'rgba(109, 74, 255, 0.14)',
       primary: '#6d4aff',
       accent: '#ff6b9a',
       text: '#261b44',
       muted: '#6c6289',
+      shellBg: 'rgba(255,255,255,0.94)',
+      glow: 'rgba(109, 74, 255, 0.14)',
     };
   }
 
@@ -246,13 +343,15 @@ function pickDocumentTheme(prompt: string, documentType: ResolvedDocumentType): 
       name: 'slate',
       label: 'Structured Notes',
       bg: '#f6f8fb',
-      surface: '#ffffff',
-      surfaceAlt: '#eef2f8',
-      border: '#dbe4f0',
+      surface: 'rgba(36, 87, 166, 0.045)',
+      surfaceAlt: 'rgba(14, 165, 233, 0.10)',
+      border: 'rgba(36, 87, 166, 0.14)',
       primary: '#2457a6',
       accent: '#0ea5e9',
       text: '#182536',
       muted: '#5d6d82',
+      shellBg: 'rgba(255,255,255,0.94)',
+      glow: 'rgba(14, 165, 233, 0.14)',
     };
   }
 
@@ -260,13 +359,15 @@ function pickDocumentTheme(prompt: string, documentType: ResolvedDocumentType): 
     name: 'professional',
     label: 'Executive Document',
     bg: '#f7f9fc',
-    surface: '#ffffff',
-    surfaceAlt: '#eef3f9',
-    border: '#dbe5f0',
+    surface: 'rgba(31, 75, 153, 0.045)',
+    surfaceAlt: 'rgba(14, 165, 233, 0.09)',
+    border: 'rgba(31, 75, 153, 0.14)',
     primary: '#1f4b99',
     accent: '#0ea5e9',
     text: '#162235',
     muted: '#617287',
+    shellBg: 'rgba(255,255,255,0.94)',
+    glow: 'rgba(31, 75, 153, 0.12)',
   };
 }
 
@@ -338,6 +439,10 @@ export async function runDocumentWorkflow(
 
     onEvent({ type: 'progress', message: 'Sanitizing content…', pct: 84 });
 
+    const sourceMarkdown = looksLikeHtml(rawContent)
+      ? summarizeExistingDocument(renderedHtml)
+      : rawContent.trim();
+
     // Sanitize the HTML for security
     const sanitized = sanitizeHtml(renderedHtml);
 
@@ -348,6 +453,7 @@ export async function runDocumentWorkflow(
 
     const output: DocumentOutput = {
       html: sanitized,
+      markdown: sourceMarkdown,
       title,
     };
 
@@ -380,11 +486,36 @@ function looksLikeHtml(content: string): boolean {
 
 function renderDocumentContent(rawContent: string, input: DocumentInput): string {
   if (!rawContent.trim()) return '<div></div>';
-  if (looksLikeHtml(rawContent)) return rawContent;
 
   const documentType = resolveDocumentType(input);
   const theme = pickDocumentTheme(input.prompt, documentType);
+
+  if (looksLikeHtml(rawContent)) {
+    return enhanceDocumentHtml(rawContent, theme);
+  }
+
   return renderMarkdownDocument(rawContent, theme, documentType);
+}
+
+function enhanceDocumentHtml(html: string, theme: DocumentTheme): string {
+  const trimmed = html.trim();
+  const leadingStyleMatch = trimmed.match(/^((?:\s*<style[\s\S]*?<\/style>\s*)+)/i);
+  const leadingStyles = leadingStyleMatch?.[1] ?? '';
+  const bodyHtml = leadingStyles ? trimmed.slice(leadingStyles.length).trim() : trimmed;
+
+  if (/class=["']doc-shell["']/i.test(bodyHtml)) {
+    return `${buildDocumentShellStyle(theme)}
+${leadingStyles}
+${bodyHtml}`;
+  }
+
+  return `${buildDocumentShellStyle(theme)}
+${leadingStyles}
+<article class="doc-shell">
+  <div class="doc-prose">
+    ${bodyHtml}
+  </div>
+</article>`;
 }
 
 function renderMarkdownDocument(
@@ -406,8 +537,22 @@ function renderMarkdownDocument(
   const leadHtml = lead ? renderMarkdownBlocks(lead, { lead: true }) : '';
   const sectionHtml = sections.length > 0
     ? sections.map((section) => renderMarkdownSection(section)).join('\n')
-    : `<section class="doc-section">${renderMarkdownBlocks(withoutTitle)}</section>`;
+    : (lead ? '' : `<section class="doc-section">${renderMarkdownBlocks(withoutTitle)}</section>`);
 
+  return `${buildDocumentShellStyle(theme)}
+<article class="doc-shell">
+  <div class="doc-prose">
+    <header class="doc-header">
+      <div class="doc-eyebrow">${theme.label} · ${documentType}</div>
+      <h1>${escapeHtml(title)}</h1>
+    </header>
+    ${leadHtml}
+    ${sectionHtml}
+  </div>
+</article>`;
+}
+
+function buildDocumentShellStyle(theme: DocumentTheme): string {
   return `<style>
 .doc-shell {
   --doc-bg: ${theme.bg};
@@ -418,6 +563,8 @@ function renderMarkdownDocument(
   --doc-accent: ${theme.accent};
   --doc-text: ${theme.text};
   --doc-muted: ${theme.muted};
+  --doc-shell-bg: ${theme.shellBg ?? 'rgba(255,255,255,0.94)'};
+  --doc-glow: ${theme.glow ?? 'rgba(15, 23, 42, 0.08)'};
   color: var(--doc-text);
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
@@ -425,18 +572,34 @@ function renderMarkdownDocument(
 .doc-shell {
   max-width: 920px;
   margin: 0 auto;
-  padding: 28px 24px 48px;
+  padding: clamp(20px, 3vw, 34px) clamp(18px, 3vw, 28px) clamp(28px, 4vw, 42px);
+  border-radius: clamp(20px, 2vw, 24px);
+  background:
+    radial-gradient(circle at top right, var(--doc-glow) 0%, transparent 34%),
+    linear-gradient(180deg, var(--doc-shell-bg) 0%, rgba(255,255,255,0.98) 100%);
+  border: 1px solid var(--doc-border);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
 }
-.doc-prose {
+.doc-prose,
+.doc-shell .aura-doc {
   display: grid;
-  gap: 18px;
+  gap: clamp(14px, 1.6vw, 22px);
+}
+.doc-header,
+.doc-section,
+.doc-shell .section-card,
+.doc-shell .module-card,
+.doc-shell .benefit-item,
+.doc-shell .callout {
+  padding: clamp(16px, 2vw, 24px) clamp(16px, 2.2vw, 26px);
+  border-radius: clamp(14px, 1.5vw, 18px);
+  border: 1px solid var(--doc-border);
+  background: linear-gradient(180deg, rgba(255,255,255,0.92) 0%, var(--doc-surface) 100%);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
 }
 .doc-header {
-  padding: 24px 26px;
-  border-radius: 20px;
-  border: 1px solid var(--doc-border);
-  background: linear-gradient(135deg, var(--doc-surface) 0%, var(--doc-surface-alt) 100%);
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+  background: linear-gradient(135deg, var(--doc-surface-alt) 0%, rgba(255,255,255,0.95) 100%);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.07);
 }
 .doc-eyebrow {
   margin-bottom: 8px;
@@ -448,42 +611,49 @@ function renderMarkdownDocument(
 }
 .doc-shell h1 {
   margin: 0;
-  font-size: 38px;
-  line-height: 1.08;
-  letter-spacing: -0.03em;
+  font-size: clamp(2rem, 3.3vw, 2.45rem);
+  line-height: 1.04;
+  letter-spacing: -0.035em;
   color: var(--doc-text);
 }
 .doc-shell h2 {
   margin: 0 0 12px;
-  font-size: 22px;
+  padding-left: 12px;
+  border-left: 4px solid color-mix(in srgb, var(--doc-primary) 70%, white);
+  font-size: clamp(1.25rem, 2vw, 1.5rem);
   line-height: 1.2;
   letter-spacing: -0.02em;
   color: var(--doc-text);
 }
-.doc-shell h3 {
+.doc-shell h3,
+.doc-shell h4 {
   margin: 18px 0 8px;
-  font-size: 16px;
+  font-size: clamp(1rem, 1.6vw, 1.15rem);
   line-height: 1.35;
-  color: var(--doc-text);
+  color: color-mix(in srgb, var(--doc-text) 88%, var(--doc-primary));
 }
-.doc-lead {
+.doc-lead,
+.doc-shell .value-prop {
   margin: 0;
-  font-size: 17px;
-  line-height: 1.7;
+  font-size: clamp(1rem, 1.5vw, 1.08rem);
+  line-height: 1.75;
   color: var(--doc-muted);
-}
-.doc-section {
-  padding: 20px 22px;
-  border-radius: 18px;
-  border: 1px solid var(--doc-border);
-  background: var(--doc-surface);
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
 }
 .doc-shell p {
   margin: 0 0 12px;
   font-size: 15px;
-  line-height: 1.7;
+  line-height: 1.72;
   color: var(--doc-text);
+}
+.doc-shell p:last-child,
+.doc-shell li:last-child,
+.doc-shell blockquote:last-child,
+.doc-shell .section-card > :last-child,
+.doc-shell .module-card > :last-child,
+.doc-shell .benefit-item > :last-child,
+.doc-shell .callout > :last-child,
+.doc-shell .doc-section > :last-child {
+  margin-bottom: 0;
 }
 .doc-shell ul,
 .doc-shell ol {
@@ -492,15 +662,32 @@ function renderMarkdownDocument(
 }
 .doc-shell li {
   margin: 0.35rem 0;
-  line-height: 1.6;
+  line-height: 1.65;
 }
-.doc-shell blockquote {
-  margin: 14px 0;
-  padding: 12px 14px;
+.doc-shell blockquote,
+.doc-shell .callout {
   border-left: 4px solid var(--doc-primary);
-  border-radius: 12px;
-  background: var(--doc-surface-alt);
+  background: linear-gradient(135deg, var(--doc-surface-alt) 0%, rgba(255,255,255,0.96) 100%);
   color: var(--doc-muted);
+}
+.doc-shell .callout strong,
+.doc-shell blockquote strong {
+  color: var(--doc-primary);
+}
+.doc-shell .module-grid,
+.doc-shell .grid-benefits,
+.doc-shell .stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+.doc-shell .benefit-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.doc-shell .icon {
+  flex: none;
 }
 .doc-shell code {
   padding: 0.15rem 0.4rem;
@@ -537,7 +724,7 @@ function renderMarkdownDocument(
   vertical-align: top;
 }
 .doc-shell th {
-  background: var(--doc-surface-alt);
+  background: color-mix(in srgb, var(--doc-surfaceAlt) 70%, white);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -553,17 +740,12 @@ function renderMarkdownDocument(
   color: var(--doc-primary);
   text-decoration: none;
 }
-</style>
-<article class="doc-shell">
-  <div class="doc-prose">
-    <header class="doc-header">
-      <div class="doc-eyebrow">${theme.label} · ${documentType}</div>
-      <h1>${escapeHtml(title)}</h1>
-    </header>
-    ${leadHtml}
-    ${sectionHtml}
-  </div>
-</article>`;
+.doc-shell img,
+.doc-shell svg {
+  max-width: 100%;
+  height: auto;
+}
+</style>`;
 }
 
 function renderMarkdownSection(sectionMarkdown: string): string {

@@ -17,6 +17,8 @@ export interface ProjectDocument {
   type: DocumentType;
   /** For 'document': full sanitized HTML body. For 'presentation': <section> HTML. */
   contentHtml: string;
+  /** Internal markdown source for documents; used for rich editing and export. */
+  sourceMarkdown?: string;
   /** CSS theme (primarily for presentations) */
   themeCss: string;
   /** Slide count (only meaningful for presentations) */

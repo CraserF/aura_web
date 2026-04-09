@@ -35,6 +35,28 @@ export default defineConfig({
           if (id.includes('node_modules/@radix-ui/')) {
             return 'radix';
           }
+          if (
+            id.includes('node_modules/@mdxeditor/') ||
+            id.includes('node_modules/lexical/') ||
+            id.includes('node_modules/@lexical/') ||
+            id.includes('node_modules/mdast-util-') ||
+            id.includes('node_modules/micromark') ||
+            id.includes('node_modules/unified/') ||
+            id.includes('node_modules/remark-') ||
+            id.includes('node_modules/rehype-')
+          ) {
+            return 'document-editor-runtime';
+          }
+          if (
+            id.includes('node_modules/html2pdf.js/') ||
+            id.includes('node_modules/html2canvas/') ||
+            id.includes('node_modules/jspdf/')
+          ) {
+            return 'document-pdf-runtime';
+          }
+          if (id.includes('node_modules/docx/')) {
+            return 'document-docx-runtime';
+          }
           if (id.includes('node_modules/')) {
             return 'vendor';
           }

@@ -2,6 +2,7 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import type { AuraManifest, PresentationData, ChatMessage } from '@/types';
 import { countSlides } from '@/services/ai/utils/extractHtml';
+import { sanitizeFilename } from '@/lib/sanitizeFilename';
 
 const FORMAT_VERSION = '1.0';
 
@@ -59,10 +60,3 @@ export async function openAuraFile(file: File): Promise<PresentationData> {
   };
 }
 
-function sanitizeFilename(name: string): string {
-  return name
-    .replace(/[^a-zA-Z0-9\s-_]/g, '')
-    .replace(/\s+/g, '-')
-    .toLowerCase()
-    .slice(0, 50) || 'untitled';
-}

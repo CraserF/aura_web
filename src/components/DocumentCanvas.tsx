@@ -18,18 +18,184 @@ interface DocumentCanvasProps {
   onNavigate?: (docId: string) => void;
 }
 
-const WRAPPER_STYLES = `
-  body {
+const FALLBACK_DOCUMENT_STYLES = `
+  .doc-shell {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: clamp(20px, 3vw, 34px) clamp(18px, 3vw, 28px) clamp(28px, 4vw, 42px);
+    border-radius: 22px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(248,251,255,0.98) 100%);
+    border: 1px solid rgba(31, 75, 153, 0.12);
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+    color: #162235;
+    font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+
+  .doc-prose,
+  .doc-shell .aura-doc {
+    display: grid;
+    gap: clamp(14px, 1.6vw, 22px);
+  }
+
+  .doc-header,
+  .doc-section,
+  .doc-shell .section-card,
+  .doc-shell .module-card,
+  .doc-shell .benefit-item,
+  .doc-shell .callout {
+    padding: clamp(16px, 2vw, 24px) clamp(16px, 2.2vw, 26px);
+    border-radius: 16px;
+    border: 1px solid rgba(31, 75, 153, 0.12);
+    background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(31, 75, 153, 0.04) 100%);
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+  }
+
+  .doc-header {
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(255,255,255,0.96) 100%);
+  }
+
+  .doc-eyebrow {
+    margin-bottom: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #1f4b99;
+  }
+
+  .doc-shell h1 {
     margin: 0;
-    padding: 0;
-    background: #ffffff;
+    font-size: clamp(2rem, 3.3vw, 2.45rem);
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+    color: #162235;
+  }
+
+  .doc-shell h2 {
+    margin: 0 0 12px;
+    padding-left: 12px;
+    border-left: 4px solid rgba(31, 75, 153, 0.55);
+    font-size: clamp(1.25rem, 2vw, 1.5rem);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    color: #162235;
+  }
+
+  .doc-shell h3,
+  .doc-shell h4 {
+    margin: 18px 0 8px;
+    font-size: clamp(1rem, 1.6vw, 1.15rem);
+    line-height: 1.35;
+    color: #264a86;
+  }
+
+  .doc-shell .value-prop,
+  .doc-shell .doc-lead,
+  .doc-shell blockquote {
+    color: #617287;
+  }
+
+  .doc-shell p,
+  .doc-shell li {
+    font-size: 15px;
+    line-height: 1.72;
+    color: #243447;
+  }
+
+  .doc-shell p:last-child,
+  .doc-shell li:last-child,
+  .doc-shell .section-card > :last-child,
+  .doc-shell .module-card > :last-child,
+  .doc-shell .benefit-item > :last-child,
+  .doc-shell .callout > :last-child,
+  .doc-shell .doc-section > :last-child {
+    margin-bottom: 0;
+  }
+
+  .doc-shell .module-grid,
+  .doc-shell .grid-benefits,
+  .doc-shell .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+  }
+
+  .doc-shell .benefit-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .doc-shell blockquote,
+  .doc-shell .callout {
+    border-left: 4px solid #1f4b99;
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(255,255,255,0.96) 100%);
+    padding: 14px 16px;
+    border-radius: 14px;
+  }
+
+  .doc-shell table {
+    width: 100%;
+    border-collapse: collapse;
+    overflow: hidden;
+    border-radius: 12px;
+  }
+
+  .doc-shell th,
+  .doc-shell td {
+    padding: 10px 12px;
+    border: 1px solid rgba(31, 75, 153, 0.12);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .doc-shell th {
+    background: rgba(14, 165, 233, 0.08);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #617287;
+  }
+
+  .doc-shell img,
+  .doc-shell svg {
+    max-width: 100%;
+    height: auto;
+  }
+`;
+
+const WRAPPER_STYLES = `
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background:
+      radial-gradient(circle at top left, rgba(99, 102, 241, 0.10), transparent 0, transparent 34%),
+      linear-gradient(180deg, #f5f7fb 0%, #eef3f9 100%);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
     color: #1a1a1a;
     line-height: 1.6;
   }
+  body {
+    padding: 28px 20px 40px;
+  }
   * {
     box-sizing: border-box;
   }
+  .aura-document-frame {
+    max-width: 1120px;
+    margin: 0 auto;
+  }
+  .aura-document-frame > :not(style) {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .aura-document-frame .doc-shell {
+    border-radius: 24px;
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+  }
+
+  ${FALLBACK_DOCUMENT_STYLES}
 `;
 
 /** Styles injected when pages mode is ON -- A4 page-flow view */
@@ -100,6 +266,8 @@ const PAGES_STYLES = `
       margin: 0;
     }
   }
+
+  ${FALLBACK_DOCUMENT_STYLES}
 `;
 
 /** Print styles for standard (non-paged) documents */
@@ -126,7 +294,9 @@ function buildIframeDocument(bodyHtml: string, pagesEnabled: boolean): string {
   <style>${styles}</style>
 </head>
 <body>
+  <div class="aura-document-frame">
 ${bodyHtml}
+  </div>
 </body>
 </html>`;
 }
@@ -208,9 +378,10 @@ export function DocumentCanvas({ html, pagesEnabled = false, onNavigate }: Docum
       className="size-full border-0"
       // allow-same-origin is required so we can access iframe.contentDocument
       // to intercept relative anchor clicks for in-project document navigation.
-      // Scripts are NOT allowed (no allow-scripts), so XSS risk is minimal
+      // allow-modals is needed so browser print dialogs can open from this sandboxed frame.
+      // Scripts are NOT allowed (no allow-scripts), so XSS risk is still minimal
       // given the content is already sanitized.
-      sandbox="allow-same-origin"
+      sandbox="allow-same-origin allow-modals"
       title="Document preview"
       aria-label="Document content"
     />

@@ -14,8 +14,9 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import type { ProjectData, ProjectDocument, ProjectManifest } from '@/types/project';
 import type { ChatMessage } from '@/types';
+import { sanitizeFilename } from '@/lib/sanitizeFilename';
 
-const FORMAT_VERSION = '2.0';
+const FORMAT_VERSION = '2.1';
 
 /** Pack a full project into a .aura zip and trigger download */
 export async function downloadProjectFile(project: ProjectData): Promise<void> {
@@ -46,6 +47,8 @@ export async function downloadProjectFile(project: ProjectData): Promise<void> {
       slideCount: doc.slideCount,
       order: doc.order,
       description: doc.description,
+      sourceMarkdown: doc.sourceMarkdown,
+      pagesEnabled: doc.pagesEnabled,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     };
@@ -170,12 +173,3 @@ async function upgradeV1ToProject(
   };
 }
 
-function sanitizeFilename(name: string): string {
-  return (
-    name
-      .replace(/[^a-zA-Z0-9\s\-_]/g, '')
-      .replace(/\s+/g, '-')
-      .toLowerCase()
-      .slice(0, 50) || 'untitled'
-  );
-}

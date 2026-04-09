@@ -309,6 +309,7 @@ export function ChatBar() {
           input: {
             prompt,
             existingHtml: existingDoc,
+            existingMarkdown: activeDocument?.type === 'document' ? activeDocument.sourceMarkdown : undefined,
             chatHistory,
           },
           llmConfig: {
@@ -325,6 +326,7 @@ export function ChatBar() {
           if (activeDocument?.type === 'document') {
             updateDocument(activeDocument.id, {
               contentHtml: result.html,
+              sourceMarkdown: result.markdown,
               title: result.title || activeDocument.title,
             });
           } else {
@@ -333,6 +335,7 @@ export function ChatBar() {
               title: result.title || 'Document',
               type: 'document',
               contentHtml: result.html,
+              sourceMarkdown: result.markdown,
               themeCss: '',
               slideCount: 0,
               order: project.documents.length,

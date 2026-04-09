@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { Suspense, lazy, useEffect, useState, useCallback } from 'react';
 import { Toolbar } from '@/components/Toolbar';
 import { PresentationCanvas } from '@/components/PresentationCanvas';
 import { DocumentCanvas } from '@/components/DocumentCanvas';
@@ -17,13 +17,26 @@ import {
 import type { ProjectDocument } from '@/types/project';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { BookOpen, Printer } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { DocumentPdfPreview } from '@/components/DocumentPdfPreview';
+import { ChevronDown, Eye, FileDown, Loader2, PenSquare, Printer } from 'lucide-react';
+
+const LazyDocumentTextEditor = lazy(async () => {
+  const mod = await import('@/components/DocumentTextEditor');
+  return { default: mod.DocumentTextEditor };
+});
 
 export default function App() {
   const project = useProjectStore((s) => s.project);
   const activeDocument = useProjectStore((s) => s.activeDocument());
   const setProject = useProjectStore((s) => s.setProject);
   const addDocument = useProjectStore((s) => s.addDocument);
+  const updateDocument = useProjectStore((s) => s.updateDocument);
 
   // Presentation store — still used for reveal.js UI state
   const setSlides = usePresentationStore((s) => s.setSlides);
@@ -38,6 +51,12 @@ export default function App() {
   const [chatPanelOpen, setChatPanelOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [textEditorOpen, setTextEditorOpen] = useState(false);
+  const [editorInitialMarkdown, setEditorInitialMarkdown] = useState('');
+  const [documentAction, setDocumentAction] = useState<'preview-pdf' | 'export-pdf' | 'export-word' | 'save-text' | null>(null);
+  const [documentError, setDocumentError] = useState<string | null>(null);
 
   // Restore autosaved project on mount
   useEffect(() => {
@@ -77,6 +96,12 @@ export default function App() {
     return () => document.removeEventListener('keydown', onKey);
   }, [isPresenting, setPresenting]);
 
+  useEffect(() => () => {
+    if (pdfPreviewUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(pdfPreviewUrl);
+    }
+  }, [pdfPreviewUrl]);
+
   // Auto-open chat panel when messages arrive
   useEffect(() => {
     if (messages.length > 0) {
@@ -105,21 +130,147 @@ export default function App() {
 
   const showPresentation = activeDocument?.type === 'presentation';
   const showDocument = activeDocument?.type === 'document';
+  const isDocumentBusy = documentAction !== null;
 
-  const pagesEnabled = activeDocument?.type === 'document' && !!activeDocument.pagesEnabled;
+  const handlePreviewPdf = useCallback(async () => {
+    if (!activeDocument || activeDocument.type !== 'document' || !activeDocument.contentHtml) return;
 
-  const handleTogglePages = () => {
+    setPdfPreviewOpen(true);
+    setDocumentError(null);
+    setDocumentAction('preview-pdf');
+
+    try {
+      const { createDocumentPdfBlob } = await import('@/services/export/pdf');
+      const blob = await createDocumentPdfBlob({
+        html: activeDocument.contentHtml,
+        title: activeDocument.title,
+      });
+
+      setPdfPreviewUrl((current) => {
+        if (current?.startsWith('blob:')) {
+          URL.revokeObjectURL(current);
+        }
+        return URL.createObjectURL(blob);
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to prepare PDF preview.';
+      setDocumentError(message);
+    } finally {
+      setDocumentAction(null);
+    }
+  }, [activeDocument]);
+
+  const handleExportPdf = useCallback(async () => {
+    if (!activeDocument || activeDocument.type !== 'document' || !activeDocument.contentHtml) return;
+
+    setDocumentError(null);
+    setDocumentAction('export-pdf');
+
+    try {
+      const { exportDocumentPdf } = await import('@/services/export/pdf');
+      await exportDocumentPdf({
+        html: activeDocument.contentHtml,
+        title: activeDocument.title,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to export PDF.';
+      setDocumentError(message);
+      setPdfPreviewOpen(true);
+    } finally {
+      setDocumentAction(null);
+    }
+  }, [activeDocument]);
+
+  const handleExportWord = useCallback(async () => {
     if (!activeDocument || activeDocument.type !== 'document') return;
-    useProjectStore.getState().updateDocument(activeDocument.id, {
-      pagesEnabled: !activeDocument.pagesEnabled,
-    });
-  };
 
-  const handlePrint = () => {
-    // Find the document iframe and trigger its print dialog
-    const iframe = document.querySelector<HTMLIFrameElement>('iframe[title="Document preview"]');
-    iframe?.contentWindow?.print();
-  };
+    setDocumentError(null);
+    setDocumentAction('export-word');
+
+    try {
+      const { exportDocumentDocx } = await import('@/services/export/docx');
+      await exportDocumentDocx({
+        title: activeDocument.title,
+        markdown: activeDocument.sourceMarkdown,
+        html: activeDocument.contentHtml,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to export Word document.';
+      setDocumentError(message);
+    } finally {
+      setDocumentAction(null);
+    }
+  }, [activeDocument]);
+
+  const handleOpenTextEditor = useCallback(async () => {
+    if (!activeDocument || activeDocument.type !== 'document') return;
+
+    setDocumentError(null);
+
+    if (activeDocument.sourceMarkdown?.trim()) {
+      setEditorInitialMarkdown(activeDocument.sourceMarkdown);
+      setTextEditorOpen(true);
+      return;
+    }
+
+    try {
+      const { deriveDocumentTextSource } = await import('@/services/ai/workflow/document');
+      setEditorInitialMarkdown(deriveDocumentTextSource(activeDocument.contentHtml));
+      setTextEditorOpen(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to prepare the text editor.';
+      setDocumentError(message);
+    }
+  }, [activeDocument]);
+
+  const handleSaveText = useCallback(async (markdown: string) => {
+    if (!activeDocument || activeDocument.type !== 'document') return;
+
+    setDocumentError(null);
+    setDocumentAction('save-text');
+
+    try {
+      const { renderDocumentTextEdits } = await import('@/services/ai/workflow/document');
+      const result = renderDocumentTextEdits({
+        existingHtml: activeDocument.contentHtml,
+        text: markdown,
+        titleHint: activeDocument.title,
+        prompt: `${activeDocument.title}\n${activeDocument.description ?? ''}`.trim(),
+      });
+
+      updateDocument(activeDocument.id, {
+        title: result.title || activeDocument.title,
+        contentHtml: result.html,
+        sourceMarkdown: result.markdown,
+      });
+      setTextEditorOpen(false);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save text changes.';
+      setDocumentError(message);
+    } finally {
+      setDocumentAction(null);
+    }
+  }, [activeDocument, updateDocument]);
+
+  const handlePrint = useCallback(async () => {
+    if (!activeDocument || activeDocument.type !== 'document' || !activeDocument.contentHtml) {
+      setDocumentError('Document preview is not ready to print yet.');
+      return;
+    }
+
+    setDocumentError(null);
+
+    try {
+      const { openDocumentPrintPreview } = await import('@/services/export/pdf');
+      openDocumentPrintPreview({
+        html: activeDocument.contentHtml,
+        title: activeDocument.title,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to open print preview.';
+      setDocumentError(message);
+    }
+  }, [activeDocument]);
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -146,45 +297,98 @@ export default function App() {
           {showPresentation && <PresentationCanvas />}
           {showDocument && (
             <div className="flex flex-1 flex-col overflow-hidden">
-              {/* Document toolbar: pages toggle + print */}
               <div className="flex shrink-0 items-center gap-1 border-b border-border px-3 py-1.5">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={pagesEnabled ? 'secondary' : 'ghost'}
-                      size="sm"
-                      className="h-7 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
-                      onClick={handleTogglePages}
-                    >
-                      <BookOpen className="size-3.5" />
-                      Pages
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {pagesEnabled ? 'Disable page view' : 'Enable A4 page view'}
-                  </TooltipContent>
-                </Tooltip>
                 {activeDocument.contentHtml && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
-                        onClick={handlePrint}
-                      >
-                        <Printer className="size-3.5" />
-                        Print
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Print document (A4)</TooltipContent>
-                  </Tooltip>
+                  <>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
+                          onClick={() => void handleOpenTextEditor()}
+                          disabled={isDocumentBusy}
+                        >
+                          {documentAction === 'save-text' ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <PenSquare className="size-3.5" />
+                          )}
+                          Edit text
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Edit the document wording without touching HTML</TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-7 gap-1.5 rounded-md px-2 text-xs"
+                          onClick={handlePreviewPdf}
+                          disabled={isDocumentBusy}
+                        >
+                          {documentAction === 'preview-pdf' ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <Eye className="size-3.5" />
+                          )}
+                          Preview PDF
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Open a print-accurate PDF preview</TooltipContent>
+                    </Tooltip>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
+                          disabled={isDocumentBusy}
+                        >
+                          {documentAction === 'export-pdf' || documentAction === 'export-word' ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <FileDown className="size-3.5" />
+                          )}
+                          Export
+                          <ChevronDown className="size-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem onSelect={(event) => {
+                          event.preventDefault();
+                          void handleExportPdf();
+                        }}>
+                          Export PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={(event) => {
+                          event.preventDefault();
+                          void handleExportWord();
+                        }}>
+                          Export Word (.docx)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={(event) => {
+                          event.preventDefault();
+                          void handlePrint();
+                        }}>
+                          <Printer className="mr-2 size-3.5" />
+                          Print preview…
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {documentError && (
+                      <p className="ml-2 truncate text-xs text-destructive">
+                        {documentError}
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
-              <DocumentCanvas
-                html={activeDocument.contentHtml}
-                pagesEnabled={pagesEnabled}
-              />
+              <DocumentCanvas html={activeDocument.contentHtml} />
             </div>
           )}
           <ChatBar />
@@ -198,6 +402,27 @@ export default function App() {
         <ChatPanel open={chatPanelOpen} onClose={() => setChatPanelOpen(false)} />
       </div>
       <ProviderModal />
+      <DocumentPdfPreview
+        open={pdfPreviewOpen}
+        onOpenChange={setPdfPreviewOpen}
+        title={activeDocument?.title ?? 'Document'}
+        pdfUrl={pdfPreviewUrl}
+        isLoading={documentAction === 'preview-pdf'}
+        error={documentError}
+        onDownload={() => {
+          void handleExportPdf();
+        }}
+      />
+      <Suspense fallback={null}>
+        <LazyDocumentTextEditor
+          open={textEditorOpen}
+          onOpenChange={setTextEditorOpen}
+          title={activeDocument?.title ?? 'Document'}
+          initialMarkdown={editorInitialMarkdown}
+          onSave={handleSaveText}
+          isSaving={documentAction === 'save-text'}
+        />
+      </Suspense>
     </div>
   );
 }
