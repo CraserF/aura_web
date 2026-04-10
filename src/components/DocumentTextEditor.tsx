@@ -15,7 +15,7 @@ import {
   type MDXEditorMethods,
   UndoRedo,
 } from '@mdxeditor/editor';
-import { Link2 } from 'lucide-react';
+import { Link2, RotateCcw } from 'lucide-react';
 import '@mdxeditor/editor/style.css';
 import {
   Dialog,
@@ -38,6 +38,18 @@ interface DocumentTextEditorProps {
   availableDocuments?: ProjectDocument[];
   currentDocumentId?: string;
   autoOpenLinkPicker?: boolean;
+  contentSource?: 'original' | 'derived';
+}
+
+type EditorViewMode = 'rich' | 'markdown';
+
+function normalizeEditorMarkdown(value: string): string {
+  return value
+    .replace(/\r\n/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 export function DocumentTextEditor({
@@ -50,22 +62,42 @@ export function DocumentTextEditor({
   availableDocuments = [],
   currentDocumentId,
   autoOpenLinkPicker = false,
+  contentSource = 'original',
 }: DocumentTextEditorProps) {
   const editorRef = useRef<MDXEditorMethods>(null);
-  const [markdown, setMarkdown] = useState(initialMarkdown);
+  const markdownTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [markdown, setMarkdown] = useState(normalizeEditorMarkdown(initialMarkdown));
   const [linkPickerOpen, setLinkPickerOpen] = useState(false);
   const [linkQuery, setLinkQuery] = useState('');
+  const [editorViewMode, setEditorViewMode] = useState<EditorViewMode>('rich');
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setLinkPickerOpen(false);
+      return;
+    }
 
-    setMarkdown(initialMarkdown);
+    const normalized = normalizeEditorMarkdown(initialMarkdown);
+    setMarkdown(normalized);
+    setEditorViewMode('rich');
+    setLinkQuery('');
+
     const handle = window.requestAnimationFrame(() => {
-      editorRef.current?.setMarkdown(initialMarkdown);
+      editorRef.current?.setMarkdown(normalized);
     });
 
     return () => window.cancelAnimationFrame(handle);
   }, [initialMarkdown, open]);
+
+  useEffect(() => {
+    if (!open || editorViewMode !== 'rich') return;
+
+    const handle = window.requestAnimationFrame(() => {
+      editorRef.current?.setMarkdown(markdown);
+    });
+
+    return () => window.cancelAnimationFrame(handle);
+  }, [editorViewMode, open]);
 
   const linkableDocuments = useMemo(
     () => availableDocuments.filter((doc) => doc.type === 'document' && doc.id !== currentDocumentId),
@@ -82,17 +114,88 @@ export function DocumentTextEditor({
     });
   }, [linkQuery, linkableDocuments]);
 
+  const wordCount = useMemo(
+    () => markdown.split(/\s+/).filter(Boolean).length,
+    [markdown],
+  );
+
+  const getLatestMarkdown = () => {
+    const liveMarkdown = editorRef.current?.getMarkdown();
+    if (liveMarkdown && liveMarkdown.trim().length > 0) {
+      return normalizeEditorMarkdown(liveMarkdown);
+    }
+
+    if (markdown.trim().length > 0) {
+      return normalizeEditorMarkdown(markdown);
+    }
+
+    return normalizeEditorMarkdown(initialMarkdown);
+  };
+
   useEffect(() => {
     if (open && autoOpenLinkPicker && linkableDocuments.length > 0) {
       setLinkPickerOpen(true);
     }
   }, [autoOpenLinkPicker, linkableDocuments.length, open]);
 
+  const handleSetViewMode = (nextMode: EditorViewMode) => {
+    if (nextMode === editorViewMode) return;
+
+    if (editorViewMode === 'rich') {
+      setMarkdown(getLatestMarkdown());
+    }
+
+    setEditorViewMode(nextMode);
+  };
+
   const handleInsertDocumentLink = (doc: ProjectDocument) => {
     const label = doc.title?.trim() || 'Linked document';
-    editorRef.current?.insertMarkdown(`[${label}](#${doc.id})`);
+    const insertion = `[${label}](#${doc.id})`;
+
+    if (editorViewMode === 'rich' && editorRef.current) {
+      editorRef.current.insertMarkdown(insertion);
+      setMarkdown(getLatestMarkdown());
+    } else {
+      const textarea = markdownTextareaRef.current;
+      if (textarea) {
+        const start = textarea.selectionStart ?? markdown.length;
+        const end = textarea.selectionEnd ?? markdown.length;
+        const before = markdown.slice(0, start);
+        const after = markdown.slice(end);
+        const spacerBefore = before.trimEnd().length > 0 && !before.endsWith('\n') ? '\n\n' : '';
+        const spacerAfter = after.trimStart().length > 0 && !after.startsWith('\n') ? '\n\n' : '';
+        const nextMarkdown = `${before}${spacerBefore}${insertion}${spacerAfter}${after}`;
+        setMarkdown(nextMarkdown);
+
+        window.requestAnimationFrame(() => {
+          const cursor = (before + spacerBefore + insertion).length;
+          textarea.focus();
+          textarea.setSelectionRange(cursor, cursor);
+        });
+      } else {
+        setMarkdown((current) => normalizeEditorMarkdown(`${current}\n\n${insertion}`));
+      }
+    }
+
     setLinkPickerOpen(false);
     setLinkQuery('');
+  };
+
+  const handleReset = () => {
+    const normalized = normalizeEditorMarkdown(initialMarkdown);
+    setMarkdown(normalized);
+
+    if (editorViewMode === 'rich') {
+      editorRef.current?.setMarkdown(normalized);
+    }
+  };
+
+  const handleSave = () => {
+    const normalized = editorViewMode === 'rich'
+      ? getLatestMarkdown()
+      : normalizeEditorMarkdown(markdown);
+    setMarkdown(normalized);
+    void onSave(normalized);
   };
 
   const plugins = useMemo(() => [
@@ -125,6 +228,8 @@ export function DocumentTextEditor({
     }),
   ], [linkableDocuments.length]);
 
+  const sourceLabel = contentSource === 'derived' ? 'Derived from current document layout' : 'Editing original markdown source';
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -140,33 +245,86 @@ export function DocumentTextEditor({
 
           <div className="min-h-0 flex-1 overflow-auto bg-muted/20 px-6 py-5">
             <div className="rounded-2xl border border-border bg-background shadow-sm">
-              <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-foreground">{title}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Rich text editing only — HTML stays hidden.
-                  </p>
+              <div className="space-y-3 border-b border-border px-4 py-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{title}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span className="rounded-full bg-muted px-2 py-0.5">{sourceLabel}</span>
+                      <span>{wordCount} words</span>
+                      <span>{markdown.length} chars</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="inline-flex rounded-lg border border-border bg-muted/30 p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => handleSetViewMode('rich')}
+                        className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${editorViewMode === 'rich' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                      >
+                        Rich text
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSetViewMode('markdown')}
+                        className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${editorViewMode === 'markdown' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                      >
+                        Markdown
+                      </button>
+                    </div>
+
+                    <Button type="button" variant="ghost" size="sm" className="gap-1.5" onClick={handleReset}>
+                      <RotateCcw className="size-3.5" />
+                      Reset
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => setLinkPickerOpen(true)}
+                      disabled={linkableDocuments.length === 0}
+                    >
+                      <Link2 className="size-3.5" />
+                      Link document
+                    </Button>
+                  </div>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => setLinkPickerOpen(true)}
-                  disabled={linkableDocuments.length === 0}
-                >
-                  <Link2 className="size-3.5" />
-                  Link document
-                </Button>
+
+                {contentSource === 'derived' && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-2 text-xs text-amber-950">
+                    Best results: <strong>1)</strong> update wording in rich mode, <strong>2)</strong> switch to Markdown mode for exact structural edits, <strong>3)</strong> save to re-render the polished layout.
+                  </div>
+                )}
               </div>
+
               <div className="px-4 py-4">
-                <MDXEditor
-                  ref={editorRef}
-                  markdown={markdown}
-                  onChange={setMarkdown}
-                  plugins={plugins}
-                  contentEditableClassName="prose prose-slate max-w-none min-h-[380px] px-2 py-1 focus:outline-none"
-                />
+                {editorViewMode === 'rich' ? (
+                  <MDXEditor
+                    key="rich-editor"
+                    ref={editorRef}
+                    markdown={markdown}
+                    onChange={setMarkdown}
+                    plugins={plugins}
+                    contentEditableClassName="prose prose-slate max-w-none min-h-[380px] px-2 py-1 focus:outline-none"
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    <textarea
+                      ref={markdownTextareaRef}
+                      value={markdown}
+                      onChange={(event) => setMarkdown(event.target.value)}
+                      spellCheck={false}
+                      aria-label="Markdown source editor"
+                      placeholder="Edit the document markdown directly…"
+                      className="min-h-[420px] w-full resize-none rounded-xl border border-border bg-muted/20 px-4 py-3 font-mono text-sm leading-6 text-foreground outline-none transition-colors focus:border-foreground/20 focus:bg-background"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Markdown mode gives exact control when a block needs precise edits or if rich-text behavior feels limiting.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -175,7 +333,7 @@ export function DocumentTextEditor({
             <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isSaving}>
               Cancel
             </Button>
-            <Button onClick={() => void onSave(markdown)} disabled={isSaving}>
+            <Button onClick={handleSave} disabled={isSaving}>
               {isSaving ? 'Saving…' : 'Save changes'}
             </Button>
           </div>

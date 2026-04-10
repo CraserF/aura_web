@@ -31,6 +31,15 @@ const LazyDocumentTextEditor = lazy(async () => {
   return { default: mod.DocumentTextEditor };
 });
 
+function normalizeEditorMarkdown(value: string): string {
+  return value
+    .replace(/\r\n/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export default function App() {
   const project = useProjectStore((s) => s.project);
   const activeDocument = useProjectStore((s) => s.activeDocument());
@@ -55,6 +64,7 @@ export default function App() {
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [textEditorOpen, setTextEditorOpen] = useState(false);
   const [editorInitialMarkdown, setEditorInitialMarkdown] = useState('');
+  const [editorContentSource, setEditorContentSource] = useState<'original' | 'derived'>('original');
   const [textEditorMode, setTextEditorMode] = useState<'edit' | 'link'>('edit');
   const [documentAction, setDocumentAction] = useState<'preview-pdf' | 'export-pdf' | 'export-word' | 'save-text' | null>(null);
   const [documentError, setDocumentError] = useState<string | null>(null);
@@ -213,14 +223,16 @@ export default function App() {
     setTextEditorMode(mode);
 
     if (activeDocument.sourceMarkdown?.trim()) {
-      setEditorInitialMarkdown(activeDocument.sourceMarkdown);
+      setEditorContentSource('original');
+      setEditorInitialMarkdown(normalizeEditorMarkdown(activeDocument.sourceMarkdown));
       setTextEditorOpen(true);
       return;
     }
 
     try {
       const { deriveDocumentTextSource } = await import('@/services/ai/workflow/document');
-      setEditorInitialMarkdown(deriveDocumentTextSource(activeDocument.contentHtml));
+      setEditorContentSource('derived');
+      setEditorInitialMarkdown(normalizeEditorMarkdown(deriveDocumentTextSource(activeDocument.contentHtml)));
       setTextEditorOpen(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to prepare the text editor.';
@@ -231,6 +243,7 @@ export default function App() {
   const handleSaveText = useCallback(async (markdown: string) => {
     if (!activeDocument || activeDocument.type !== 'document') return;
 
+    const normalizedMarkdown = normalizeEditorMarkdown(markdown);
     setDocumentError(null);
     setDocumentAction('save-text');
 
@@ -238,7 +251,7 @@ export default function App() {
       const { renderDocumentTextEdits } = await import('@/services/ai/workflow/document');
       const result = renderDocumentTextEdits({
         existingHtml: activeDocument.contentHtml,
-        text: markdown,
+        text: normalizedMarkdown,
         titleHint: activeDocument.title,
         prompt: `${activeDocument.title}\n${activeDocument.description ?? ''}`.trim(),
       });
@@ -248,6 +261,7 @@ export default function App() {
         contentHtml: result.html,
         sourceMarkdown: result.markdown,
       });
+      setEditorInitialMarkdown(result.markdown);
       setTextEditorOpen(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save text changes.';
@@ -484,6 +498,7 @@ export default function App() {
           availableDocuments={project.documents}
           currentDocumentId={activeDocument?.id}
           autoOpenLinkPicker={textEditorMode === 'link'}
+          contentSource={editorContentSource}
         />
       </Suspense>
     </div>
