@@ -11,6 +11,10 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: number;
+  /** Optional artifact scope so chat can follow a specific document or deck. */
+  documentId?: string;
+  /** Project scope applies broadly; document scope follows the active artifact only. */
+  scope?: 'document' | 'project';
 }
 
 /** Active workflow step info for progress display */

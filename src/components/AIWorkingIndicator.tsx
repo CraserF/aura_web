@@ -5,9 +5,14 @@ import type { WorkflowStep } from '@/types';
 const STEP_ICONS: Record<string, string> = {
   plan: '🧠',
   design: '🎨',
+  'targeted-design': '🎯',
+  generate: '📝',
+  qa: '🔬',
   'qa-validate': '🔬',
+  evaluate: '📊',
   review: '🔍',
   revise: '✨',
+  finalize: '✅',
 };
 
 function StepBadge({ step }: { step: WorkflowStep }) {
@@ -77,7 +82,7 @@ export function AIWorkingIndicator() {
   if (status.state !== 'generating') return null;
 
   const steps = status.steps;
-  const currentStep = status.step ?? 'Generating slides…';
+  const currentStep = status.step ?? 'Working…';
   const pct = status.pct ?? 0;
 
   return (

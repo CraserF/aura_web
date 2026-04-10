@@ -68,7 +68,7 @@ Zustand stores manage application state. Each store is a single `create()` call 
 | Store | State |
 |---|---|
 | `presentationStore` | `title`, `slidesHtml`, `themeCss`, `currentIndex`, `slideCount`, `isPresenting` |
-| `chatStore` | `messages[]`, `status` (idle/generating/error), `streamingContent` |
+| `chatStore` | `messages[]`, `status` (idle/generating/error), `streamingContent`, `showAllMessages`, `applyToAllDocuments` |
 | `settingsStore` | `providerId`, `providers` record (per-provider config), `showSettings` — persisted to localStorage |
 
 ### Services (`src/services/`)
@@ -130,6 +130,21 @@ Edit-mode invariants:
 ```
 
 For detailed pipeline documentation, see [agent-architecture.md](./agent-architecture.md).
+
+### Document flow & chat scoping
+
+Document generation uses a leaner pipeline than presentations:
+
+```text
+plan → generate → qa → finalize
+```
+
+Key rules:
+
+- chat is persisted at the project level, but each message can now carry a `documentId` and `scope`
+- the default view shows the active document's messages plus project-scope messages
+- `All chat` exposes the full project history, while `Multi-doc` sends the next prompt as shared project context
+- `DocumentCanvas` renders inside a sandboxed iframe; print/export strips motion and keeps the static document readable
 
 ---
 

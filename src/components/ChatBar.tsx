@@ -39,6 +39,15 @@ function detectWorkflowType(
   return 'presentation';
 }
 
+function isMessageInScope(
+  message: ChatMessageType,
+  activeDocumentId: string | undefined,
+  showAllMessages: boolean,
+): boolean {
+  if (showAllMessages || !activeDocumentId) return true;
+  return message.scope === 'project' || !message.documentId || message.documentId === activeDocumentId;
+}
+
 export function ChatBar() {
   const [input, setInput] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -49,6 +58,8 @@ export function ChatBar() {
   const setStatus = useChatStore((s) => s.setStatus);
   const setStreamingContent = useChatStore((s) => s.setStreamingContent);
   const appendStreamingContent = useChatStore((s) => s.appendStreamingContent);
+  const showAllMessages = useChatStore((s) => s.showAllMessages);
+  const applyToAllDocuments = useChatStore((s) => s.applyToAllDocuments);
 
   const slidesHtml = usePresentationStore((s) => s.slidesHtml);
   const setSlides = usePresentationStore((s) => s.setSlides);
@@ -88,19 +99,27 @@ export function ChatBar() {
       return;
     }
 
+    const activeArtifactId = activeDocument?.id;
+    const messageScope = applyToAllDocuments || !activeArtifactId ? 'project' : 'document';
+    const scopedDocumentId = messageScope === 'document' ? activeArtifactId : undefined;
+
     const userMsg: ChatMessageType = {
       id: crypto.randomUUID(),
       role: 'user',
       content: prompt,
       timestamp: Date.now(),
+      documentId: scopedDocumentId,
+      scope: messageScope,
     };
     addMessage(userMsg);
     setInput('');
 
-    const chatHistory: AIMessage[] = messages.map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
+    const chatHistory: AIMessage[] = messages
+      .filter((message) => isMessageInScope(message, activeArtifactId, showAllMessages))
+      .map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
 
     // Detect workflow type
     const workflowType = detectWorkflowType(prompt, activeDocument?.type);
@@ -235,6 +254,8 @@ export function ChatBar() {
             ? `✅ Generated ${result.slideCount} slides${reviewNote}.`
             : 'Generation completed but no slides were produced.',
           timestamp: Date.now(),
+          documentId: scopedDocumentId,
+          scope: messageScope,
         });
 
         // Auto-commit version after generation
@@ -251,18 +272,21 @@ export function ChatBar() {
         if (abortController.signal.aborted) {
           setStatus({ state: 'idle' });
           setStreamingContent('');
-          addMessage({ id: crypto.randomUUID(), role: 'assistant', content: 'Generation cancelled.', timestamp: Date.now() });
+          addMessage({ id: crypto.randomUUID(), role: 'assistant', content: 'Generation cancelled.', timestamp: Date.now(), documentId: scopedDocumentId, scope: messageScope });
           return;
         }
         const message = err instanceof Error ? err.message : 'Generation failed';
         setStatus({ state: 'error', message });
         setStreamingContent('');
-        addMessage({ id: crypto.randomUUID(), role: 'assistant', content: `Error: ${message}`, timestamp: Date.now() });
+        addMessage({ id: crypto.randomUUID(), role: 'assistant', content: `Error: ${message}`, timestamp: Date.now(), documentId: scopedDocumentId, scope: messageScope });
       }
     } else {
       // ─── Document workflow ─────────────────────────────────────
       workflowStepsRef.current = [
-        { id: 'generate', label: 'Writing', status: 'pending' },
+        { id: 'plan', label: 'Plan', status: 'pending' },
+        { id: 'generate', label: isEdit ? 'Update' : 'Write', status: 'pending' },
+        { id: 'qa', label: 'QA', status: 'pending' },
+        { id: 'finalize', label: 'Finalize', status: 'pending' },
       ];
 
       setStatus({ state: 'generating', startedAt: Date.now(), step: 'Starting…', pct: 0, steps: workflowStepsRef.current });
@@ -297,6 +321,7 @@ export function ChatBar() {
               break;
             case 'step-error':
               updateStepStatus(event.stepId, 'error');
+              setStatus({ state: 'generating', startedAt: Date.now(), step: `Issue in ${event.stepId}`, steps: [...workflowStepsRef.current] });
               break;
           }
         };
@@ -351,6 +376,8 @@ export function ChatBar() {
           role: 'assistant',
           content: result.html ? `✅ Created document: "${result.title}"` : 'Document created.',
           timestamp: Date.now(),
+          documentId: scopedDocumentId,
+          scope: messageScope,
         });
 
         // Auto-commit version
@@ -366,20 +393,20 @@ export function ChatBar() {
         if (abortController.signal.aborted) {
           setStatus({ state: 'idle' });
           setStreamingContent('');
-          addMessage({ id: crypto.randomUUID(), role: 'assistant', content: 'Generation cancelled.', timestamp: Date.now() });
+          addMessage({ id: crypto.randomUUID(), role: 'assistant', content: 'Generation cancelled.', timestamp: Date.now(), documentId: scopedDocumentId, scope: messageScope });
           return;
         }
         const message = err instanceof Error ? err.message : 'Generation failed';
         setStatus({ state: 'error', message });
         setStreamingContent('');
-        addMessage({ id: crypto.randomUUID(), role: 'assistant', content: `Error: ${message}`, timestamp: Date.now() });
+        addMessage({ id: crypto.randomUUID(), role: 'assistant', content: `Error: ${message}`, timestamp: Date.now(), documentId: scopedDocumentId, scope: messageScope });
       }
     }
   }, [
     input, isGenerating, hasApiKey, setShowSettings, addMessage, messages,
     slidesHtml, setStatus, setStreamingContent, appendStreamingContent,
     providerId, getActiveProvider, setSlides, setTitle, updateStepStatus,
-    activeDocument, addDocument, updateDocument, project,
+    activeDocument, addDocument, updateDocument, project, showAllMessages, applyToAllDocuments,
   ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

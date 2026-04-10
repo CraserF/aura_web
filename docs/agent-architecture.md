@@ -121,6 +121,22 @@ User Prompt
 - Treats single-slide output as valid by default (no fixed minimum slide-count penalty)
 - Scoring: errors = -10 points each, warnings = -3 points each, pass threshold = 75
 
+### Document Pipeline (`workflow/document.ts`)
+
+Aura documents deliberately use a **lean, single-pass workflow** with programmatic QA rather than the full presentation review loop:
+
+```text
+plan → generate → qa → finalize
+```
+
+**Key behaviors:**
+
+- `planDocumentRequest()` resolves document type, visual tone, and theme without another model call
+- `DocumentPromptComposer` keeps prompts compact and focused on the current artifact
+- the renderer supports reusable `doc-*` patterns (accent headers, metadata grids, callouts, progress rows, type tags)
+- subtle `aura-*` motion classes are allowed in-app but must degrade cleanly in print, PDF, and DOCX export
+- document chat should stay artifact-scoped by default, with project-scope context opt-in via the UI toggle
+
 ### 5. Revise (`workflow/steps/index.ts`)
 
 **Role:** Fix issues from review and/or remaining QA violations.

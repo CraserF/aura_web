@@ -8,8 +8,10 @@ This document describes the coding patterns, conventions, and idioms used throug
 
 - [TypeScript](#typescript)
 - [React Components](#react-components)
+- [Separation of Concerns & File Size](#separation-of-concerns--file-size)
 - [State Management (Zustand)](#state-management-zustand)
 - [Services](#services)
+- [Document Design System](#document-design-system)
 - [Styling](#styling)
 - [AI Provider Pattern](#ai-provider-pattern)
 - [Error Handling](#error-handling)
@@ -136,6 +138,26 @@ function SlideNavOverlay({ ... }) { ... }
 
 ---
 
+## Separation of Concerns & File Size
+
+Aim for **~500 lines max per file**. If a file starts pushing beyond that, split by responsibility instead of stacking more helpers into the same module.
+
+**Recommended split pattern:**
+
+- workflow runner (`document.ts`, `presentation.ts`)
+- prompt composition (`*-prompt.ts`)
+- rendering / transforms (`*-render.ts`)
+- theme tokens / style helpers (`*-themes.ts`)
+
+**Rules of thumb:**
+
+- Components own UI and user interaction only
+- Stores own state and simple actions only
+- Services own pure business logic and transformations
+- Avoid files that mix prompt building, DOM rendering, persistence, and store updates together
+
+---
+
 ## State Management (Zustand)
 
 ### Store Structure
@@ -226,6 +248,33 @@ interface LLMClient {
 - `generateStructured()` uses AI SDK's `generateObject()` with Zod schema validation and automatic retry
 
 The callback pattern in `generate()` allows the store to update streaming content in real-time while the service remains framework-agnostic.
+
+---
+
+## Document Design System
+
+Aura documents should reuse the shared `doc-*` classes rather than inventing one-off patterns in every prompt.
+
+**Preferred document patterns:**
+
+- `doc-status-badge` for draft/review/final state chips
+- `doc-meta-grid` for compact top-of-page facts
+- `doc-callout` for note / tip / warning / success blocks
+- `doc-type-tag` for reference fields (`string`, `int`, `bool`)
+- `doc-progress` for multi-stage runbooks or SOPs
+
+**Section color map:**
+
+- blue = context / background / summary
+- green = process / steps / implementation
+- coral = warnings / risks / limits
+- gray = reference / glossary / appendix
+
+**Motion rules:**
+
+- keep animations subtle using `aura-fade-in`, `aura-rise-in`, or `aura-pulse-soft`
+- animations must be disabled for `@media print` and `prefers-reduced-motion`
+- never rely on animation to communicate critical meaning
 
 ---
 

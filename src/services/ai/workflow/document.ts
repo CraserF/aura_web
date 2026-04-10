@@ -43,14 +43,15 @@ Return a complete document body as polished HTML with semantic structure and a c
 Prefer HTML when it improves readability; markdown is allowed only when the request is clearly text-first.
 
 Rules:
-- prioritize clarity, hierarchy, and scannability
+- focus on the current document only; treat earlier chat as light background context
+- make each document feel purpose-built, not like a clone of other project docs
 - use strong headings, concise paragraphs, and tasteful visual rhythm
 - no JavaScript, remote assets, or external stylesheets
-- output only the document content`; 
+- output only the document content`;
 
 const EDIT_DOCUMENT_SYSTEM_PROMPT = `You are a professional document editor.
 Return the complete updated document while preserving the existing layout quality and hierarchy.
-Prefer the smallest necessary change, append by default, and output only the updated content.`;
+Keep the document focused on the current request, prefer the smallest necessary change, and output only the updated content.`;
 
 interface DocumentTheme {
   name: string;
@@ -168,8 +169,9 @@ export function renderDocumentTextEdits(opts: {
     }
 
     const prompt = opts.prompt?.trim() || opts.titleHint?.trim() || fallback.title;
-    const theme = pickDocumentTheme(prompt, inferDocumentType(prompt));
-    const preservedHtml = enhanceDocumentHtml(existingDoc.body.innerHTML, theme);
+    const documentType = opts.documentType ? resolveDocumentType({ prompt, chatHistory: [], documentType: opts.documentType }) : inferDocumentType(prompt);
+    const theme = pickDocumentTheme(prompt, documentType);
+    const preservedHtml = enhanceDocumentHtml(existingDoc.body.innerHTML, theme, documentType);
     const sanitized = sanitizeHtml(preservedHtml);
     const title = extractDocumentTitle(sanitized) || fallback.title;
 
@@ -227,37 +229,43 @@ function getArtDirectionGuidance(tier: ArtDirection): string {
   }
 }
 
-function getComponentHints(documentType: ResolvedDocumentType, tier: ArtDirection): string[] {
+function getComponentHints(documentType: ResolvedDocumentType, tier: ArtDirection, prompt: string): string[] {
+  const normalized = prompt.toLowerCase();
+  const isProcessDocument = /\b(step|process|workflow|runbook|playbook|checklist|sop|setup|configure|deploy|onboard)\b/.test(normalized);
+  const hints = [
+    'Give this document its own layout identity; do not mirror unrelated project docs unless explicitly asked.',
+    'Use accent-bar section headers and consistent section colors: blue=context, green=process, coral=warnings, slate=reference.',
+  ];
+
   if (documentType === 'readme' || documentType === 'wiki') {
-    return [
-      'Use a clean header + quick overview block.',
-      'Prefer numbered steps, tidy lists, and one info callout when needed.',
-      'Keep surfaces subtle; do not over-decorate reference content.',
-    ];
+    hints.push('Use a compact overview, a clean reference block, and inline type tags for fields or API terms when useful.');
+    hints.push(isProcessDocument
+      ? 'Use numbered step pills and, for multi-stage setup guides, a small progress row at the top.'
+      : 'Keep surfaces subtle and use one note/tip callout only when it genuinely helps.');
+    return hints;
   }
 
   if (documentType === 'notes') {
-    return [
-      'Use a summary block followed by highlights, decisions, and action items.',
-      'One compact callout or divider is enough for visual rhythm.',
-    ];
+    hints.push('Use a summary block followed by highlights, decisions, and action items.');
+    hints.push('One compact callout or divider is enough; keep notes fast to scan.');
+    return hints;
   }
 
   if (documentType === 'report' || documentType === 'brief' || documentType === 'proposal') {
-    return [
-      'Use a strong title + lead, then one stat row or key-metrics block if numbers exist.',
-      'Use a callout for the most important recommendation or risk.',
-      'Prefer one comparison table or two-column section over long prose.',
-    ];
+    hints.push('Use a strong title row with an optional status badge and a two-column metadata grid when facts like owner/date/version exist.');
+    hints.push('Use one callout for the biggest recommendation or risk, plus a comparison table or key-metrics row when numbers exist.');
+    return hints;
   }
 
   return tier === 'editorial'
     ? [
+        ...hints,
         'Open with a premium hero header and short lead paragraph.',
         'Use one feature grid, pull quote, or timeline to break up long prose.',
         'Keep paragraphs short and use visual rhythm every 2–3 sections.',
       ]
     : [
+        ...hints,
         'Use a clean header, concise sections, and one visual break element.',
       ];
 }
@@ -290,8 +298,8 @@ Art direction: ${getArtDirectionGuidance(plan.artDirection)}`);
     return this;
   }
 
-  addComponentHints(documentType: ResolvedDocumentType, tier: ArtDirection): this {
-    const hints = getComponentHints(documentType, tier);
+  addComponentHints(documentType: ResolvedDocumentType, tier: ArtDirection, prompt: string): this {
+    const hints = getComponentHints(documentType, tier, prompt);
     if (hints.length > 0) {
       this.sections.push(`## Visual Pattern Hints\n- ${hints.join('\n- ')}`);
     }
@@ -335,7 +343,9 @@ ${summary}
     this.sections.push(`## Rules
 - Return a complete document body in HTML when styling matters; use markdown only for very plain notes/readmes
 - Keep a compact inline <style> block with reusable classes and --doc-* variables
-- Use short paragraphs, descriptive headings, and at least one visual rhythm element when the content is longer than a simple memo
+- Focus on this single document; treat other project context as light background only
+- Make the document feel distinct by mixing 2–3 suitable patterns: accent headers, callouts, metadata grids, step pills, progress rows, or type tags
+- Subtle Aura-only motion is welcome on key containers via classes like aura-rise-in, aura-fade-in, or aura-pulse-soft
 - ${isEdit ? 'Preserve the existing structure and make the smallest necessary change.' : 'Prefer polished structure over decorative excess.'}
 - Avoid walls of text, generic headings, and repeated identical component blocks`);
     return this;
@@ -352,7 +362,7 @@ async function buildCreatePrompt(input: DocumentInput, plan: DocumentPlan): Prom
   return new DocumentPromptComposer()
     .addBase(plan)
     .addStructure(plan.documentType)
-    .addComponentHints(plan.documentType, plan.artDirection)
+    .addComponentHints(plan.documentType, plan.artDirection, input.prompt)
     .addPalette(plan.theme)
     .addExample(plan.documentType, plan.artDirection, includeExample)
     .addRequest('User Request', input.prompt)
@@ -367,7 +377,7 @@ async function buildEditPrompt(input: DocumentInput, plan: DocumentPlan): Promis
   return new DocumentPromptComposer()
     .addBase(plan)
     .addExistingDocument(existingSummary)
-    .addComponentHints(plan.documentType, plan.artDirection)
+    .addComponentHints(plan.documentType, plan.artDirection, input.prompt)
     .addPalette(plan.theme)
     .addExample(plan.documentType, plan.artDirection, shouldIncludeExample)
     .addRequest('User Instruction', input.prompt)
@@ -641,7 +651,7 @@ export async function runDocumentWorkflow(
     const userPrompt = isEdit ? await buildEditPrompt(input, planResult) : await buildCreatePrompt(input, planResult);
 
     const historyMessages: ModelMessage[] = toModelMessages(
-      input.chatHistory.slice(-6), // Keep last 6 messages for context
+      input.chatHistory.slice(-4), // Keep only the most recent context so the current document stays focused
     );
 
     let accumulated = '';
@@ -751,40 +761,38 @@ function renderDocumentContent(rawContent: string, input: DocumentInput): string
   const theme = pickDocumentTheme(input.prompt, documentType);
 
   if (looksLikeHtml(rawContent)) {
-    return enhanceDocumentHtml(rawContent, theme);
+    return enhanceDocumentHtml(rawContent, theme, documentType);
   }
 
   return renderMarkdownDocument(rawContent, theme, documentType);
 }
 
-function enhanceDocumentHtml(html: string, theme: DocumentTheme): string {
+function enhanceDocumentHtml(html: string, theme: DocumentTheme, documentType: ResolvedDocumentType): string {
   const trimmed = html.trim();
   const leadingStyleMatch = trimmed.match(/^((?:\s*<style[\s\S]*?<\/style>\s*)+)/i);
   const leadingStyles = leadingStyleMatch?.[1] ?? '';
   const bodyHtml = leadingStyles ? trimmed.slice(leadingStyles.length).trim() : trimmed;
 
-  // If the AI already provided complete styling, use minimal shell
   const hasOwnStyle = !!leadingStyles;
   const shellCss = hasOwnStyle
     ? buildDocumentShellVars(theme)
     : buildDocumentShellStyle(theme);
 
-  if (/class=["']doc-shell["']/i.test(bodyHtml)) {
-    return `${shellCss}
-${leadingStyles}
-${bodyHtml}`;
-  }
-
-  return `${shellCss}
-${leadingStyles}
-<article class="doc-shell">
-  <div class="doc-prose">
+  const shellClass = `doc-shell theme-${theme.name} doc-type-${documentType}`;
+  const themedBody = /class=["'][^"']*\bdoc-shell\b[^"']*["']/i.test(bodyHtml)
+    ? bodyHtml.replace(/\bdoc-shell\b/, shellClass)
+    : `<article class="${shellClass}" data-doc-theme="${theme.name}" data-doc-type="${documentType}">
+  <div class="doc-prose aura-fade-in">
     ${bodyHtml}
   </div>
 </article>`;
+
+  return `${shellCss}
+${leadingStyles}
+${themedBody}`;
 }
 
-/** Minimal: only inject CSS custom properties so AI-authored styles can reference them */
+/** Minimal shell tokens plus low-specificity utilities so AI-authored layouts can stay distinct. */
 function buildDocumentShellVars(theme: DocumentTheme): string {
   return `<style>
 .doc-shell {
@@ -798,6 +806,10 @@ function buildDocumentShellVars(theme: DocumentTheme): string {
   --doc-muted: ${theme.muted};
   --doc-shell-bg: ${theme.shellBg ?? 'rgba(255,255,255,0.94)'};
   --doc-glow: ${theme.glow ?? 'rgba(15, 23, 42, 0.08)'};
+  --doc-info: color-mix(in srgb, var(--doc-primary) 78%, white);
+  --doc-process: color-mix(in srgb, var(--doc-accent) 80%, #0f766e 20%);
+  --doc-warning: #d85a30;
+  --doc-reference: color-mix(in srgb, var(--doc-muted) 82%, #475569 18%);
   color: var(--doc-text);
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   max-width: 920px;
@@ -805,7 +817,143 @@ function buildDocumentShellVars(theme: DocumentTheme): string {
   padding: clamp(20px, 3vw, 34px) clamp(18px, 3vw, 28px) clamp(28px, 4vw, 42px);
 }
 .doc-shell * { box-sizing: border-box; }
+.doc-shell .doc-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.doc-shell .doc-status-badge,
+.doc-shell .doc-type-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.doc-shell .doc-status-badge {
+  padding: 0.2rem 0.6rem;
+}
+.doc-shell .doc-status-badge.status-draft { background: #faeeda; color: #633806; }
+.doc-shell .doc-status-badge.status-review { background: #e6f1fb; color: #185fa5; }
+.doc-shell .doc-status-badge.status-final { background: #eaf3de; color: #3b6d11; }
+.doc-shell .doc-status-badge.status-archived { background: #f1efe8; color: #444441; }
+.doc-shell .doc-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+.doc-shell .doc-meta-grid > div {
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--doc-border);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.92) 0%, var(--doc-surface) 100%);
+}
+.doc-shell .doc-accent-bar,
+.doc-shell .doc-section > h2 {
+  border-left: 4px solid var(--section-accent, var(--doc-primary));
+  padding-left: 12px;
+}
+.doc-shell .section-info { --section-accent: var(--doc-info); }
+.doc-shell .section-process { --section-accent: var(--doc-process); }
+.doc-shell .section-warning { --section-accent: var(--doc-warning); }
+.doc-shell .section-reference { --section-accent: var(--doc-reference); }
+.doc-shell .doc-callout { --callout-accent: var(--doc-info); }
+.doc-shell .doc-callout.note { --callout-accent: var(--doc-info); }
+.doc-shell .doc-callout.tip { --callout-accent: var(--doc-process); }
+.doc-shell .doc-callout.warning { --callout-accent: var(--doc-warning); }
+.doc-shell .doc-callout.success { --callout-accent: #3b6d11; }
+.doc-shell .doc-type-tag {
+  padding: 0.12rem 0.45rem;
+  font-size: 0.64rem;
+}
+.doc-shell .doc-type-tag.string { background: #e6f1fb; color: #185fa5; }
+.doc-shell .doc-type-tag.int,
+.doc-shell .doc-type-tag.number { background: #faeeda; color: #633806; }
+.doc-shell .doc-type-tag.bool,
+.doc-shell .doc-type-tag.boolean { background: #eaf3de; color: #3b6d11; }
+.doc-shell .doc-progress {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 10px;
+}
+.doc-shell .doc-progress-step {
+  position: relative;
+  padding-top: 30px;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--doc-muted);
+}
+.doc-shell .doc-progress-step::before {
+  content: attr(data-step);
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--doc-surface-alt);
+  color: var(--doc-primary);
+  font-weight: 700;
+}
+.aura-fade-in { animation: auraFadeInUp 0.55s ease both; }
+.aura-rise-in { animation: auraRiseIn 0.6s cubic-bezier(.22,1,.36,1) both; }
+.aura-pulse-soft { animation: auraPulseSoft 2.8s ease-in-out infinite; }
+@keyframes auraFadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes auraRiseIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes auraPulseSoft {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.03); opacity: 0.88; }
+}
+@media (prefers-reduced-motion: reduce), print {
+  .doc-shell,
+  .doc-shell *,
+  .doc-shell *::before,
+  .doc-shell *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
 </style>`;
+}
+
+function extractDocumentStatus(value: string): 'draft' | 'review' | 'final' | 'archived' | undefined {
+  const match = value.match(/(?:\*\*)?status(?:\*\*)?\s*[:\-]\s*(draft|review|final|archived)\b/i);
+  return match?.[1]?.toLowerCase() as 'draft' | 'review' | 'final' | 'archived' | undefined;
+}
+
+function stripDocumentStatus(value: string): string {
+  return value
+    .replace(/^\s*(?:\*\*)?status(?:\*\*)?\s*[:\-]\s*(?:draft|review|final|archived)\s*$/gim, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function inferSectionTone(value: string): 'info' | 'process' | 'warning' | 'reference' {
+  const normalized = value.toLowerCase();
+  if (/\b(step|process|workflow|implementation|action|todo|checklist|plan|setup|deploy|next)\b/.test(normalized)) return 'process';
+  if (/\b(risk|warning|caution|issue|error|limit|security|blocker|problem)\b/.test(normalized)) return 'warning';
+  if (/\b(reference|appendix|glossary|api|spec|faq|resources|schema)\b/.test(normalized)) return 'reference';
+  return 'info';
+}
+
+function inferCalloutTone(value: string): 'note' | 'tip' | 'warning' | 'success' {
+  const normalized = value.toLowerCase();
+  if (/(⚠️?|warning|caution|danger|risk|do not)/.test(normalized)) return 'warning';
+  if (/\b(tip|best practice|recommend|pro tip)\b/.test(normalized)) return 'tip';
+  if (/\b(success|approved|ready|passed|complete)\b/.test(normalized)) return 'success';
+  return 'note';
 }
 
 function renderMarkdownDocument(
@@ -816,59 +964,56 @@ function renderMarkdownDocument(
   const normalized = markdown.replace(/\r\n/g, '\n').trim();
   const titleMatch = normalized.match(/^#\s+(.+)$/m);
   const title = titleMatch?.[1]?.trim() || 'Document';
+  const status = extractDocumentStatus(normalized);
   const withoutTitle = normalized.replace(/^#\s+.+$(\n)?/m, '').trim();
+  const cleanedBody = stripDocumentStatus(withoutTitle);
 
-  const firstH2Index = withoutTitle.search(/^##\s+/m);
-  const lead = firstH2Index >= 0 ? withoutTitle.slice(0, firstH2Index).trim() : withoutTitle;
+  const firstH2Index = cleanedBody.search(/^##\s+/m);
+  const lead = firstH2Index >= 0 ? cleanedBody.slice(0, firstH2Index).trim() : cleanedBody;
   const sections = firstH2Index >= 0
-    ? withoutTitle.slice(firstH2Index).split(/\n(?=##\s+)/g).filter(Boolean)
+    ? cleanedBody.slice(firstH2Index).split(/\n(?=##\s+)/g).filter(Boolean)
     : [];
+
+  const titleMarkup = status
+    ? `<div class="doc-title-row"><h1>${escapeHtml(title)}</h1><span class="doc-status-badge status-${status}">${status.toUpperCase()}</span></div>`
+    : `<h1>${escapeHtml(title)}</h1>`;
 
   const leadHtml = lead ? renderMarkdownBlocks(lead, { lead: true }) : '';
   const sectionHtml = sections.length > 0
     ? sections.map((section) => renderMarkdownSection(section)).join('\n')
-    : (lead ? '' : `<section class="doc-section">${renderMarkdownBlocks(withoutTitle)}</section>`);
+    : (lead ? '' : `<section class="doc-section section-info aura-rise-in">${renderMarkdownBlocks(cleanedBody)}</section>`);
 
   return `${buildDocumentShellStyle(theme)}
-<article class="doc-shell">
+<article class="doc-shell theme-${theme.name} doc-type-${documentType}" data-doc-theme="${theme.name}" data-doc-type="${documentType}">
   <div class="doc-prose">
-    <header class="doc-header">
+    <header class="doc-header aura-rise-in">
       <div class="doc-eyebrow">${theme.label} · ${documentType}</div>
-      <h1>${escapeHtml(title)}</h1>
+      ${titleMarkup}
+      ${leadHtml}
     </header>
-    ${leadHtml}
     ${sectionHtml}
   </div>
 </article>`;
 }
 
 function buildDocumentShellStyle(theme: DocumentTheme): string {
-  return `<style>
+  const base = buildDocumentShellVars(theme).replace(/<\/style>\s*$/, '');
+  return `${base}
 .doc-shell {
-  --doc-bg: ${theme.bg};
-  --doc-surface: ${theme.surface};
-  --doc-surface-alt: ${theme.surfaceAlt};
-  --doc-border: ${theme.border};
-  --doc-primary: ${theme.primary};
-  --doc-accent: ${theme.accent};
-  --doc-text: ${theme.text};
-  --doc-muted: ${theme.muted};
-  --doc-shell-bg: ${theme.shellBg ?? 'rgba(255,255,255,0.94)'};
-  --doc-glow: ${theme.glow ?? 'rgba(15, 23, 42, 0.08)'};
-  color: var(--doc-text);
-  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-.doc-shell * { box-sizing: border-box; }
-.doc-shell {
-  max-width: 920px;
-  margin: 0 auto;
-  padding: clamp(20px, 3vw, 34px) clamp(18px, 3vw, 28px) clamp(28px, 4vw, 42px);
   border-radius: clamp(20px, 2vw, 24px);
   background:
     radial-gradient(circle at top right, var(--doc-glow) 0%, transparent 34%),
     linear-gradient(180deg, var(--doc-shell-bg) 0%, rgba(255,255,255,0.98) 100%);
   border: 1px solid var(--doc-border);
   box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+}
+.doc-shell.doc-type-wiki,
+.doc-shell.doc-type-readme {
+  background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(248,251,255,0.98) 100%);
+}
+.doc-shell.doc-type-notes .doc-section {
+  box-shadow: none;
+  border-style: dashed;
 }
 .doc-prose,
 .doc-shell .aura-doc {
@@ -891,6 +1036,10 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
   background: linear-gradient(135deg, var(--doc-surface-alt) 0%, rgba(255,255,255,0.95) 100%);
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.07);
 }
+.doc-shell.theme-studio .doc-header,
+.doc-shell.theme-neon .doc-header {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--doc-accent) 12%, white) 0%, rgba(255,255,255,0.96) 100%);
+}
 .doc-eyebrow {
   margin-bottom: 8px;
   font-size: 11px;
@@ -908,8 +1057,6 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
 }
 .doc-shell h2 {
   margin: 0 0 12px;
-  padding-left: 12px;
-  border-left: 4px solid color-mix(in srgb, var(--doc-primary) 70%, white);
   font-size: clamp(1.25rem, 2vw, 1.5rem);
   line-height: 1.2;
   letter-spacing: -0.02em;
@@ -948,21 +1095,53 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
 .doc-shell ul,
 .doc-shell ol {
   margin: 0 0 14px;
+}
+.doc-shell ul {
   padding-left: 1.2rem;
 }
 .doc-shell li {
   margin: 0.35rem 0;
   line-height: 1.65;
 }
+.doc-shell ol.doc-steps {
+  list-style: none;
+  padding-left: 0;
+  counter-reset: doc-step;
+  display: grid;
+  gap: 10px;
+}
+.doc-shell ol.doc-steps > li {
+  counter-increment: doc-step;
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+.doc-shell ol.doc-steps > li::before {
+  content: counter(doc-step);
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--doc-info) 14%, white);
+  color: var(--doc-primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
 .doc-shell blockquote,
-.doc-shell .callout {
-  border-left: 4px solid var(--doc-primary);
-  background: linear-gradient(135deg, var(--doc-surface-alt) 0%, rgba(255,255,255,0.96) 100%);
+.doc-shell .callout,
+.doc-shell .doc-callout {
+  padding: 14px 16px;
+  border-left: 4px solid var(--callout-accent, var(--doc-primary));
+  border-radius: 0 14px 14px 0;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--callout-accent, var(--doc-primary)) 9%, white) 0%, rgba(255,255,255,0.96) 100%);
   color: var(--doc-muted);
 }
 .doc-shell .callout strong,
-.doc-shell blockquote strong {
-  color: var(--doc-primary);
+.doc-shell blockquote strong,
+.doc-shell .doc-callout strong {
+  color: var(--callout-accent, var(--doc-primary));
 }
 .doc-shell .module-grid,
 .doc-shell .grid-benefits,
@@ -1014,7 +1193,7 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
   vertical-align: top;
 }
 .doc-shell th {
-  background: color-mix(in srgb, var(--doc-surfaceAlt) 70%, white);
+  background: color-mix(in srgb, var(--doc-surface-alt) 70%, white);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -1042,7 +1221,8 @@ function renderMarkdownSection(sectionMarkdown: string): string {
   const lines = sectionMarkdown.trim().split('\n');
   const headingLine = lines.shift() ?? '## Section';
   const heading = headingLine.replace(/^##\s+/, '').trim();
-  return `<section class="doc-section"><h2>${renderInlineMarkdown(heading)}</h2>${renderMarkdownBlocks(lines.join('\n'))}</section>`;
+  const tone = inferSectionTone(heading);
+  return `<section class="doc-section section-${tone} aura-rise-in"><h2>${renderInlineMarkdown(heading)}</h2>${renderMarkdownBlocks(lines.join('\n'))}</section>`;
 }
 
 function renderMarkdownBlocks(markdown: string, options?: { lead?: boolean }): string {
@@ -1127,7 +1307,11 @@ function renderMarkdownBlocks(markdown: string, options?: { lead?: boolean }): s
         i += 1;
         quoteLines.push((lines[i] ?? '').trim().replace(/^>\s?/, ''));
       }
-      html.push(`<blockquote>${renderInlineMarkdown(quoteLines.join(' '))}</blockquote>`);
+      const quoteText = quoteLines.join(' ');
+      const tone = inferCalloutTone(quoteText);
+      const cleanedQuote = quoteText.replace(/^(?:⚠️?|warning|note|tip|success)\s*[—:-]?\s*/i, '');
+      const label = tone.charAt(0).toUpperCase() + tone.slice(1);
+      html.push(`<blockquote class="doc-callout ${tone} aura-fade-in"><strong>${label}</strong> — ${renderInlineMarkdown(cleanedQuote)}</blockquote>`);
       continue;
     }
 
@@ -1152,7 +1336,7 @@ function renderMarkdownBlocks(markdown: string, options?: { lead?: boolean }): s
           html.push('</ul>');
           inUl = false;
         }
-        html.push('<ol>');
+        html.push('<ol class="doc-steps">');
         inOl = true;
       }
       html.push(`<li>${renderInlineMarkdown(line.replace(/^\s*\d+\.\s+/, ''))}</li>`);
