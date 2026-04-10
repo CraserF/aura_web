@@ -220,7 +220,7 @@ function escapeInlineHtml(value: string): string {
 }
 
 function hasInlineMarkdownSyntax(value: string): boolean {
-  return /(?:\*\*[\s\S]+?\*\*|(^|[^*])\*[^*\n]+\*(?!\*)|`[^`]+`|\[[^\]]+\]\([^)]+\))/m.test(value);
+  return /(?:\*\*[\s\S]+?\*\*|(^|[^*])\*[^*\n]+\*(?!\*)|`[^`]+`|\[[^\]]+\]\([^)]+\)|<\/?(?:u|ins)>)/m.test(value);
 }
 
 function renderInlineMarkdownText(text: string): string {
@@ -228,6 +228,7 @@ function renderInlineMarkdownText(text: string): string {
   return escaped
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
     .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/&lt;(?:u|ins)&gt;([\s\S]+?)&lt;\/(?:u|ins)&gt;/gi, '<u>$1</u>')
     .replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[^*])\*([^*\n][\s\S]*?)\*(?!\*)/g, '$1<em>$2</em>')
     .replace(/(^|[^_])_([^_\n][\s\S]*?)_(?!_)/g, '$1<em>$2</em>');

@@ -70,6 +70,12 @@ describe('sanitizeHtml', () => {
     expect(result).toContain('href="#section-1"');
   });
 
+  it('preserves benign underline tags', () => {
+    const input = '<p>Please <u>read carefully</u>.</p>';
+    const result = sanitizeHtml(input);
+    expect(result).toContain('<u>read carefully</u>');
+  });
+
   it('preserves relative href links', () => {
     const input = '<a href="./other-doc">Other doc</a>';
     const result = sanitizeHtml(input);

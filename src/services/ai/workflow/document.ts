@@ -1980,6 +1980,9 @@ function toInlineMarkdown(node: Node): string {
     case 'em':
     case 'i':
       return normalized ? `*${normalized}*` : '';
+    case 'u':
+    case 'ins':
+      return normalized ? `<u>${normalized}</u>` : '';
     case 'code':
       return normalized ? `\`${normalized}\`` : '';
     case 'a': {
@@ -2018,6 +2021,7 @@ function renderInlineMarkdown(text: string): string {
   return escaped
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
     .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/&lt;(?:u|ins)&gt;([\s\S]+?)&lt;\/(?:u|ins)&gt;/gi, '<u>$1</u>')
     .replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[^*])\*([^*\n][\s\S]*?)\*(?!\*)/g, '$1<em>$2</em>')
     .replace(/(^|[^_])_([^_\n][\s\S]*?)_(?!_)/g, '$1<em>$2</em>');
