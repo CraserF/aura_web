@@ -97,13 +97,18 @@ const PAGES_STYLES = `
   * {
     box-sizing: border-box;
   }
+  .aura-document-frame {
+    max-width: 794px;
+    margin: 0 auto;
+    padding: 24px 0 40px;
+  }
 
   /* A4: 210mm x 297mm at 96 dpi ~= 794px x 1123px */
-  body > * {
+  .aura-document-frame > :not(style) {
     display: block;
     width: 794px;
     min-height: 1123px;
-    margin: 24px auto;
+    margin: 0 auto 24px;
     padding: 72px 80px;
     background: #ffffff;
     box-shadow: 0 4px 24px rgba(0,0,0,0.12);
@@ -111,10 +116,21 @@ const PAGES_STYLES = `
     position: relative;
     page-break-after: always;
     counter-increment: page;
+    overflow: hidden;
+  }
+
+  .aura-document-frame > .doc-shell {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
   }
 
   /* Page number badge at bottom of each page */
-  body > *::after {
+  .aura-document-frame > :not(style)::after {
     content: counter(page);
     position: absolute;
     bottom: 24px;
@@ -126,25 +142,37 @@ const PAGES_STYLES = `
     letter-spacing: 0.05em;
   }
 
+  @media (max-width: 900px) {
+    .aura-document-frame {
+      max-width: 100%;
+      padding: 12px;
+    }
+    .aura-document-frame > :not(style) {
+      width: 100%;
+      min-height: auto;
+      padding: 32px 28px 42px;
+    }
+  }
+
   @media print {
     html, body {
       background: white;
     }
-    body > * {
+    .aura-document-frame {
+      max-width: none;
+      padding: 0;
+    }
+    .aura-document-frame > :not(style) {
       width: 100%;
       min-height: auto;
       margin: 0;
-      padding: 20mm 25mm;
+      padding: 18mm 20mm 22mm;
       box-shadow: none;
       border-radius: 0;
-      page-break-after: always;
+      page-break-after: auto;
     }
-    body > *::after {
-      content: counter(page);
-      position: fixed;
-      bottom: 10mm;
-      left: 50%;
-      transform: translateX(-50%);
+    .aura-document-frame > :not(style)::after {
+      bottom: 8mm;
     }
     @page {
       size: A4;
@@ -165,12 +193,52 @@ const PRINT_STYLES = `
     body {
       background: white;
     }
+    .aura-document-frame {
+      max-width: none;
+      padding: 0;
+    }
     .doc-shell,
     .doc-shell *,
     .doc-shell *::before,
     .doc-shell *::after {
       animation: none !important;
       transition: none !important;
+    }
+    .doc-shell {
+      max-width: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      background: #ffffff !important;
+    }
+    .doc-header,
+    .doc-section,
+    .section-card,
+    .module-card,
+    .doc-kpi,
+    .doc-story-card,
+    .doc-compare-card,
+    .doc-timeline-item,
+    .doc-proof-strip,
+    .doc-infographic-band,
+    .doc-aside,
+    table,
+    blockquote,
+    pre {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .module-grid,
+    .grid-benefits,
+    .stats-grid,
+    .doc-kpi-grid,
+    .doc-story-grid,
+    .doc-comparison,
+    .doc-check-grid,
+    .doc-sidebar-layout {
+      grid-template-columns: 1fr !important;
     }
   }
 `;

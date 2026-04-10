@@ -43,6 +43,29 @@ export function validateDocument(html: string): DocumentQAResult {
     violations.push({ rule: 'custom-props', severity: 'warning', detail: 'No CSS custom properties (--doc-*) found — colours may be inconsistent' });
   }
 
+  const styleText = Array.from(doc.querySelectorAll('style')).map((node) => node.textContent ?? '').join('\n');
+  const weakSurfaceAlpha = Array.from(styleText.matchAll(/--doc-(surface-alt|border)\s*:\s*rgba\([^)]*,\s*([0-9]*\.?[0-9]+)\)/gi))
+    .some(([, token, alpha]) => {
+      const value = Number.parseFloat(alpha ?? '0');
+      return token === 'border' ? value < 0.14 : value < 0.09;
+    });
+  if (weakSurfaceAlpha) {
+    violations.push({
+      rule: 'low-contrast-theme',
+      severity: 'warning',
+      detail: 'Theme uses very low-opacity surfaces or borders — contrast may feel washed out on screen or in PDF.',
+    });
+  }
+
+  const rawText = body.textContent ?? '';
+  if (/\*\*[^*\n]+\*\*|\[[^\]]+\]\([^)]+\)|(^|\s)\*[^*\n]+\*(?=\s|[.,;:!?]|$)/m.test(rawText)) {
+    violations.push({
+      rule: 'literal-markdown',
+      severity: 'warning',
+      detail: 'Visible raw markdown markers detected in the rendered document text.',
+    });
+  }
+
   // 3. Must have h1
   const h1Count = body.querySelectorAll('h1').length;
   if (h1Count === 0) {

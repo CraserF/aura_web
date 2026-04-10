@@ -83,6 +83,92 @@ interface DocumentTheme {
   glow?: string;
 }
 
+interface RgbColor {
+  r: number;
+  g: number;
+  b: number;
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function parseHexColor(input: string): RgbColor | null {
+  const raw = input.trim().replace('#', '');
+  if (!/^[0-9a-f]{3}([0-9a-f]{3})?$/i.test(raw)) return null;
+
+  const normalized = raw.length === 3
+    ? raw.split('').map((char) => `${char}${char}`).join('')
+    : raw;
+
+  return {
+    r: Number.parseInt(normalized.slice(0, 2), 16),
+    g: Number.parseInt(normalized.slice(2, 4), 16),
+    b: Number.parseInt(normalized.slice(4, 6), 16),
+  };
+}
+
+function toRelativeLuminance(color: RgbColor): number {
+  const channel = (value: number) => {
+    const normalized = value / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  };
+
+  return (0.2126 * channel(color.r)) + (0.7152 * channel(color.g)) + (0.0722 * channel(color.b));
+}
+
+function getContrastRatio(foreground: string, background: string): number | null {
+  const fg = parseHexColor(foreground);
+  const bg = parseHexColor(background);
+  if (!fg || !bg) return null;
+
+  const lighter = Math.max(toRelativeLuminance(fg), toRelativeLuminance(bg));
+  const darker = Math.min(toRelativeLuminance(fg), toRelativeLuminance(bg));
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function ensureContrastColor(color: string, background: string, minRatio: number, fallbacks?: string[]): string {
+  const candidates = [color, ...(fallbacks ?? []), '#0f172a', '#162235', '#334155', '#475569'];
+  let bestColor = color;
+  let bestRatio = getContrastRatio(color, background) ?? 0;
+
+  for (const candidate of candidates) {
+    const ratio = getContrastRatio(candidate, background);
+    if (!ratio) continue;
+    if (ratio >= minRatio) return candidate;
+    if (ratio > bestRatio) {
+      bestRatio = ratio;
+      bestColor = candidate;
+    }
+  }
+
+  return bestColor;
+}
+
+function withMinimumAlpha(color: string, minAlpha: number): string {
+  const match = color.match(/^rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*([0-9]*\.?[0-9]+)\s*\)$/i);
+  if (!match) return color;
+
+  const [, r, g, b, alpha] = match;
+  const nextAlpha = clampNumber(Math.max(Number.parseFloat(alpha ?? '0'), minAlpha), 0, 1);
+  return `rgba(${r}, ${g}, ${b}, ${nextAlpha.toFixed(2)})`;
+}
+
+function normalizeDocumentTheme(theme: DocumentTheme): DocumentTheme {
+  return {
+    ...theme,
+    surface: withMinimumAlpha(theme.surface, 0.06),
+    surfaceAlt: withMinimumAlpha(theme.surfaceAlt, 0.14),
+    border: withMinimumAlpha(theme.border, 0.22),
+    shellBg: theme.shellBg ? withMinimumAlpha(theme.shellBg, 0.94) : theme.shellBg,
+    glow: theme.glow ? withMinimumAlpha(theme.glow, 0.12) : theme.glow,
+    text: ensureContrastColor(theme.text, theme.bg, 8, ['#0f172a', '#162235', theme.primary]),
+    muted: ensureContrastColor(theme.muted, theme.bg, 4.8, [theme.text, '#334155', '#475569']),
+  };
+}
+
 function inferDocumentType(prompt: string): ResolvedDocumentType {
   const normalized = prompt.toLowerCase();
   if (/\b(readme|setup guide|developer guide|installation)\b/.test(normalized)) return 'readme';
@@ -527,7 +613,7 @@ function pickDocumentTheme(prompt: string, documentType: ResolvedDocumentType): 
   // --- Topic-based matching ---
 
   if (/\b(health|care|climate|sustainab|nature|education|community|environment|green|eco)\b/.test(normalized)) {
-    return {
+    return normalizeDocumentTheme({
       name: 'forest',
       label: 'Field Notes',
       bg: '#f3f8f4',
@@ -540,11 +626,11 @@ function pickDocumentTheme(prompt: string, documentType: ResolvedDocumentType): 
       muted: '#587164',
       shellBg: 'rgba(255,255,255,0.92)',
       glow: 'rgba(82, 183, 136, 0.16)',
-    };
+    });
   }
 
   if (/\b(product|design|creative|brand|marketing|story|campaign|launch)\b/.test(normalized)) {
-    return {
+    return normalizeDocumentTheme({
       name: 'studio',
       label: 'Studio Brief',
       bg: '#faf7ff',
@@ -557,11 +643,11 @@ function pickDocumentTheme(prompt: string, documentType: ResolvedDocumentType): 
       muted: '#6c6289',
       shellBg: 'rgba(255,255,255,0.94)',
       glow: 'rgba(109, 74, 255, 0.14)',
-    };
+    });
   }
 
   if (/\b(finance|invest|fund|revenue|budget|quarter|fiscal|portfolio|banking)\b/.test(normalized)) {
-    return {
+    return normalizeDocumentTheme({
       name: 'vault',
       label: 'Executive Finance',
       bg: '#f4f6f8',
@@ -574,11 +660,11 @@ function pickDocumentTheme(prompt: string, documentType: ResolvedDocumentType): 
       muted: '#475569',
       shellBg: 'rgba(255,255,255,0.96)',
       glow: 'rgba(37, 99, 235, 0.10)',
-    };
+    });
   }
 
   if (/\b(tech|engineer|develop|code|api|platform|infrastructure|devops|software|system)\b/.test(normalized)) {
-    return {
+    return normalizeDocumentTheme({
       name: 'terminal',
       label: 'Engineering Brief',
       bg: '#f5f7fa',
@@ -591,11 +677,11 @@ function pickDocumentTheme(prompt: string, documentType: ResolvedDocumentType): 
       muted: '#64748b',
       shellBg: 'rgba(255,255,255,0.95)',
       glow: 'rgba(6, 182, 212, 0.12)',
-    };
+    });
   }
 
   if (/\b(research|science|data|study|hypothesis|experiment|academic|journal|paper)\b/.test(normalized)) {
-    return {
+    return normalizeDocumentTheme({
       name: 'scholar',
       label: 'Research Paper',
       bg: '#f8f7f4',
@@ -608,11 +694,11 @@ function pickDocumentTheme(prompt: string, documentType: ResolvedDocumentType): 
       muted: '#78716c',
       shellBg: 'rgba(255,255,255,0.95)',
       glow: 'rgba(217, 119, 6, 0.10)',
-    };
+    });
   }
 
   if (/\b(startup|venture|pitch|seed|series|growth|disrupt|innovate|mvp)\b/.test(normalized)) {
-    return {
+    return normalizeDocumentTheme({
       name: 'neon',
       label: 'Startup Pitch',
       bg: '#fafafa',
@@ -625,11 +711,11 @@ function pickDocumentTheme(prompt: string, documentType: ResolvedDocumentType): 
       muted: '#6366f1',
       shellBg: 'rgba(255,255,255,0.95)',
       glow: 'rgba(168, 85, 247, 0.12)',
-    };
+    });
   }
 
   if (/\b(legal|compliance|policy|regulation|governance|audit|contract|terms)\b/.test(normalized)) {
-    return {
+    return normalizeDocumentTheme({
       name: 'counsel',
       label: 'Legal Document',
       bg: '#f7f8f9',
@@ -642,11 +728,11 @@ function pickDocumentTheme(prompt: string, documentType: ResolvedDocumentType): 
       muted: '#64748b',
       shellBg: 'rgba(255,255,255,0.96)',
       glow: 'rgba(30, 41, 59, 0.06)',
-    };
+    });
   }
 
   if (/\b(hr|people|team|culture|hiring|onboard|employee|talent|org)\b/.test(normalized)) {
-    return {
+    return normalizeDocumentTheme({
       name: 'coral',
       label: 'People & Culture',
       bg: '#fef7f4',
@@ -659,13 +745,13 @@ function pickDocumentTheme(prompt: string, documentType: ResolvedDocumentType): 
       muted: '#78716c',
       shellBg: 'rgba(255,255,255,0.95)',
       glow: 'rgba(251, 146, 60, 0.12)',
-    };
+    });
   }
 
   // --- Doc-type fallbacks ---
 
   if (documentType === 'notes' || documentType === 'wiki' || documentType === 'readme') {
-    return {
+    return normalizeDocumentTheme({
       name: 'slate',
       label: 'Structured Notes',
       bg: '#f6f8fb',
@@ -678,11 +764,11 @@ function pickDocumentTheme(prompt: string, documentType: ResolvedDocumentType): 
       muted: '#5d6d82',
       shellBg: 'rgba(255,255,255,0.94)',
       glow: 'rgba(14, 165, 233, 0.14)',
-    };
+    });
   }
 
   // Default
-  return {
+  return normalizeDocumentTheme({
     name: 'professional',
     label: 'Executive Document',
     bg: '#f7f9fc',
@@ -695,7 +781,7 @@ function pickDocumentTheme(prompt: string, documentType: ResolvedDocumentType): 
     muted: '#617287',
     shellBg: 'rgba(255,255,255,0.94)',
     glow: 'rgba(31, 75, 153, 0.12)',
-  };
+  });
 }
 
 export interface RunDocumentWorkflowOptions {
@@ -967,7 +1053,9 @@ function buildDocumentShellVars(theme: DocumentTheme): string {
   --doc-warning: #d85a30;
   --doc-reference: color-mix(in srgb, var(--doc-muted) 82%, #475569 18%);
   color: var(--doc-text);
+  color-scheme: light;
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
   max-width: 920px;
   margin: 0 auto;
   padding: clamp(20px, 3vw, 34px) clamp(18px, 3vw, 28px) clamp(28px, 4vw, 42px);
