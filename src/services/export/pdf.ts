@@ -34,13 +34,23 @@ const EXPORT_BASE_STYLES = `
   }
 
   .aura-pdf-root .doc-shell {
+    --doc-text: #0f172a !important;
+    --doc-muted: #475569 !important;
+    --doc-border: rgba(100, 116, 139, 0.4) !important;
+    --doc-surface: #ffffff !important;
+    --doc-surface-alt: #f8fafc !important;
+    --doc-shell-bg: #ffffff !important;
+    --doc-glow: rgba(148, 163, 184, 0.12) !important;
     max-width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
     border: none !important;
     box-shadow: none !important;
-    background: transparent !important;
+    background: #ffffff !important;
     border-radius: 0 !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .aura-pdf-root .doc-prose,
@@ -67,7 +77,12 @@ const EXPORT_BASE_STYLES = `
   .aura-pdf-root td,
   .aura-pdf-root th {
     font-size: 10.5pt;
+    line-height: 1.58;
     color: #243447;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    orphans: 2;
+    widows: 2;
   }
 
   .aura-pdf-root .doc-header,
@@ -112,8 +127,8 @@ const EXPORT_BASE_STYLES = `
   .aura-pdf-root .doc-infographic-band {
     padding: 8px 10px;
     border-radius: 4px;
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    background: rgba(248, 250, 252, 0.7);
+    border: 1px solid rgba(148, 163, 184, 0.34);
+    background: #f8fafc;
     box-shadow: none;
   }
 
@@ -136,7 +151,7 @@ const EXPORT_BASE_STYLES = `
   .aura-pdf-root .doc-story-grid,
   .aura-pdf-root .doc-comparison {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
 
@@ -182,8 +197,76 @@ const EXPORT_BASE_STYLES = `
       padding: 14mm 16mm 16mm;
       box-shadow: none;
     }
+
+    .aura-pdf-root .doc-sidebar-layout {
+      grid-template-columns: 1fr !important;
+    }
+
+    .aura-pdf-root .doc-title-gradient {
+      background: none !important;
+      -webkit-text-fill-color: currentColor !important;
+      color: #0f172a !important;
+    }
   }
 `;
+
+function escapeInlineHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function hasInlineMarkdownSyntax(value: string): boolean {
+  return /(?:\*\*[\s\S]+?\*\*|(^|[^*])\*[^*\n]+\*(?!\*)|`[^`]+`|\[[^\]]+\]\([^)]+\))/m.test(value);
+}
+
+function renderInlineMarkdownText(text: string): string {
+  const escaped = escapeInlineHtml(text);
+  return escaped
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*\n][\s\S]*?)\*(?!\*)/g, '$1<em>$2</em>')
+    .replace(/(^|[^_])_([^_\n][\s\S]*?)_(?!_)/g, '$1<em>$2</em>');
+}
+
+function normalizeInlineMarkdownHtml(html: string): string {
+  if (!html.trim() || !hasInlineMarkdownSyntax(html)) return html;
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<body>${html}</body>`, 'text/html');
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  const textNodes: Text[] = [];
+
+  while (walker.nextNode()) {
+    const textNode = walker.currentNode as Text;
+    const parentName = textNode.parentElement?.tagName.toLowerCase();
+    const value = textNode.textContent ?? '';
+
+    if (!value.trim() || !hasInlineMarkdownSyntax(value)) continue;
+    if (!parentName || ['style', 'script', 'pre', 'code', 'textarea', 'a'].includes(parentName)) continue;
+
+    textNodes.push(textNode);
+  }
+
+  for (const textNode of textNodes) {
+    const rawValue = textNode.textContent ?? '';
+    const rendered = renderInlineMarkdownText(rawValue);
+    if (!rendered || rendered === escapeInlineHtml(rawValue)) continue;
+
+    const template = doc.createElement('template');
+    template.innerHTML = rendered;
+    const replacementNodes = Array.from(template.content.childNodes);
+    if (replacementNodes.length > 0) {
+      textNode.replaceWith(...replacementNodes);
+    }
+  }
+
+  return doc.body.innerHTML.trim() || html;
+}
 
 function createExportContainer(html: string): { element: HTMLDivElement; cleanup: () => void } {
   const host = document.createElement('div');
@@ -197,7 +280,8 @@ function createExportContainer(html: string): { element: HTMLDivElement; cleanup
   host.style.zIndex = '-1';
   host.setAttribute('aria-hidden', 'true');
 
-  host.innerHTML = `<style>${EXPORT_BASE_STYLES}</style><div class="aura-pdf-page"><div class="aura-pdf-root">${html}</div></div>`;
+  const normalizedHtml = normalizeInlineMarkdownHtml(html);
+  host.innerHTML = `<style>${EXPORT_BASE_STYLES}</style><div class="aura-pdf-page"><div class="aura-pdf-root">${normalizedHtml}</div></div>`;
   document.body.appendChild(host);
 
   return {

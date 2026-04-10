@@ -24,12 +24,56 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { DocumentPdfPreview } from '@/components/DocumentPdfPreview';
-import { BookOpen, ChevronDown, Eye, FileDown, Loader2, PenSquare, Printer } from 'lucide-react';
+import { sanitizeFilename } from '@/lib/sanitizeFilename';
+import { BookOpen, ChevronDown, Eye, FileDown, Link2, Loader2, PenSquare, Printer } from 'lucide-react';
 
 const LazyDocumentTextEditor = lazy(async () => {
   const mod = await import('@/components/DocumentTextEditor');
   return { default: mod.DocumentTextEditor };
 });
+
+function normalizeEditorMarkdown(value: string): string {
+  return value
+    .replace(/\r\n/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function normalizeDocumentReference(value: string): string {
+  const normalized = value
+    .trim()
+    .replace(/^.*#/, '')
+    .replace(/^[/#.]+/, '')
+    .replace(/\?.*$/, '')
+    .trim();
+
+  return sanitizeFilename(normalized || value);
+}
+
+function resolveProjectDocumentReference(documents: ProjectDocument[], value: string): ProjectDocument | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const hashRef = trimmed.includes('#') ? trimmed.slice(trimmed.lastIndexOf('#') + 1).trim() : '';
+  const pathRef = (trimmed
+    .replace(/^\.\//, '')
+    .replace(/^\//, '')
+    .split(/[?#]/)[0] ?? '')
+    .trim();
+  const normalizedRef = normalizeDocumentReference(trimmed);
+
+  return documents.find((doc) => {
+    const titleSlug = sanitizeFilename(doc.title || '');
+    const titleText = doc.title?.trim().toLowerCase() ?? '';
+    return doc.id === trimmed
+      || (!!hashRef && doc.id === hashRef)
+      || (!!pathRef && doc.id === pathRef)
+      || (!!normalizedRef && titleSlug === normalizedRef)
+      || (!!titleText && titleText === trimmed.toLowerCase());
+  });
+}
 
 export default function App() {
   const project = useProjectStore((s) => s.project);
@@ -55,6 +99,8 @@ export default function App() {
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [textEditorOpen, setTextEditorOpen] = useState(false);
   const [editorInitialMarkdown, setEditorInitialMarkdown] = useState('');
+  const [editorContentSource, setEditorContentSource] = useState<'original' | 'derived'>('original');
+  const [textEditorMode, setTextEditorMode] = useState<'edit' | 'link'>('edit');
   const [documentAction, setDocumentAction] = useState<'preview-pdf' | 'export-pdf' | 'export-word' | 'save-text' | null>(null);
   const [documentError, setDocumentError] = useState<string | null>(null);
 
@@ -131,6 +177,9 @@ export default function App() {
   const showPresentation = activeDocument?.type === 'presentation';
   const showDocument = activeDocument?.type === 'document';
   const isDocumentBusy = documentAction !== null;
+  const canLinkAnotherDocument = activeDocument?.type === 'document'
+    ? project.documents.some((doc) => doc.type === 'document' && doc.id !== activeDocument.id)
+    : false;
 
   const handlePreviewPdf = useCallback(async () => {
     if (!activeDocument || activeDocument.type !== 'document' || !activeDocument.contentHtml) return;
@@ -202,20 +251,23 @@ export default function App() {
     }
   }, [activeDocument]);
 
-  const handleOpenTextEditor = useCallback(async () => {
+  const handleOpenTextEditor = useCallback(async (mode: 'edit' | 'link' = 'edit') => {
     if (!activeDocument || activeDocument.type !== 'document') return;
 
     setDocumentError(null);
+    setTextEditorMode(mode);
 
     if (activeDocument.sourceMarkdown?.trim()) {
-      setEditorInitialMarkdown(activeDocument.sourceMarkdown);
+      setEditorContentSource('original');
+      setEditorInitialMarkdown(normalizeEditorMarkdown(activeDocument.sourceMarkdown));
       setTextEditorOpen(true);
       return;
     }
 
     try {
       const { deriveDocumentTextSource } = await import('@/services/ai/workflow/document');
-      setEditorInitialMarkdown(deriveDocumentTextSource(activeDocument.contentHtml));
+      setEditorContentSource('derived');
+      setEditorInitialMarkdown(normalizeEditorMarkdown(deriveDocumentTextSource(activeDocument.contentHtml)));
       setTextEditorOpen(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to prepare the text editor.';
@@ -226,6 +278,7 @@ export default function App() {
   const handleSaveText = useCallback(async (markdown: string) => {
     if (!activeDocument || activeDocument.type !== 'document') return;
 
+    const normalizedMarkdown = normalizeEditorMarkdown(markdown);
     setDocumentError(null);
     setDocumentAction('save-text');
 
@@ -233,7 +286,7 @@ export default function App() {
       const { renderDocumentTextEdits } = await import('@/services/ai/workflow/document');
       const result = renderDocumentTextEdits({
         existingHtml: activeDocument.contentHtml,
-        text: markdown,
+        text: normalizedMarkdown,
         titleHint: activeDocument.title,
         prompt: `${activeDocument.title}\n${activeDocument.description ?? ''}`.trim(),
       });
@@ -243,6 +296,7 @@ export default function App() {
         contentHtml: result.html,
         sourceMarkdown: result.markdown,
       });
+      setEditorInitialMarkdown(result.markdown);
       setTextEditorOpen(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save text changes.';
@@ -260,8 +314,8 @@ export default function App() {
   }, [activeDocument, updateDocument]);
 
   const handleNavigateToDocument = useCallback(
-    (docId: string) => {
-      const targetDoc = project.documents.find((d) => d.id === docId);
+    (documentRef: string) => {
+      const targetDoc = resolveProjectDocumentReference(project.documents, documentRef);
       if (targetDoc) {
         const { setActiveDocumentId } = useProjectStore.getState();
         setActiveDocumentId(targetDoc.id);
@@ -324,7 +378,7 @@ export default function App() {
                           variant="ghost"
                           size="sm"
                           className="h-7 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
-                          onClick={() => void handleOpenTextEditor()}
+                          onClick={() => void handleOpenTextEditor('edit')}
                           disabled={isDocumentBusy}
                         >
                           {documentAction === 'save-text' ? (
@@ -336,6 +390,24 @@ export default function App() {
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>Edit the document wording without touching HTML</TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
+                          onClick={() => void handleOpenTextEditor('link')}
+                          disabled={isDocumentBusy || !canLinkAnotherDocument}
+                        >
+                          <Link2 className="size-3.5" />
+                          Link doc
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {canLinkAnotherDocument ? 'Insert a link to another document' : 'Create another document first to add an internal link'}
+                      </TooltipContent>
                     </Tooltip>
 
                     <Tooltip>
@@ -458,6 +530,10 @@ export default function App() {
           initialMarkdown={editorInitialMarkdown}
           onSave={handleSaveText}
           isSaving={documentAction === 'save-text'}
+          availableDocuments={project.documents}
+          currentDocumentId={activeDocument?.id}
+          autoOpenLinkPicker={textEditorMode === 'link'}
+          contentSource={editorContentSource}
         />
       </Suspense>
     </div>

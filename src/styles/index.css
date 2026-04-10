@@ -107,3 +107,115 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #a3a3a3;
 }
+
+.aura-mdxeditor-content {
+  color: #162235;
+  font-size: 0.96rem;
+  line-height: 1.75;
+}
+
+.aura-mdxeditor-content > :first-child {
+  margin-top: 0;
+}
+
+.aura-mdxeditor-content > :last-child {
+  margin-bottom: 0;
+}
+
+.aura-mdxeditor-content p {
+  margin: 0 0 0.9rem;
+}
+
+.aura-mdxeditor-content h1,
+.aura-mdxeditor-content h2,
+.aura-mdxeditor-content h3,
+.aura-mdxeditor-content h4,
+.aura-mdxeditor-content h5,
+.aura-mdxeditor-content h6 {
+  margin: 1.1rem 0 0.55rem;
+  color: #0f172a;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.aura-mdxeditor-content h1 {
+  font-size: 2rem;
+  line-height: 1.08;
+}
+
+.aura-mdxeditor-content h2 {
+  font-size: 1.5rem;
+  line-height: 1.18;
+}
+
+.aura-mdxeditor-content h3 {
+  font-size: 1.2rem;
+  line-height: 1.28;
+}
+
+.aura-mdxeditor-content strong {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.aura-mdxeditor-content em {
+  font-style: italic;
+}
+
+.aura-mdxeditor-content a {
+  color: #1f4b99;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.aura-mdxeditor-content blockquote {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid #93c5fd;
+  border-radius: 0 0.9rem 0.9rem 0;
+  background: #f8fbff;
+  color: #475569;
+}
+
+.aura-mdxeditor-content blockquote p {
+  margin: 0;
+}
+
+.aura-mdxeditor-content ul,
+.aura-mdxeditor-content ol {
+  margin: 0 0 1rem;
+  padding-left: 1.3rem;
+}
+
+.aura-mdxeditor-content ul {
+  list-style: disc;
+}
+
+.aura-mdxeditor-content ol {
+  list-style: decimal;
+}
+
+.aura-mdxeditor-content li {
+  margin: 0.3rem 0;
+}
+
+.aura-mdxeditor-content code {
+  border-radius: 0.4rem;
+  background: #f3f4f6;
+  padding: 0.12rem 0.35rem;
+  font-family: 'SFMono-Regular', 'SF Mono', Menlo, monospace;
+  font-size: 0.92em;
+  color: #0f172a;
+}
+
+.aura-mdxeditor-content hr {
+  margin: 1rem 0;
+  border: 0;
+  border-top: 1px solid #d4d8dd;
+}
+
+.aura-mdxeditor-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+}
