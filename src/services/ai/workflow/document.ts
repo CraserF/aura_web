@@ -40,6 +40,8 @@ export interface DocumentInput {
   styleHint?: string;
   /** Other documents/presentations in the project — used to generate cross-document links */
   projectLinks?: DocumentProjectLink[];
+  /** Image parts for multi-modal document requests */
+  imageParts?: Array<{ type: 'image'; image: string; mimeType: string }>;
 }
 
 export interface DocumentOutput {
@@ -741,10 +743,25 @@ export async function runDocumentWorkflow(
 
     let accumulated = '';
 
+    // Build the final user message — multi-modal if images were attached
+    const userMessage: ModelMessage = input.imageParts && input.imageParts.length > 0
+      ? {
+          role: 'user',
+          content: [
+            { type: 'text' as const, text: userPrompt },
+            ...input.imageParts.map((img) => ({
+              type: 'image' as const,
+              image: img.image,
+              mimeType: img.mimeType as `image/${string}`,
+            })),
+          ],
+        }
+      : { role: 'user', content: userPrompt };
+
     const requestMessages: ModelMessage[] = [
       { role: 'system', content: systemPrompt, providerOptions: CACHE_CONTROL } as ModelMessage,
       ...historyMessages,
-      { role: 'user', content: userPrompt },
+      userMessage,
     ];
 
     logPromptMetrics('document', requestMessages, {

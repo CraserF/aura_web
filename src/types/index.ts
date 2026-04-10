@@ -5,6 +5,23 @@
 /** Unique identifier type */
 export type SlideId = string;
 
+/** A file attached to a chat message */
+export interface FileAttachment {
+  /** Unique ID for UI keying */
+  id: string;
+  /** Original file name */
+  name: string;
+  /** MIME type */
+  mimeType: string;
+  /** Category used for routing content to the AI */
+  kind: 'image' | 'text';
+  /**
+   * For images: base64-encoded data URI (e.g. `data:image/png;base64,...`).
+   * For text files: the raw text content.
+   */
+  content: string;
+}
+
 /** A single chat message */
 export interface ChatMessage {
   id: string;
@@ -15,6 +32,8 @@ export interface ChatMessage {
   documentId?: string;
   /** Project scope applies broadly; document scope follows the active artifact only. */
   scope?: 'document' | 'project';
+  /** Files attached to this message */
+  attachments?: FileAttachment[];
 }
 
 /** Active workflow step info for progress display */

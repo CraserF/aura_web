@@ -19,13 +19,29 @@ export const CACHE_CONTROL = {
   anthropic: { cacheControl: { type: 'ephemeral' } },
 } as const;
 
-/** Map our internal AIMessage format to AI SDK ModelMessage, preserving providerOptions */
+/** Map our internal AIMessage format to AI SDK ModelMessage, preserving providerOptions.
+ *  Messages that include image parts are converted to multi-part user messages. */
 export function toModelMessages(messages: AIMessage[]): ModelMessage[] {
-  return messages.map((m): ModelMessage => ({
-    role: m.role,
-    content: m.content,
-    ...(m.providerOptions && { providerOptions: m.providerOptions }),
-  }) as ModelMessage);
+  return messages.map((m): ModelMessage => {
+    // Multi-modal message: user message with image attachments
+    if (m.role === 'user' && m.images && m.images.length > 0) {
+      const parts: NonNullable<ModelMessage & { role: 'user' }>['content'] = [
+        { type: 'text' as const, text: m.content },
+        ...m.images.map((img) => ({
+          type: 'image' as const,
+          image: img.image,
+          mimeType: img.mimeType as `image/${string}`,
+        })),
+      ];
+      return { role: 'user', content: parts } as ModelMessage;
+    }
+
+    return {
+      role: m.role,
+      content: m.content,
+      ...(m.providerOptions && { providerOptions: m.providerOptions }),
+    } as ModelMessage;
+  });
 }
 
 /** Create an AI SDK LanguageModel from provider config */

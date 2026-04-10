@@ -1,14 +1,16 @@
-import { useState, useRef, useCallback } from 'react';
-import { ArrowUp, Sparkles, Square } from 'lucide-react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { ArrowUp, Paperclip, Sparkles, Square, X } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
 import { usePresentationStore } from '@/stores/presentationStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { WorkflowEvent } from '@/services/ai/workflow';
 import type { AIMessage } from '@/services/ai/types';
-import type { ChatMessage as ChatMessageType, WorkflowStep } from '@/types';
+import type { ChatMessage as ChatMessageType, FileAttachment, WorkflowStep } from '@/types';
 import type { ProjectDocument } from '@/types/project';
 import { commitVersion } from '@/services/storage/versionHistory';
+import { readFileAsAttachment, buildAttachmentContext } from '@/lib/fileAttachment';
+import { detectWorkflowType } from '@/lib/workflowType';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -28,34 +30,6 @@ const DOCUMENT_STYLE_OPTIONS = [
   { value: 'proposal', label: 'Proposal' },
 ] as const;
 
-/** Detect if the user wants to create/edit a document or presentation */
-function detectWorkflowType(
-  prompt: string,
-  activeDocType: 'document' | 'presentation' | undefined,
-): 'document' | 'presentation' {
-  const p = prompt.toLowerCase();
-
-  // Explicit presentation keywords
-  const presentationKeywords = [
-    'slide', 'presentation', 'deck', 'slideshow',
-    'pitch', 'keynote', 'powerpoint',
-  ];
-  if (presentationKeywords.some((k) => p.includes(k))) return 'presentation';
-
-  // Explicit document keywords
-  const documentKeywords = [
-    'document', 'doc', 'article', 'report', 'essay', 'note',
-    'wiki', 'readme', 'page', 'write', 'draft', 'blog',
-  ];
-  if (documentKeywords.some((k) => p.includes(k))) return 'document';
-
-  // If there's an active document, use its type for edits
-  if (activeDocType) return activeDocType;
-
-  // Default: presentation (preserves existing behavior)
-  return 'presentation';
-}
-
 function isMessageInScope(
   message: ChatMessageType,
   activeDocumentId: string | undefined,
@@ -67,7 +41,11 @@ function isMessageInScope(
 
 export function ChatBar() {
   const [input, setInput] = useState('');
+  const [attachments, setAttachments] = useState<FileAttachment[]>([]);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const messages = useChatStore((s) => s.messages);
   const status = useChatStore((s) => s.status);
@@ -111,7 +89,7 @@ export function ChatBar() {
 
   const handleSubmit = useCallback(async () => {
     const prompt = input.trim();
-    if (!prompt || isGenerating) return;
+    if ((!prompt && attachments.length === 0) || isGenerating) return;
 
     if (!hasApiKey()) {
       setShowSettings(true);
@@ -122,6 +100,11 @@ export function ChatBar() {
     const messageScope = applyToAllDocuments || !activeArtifactId ? 'project' : 'document';
     const scopedDocumentId = messageScope === 'document' ? activeArtifactId : undefined;
 
+    // Snapshot and clear attachments before async work
+    const currentAttachments = attachments;
+    setAttachments([]);
+    setAttachmentError(null);
+
     const userMsg: ChatMessageType = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -129,9 +112,22 @@ export function ChatBar() {
       timestamp: Date.now(),
       documentId: scopedDocumentId,
       scope: messageScope,
+      attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
     };
     addMessage(userMsg);
     setInput('');
+
+    // Build text context from text-kind attachments
+    const attachmentContext = buildAttachmentContext(currentAttachments);
+    const promptWithContext = (attachmentContext
+      ? `${prompt}${attachmentContext}`
+      : prompt
+    ).trim();
+
+    // Build image parts for multi-modal messages
+    const imageParts = currentAttachments
+      .filter((a) => a.kind === 'image')
+      .map((a) => ({ type: 'image' as const, image: a.content, mimeType: a.mimeType }));
 
     const chatHistory: AIMessage[] = messages
       .filter((message) => isMessageInScope(message, activeArtifactId, showAllMessages))
@@ -222,7 +218,7 @@ export function ChatBar() {
 
         const result = await runPresentationWorkflow({
           input: {
-            prompt,
+            prompt: promptWithContext,
             existingSlidesHtml: existingSlides,
             chatHistory,
           },
@@ -356,12 +352,13 @@ export function ChatBar() {
 
         const result = await runDocumentWorkflow({
           input: {
-            prompt,
+            prompt: promptWithContext,
             existingHtml: existingDoc,
             existingMarkdown: activeDocument?.type === 'document' ? activeDocument.sourceMarkdown : undefined,
             chatHistory,
             styleHint: documentStylePreset,
             projectLinks: projectLinks.length > 0 ? projectLinks : undefined,
+            imageParts: imageParts.length > 0 ? imageParts : undefined,
           },
           llmConfig: {
             providerEntry,
@@ -429,7 +426,7 @@ export function ChatBar() {
       }
     }
   }, [
-    input, isGenerating, hasApiKey, setShowSettings, addMessage, messages,
+    input, attachments, isGenerating, hasApiKey, setShowSettings, addMessage, messages,
     slidesHtml, setStatus, setStreamingContent, appendStreamingContent,
     providerId, getActiveProvider, setSlides, setTitle, updateStepStatus,
     activeDocument, addDocument, updateDocument, project, showAllMessages, applyToAllDocuments,
@@ -450,7 +447,87 @@ export function ChatBar() {
     }
   }, []);
 
-  const canSend = input.trim().length > 0 && !isGenerating;
+  // ─── File attachment handlers ──────────────────────────────────────────────
+
+  const processFiles = useCallback(async (files: File[]) => {
+    setAttachmentError(null);
+    const results: FileAttachment[] = [];
+    for (const file of files) {
+      try {
+        const attachment = await readFileAsAttachment(file);
+        if (attachment) {
+          results.push(attachment);
+        } else {
+          setAttachmentError(`"${file.name}" is not a supported file type (images and text files only).`);
+        }
+      } catch (err) {
+        setAttachmentError(err instanceof Error ? err.message : `Failed to read "${file.name}"`);
+      }
+    }
+    if (results.length > 0) {
+      setAttachments((prev) => [...prev, ...results]);
+    }
+  }, []);
+
+  const handleFileInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files ?? []);
+      if (files.length > 0) processFiles(files);
+      e.target.value = '';
+    },
+    [processFiles],
+  );
+
+  const handleAttachClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const removeAttachment = useCallback((id: string) => {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+  }, []);
+
+  // Drag-and-drop support
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragOver(false);
+      const files = Array.from(e.dataTransfer.files);
+      if (files.length > 0) processFiles(files);
+    },
+    [processFiles],
+  );
+
+  // Clipboard paste support (images)
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const imageFiles = Array.from(e.clipboardData.files).filter((f) =>
+        f.type.startsWith('image/'),
+      );
+      if (imageFiles.length > 0) {
+        e.preventDefault();
+        processFiles(imageFiles);
+      }
+    },
+    [processFiles],
+  );
+
+  // Dismiss attachment error after 5 s
+  useEffect(() => {
+    if (!attachmentError) return;
+    const timer = setTimeout(() => setAttachmentError(null), 5000);
+    return () => clearTimeout(timer);
+  }, [attachmentError]);
+
+  const canSend = (input.trim().length > 0 || attachments.length > 0) && !isGenerating;
   const showDocumentStyleMenu = !activeDocument || activeDocument.type === 'document';
   const documentStyleLabel = DOCUMENT_STYLE_OPTIONS.find((option) => option.value === documentStylePreset)?.label ?? 'Auto';
 
@@ -462,19 +539,70 @@ export function ChatBar() {
 
   return (
     <div className="shrink-0 border-t border-border bg-background px-4 py-3 sm:px-6">
-      <div className="relative mx-auto max-w-3xl">
+      <div
+        className={cn(
+          'relative mx-auto max-w-3xl rounded-xl transition-colors',
+          isDragOver && 'ring-2 ring-violet-500/40 bg-violet-500/5',
+        )}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {/* Attachment previews */}
+        {attachments.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {attachments.map((a) => (
+              <div
+                key={a.id}
+                className="group relative flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/50 px-2 py-1 text-[11px] text-muted-foreground"
+              >
+                {a.kind === 'image' ? (
+                  <img
+                    src={a.content}
+                    alt={a.name}
+                    className="size-5 rounded object-cover"
+                  />
+                ) : (
+                  <span className="text-[10px]">📄</span>
+                )}
+                <span className="max-w-[120px] truncate">{a.name}</span>
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(a.id)}
+                  className="ml-0.5 text-muted-foreground/60 hover:text-foreground"
+                  aria-label={`Remove ${a.name}`}
+                >
+                  <X size={10} strokeWidth={2.5} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <textarea
           ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder}
+          onPaste={handlePaste}
+          placeholder={isDragOver ? 'Drop files here…' : placeholder}
           disabled={isGenerating}
           rows={2}
           className="w-full resize-none rounded-xl border border-border bg-muted/50 px-4 py-3 pb-11 text-sm leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-foreground/20 focus:bg-background disabled:opacity-50"
         />
         <div className="absolute bottom-2.5 left-4 right-4 flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
+            {/* Attach file button */}
+            <button
+              type="button"
+              onClick={handleAttachClick}
+              disabled={isGenerating}
+              className="inline-flex size-7 items-center justify-center rounded-md border border-border/70 bg-background/80 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
+              aria-label="Attach a file"
+              title="Attach image or text file"
+            >
+              <Paperclip size={12} strokeWidth={2} />
+            </button>
             {showDocumentStyleMenu && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -530,6 +658,21 @@ export function ChatBar() {
           )}
         </div>
       </div>
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,text/plain,text/markdown,text/csv,application/json,.md,.csv,.txt,.json,.xml,.yaml,.yml,.log"
+        multiple
+        className="hidden"
+        onChange={handleFileInputChange}
+        aria-label="Attach files"
+      />
+
+      {attachmentError && (
+        <p className="mt-1.5 text-center text-[11px] text-amber-500">{attachmentError}</p>
+      )}
 
       {status.state === 'error' && (
         <p className="mt-2 text-center text-xs text-destructive">{status.message}</p>
