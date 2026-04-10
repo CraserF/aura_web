@@ -11,6 +11,30 @@ export function ChatMessage({ message }: { message: ChatMessageType }) {
         <p className="mb-1 text-xs text-muted-foreground">
           {isUser ? 'You' : 'Aura'}
         </p>
+
+        {/* Attachment thumbnails */}
+        {message.attachments && message.attachments.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {message.attachments.map((a) =>
+              a.kind === 'image' ? (
+                <img
+                  key={a.id}
+                  src={a.content}
+                  alt={a.name}
+                  className="max-h-32 max-w-[180px] rounded-lg border border-border/40 object-cover"
+                />
+              ) : (
+                <span
+                  key={a.id}
+                  className="inline-flex items-center gap-1 rounded-md border border-border/40 bg-muted/60 px-2 py-1 text-[11px] text-muted-foreground"
+                >
+                  📄 {a.name}
+                </span>
+              ),
+            )}
+          </div>
+        )}
+
         <p
           className={cn(
             'text-sm whitespace-pre-wrap break-words leading-relaxed',

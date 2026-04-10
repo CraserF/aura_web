@@ -8,12 +8,38 @@
 import type { LanguageModel } from 'ai';
 import type { ProviderId } from '@/types';
 
+/** A single image part attached to an AI message */
+export interface AIImagePart {
+  type: 'image';
+  /** Base64-encoded data URI (e.g. `data:image/png;base64,...`) */
+  image: string;
+  mimeType: string;
+}
+
 /** Message format for AI conversations (compatible with AI SDK ModelMessage) */
 export interface AIMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
+  /** Image attachments for multi-modal messages (user messages only) */
+  images?: AIImagePart[];
   /** Provider-specific options (e.g., Anthropic prompt caching). Passed through to AI SDK. */
   providerOptions?: Record<string, Record<string, unknown>>;
+}
+
+/** Configuration needed to create an AI SDK model */
+export interface ProviderModelConfig {
+  apiKey: string;
+  baseUrl?: string;
+  model?: string;
+}
+
+/** Registry entry for a provider — creates AI SDK model instances on demand */
+export interface ProviderEntry {
+  id: ProviderId;
+  name: string;
+  defaultModel: string;
+  /** Create a LanguageModel instance from the given config */
+  createModel: (config: ProviderModelConfig) => Promise<LanguageModel>;
 }
 
 /** Configuration needed to create an AI SDK model */
