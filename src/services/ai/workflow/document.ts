@@ -25,6 +25,12 @@ import {
   type DocumentBlueprint,
 } from '../templates/document-blueprints';
 
+export interface DocumentProjectLink {
+  id: string;
+  title: string;
+  type: 'document' | 'presentation';
+}
+
 export interface DocumentInput {
   prompt: string;
   existingHtml?: string;
@@ -32,6 +38,8 @@ export interface DocumentInput {
   chatHistory: AIMessage[];
   documentType?: string; // hints like "report", "notes", "wiki", "readme"
   styleHint?: string;
+  /** Other documents/presentations in the project — used to generate cross-document links */
+  projectLinks?: DocumentProjectLink[];
 }
 
 export interface DocumentOutput {
@@ -44,14 +52,15 @@ type ResolvedDocumentType = 'report' | 'brief' | 'proposal' | 'notes' | 'wiki' |
 type ArtDirection = 'clean' | 'polished' | 'editorial';
 
 const DOCUMENT_SYSTEM_PROMPT = `You are a professional document designer and writer.
-Return a complete document body that feels like a premium editorial or infographic-style document, not a bland memo.
-Prefer HTML with semantic structure and a compact inline <style> block whenever the request benefits from design, hierarchy, or visual explanation.
+Return a complete document body that feels purposeful and polished — premium editorial or infographic-style for rich content, clean and focused for reference material.
+Use HTML with semantic structure and a compact inline <style> block whenever the request benefits from visual hierarchy, layout, or explanation.
 
 Rules:
 - focus on the current document only; treat earlier chat as light background context
 - make each document feel purpose-built, not like a clone of other project docs
 - use strong headings, concise paragraphs, and clear visual rhythm
 - prefer summary bands, KPI rows, comparison cards, process rails, pull quotes, and sidebars over long generic prose
+- for notes, wikis, and reference material: use a clean minimal layout — no decorative elements, just clear hierarchy
 - no JavaScript, remote assets, or external stylesheets
 - output only the document content`;
 
@@ -395,19 +404,29 @@ ${summary}
     return this;
   }
 
+  addProjectLinks(links: DocumentProjectLink[]): this {
+    if (!links || links.length === 0) return this;
+    const lines = links.map(({ id, title, type }) => `- <a href="#${id}">${title}</a> (${type})`);
+    this.sections.push(`## Available Project Links\nYou may reference the following documents and presentations using HTML anchor links (e.g. \`<a href="#id">Title</a>\`). Only link when it genuinely adds value — do not force links into the content.\n${lines.join('\n')}`);
+    return this;
+  }
+
   addRequest(label: 'User Request' | 'User Instruction', value: string): this {
     this.sections.push(`## ${label}\n${value}`);
     return this;
   }
 
   addRules(isEdit: boolean, plan: DocumentPlan): this {
+    const isClean = plan.artDirection === 'clean';
     this.sections.push(`## Rules
 - ${plan.preferHtml ? 'Return a complete HTML document body with semantic layout and one compact inline <style> block.' : 'Use HTML when it improves readability; markdown is acceptable only for very plain reference notes or readmes.'}
 - Keep reusable --doc-* variables and class-based layout modules so the document feels intentional rather than improvised
 - Focus on this single document; treat other project context as light background only
-- Make the document feel distinct by mixing 2–4 suitable patterns: hero summary, KPI rail, comparison cards, progress rows, timeline, pull quote, sidebar, or metadata grid
-- Prefer infographic-style clarity over decoration; every visual module should explain something
-- Subtle Aura-only motion is welcome on key containers via classes like aura-rise-in, aura-fade-in, or aura-pulse-soft
+- ${isClean
+  ? 'This is a reference/notes document: keep it clean and minimal — clear hierarchy, one accent color, no decorative bands or animations. Favour whitespace and readability over visuals.'
+  : 'Make the document feel distinct by mixing 2–4 suitable patterns: hero summary, KPI rail, comparison cards, progress rows, timeline, pull quote, sidebar, or metadata grid'}
+- Prefer ${isClean ? 'functional clarity' : 'infographic-style clarity'} over decoration; every visual element should communicate something
+- ${isClean ? 'Avoid animations, heavy gradients, and decorative components.' : 'Subtle Aura-only motion is welcome on key containers via classes like aura-rise-in, aura-fade-in, or aura-pulse-soft'}
 - ${isEdit ? 'Preserve the existing structure and make the smallest necessary change.' : 'Prefer polished structure over decorative excess.'}
 - Avoid walls of text, generic headings, and repeated identical component blocks`);
     return this;
@@ -428,6 +447,7 @@ async function buildCreatePrompt(input: DocumentInput, plan: DocumentPlan): Prom
     .addComponentHints(plan.documentType, plan.artDirection, input.prompt)
     .addPalette(plan.theme)
     .addExample(plan.blueprint, plan.documentType, plan.artDirection, includeExample)
+    .addProjectLinks(input.projectLinks ?? [])
     .addRequest('User Request', input.prompt)
     .addRules(false, plan)
     .build();
@@ -444,6 +464,7 @@ async function buildEditPrompt(input: DocumentInput, plan: DocumentPlan): Promis
     .addComponentHints(plan.documentType, plan.artDirection, input.prompt)
     .addPalette(plan.theme)
     .addExample(plan.blueprint, plan.documentType, plan.artDirection, shouldIncludeExample)
+    .addProjectLinks(input.projectLinks ?? [])
     .addRequest('User Instruction', input.prompt)
     .addRules(true, plan)
     .build();
@@ -1098,11 +1119,20 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
 }
 .doc-shell.doc-type-wiki,
 .doc-shell.doc-type-readme {
-  background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(248,251,255,0.98) 100%);
+  background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,251,255,0.99) 100%);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+}
+.doc-shell.doc-type-notes {
+  background: #ffffff;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
 }
 .doc-shell.doc-type-notes .doc-section {
   box-shadow: none;
   border-style: dashed;
+}
+.doc-shell.doc-type-wiki .doc-section,
+.doc-shell.doc-type-readme .doc-section {
+  box-shadow: none;
 }
 .doc-prose,
 .doc-shell .aura-doc {
@@ -1388,6 +1418,26 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
 .doc-shell a {
   color: var(--doc-primary);
   text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--doc-primary) 30%, transparent);
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.doc-shell a:hover {
+  color: var(--doc-accent);
+  border-bottom-color: var(--doc-accent);
+}
+/* Internal project links (e.g. #doc-id, ./doc-id) */
+.doc-shell a[href^="#"],
+.doc-shell a[href^="./"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  font-weight: 500;
+}
+.doc-shell a[href^="#"]::before,
+.doc-shell a[href^="./"]::before {
+  content: '→';
+  font-size: 0.85em;
+  opacity: 0.7;
 }
 .doc-shell img,
 .doc-shell svg {

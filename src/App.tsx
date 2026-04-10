@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { DocumentPdfPreview } from '@/components/DocumentPdfPreview';
-import { ChevronDown, Eye, FileDown, Loader2, PenSquare, Printer } from 'lucide-react';
+import { BookOpen, ChevronDown, Eye, FileDown, Loader2, PenSquare, Printer } from 'lucide-react';
 
 const LazyDocumentTextEditor = lazy(async () => {
   const mod = await import('@/components/DocumentTextEditor');
@@ -252,6 +252,24 @@ export default function App() {
     }
   }, [activeDocument, updateDocument]);
 
+  const handleTogglePages = useCallback(() => {
+    if (!activeDocument || activeDocument.type !== 'document') return;
+    updateDocument(activeDocument.id, {
+      pagesEnabled: !activeDocument.pagesEnabled,
+    });
+  }, [activeDocument, updateDocument]);
+
+  const handleNavigateToDocument = useCallback(
+    (docId: string) => {
+      const targetDoc = project.documents.find((d) => d.id === docId);
+      if (targetDoc) {
+        const { setActiveDocumentId } = useProjectStore.getState();
+        setActiveDocumentId(targetDoc.id);
+      }
+    },
+    [project.documents],
+  );
+
   const handlePrint = useCallback(async () => {
     if (!activeDocument || activeDocument.type !== 'document' || !activeDocument.contentHtml) {
       setDocumentError('Document preview is not ready to print yet.');
@@ -323,6 +341,21 @@ export default function App() {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
+                          variant={activeDocument.pagesEnabled ? 'secondary' : 'ghost'}
+                          size="sm"
+                          className="h-7 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
+                          onClick={handleTogglePages}
+                        >
+                          <BookOpen className="size-3.5" />
+                          Pages
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{activeDocument.pagesEnabled ? 'Switch to scroll view' : 'Switch to A4 page view'}</TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
                           variant="secondary"
                           size="sm"
                           className="h-7 gap-1.5 rounded-md px-2 text-xs"
@@ -388,7 +421,11 @@ export default function App() {
                   </>
                 )}
               </div>
-              <DocumentCanvas html={activeDocument.contentHtml} />
+              <DocumentCanvas
+                html={activeDocument.contentHtml}
+                pagesEnabled={activeDocument.pagesEnabled}
+                onNavigate={handleNavigateToDocument}
+              />
             </div>
           )}
           <ChatBar />
