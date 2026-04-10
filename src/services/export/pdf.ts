@@ -28,6 +28,11 @@ const EXPORT_BASE_STYLES = `
     color: #0f172a;
   }
 
+  .aura-pdf-root {
+    font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.6;
+  }
+
   .aura-pdf-root .doc-shell {
     max-width: 100% !important;
     margin: 0 !important;
@@ -41,6 +46,27 @@ const EXPORT_BASE_STYLES = `
   .aura-pdf-root .aura-doc {
     display: grid;
     gap: 14px !important;
+  }
+
+  .aura-pdf-root h1,
+  .aura-pdf-root h2,
+  .aura-pdf-root h3 {
+    margin: 0 0 8px;
+    color: #0f172a;
+    line-height: 1.2;
+  }
+
+  .aura-pdf-root h1 { font-size: 24pt; }
+  .aura-pdf-root h2 { font-size: 15pt; margin-top: 10px; }
+  .aura-pdf-root h3 { font-size: 12pt; margin-top: 8px; }
+
+  .aura-pdf-root p,
+  .aura-pdf-root li,
+  .aura-pdf-root blockquote,
+  .aura-pdf-root td,
+  .aura-pdf-root th {
+    font-size: 11pt;
+    color: #243447;
   }
 
   .aura-pdf-root .doc-header,
@@ -62,6 +88,7 @@ const EXPORT_BASE_STYLES = `
     page-break-inside: avoid;
   }
 
+  .aura-pdf-root .doc-header,
   .aura-pdf-root .doc-section,
   .aura-pdf-root .section-card,
   .aura-pdf-root .module-card,
@@ -74,11 +101,19 @@ const EXPORT_BASE_STYLES = `
   .aura-pdf-root .doc-proof-strip,
   .aura-pdf-root .doc-infographic-band,
   .aura-pdf-root .doc-aside {
-    padding: 14px 16px;
-    border-radius: 14px;
-    border: 1px solid rgba(31, 75, 153, 0.12);
-    background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(31, 75, 153, 0.04) 100%);
-    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.04);
+    padding: 10px 0;
+    border-radius: 0;
+    border: none;
+    border-top: 1px solid rgba(148, 163, 184, 0.28);
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .aura-pdf-root .doc-header {
+    padding-top: 0;
+    border-top: none;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.38);
+    margin-bottom: 4px;
   }
 
   .aura-pdf-root .module-grid,
@@ -86,16 +121,11 @@ const EXPORT_BASE_STYLES = `
   .aura-pdf-root .stats-grid,
   .aura-pdf-root .doc-kpi-grid,
   .aura-pdf-root .doc-story-grid,
-  .aura-pdf-root .doc-comparison {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 12px;
-  }
-
+  .aura-pdf-root .doc-comparison,
   .aura-pdf-root .doc-sidebar-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1.25fr) minmax(180px, 0.85fr);
-    gap: 12px;
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .aura-pdf-root .benefit-item {

@@ -177,7 +177,9 @@ export function renderDocumentTextEdits(opts: {
     const prompt = opts.prompt?.trim() || opts.titleHint?.trim() || fallback.title;
     const documentType = opts.documentType ? resolveDocumentType({ prompt, chatHistory: [], documentType: opts.documentType }) : inferDocumentType(prompt);
     const theme = pickDocumentTheme(prompt, documentType);
-    const preservedHtml = enhanceDocumentHtml(existingDoc.body.innerHTML, theme, documentType);
+    const preservedSource = `${Array.from(existingDoc.head.querySelectorAll('style')).map((node) => node.outerHTML).join('\n')}
+${existingDoc.body.innerHTML}`;
+    const preservedHtml = enhanceDocumentHtml(preservedSource, theme, documentType);
     const sanitized = sanitizeHtml(preservedHtml);
     const title = extractDocumentTitle(sanitized) || fallback.title;
 
@@ -807,13 +809,29 @@ function extractDocumentSource(raw: string): string {
 }
 
 function looksLikeHtml(content: string): boolean {
-  const trimmed = content.trim().toLowerCase();
-  return trimmed.startsWith('<style')
-    || trimmed.startsWith('<div')
-    || trimmed.startsWith('<article')
-    || trimmed.startsWith('<section')
-    || trimmed.startsWith('<h1')
-    || trimmed.startsWith('<p');
+  const trimmed = content.trim();
+  if (!trimmed) return false;
+
+  return /^(?:<!doctype\s+html|<html\b|<head\b|<body\b|<(?:style|link|main|header|footer|article|section|aside|nav|div|figure|table|ul|ol|li|blockquote|h[1-6]|p)\b)/i.test(trimmed);
+}
+
+function extractDocumentHtmlParts(html: string): { styleBlocks: string; bodyHtml: string; titleHint?: string } {
+  const trimmed = html.trim();
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(trimmed, 'text/html');
+
+  const styleBlocks = [
+    ...Array.from(doc.head.querySelectorAll('style')).map((node) => node.outerHTML),
+    ...Array.from(doc.body.querySelectorAll('style')).map((node) => node.outerHTML),
+  ].join('\n').trim();
+
+  doc.querySelectorAll('style').forEach((node) => node.remove());
+
+  return {
+    styleBlocks,
+    bodyHtml: doc.body.innerHTML.trim() || trimmed,
+    titleHint: doc.querySelector('title')?.textContent?.trim() || undefined,
+  };
 }
 
 function renderDocumentContent(rawContent: string, input: DocumentInput): string {
@@ -830,18 +848,15 @@ function renderDocumentContent(rawContent: string, input: DocumentInput): string
 }
 
 function enhanceDocumentHtml(html: string, theme: DocumentTheme, documentType: ResolvedDocumentType): string {
-  const trimmed = html.trim();
-  const leadingStyleMatch = trimmed.match(/^((?:\s*<style[\s\S]*?<\/style>\s*)+)/i);
-  const leadingStyles = leadingStyleMatch?.[1] ?? '';
-  const bodyHtml = leadingStyles ? trimmed.slice(leadingStyles.length).trim() : trimmed;
+  const { styleBlocks, bodyHtml, titleHint } = extractDocumentHtmlParts(html);
 
-  const hasOwnStyle = !!leadingStyles;
+  const hasOwnStyle = !!styleBlocks;
   const shellCss = hasOwnStyle
     ? buildDocumentShellVars(theme)
     : buildDocumentShellStyle(theme);
 
   const shellClass = `doc-shell theme-${theme.name} doc-type-${documentType}`;
-  const themedBody = /class=["'][^"']*\bdoc-shell\b[^"']*["']/i.test(bodyHtml)
+  let themedBody = /class=["'][^"']*\bdoc-shell\b[^"']*["']/i.test(bodyHtml)
     ? bodyHtml.replace(/\bdoc-shell\b/, shellClass)
     : `<article class="${shellClass}" data-doc-theme="${theme.name}" data-doc-type="${documentType}">
   <div class="doc-prose aura-fade-in">
@@ -849,9 +864,21 @@ function enhanceDocumentHtml(html: string, theme: DocumentTheme, documentType: R
   </div>
 </article>`;
 
+  if (titleHint && !/<h1\b/i.test(themedBody)) {
+    themedBody = `<article class="${shellClass}" data-doc-theme="${theme.name}" data-doc-type="${documentType}">
+  <div class="doc-prose aura-fade-in">
+    <header class="doc-header aura-rise-in">
+      <div class="doc-eyebrow">${theme.label} · ${documentType}</div>
+      <h1>${escapeHtml(titleHint)}</h1>
+    </header>
+    ${bodyHtml}
+  </div>
+</article>`;
+  }
+
   return `${shellCss}
-${leadingStyles}
-${themedBody}`;
+${styleBlocks}
+${themedBody}`.trim();
 }
 
 /** Minimal shell tokens plus low-specificity utilities so AI-authored layouts can stay distinct. */

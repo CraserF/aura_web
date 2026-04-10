@@ -175,19 +175,29 @@ const PRINT_STYLES = `
   }
 `;
 
+function extractStyleBlocks(html: string): { contentHtml: string; inlineStyles: string } {
+  const styleMatches = html.match(/<style[\s\S]*?<\/style>/gi) ?? [];
+  return {
+    inlineStyles: styleMatches.join('\n'),
+    contentHtml: html.replace(/<style[\s\S]*?<\/style>/gi, '').trim(),
+  };
+}
+
 /** Build the full HTML document for the iframe */
 function buildIframeDocument(bodyHtml: string, pagesEnabled: boolean): string {
   const styles = pagesEnabled ? PAGES_STYLES : WRAPPER_STYLES + PRINT_STYLES;
+  const { contentHtml, inlineStyles } = extractStyleBlocks(bodyHtml);
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>${styles}</style>
+  ${inlineStyles}
 </head>
 <body>
   <div class="aura-document-frame">
-${bodyHtml}
+${contentHtml || bodyHtml}
   </div>
 </body>
 </html>`;

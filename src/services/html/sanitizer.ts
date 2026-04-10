@@ -100,6 +100,13 @@ function sanitizeElement(el: Element): void {
   attrsToRemove.forEach((a) => el.removeAttribute(a));
 }
 
+function serializeSafeHeadNodes(doc: Document): string {
+  return Array.from(doc.head.querySelectorAll('style, link'))
+    .map((node) => node.outerHTML)
+    .join('\n')
+    .trim();
+}
+
 /**
  * Sanitize a complete HTML document string.
  * Returns the sanitized HTML.
@@ -124,8 +131,11 @@ export function sanitizeHtml(html: string): string {
   // Sanitize remaining elements
   doc.querySelectorAll('*').forEach(sanitizeElement);
 
-  // Return the body HTML (preserve inner structure)
-  return doc.body.innerHTML;
+  const preservedHead = serializeSafeHeadNodes(doc);
+  const bodyHtml = doc.body.innerHTML.trim();
+
+  // Return safe styles + body HTML so document CSS is preserved even when the parser hoists <style> into <head>.
+  return [preservedHead, bodyHtml].filter(Boolean).join('\n');
 }
 
 /**
@@ -147,5 +157,7 @@ export function sanitizeInnerHtml(html: string): string {
 
   doc.querySelectorAll('*').forEach(sanitizeElement);
 
-  return doc.body.innerHTML;
+  const preservedHead = serializeSafeHeadNodes(doc);
+  const bodyHtml = doc.body.innerHTML.trim();
+  return [preservedHead, bodyHtml].filter(Boolean).join('\n');
 }
