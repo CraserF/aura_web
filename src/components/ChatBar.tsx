@@ -349,6 +349,11 @@ export function ChatBar() {
           ? activeDocument.contentHtml
           : undefined;
 
+        // Build project links for cross-document linking
+        const projectLinks = project.documents
+          .filter((d) => d.id !== activeDocument?.id && d.contentHtml)
+          .map((d) => ({ id: d.id, title: d.title, type: d.type }));
+
         const result = await runDocumentWorkflow({
           input: {
             prompt,
@@ -356,6 +361,7 @@ export function ChatBar() {
             existingMarkdown: activeDocument?.type === 'document' ? activeDocument.sourceMarkdown : undefined,
             chatHistory,
             styleHint: documentStylePreset,
+            projectLinks: projectLinks.length > 0 ? projectLinks : undefined,
           },
           llmConfig: {
             providerEntry,

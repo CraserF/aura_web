@@ -16,7 +16,7 @@ const EXPORT_BASE_STYLES = `
     width: 210mm;
     min-height: 297mm;
     margin: 0 auto;
-    padding: 16mm 18mm 18mm;
+    padding: 14mm 16mm 16mm;
     background: #ffffff;
     box-sizing: border-box;
   }
@@ -40,6 +40,7 @@ const EXPORT_BASE_STYLES = `
     border: none !important;
     box-shadow: none !important;
     background: transparent !important;
+    border-radius: 0 !important;
   }
 
   .aura-pdf-root .doc-prose,
@@ -56,16 +57,16 @@ const EXPORT_BASE_STYLES = `
     line-height: 1.2;
   }
 
-  .aura-pdf-root h1 { font-size: 24pt; }
-  .aura-pdf-root h2 { font-size: 15pt; margin-top: 10px; }
-  .aura-pdf-root h3 { font-size: 12pt; margin-top: 8px; }
+  .aura-pdf-root h1 { font-size: 22pt; }
+  .aura-pdf-root h2 { font-size: 14pt; margin-top: 10px; }
+  .aura-pdf-root h3 { font-size: 11pt; margin-top: 8px; }
 
   .aura-pdf-root p,
   .aura-pdf-root li,
   .aura-pdf-root blockquote,
   .aura-pdf-root td,
   .aura-pdf-root th {
-    font-size: 11pt;
+    font-size: 10.5pt;
     color: #243447;
   }
 
@@ -94,26 +95,38 @@ const EXPORT_BASE_STYLES = `
   .aura-pdf-root .module-card,
   .aura-pdf-root .benefit-item,
   .aura-pdf-root .callout,
-  .aura-pdf-root .doc-kpi,
-  .aura-pdf-root .doc-story-card,
-  .aura-pdf-root .doc-compare-card,
-  .aura-pdf-root .doc-timeline-item,
-  .aura-pdf-root .doc-proof-strip,
-  .aura-pdf-root .doc-infographic-band,
   .aura-pdf-root .doc-aside {
-    padding: 10px 0;
-    border-radius: 0;
+    padding: 10px 12px;
+    border-radius: 6px;
     border: none;
     border-top: 1px solid rgba(148, 163, 184, 0.28);
     background: transparent;
     box-shadow: none;
   }
 
+  .aura-pdf-root .doc-kpi,
+  .aura-pdf-root .doc-story-card,
+  .aura-pdf-root .doc-compare-card,
+  .aura-pdf-root .doc-timeline-item,
+  .aura-pdf-root .doc-proof-strip,
+  .aura-pdf-root .doc-infographic-band {
+    padding: 8px 10px;
+    border-radius: 4px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    background: rgba(248, 250, 252, 0.7);
+    box-shadow: none;
+  }
+
   .aura-pdf-root .doc-header {
     padding-top: 0;
     border-top: none;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.38);
-    margin-bottom: 4px;
+    border-bottom: 2px solid rgba(31, 75, 153, 0.3);
+    margin-bottom: 8px;
+    background: transparent;
+  }
+
+  .aura-pdf-root .doc-header::after {
+    display: none !important;
   }
 
   .aura-pdf-root .module-grid,
@@ -121,7 +134,12 @@ const EXPORT_BASE_STYLES = `
   .aura-pdf-root .stats-grid,
   .aura-pdf-root .doc-kpi-grid,
   .aura-pdf-root .doc-story-grid,
-  .aura-pdf-root .doc-comparison,
+  .aura-pdf-root .doc-comparison {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px;
+  }
+
   .aura-pdf-root .doc-sidebar-layout {
     display: grid;
     grid-template-columns: 1fr;
@@ -134,10 +152,18 @@ const EXPORT_BASE_STYLES = `
     gap: 12px;
   }
 
-  .aura-pdf-root img,
-  .aura-pdf-root svg {
-    max-width: 100%;
-    height: auto;
+  /* Disable all animations for print */
+  .aura-pdf-root *,
+  .aura-pdf-root *::before,
+  .aura-pdf-root *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* Hide internal navigation arrows on links */
+  .aura-pdf-root a[href^="#"]::before,
+  .aura-pdf-root a[href^="./"]::before {
+    display: none;
   }
 
   .aura-pdf-root img,
@@ -153,7 +179,7 @@ const EXPORT_BASE_STYLES = `
 
     .aura-pdf-page {
       margin: 0;
-      padding: 16mm 18mm 18mm;
+      padding: 14mm 16mm 16mm;
       box-shadow: none;
     }
   }
