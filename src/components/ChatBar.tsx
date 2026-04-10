@@ -119,7 +119,10 @@ export function ChatBar() {
 
     // Build text context from text-kind attachments
     const attachmentContext = buildAttachmentContext(currentAttachments);
-    const promptWithContext = attachmentContext ? `${prompt}${attachmentContext}` : prompt;
+    const promptWithContext = (attachmentContext
+      ? `${prompt}${attachmentContext}`
+      : prompt
+    ).trim();
 
     // Build image parts for multi-modal messages
     const imageParts = currentAttachments

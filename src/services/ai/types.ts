@@ -41,19 +41,3 @@ export interface ProviderEntry {
   /** Create a LanguageModel instance from the given config */
   createModel: (config: ProviderModelConfig) => Promise<LanguageModel>;
 }
-
-/** Configuration needed to create an AI SDK model */
-export interface ProviderModelConfig {
-  apiKey: string;
-  baseUrl?: string;
-  model?: string;
-}
-
-/** Registry entry for a provider — creates AI SDK model instances on demand */
-export interface ProviderEntry {
-  id: ProviderId;
-  name: string;
-  defaultModel: string;
-  /** Create a LanguageModel instance from the given config */
-  createModel: (config: ProviderModelConfig) => Promise<LanguageModel>;
-}
