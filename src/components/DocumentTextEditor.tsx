@@ -43,6 +43,8 @@ interface DocumentTextEditorProps {
 
 type EditorViewMode = 'rich' | 'markdown';
 
+const RICH_EDITOR_CONTENT_CLASSNAME = 'aura-mdxeditor-content max-w-none min-h-[380px] px-2 py-1 focus:outline-none';
+
 function normalizeEditorMarkdown(value: string): string {
   return value
     .replace(/\r\n/g, '\n')
@@ -70,6 +72,7 @@ export function DocumentTextEditor({
   const [linkPickerOpen, setLinkPickerOpen] = useState(false);
   const [linkQuery, setLinkQuery] = useState('');
   const [editorViewMode, setEditorViewMode] = useState<EditorViewMode>('rich');
+  const [editorResetKey, setEditorResetKey] = useState(0);
 
   useEffect(() => {
     if (!open) {
@@ -81,9 +84,11 @@ export function DocumentTextEditor({
     setMarkdown(normalized);
     setEditorViewMode('rich');
     setLinkQuery('');
+    setEditorResetKey((current) => current + 1);
 
     const handle = window.requestAnimationFrame(() => {
       editorRef.current?.setMarkdown(normalized);
+      editorRef.current?.focus();
     });
 
     return () => window.cancelAnimationFrame(handle);
@@ -93,11 +98,15 @@ export function DocumentTextEditor({
     if (!open || editorViewMode !== 'rich') return;
 
     const handle = window.requestAnimationFrame(() => {
-      editorRef.current?.setMarkdown(markdown);
+      const nextMarkdown = markdown.trim().length > 0
+        ? markdown
+        : normalizeEditorMarkdown(initialMarkdown);
+      editorRef.current?.setMarkdown(nextMarkdown);
+      editorRef.current?.focus();
     });
 
     return () => window.cancelAnimationFrame(handle);
-  }, [editorViewMode, open]);
+  }, [editorResetKey, editorViewMode, initialMarkdown, open]);
 
   const linkableDocuments = useMemo(
     () => availableDocuments.filter((doc) => doc.type === 'document' && doc.id !== currentDocumentId),
@@ -186,7 +195,9 @@ export function DocumentTextEditor({
     setMarkdown(normalized);
 
     if (editorViewMode === 'rich') {
+      setEditorResetKey((current) => current + 1);
       editorRef.current?.setMarkdown(normalized);
+      editorRef.current?.focus();
     }
   };
 
@@ -233,7 +244,7 @@ export function DocumentTextEditor({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="flex h-[88vh] max-w-5xl flex-col overflow-hidden p-0">
+        <DialogContent className="flex h-[88vh] max-w-5xl flex-col p-0">
           <div className="border-b border-border px-6 py-4">
             <DialogHeader className="gap-1 text-left">
               <DialogTitle>Edit text</DialogTitle>
@@ -302,12 +313,13 @@ export function DocumentTextEditor({
               <div className="px-4 py-4">
                 {editorViewMode === 'rich' ? (
                   <MDXEditor
-                    key="rich-editor"
+                    key={`rich-editor-${editorResetKey}`}
                     ref={editorRef}
+                    className="aura-mdxeditor"
                     markdown={markdown}
                     onChange={setMarkdown}
                     plugins={plugins}
-                    contentEditableClassName="prose prose-slate max-w-none min-h-[380px] px-2 py-1 focus:outline-none"
+                    contentEditableClassName={RICH_EDITOR_CONTENT_CLASSNAME}
                   />
                 ) : (
                   <div className="space-y-2">
