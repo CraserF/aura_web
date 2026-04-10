@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Future of Distributed Systems</title>
+<style>
+  :root {
+    --doc-primary: #1e3a5f;
+    --doc-accent: #2563eb;
+    --doc-text: #1e293b;
+    --doc-muted: #64748b;
+    --doc-bg: #fafbfc;
+    --doc-surface: #f1f5f9;
+    --doc-surface-alt: #e8f0fe;
+    --doc-border: rgba(15, 23, 42, 0.08);
+    --doc-font: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: var(--doc-font);
+    color: var(--doc-text);
+    background: var(--doc-bg);
+    line-height: 1.7;
+    padding: 48px 0;
+  }
+  .doc-container {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 0 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+  /* ---------- Hero Header ---------- */
+  .doc-header {
+    text-align: center;
+    padding: 40px 20px 24px;
+  }
+  .doc-eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--doc-accent);
+    margin-bottom: 12px;
+  }
+  .doc-title {
+    font-size: 2.6rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    background: linear-gradient(135deg, var(--doc-primary), var(--doc-accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .doc-lead {
+    margin-top: 16px;
+    font-size: 1.1rem;
+    line-height: 1.7;
+    color: var(--doc-muted);
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  /* ---------- Stat Row ---------- */
+  .doc-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+  .doc-stat {
+    text-align: center;
+    padding: 20px 12px;
+    border-radius: 16px;
+    border: 1px solid var(--doc-border);
+    background: linear-gradient(180deg, rgba(255,255,255,0.92) 0%, var(--doc-surface) 100%);
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.03);
+  }
+  .doc-stat-value {
+    display: block;
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--doc-primary);
+  }
+  .doc-stat-label {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--doc-muted);
+  }
+  .doc-stat-delta { font-size: 13px; font-weight: 600; }
+  .doc-stat-delta.positive { color: #16a34a; }
+  /* ---------- Sections ---------- */
+  section { display: flex; flex-direction: column; gap: 14px; }
+  section > h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--doc-primary);
+    border-bottom: 2px solid var(--doc-accent);
+    padding-bottom: 8px;
+    display: inline-block;
+  }
+  section > h3 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--doc-text);
+    margin-top: 4px;
+  }
+  section > p {
+    font-size: 15px;
+    line-height: 1.75;
+    color: var(--doc-text);
+  }
+  /* ---------- Feature Grid ---------- */
+  .doc-feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+  .doc-feature {
+    padding: 22px 18px;
+    border-radius: 16px;
+    border: 1px solid var(--doc-border);
+    background: linear-gradient(180deg, rgba(255,255,255,0.94) 0%, var(--doc-surface) 100%);
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+  }
+  .doc-feature-icon { font-size: 1.8em; margin-bottom: 10px; }
+  .doc-feature h4 { margin: 0 0 6px; font-size: 15px; font-weight: 700; color: var(--doc-text); }
+  .doc-feature p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--doc-muted); }
+  /* ---------- Callout ---------- */
+  .doc-callout {
+    display: flex;
+    gap: 14px;
+    padding: 16px 20px;
+    border-radius: 14px;
+    border-left: 4px solid var(--doc-accent);
+    background: linear-gradient(135deg, var(--doc-surface-alt) 0%, rgba(255,255,255,0.96) 100%);
+  }
+  .doc-callout-icon { font-size: 1.3em; flex: none; }
+  .doc-callout strong { display: block; margin-bottom: 4px; color: var(--doc-accent); }
+  .doc-callout p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--doc-muted); }
+  /* ---------- Pull Quote ---------- */
+  .doc-pullquote {
+    margin: 0;
+    padding: 28px 32px;
+    border-radius: 18px;
+    border-left: 4px solid var(--doc-accent);
+    background: linear-gradient(135deg, var(--doc-surface) 0%, var(--doc-surface-alt) 100%);
+    text-align: center;
+  }
+  .doc-pullquote blockquote {
+    margin: 0; padding: 0; border: none; background: none;
+    font-size: 1.2rem; font-style: italic; line-height: 1.6; color: var(--doc-text);
+  }
+  .doc-pullquote figcaption { margin-top: 10px; font-size: 13px; color: var(--doc-muted); }
+  /* ---------- Comparison Table ---------- */
+  .doc-comparison {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--doc-border);
+  }
+  .doc-comparison th, .doc-comparison td {
+    padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--doc-border);
+  }
+  .doc-comparison th {
+    background: var(--doc-surface);
+    font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--doc-muted);
+  }
+  .doc-comparison-highlight { background: linear-gradient(180deg, rgba(255,255,255,0.94) 0%, var(--doc-surface-alt) 100%); font-weight: 600; }
+  /* ---------- Two-Col ---------- */
+  .doc-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  .doc-two-col > div {
+    padding: 20px;
+    border-radius: 14px;
+    border: 1px solid var(--doc-border);
+    background: linear-gradient(180deg, rgba(255,255,255,0.94) 0%, var(--doc-surface) 100%);
+  }
+  .doc-two-col h3 { margin: 0 0 6px; font-size: 15px; font-weight: 700; }
+  .doc-two-col p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--doc-muted); }
+  /* ---------- Timeline ---------- */
+  .doc-timeline { padding-left: 32px; border-left: 3px solid var(--doc-border); }
+  .doc-timeline-item { display: flex; gap: 16px; padding: 14px 0; position: relative; }
+  .doc-timeline-marker {
+    position: absolute; left: -44px; width: 24px; height: 24px;
+    border-radius: 50%; background: var(--doc-accent); color: #fff;
+    font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  }
+  .doc-timeline-body h4 { margin: 0 0 4px; font-size: 15px; color: var(--doc-text); }
+  .doc-timeline-body p { margin: 0; font-size: 13px; color: var(--doc-muted); }
+  .doc-timeline-date {
+    display: inline-block; margin-top: 6px; font-size: 11px;
+    font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--doc-accent);
+  }
+  /* ---------- Divider ---------- */
+  .doc-divider { display: flex; gap: 8px; justify-content: center; padding: 8px 0; }
+  .doc-divider-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--doc-accent); opacity: 0.5; }
+  /* ---------- Footer ---------- */
+  .doc-footer {
+    padding: 16px 20px; border-radius: 14px;
+    border-top: 1px solid var(--doc-border); text-align: center;
+  }
+  .doc-footer p { margin: 0; font-size: 11px; letter-spacing: 0.04em; color: var(--doc-muted); opacity: 0.7; }
+</style>
+</head>
+<body>
+
+<div class="doc-container">
+
+  <!-- Hero Header -->
+  <header class="doc-header">
+    <div class="doc-eyebrow">Engineering Brief · May 2025</div>
+    <h1 class="doc-title">The Future of Distributed Systems</h1>
+    <p class="doc-lead">How edge-first architectures, CRDT-based state management, and zero-trust networking are reshaping the way we build software at scale.</p>
+  </header>
+
+  <!-- Stat Row -->
+  <div class="doc-stats">
+    <div class="doc-stat">
+      <span class="doc-stat-value">47ms</span>
+      <span class="doc-stat-label">P95 Latency</span>
+      <span class="doc-stat-delta positive">↓ 62%</span>
+    </div>
+    <div class="doc-stat">
+      <span class="doc-stat-value">99.99%</span>
+      <span class="doc-stat-label">Availability</span>
+    </div>
+    <div class="doc-stat">
+      <span class="doc-stat-value">3.2M</span>
+      <span class="doc-stat-label">Req/sec Peak</span>
+      <span class="doc-stat-delta positive">↑ 4×</span>
+    </div>
+    <div class="doc-stat">
+      <span class="doc-stat-value">142</span>
+      <span class="doc-stat-label">Edge Regions</span>
+    </div>
+  </div>
+
+  <!-- Section: The Shift -->
+  <section>
+    <h2>The Shift to Edge-First</h2>
+    <p>Traditional client-server models concentrate compute in a few data centres, creating bottlenecks for latency-sensitive workloads. Edge-first architectures invert this model by pushing logic to the perimeter — co-locating compute with users rather than centralising it.</p>
+    <p>The results are dramatic: p95 latencies drop from hundreds of milliseconds to under 50ms, cold-start times shrink to single digits, and regional outages no longer cascade into global incidents.</p>
+  </section>
+
+  <!-- Feature Grid -->
+  <div class="doc-feature-grid">
+    <div class="doc-feature">
+      <div class="doc-feature-icon">🌐</div>
+      <h4>Global by Default</h4>
+      <p>Every deployment automatically replicates across 142 edge regions with intelligent routing.</p>
+    </div>
+    <div class="doc-feature">
+      <div class="doc-feature-icon">⚡</div>
+      <h4>Instant Scale</h4>
+      <p>Workers spin up in under 5ms with no cold starts, handling traffic spikes without provisioning.</p>
+    </div>
+    <div class="doc-feature">
+      <div class="doc-feature-icon">🔐</div>
+      <h4>Zero-Trust Native</h4>
+      <p>mTLS between every hop. No implicit trust boundaries, even within the same cluster.</p>
+    </div>
+  </div>
+
+  <!-- Callout -->
+  <div class="doc-callout">
+    <div class="doc-callout-icon">💡</div>
+    <div>
+      <strong>Key Insight</strong>
+      <p>Teams that adopted edge-first patterns reported 40% fewer on-call incidents and a 3× improvement in user-perceived performance — without increasing infrastructure spend.</p>
+    </div>
+  </div>
+
+  <!-- Section: State Management -->
+  <section>
+    <h2>CRDT-Based State Management</h2>
+    <p>Conflict-free Replicated Data Types (CRDTs) allow multiple nodes to concurrently modify shared state and automatically merge without coordination. This eliminates the need for consensus protocols in many common workloads.</p>
+    <h3>Where CRDTs Excel</h3>
+    <p>Collaborative editing, shopping carts, feature-flag propagation, and session state replication are all natural fits. The key insight is that most application state is commutative — order doesn't matter as long as convergence is guaranteed.</p>
+  </section>
+
+  <!-- Two-Column -->
+  <div class="doc-two-col">
+    <div>
+      <h3>Traditional Consensus</h3>
+      <p>Leader election, linearizable reads, 3–5 round-trip coordination. High correctness, high latency. Single-leader bottleneck under heavy write loads.</p>
+    </div>
+    <div>
+      <h3>CRDT Approach</h3>
+      <p>Local-first writes, eventual consistency, zero coordination. Reads are instant. Conflict resolution is built into the data structure itself.</p>
+    </div>
+  </div>
+
+  <!-- Pull Quote -->
+  <figure class="doc-pullquote">
+    <blockquote>"We don't need to choose between consistency and availability. With the right data structures, we can have both."</blockquote>
+    <figcaption>— Martin Kleppmann, Author of <em>Designing Data-Intensive Applications</em></figcaption>
+  </figure>
+
+  <!-- Divider -->
+  <div class="doc-divider">
+    <span class="doc-divider-dot"></span>
+    <span class="doc-divider-dot"></span>
+    <span class="doc-divider-dot"></span>
+  </div>
+
+  <!-- Section: Roadmap -->
+  <section>
+    <h2>Implementation Roadmap</h2>
+    <p>Migrating to an edge-first architecture is not a single switch but a staged journey. The following timeline reflects a realistic enterprise adoption path.</p>
+  </section>
+
+  <!-- Timeline -->
+  <div class="doc-timeline">
+    <div class="doc-timeline-item">
+      <div class="doc-timeline-marker">1</div>
+      <div class="doc-timeline-body">
+        <h4>Audit & Assessment</h4>
+        <p>Profile existing latency, identify edge-viable workloads, catalogue data residency constraints.</p>
+        <span class="doc-timeline-date">Month 1–2</span>
+      </div>
+    </div>
+    <div class="doc-timeline-item">
+      <div class="doc-timeline-marker">2</div>
+      <div class="doc-timeline-body">
+        <h4>Edge Proxy Layer</h4>
+        <p>Deploy intelligent routing at the edge. Static content and read-heavy APIs migrate first.</p>
+        <span class="doc-timeline-date">Month 3–4</span>
+      </div>
+    </div>
+    <div class="doc-timeline-item">
+      <div class="doc-timeline-marker">3</div>
+      <div class="doc-timeline-body">
+        <h4>State Migration</h4>
+        <p>Replace coordination-heavy state with CRDT equivalents. Session, flags, and caches move first.</p>
+        <span class="doc-timeline-date">Month 5–7</span>
+      </div>
+    </div>
+    <div class="doc-timeline-item">
+      <div class="doc-timeline-marker">4</div>
+      <div class="doc-timeline-body">
+        <h4>Full Edge Compute</h4>
+        <p>Business logic runs at the edge. Central data centre becomes the system of record only.</p>
+        <span class="doc-timeline-date">Month 8–12</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Comparison Table -->
+  <section>
+    <h2>Architecture Comparison</h2>
+  </section>
+  <table class="doc-comparison">
+    <thead>
+      <tr><th>Dimension</th><th>Centralised</th><th class="doc-comparison-highlight">Edge-First</th><th>Hybrid</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Latency (p95)</td><td>180ms</td><td class="doc-comparison-highlight">47ms</td><td>95ms</td></tr>
+      <tr><td>Cold Start</td><td>250ms</td><td class="doc-comparison-highlight">&lt;5ms</td><td>80ms</td></tr>
+      <tr><td>Blast Radius</td><td>Global</td><td class="doc-comparison-highlight">Regional</td><td>Mixed</td></tr>
+      <tr><td>Ops Complexity</td><td>Low</td><td class="doc-comparison-highlight">Medium</td><td>High</td></tr>
+      <tr><td>Data Residency</td><td>Single region</td><td class="doc-comparison-highlight">Per-user</td><td>Configurable</td></tr>
+    </tbody>
+  </table>
+
+  <!-- Footer -->
+  <footer class="doc-footer">
+    <p>Sources: Cloudflare Edge Report 2024 · AWS re:Invent Keynote · Internal Benchmarks</p>
+    <p>Prepared by the Platform Engineering Team · Internal Distribution Only</p>
+  </footer>
+
+</div>
+
+</body>
+</html>

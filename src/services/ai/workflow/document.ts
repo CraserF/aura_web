@@ -13,6 +13,8 @@ import { withDefaults } from '../middleware';
 import { sanitizeHtml } from '@/services/html/sanitizer';
 import { CACHE_CONTROL } from './engine';
 import { aiDebugLog, logPromptMetrics } from '../debug';
+import { getKnowledge } from '../knowledge';
+import { validateDocument } from './agents/document-qa';
 import type {
   LLMConfig,
   EventListener,
@@ -35,6 +37,7 @@ export interface DocumentOutput {
 }
 
 type ResolvedDocumentType = 'report' | 'brief' | 'proposal' | 'notes' | 'wiki' | 'readme' | 'article';
+type ArtDirection = 'clean' | 'polished' | 'editorial';
 
 const DOCUMENT_SYSTEM_PROMPT = `You are a professional editorial designer and writer.
 Create polished, beautiful documents where the visual reading experience is the highest priority.
@@ -214,41 +217,161 @@ export function renderDocumentTextEdits(opts: {
   }
 }
 
-function buildCreatePrompt(input: DocumentInput): string {
-  const documentType = resolveDocumentType(input);
-  const theme = pickDocumentTheme(input.prompt, documentType);
-  return `Document type: ${documentType}
-Visual tone: ${theme.label}
-
-${getDocumentStructureGuide(documentType)}
-
-User request: ${input.prompt}
-
-Important:
-- Design and visual polish come first
-- Prefer elegant HTML with beautiful layout and spacing
-- Use markdown only if a simpler text-first response is clearly better`;
+function inferArtDirection(documentType: ResolvedDocumentType): ArtDirection {
+  switch (documentType) {
+    case 'wiki':
+    case 'readme':
+    case 'notes':
+      return 'clean';
+    case 'report':
+    case 'brief':
+    case 'proposal':
+      return 'polished';
+    case 'article':
+    default:
+      return 'editorial';
+  }
 }
 
-function buildEditPrompt(input: DocumentInput): string {
+function getArtDirectionGuidance(tier: ArtDirection): string {
+  switch (tier) {
+    case 'clean':
+      return `## Art Direction: Clean
+- Minimal surface treatment — focus on clarity and scanability
+- 2 component types max (e.g. header + callout or simple list)
+- Monochrome palette with one accent colour
+- No gradients on title, no pull quotes
+- Feels like: a clean wiki page or README`;
+    case 'polished':
+      return `## Art Direction: Polished
+- Surface cards with subtle gradients, stat rows, comparison tables
+- 3–4 different component types
+- Professional but not flashy
+- Full palette with primary + accent colours
+- Feels like: a consulting brief or quarterly report`;
+    case 'editorial':
+      return `## Art Direction: Editorial
+- Gradient title, hero header, pull quotes, feature grids
+- 4–5 different component types — magazine-quality layout
+- Rich palette, intentional white space, typographic contrast
+- Use the most visually dynamic components available
+- Feels like: a premium editorial article or investor pitch`;
+  }
+}
+
+async function buildCreatePrompt(input: DocumentInput): Promise<string> {
+  const documentType = resolveDocumentType(input);
+  const theme = pickDocumentTheme(input.prompt, documentType);
+  const artDirection = inferArtDirection(documentType);
+
+  const sections: string[] = [];
+
+  // 1. Document type and visual tone
+  sections.push(`Document type: ${documentType}
+Visual tone: ${theme.label}`);
+
+  // 2. Art direction tier
+  sections.push(getArtDirectionGuidance(artDirection));
+
+  // 3. Structure guide
+  sections.push(getDocumentStructureGuide(documentType));
+
+  // 4. Design rules (condensed from knowledge base)
+  try {
+    const designRules = await getKnowledge('document-design-rules');
+    sections.push(`## Design Rules Reference\n${designRules}`);
+  } catch { /* knowledge optional */ }
+
+  // 5. Component recipes (condensed from knowledge base)
+  try {
+    const components = await getKnowledge('document-components');
+    sections.push(`## Available Document Components\nUse these HTML/CSS patterns as building blocks. Pick 3–5 that fit the content:\n${components}`);
+  } catch { /* knowledge optional */ }
+
+  // 6. Exemplar excerpt
+  try {
+    const exemplar = await getKnowledge('example-document');
+    // Truncate to keep prompt manageable
+    const excerpt = exemplar.length > 3000 ? exemplar.slice(0, 3000) + '\n<!-- truncated -->' : exemplar;
+    sections.push(`## Reference: Premium Document Example\nStudy this example for quality, structure, and style. Match this level of polish:\n\`\`\`html\n${excerpt}\n\`\`\``);
+  } catch { /* knowledge optional */ }
+
+  // 7. Theme CSS variables for inline use
+  sections.push(`## Theme Palette (use these CSS custom properties)
+\`\`\`css
+--doc-primary: ${theme.primary};
+--doc-accent: ${theme.accent};
+--doc-text: ${theme.text};
+--doc-muted: ${theme.muted};
+--doc-bg: ${theme.bg};
+--doc-surface: ${theme.surface};
+--doc-surface-alt: ${theme.surfaceAlt};
+--doc-border: ${theme.border};
+\`\`\``);
+
+  // 8. User request
+  sections.push(`## User Request\n${input.prompt}`);
+
+  // 9. Final reminders
+  sections.push(`## Important
+- Design and visual polish come first
+- Prefer elegant HTML with beautiful layout and spacing
+- Use CSS custom properties (--doc-*) in your <style> block
+- Use markdown only if a simpler text-first response is clearly better
+- Every document MUST have a <style> block with custom properties
+- No walls of text: break up content with components
+- Choose specific, descriptive headings — never "Introduction" or "Conclusion"
+- Vary your component choices: don't repeat the same component type back-to-back`);
+
+  return sections.join('\n\n');
+}
+
+async function buildEditPrompt(input: DocumentInput): Promise<string> {
   const documentType = resolveDocumentType(input);
   const existingSummary = input.existingMarkdown?.trim() || summarizeExistingDocument(input.existingHtml ?? '');
   const theme = pickDocumentTheme(input.prompt, documentType);
+  const artDirection = inferArtDirection(documentType);
 
-  return `Document type: ${documentType}
-Visual tone: ${theme.label}
+  const sections: string[] = [];
 
-Existing document outline:
+  sections.push(`Document type: ${documentType}
+Visual tone: ${theme.label}`);
+
+  sections.push(getArtDirectionGuidance(artDirection));
+
+  sections.push(`## Existing Document
 \`\`\`markdown
 ${existingSummary}
-\`\`\`
+\`\`\``);
 
-User instruction: ${input.prompt}
+  // Include component recipes for edits too
+  try {
+    const components = await getKnowledge('document-components');
+    sections.push(`## Available Document Components\nUse these patterns when adding new sections:\n${components}`);
+  } catch { /* knowledge optional */ }
 
-IMPORTANT:
+  sections.push(`## Theme Palette
+\`\`\`css
+--doc-primary: ${theme.primary};
+--doc-accent: ${theme.accent};
+--doc-text: ${theme.text};
+--doc-muted: ${theme.muted};
+--doc-bg: ${theme.bg};
+--doc-surface: ${theme.surface};
+--doc-surface-alt: ${theme.surfaceAlt};
+--doc-border: ${theme.border};
+\`\`\``);
+
+  sections.push(`## User Instruction\n${input.prompt}`);
+
+  sections.push(`## Important
 - Append new sections by default unless the user asked to rewrite or replace content
 - Preserve the document's structure, polish, and tone where possible
-- Prefer a visually rich HTML result if that best maintains beauty and readability`;
+- Prefer a visually rich HTML result if that best maintains beauty and readability
+- Use CSS custom properties (--doc-*) for colour consistency
+- Vary component types — don't repeat the same pattern back-to-back`);
+
+  return sections.join('\n\n');
 }
 
 function getDocumentStructureGuide(documentType: ResolvedDocumentType): string {
@@ -304,7 +427,9 @@ Use numbered lists and code fences where helpful.`;
 function pickDocumentTheme(prompt: string, documentType: ResolvedDocumentType): DocumentTheme {
   const normalized = prompt.toLowerCase();
 
-  if (/\b(health|care|climate|sustainab|nature|education|community)\b/.test(normalized)) {
+  // --- Topic-based matching ---
+
+  if (/\b(health|care|climate|sustainab|nature|education|community|environment|green|eco)\b/.test(normalized)) {
     return {
       name: 'forest',
       label: 'Field Notes',
@@ -321,7 +446,7 @@ function pickDocumentTheme(prompt: string, documentType: ResolvedDocumentType): 
     };
   }
 
-  if (/\b(product|design|creative|brand|marketing|story)\b/.test(normalized)) {
+  if (/\b(product|design|creative|brand|marketing|story|campaign|launch)\b/.test(normalized)) {
     return {
       name: 'studio',
       label: 'Studio Brief',
@@ -337,6 +462,110 @@ function pickDocumentTheme(prompt: string, documentType: ResolvedDocumentType): 
       glow: 'rgba(109, 74, 255, 0.14)',
     };
   }
+
+  if (/\b(finance|invest|fund|revenue|budget|quarter|fiscal|portfolio|banking)\b/.test(normalized)) {
+    return {
+      name: 'vault',
+      label: 'Executive Finance',
+      bg: '#f4f6f8',
+      surface: 'rgba(15, 32, 65, 0.04)',
+      surfaceAlt: 'rgba(37, 99, 235, 0.08)',
+      border: 'rgba(15, 32, 65, 0.12)',
+      primary: '#0f2041',
+      accent: '#2563eb',
+      text: '#0f172a',
+      muted: '#475569',
+      shellBg: 'rgba(255,255,255,0.96)',
+      glow: 'rgba(37, 99, 235, 0.10)',
+    };
+  }
+
+  if (/\b(tech|engineer|develop|code|api|platform|infrastructure|devops|software|system)\b/.test(normalized)) {
+    return {
+      name: 'terminal',
+      label: 'Engineering Brief',
+      bg: '#f5f7fa',
+      surface: 'rgba(51, 65, 85, 0.04)',
+      surfaceAlt: 'rgba(6, 182, 212, 0.08)',
+      border: 'rgba(51, 65, 85, 0.12)',
+      primary: '#334155',
+      accent: '#06b6d4',
+      text: '#0f172a',
+      muted: '#64748b',
+      shellBg: 'rgba(255,255,255,0.95)',
+      glow: 'rgba(6, 182, 212, 0.12)',
+    };
+  }
+
+  if (/\b(research|science|data|study|hypothesis|experiment|academic|journal|paper)\b/.test(normalized)) {
+    return {
+      name: 'scholar',
+      label: 'Research Paper',
+      bg: '#f8f7f4',
+      surface: 'rgba(120, 85, 43, 0.04)',
+      surfaceAlt: 'rgba(217, 119, 6, 0.08)',
+      border: 'rgba(120, 85, 43, 0.12)',
+      primary: '#78552b',
+      accent: '#d97706',
+      text: '#1c1917',
+      muted: '#78716c',
+      shellBg: 'rgba(255,255,255,0.95)',
+      glow: 'rgba(217, 119, 6, 0.10)',
+    };
+  }
+
+  if (/\b(startup|venture|pitch|seed|series|growth|disrupt|innovate|mvp)\b/.test(normalized)) {
+    return {
+      name: 'neon',
+      label: 'Startup Pitch',
+      bg: '#fafafa',
+      surface: 'rgba(99, 102, 241, 0.04)',
+      surfaceAlt: 'rgba(168, 85, 247, 0.08)',
+      border: 'rgba(99, 102, 241, 0.12)',
+      primary: '#4f46e5',
+      accent: '#a855f7',
+      text: '#1e1b4b',
+      muted: '#6366f1',
+      shellBg: 'rgba(255,255,255,0.95)',
+      glow: 'rgba(168, 85, 247, 0.12)',
+    };
+  }
+
+  if (/\b(legal|compliance|policy|regulation|governance|audit|contract|terms)\b/.test(normalized)) {
+    return {
+      name: 'counsel',
+      label: 'Legal Document',
+      bg: '#f7f8f9',
+      surface: 'rgba(30, 41, 59, 0.03)',
+      surfaceAlt: 'rgba(100, 116, 139, 0.06)',
+      border: 'rgba(30, 41, 59, 0.12)',
+      primary: '#1e293b',
+      accent: '#475569',
+      text: '#0f172a',
+      muted: '#64748b',
+      shellBg: 'rgba(255,255,255,0.96)',
+      glow: 'rgba(30, 41, 59, 0.06)',
+    };
+  }
+
+  if (/\b(hr|people|team|culture|hiring|onboard|employee|talent|org)\b/.test(normalized)) {
+    return {
+      name: 'coral',
+      label: 'People & Culture',
+      bg: '#fef7f4',
+      surface: 'rgba(239, 68, 68, 0.04)',
+      surfaceAlt: 'rgba(251, 146, 60, 0.08)',
+      border: 'rgba(239, 68, 68, 0.10)',
+      primary: '#dc2626',
+      accent: '#f97316',
+      text: '#1c1917',
+      muted: '#78716c',
+      shellBg: 'rgba(255,255,255,0.95)',
+      glow: 'rgba(251, 146, 60, 0.12)',
+    };
+  }
+
+  // --- Doc-type fallbacks ---
 
   if (documentType === 'notes' || documentType === 'wiki' || documentType === 'readme') {
     return {
@@ -355,6 +584,7 @@ function pickDocumentTheme(prompt: string, documentType: ResolvedDocumentType): 
     };
   }
 
+  // Default
   return {
     name: 'professional',
     label: 'Executive Document',
@@ -395,7 +625,7 @@ export async function runDocumentWorkflow(
     onEvent({ type: 'progress', message: isEdit ? 'Applying changes…' : 'Crafting your document…', pct: 20 });
 
     const systemPrompt = isEdit ? EDIT_DOCUMENT_SYSTEM_PROMPT : DOCUMENT_SYSTEM_PROMPT;
-    const userPrompt = isEdit ? buildEditPrompt(input) : buildCreatePrompt(input);
+    const userPrompt = isEdit ? await buildEditPrompt(input) : await buildCreatePrompt(input);
 
     const historyMessages: ModelMessage[] = toModelMessages(
       input.chatHistory.slice(-6), // Keep last 6 messages for context
@@ -445,6 +675,15 @@ export async function runDocumentWorkflow(
 
     // Sanitize the HTML for security
     const sanitized = sanitizeHtml(renderedHtml);
+
+    // Run QA validation (advisory only — does not block)
+    const qaResult = validateDocument(sanitized);
+    aiDebugLog('document', 'document QA', {
+      passed: qaResult.passed,
+      score: qaResult.score,
+      violations: qaResult.violations.length,
+      details: qaResult.violations.map(v => `[${v.severity}] ${v.rule}: ${v.detail}`),
+    });
 
     onEvent({ type: 'step-done', stepId: 'generate', label: isEdit ? 'Updating document…' : 'Writing document…' });
     onEvent({ type: 'progress', message: 'Done!', pct: 100 });
@@ -503,19 +742,49 @@ function enhanceDocumentHtml(html: string, theme: DocumentTheme): string {
   const leadingStyles = leadingStyleMatch?.[1] ?? '';
   const bodyHtml = leadingStyles ? trimmed.slice(leadingStyles.length).trim() : trimmed;
 
+  // If the AI already provided complete styling, use minimal shell
+  const hasOwnStyle = !!leadingStyles;
+  const shellCss = hasOwnStyle
+    ? buildDocumentShellVars(theme)
+    : buildDocumentShellStyle(theme);
+
   if (/class=["']doc-shell["']/i.test(bodyHtml)) {
-    return `${buildDocumentShellStyle(theme)}
+    return `${shellCss}
 ${leadingStyles}
 ${bodyHtml}`;
   }
 
-  return `${buildDocumentShellStyle(theme)}
+  return `${shellCss}
 ${leadingStyles}
 <article class="doc-shell">
   <div class="doc-prose">
     ${bodyHtml}
   </div>
 </article>`;
+}
+
+/** Minimal: only inject CSS custom properties so AI-authored styles can reference them */
+function buildDocumentShellVars(theme: DocumentTheme): string {
+  return `<style>
+.doc-shell {
+  --doc-bg: ${theme.bg};
+  --doc-surface: ${theme.surface};
+  --doc-surface-alt: ${theme.surfaceAlt};
+  --doc-border: ${theme.border};
+  --doc-primary: ${theme.primary};
+  --doc-accent: ${theme.accent};
+  --doc-text: ${theme.text};
+  --doc-muted: ${theme.muted};
+  --doc-shell-bg: ${theme.shellBg ?? 'rgba(255,255,255,0.94)'};
+  --doc-glow: ${theme.glow ?? 'rgba(15, 23, 42, 0.08)'};
+  color: var(--doc-text);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: clamp(20px, 3vw, 34px) clamp(18px, 3vw, 28px) clamp(28px, 4vw, 42px);
+}
+.doc-shell * { box-sizing: border-box; }
+</style>`;
 }
 
 function renderMarkdownDocument(

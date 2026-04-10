@@ -26,7 +26,10 @@ export type KnowledgeDocId =
   | 'hero-scenes'
   | 'slide-generation'
   | 'advanced-workflows'
-  | 'prompt-library';
+  | 'prompt-library'
+  | 'document-components'
+  | 'document-design-rules'
+  | 'example-document';
 
 const KNOWLEDGE_PATHS: Record<KnowledgeDocId, string> = {
   'standalone-slide-knowledge': './docs/standalone-slide-knowledge.md',
@@ -45,6 +48,9 @@ const KNOWLEDGE_PATHS: Record<KnowledgeDocId, string> = {
   'slide-generation': './skills/slide-generation.md',
   'advanced-workflows': './skills/advanced-workflows.md',
   'prompt-library': './prompts/prompt-library.md',
+  'document-components': './docs/document-components.md',
+  'document-design-rules': './docs/document-design-rules.md',
+  'example-document': './docs/example-document.html',
 };
 
 const knowledgeCache = new Map<KnowledgeDocId, string>();

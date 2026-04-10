@@ -1,0 +1,153 @@
+/**
+ * Document QA Validator — Lightweight programmatic post-generation checks.
+ *
+ * Catches mechanical issues without requiring an LLM call:
+ * missing styles, flat structure, no headings, walls of text, etc.
+ */
+
+export interface DocumentQAViolation {
+  rule: string;
+  severity: 'error' | 'warning';
+  detail: string;
+}
+
+export interface DocumentQAResult {
+  passed: boolean;
+  score: number; // 0–100, heuristic quality score
+  violations: DocumentQAViolation[];
+}
+
+/**
+ * Run programmatic QA checks on generated document HTML.
+ */
+export function validateDocument(html: string): DocumentQAResult {
+  const violations: DocumentQAViolation[] = [];
+
+  if (!html.trim()) {
+    return { passed: false, score: 0, violations: [{ rule: 'empty', severity: 'error', detail: 'Document is empty' }] };
+  }
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const body = doc.body;
+
+  // 1. Must have a <style> block
+  const hasStyle = /<style[\s>]/i.test(html);
+  if (!hasStyle) {
+    violations.push({ rule: 'has-style', severity: 'error', detail: 'Missing <style> block — document will look unstyled' });
+  }
+
+  // 2. Must have CSS custom properties
+  const hasCustomProps = /--doc-(?:primary|accent|text|bg|surface)/i.test(html);
+  if (hasStyle && !hasCustomProps) {
+    violations.push({ rule: 'custom-props', severity: 'warning', detail: 'No CSS custom properties (--doc-*) found — colours may be inconsistent' });
+  }
+
+  // 3. Must have h1
+  const h1Count = body.querySelectorAll('h1').length;
+  if (h1Count === 0) {
+    violations.push({ rule: 'has-h1', severity: 'error', detail: 'No <h1> element — document lacks a title' });
+  }
+
+  // 4. Should have h2 for structure
+  const h2Count = body.querySelectorAll('h2').length;
+  if (h2Count === 0) {
+    violations.push({ rule: 'has-h2', severity: 'warning', detail: 'No <h2> sections — document may lack structure' });
+  }
+
+  // 5. Wall-of-text check: no more than 4 consecutive <p> tags without a break
+  const children = Array.from(body.querySelectorAll('p'));
+  let consecutive = 0;
+  let maxConsecutive = 0;
+  for (const el of children) {
+    const prev = el.previousElementSibling;
+    if (prev && prev.tagName === 'P') {
+      consecutive++;
+    } else {
+      consecutive = 1;
+    }
+    maxConsecutive = Math.max(maxConsecutive, consecutive);
+  }
+  if (maxConsecutive > 5) {
+    violations.push({ rule: 'wall-of-text', severity: 'warning', detail: `${maxConsecutive} consecutive paragraphs without a visual break` });
+  }
+
+  // 6. Component variety check
+  const componentTypes = new Set<string>();
+  if (body.querySelector('.doc-stats, .doc-stat')) componentTypes.add('stats');
+  if (body.querySelector('.doc-feature-grid, .doc-feature')) componentTypes.add('feature-grid');
+  if (body.querySelector('.doc-callout')) componentTypes.add('callout');
+  if (body.querySelector('.doc-pullquote, blockquote, figure')) componentTypes.add('quote');
+  if (body.querySelector('.doc-timeline')) componentTypes.add('timeline');
+  if (body.querySelector('.doc-comparison, table')) componentTypes.add('table');
+  if (body.querySelector('.doc-two-col')) componentTypes.add('two-col');
+  if (body.querySelector('.doc-divider, hr')) componentTypes.add('divider');
+  if (body.querySelector('.doc-header, header')) componentTypes.add('header');
+  if (body.querySelector('ul, ol')) componentTypes.add('list');
+
+  const bodyText = body.textContent || '';
+  const wordCount = bodyText.split(/\s+/).filter(Boolean).length;
+  const minComponents = wordCount > 800 ? 4 : wordCount > 400 ? 3 : 2;
+
+  if (componentTypes.size < minComponents) {
+    violations.push({
+      rule: 'component-variety',
+      severity: 'warning',
+      detail: `Only ${componentTypes.size} component type(s) used (${Array.from(componentTypes).join(', ')}). For ${wordCount} words, aim for ${minComponents}+.`,
+    });
+  }
+
+  // 7. No empty sections
+  const sections = body.querySelectorAll('section');
+  for (const section of sections) {
+    const text = section.textContent?.trim() || '';
+    if (text.length < 10) {
+      violations.push({ rule: 'empty-section', severity: 'warning', detail: 'Found a section with very little content' });
+      break;
+    }
+  }
+
+  // 8. Generic heading check
+  const genericHeadings = ['introduction', 'conclusion', 'overview', 'summary', 'body'];
+  const headings = body.querySelectorAll('h1, h2, h3');
+  for (const h of headings) {
+    const text = h.textContent?.trim().toLowerCase() || '';
+    if (genericHeadings.includes(text)) {
+      violations.push({
+        rule: 'generic-heading',
+        severity: 'warning',
+        detail: `Generic heading "${h.textContent?.trim()}" — use a more specific, descriptive heading`,
+      });
+      break; // Only flag once
+    }
+  }
+
+  // --- Compute quality score ---
+  let score = 100;
+
+  // Deduct for violations
+  for (const v of violations) {
+    score -= v.severity === 'error' ? 20 : 8;
+  }
+
+  // Bonus/penalty for structure depth
+  const h3Count = body.querySelectorAll('h3').length;
+  const headingDepth = Math.min(3, (h1Count > 0 ? 1 : 0) + (h2Count > 0 ? 1 : 0) + (h3Count > 0 ? 1 : 0));
+  if (headingDepth < 2) score -= 10;
+
+  // Bonus for component variety
+  if (componentTypes.size >= 4) score += 5;
+  if (componentTypes.size >= 5) score += 5;
+
+  // Penalty for very short documents that are just text
+  if (wordCount > 200 && componentTypes.size < 2) score -= 15;
+
+  score = Math.max(0, Math.min(100, score));
+
+  const errorCount = violations.filter(v => v.severity === 'error').length;
+  return {
+    passed: errorCount === 0,
+    score,
+    violations,
+  };
+}
