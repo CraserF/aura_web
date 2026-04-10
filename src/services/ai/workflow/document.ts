@@ -1,9 +1,9 @@
 /**
- * Document Workflow — Generates polished documents via a markdown-first flow.
+ * Document Workflow — Generates polished documents via a lean HTML-first flow.
  *
  * Flow:
- *   CREATE: Prompt for structured markdown → render into premium HTML → sanitize → return
- *   EDIT:   Summarize existing document → update markdown → render → sanitize → return
+ *   CREATE: plan → generate HTML/markdown → render → QA → sanitize → return
+ *   EDIT:   plan → update markdown/HTML → render → QA → sanitize → return
  */
 
 import type { LanguageModel, ModelMessage } from 'ai';
@@ -13,7 +13,6 @@ import { withDefaults } from '../middleware';
 import { sanitizeHtml } from '@/services/html/sanitizer';
 import { CACHE_CONTROL } from './engine';
 import { aiDebugLog, logPromptMetrics } from '../debug';
-import { getKnowledge } from '../knowledge';
 import { validateDocument } from './agents/document-qa';
 import type {
   LLMConfig,
@@ -39,52 +38,19 @@ export interface DocumentOutput {
 type ResolvedDocumentType = 'report' | 'brief' | 'proposal' | 'notes' | 'wiki' | 'readme' | 'article';
 type ArtDirection = 'clean' | 'polished' | 'editorial';
 
-const DOCUMENT_SYSTEM_PROMPT = `You are a professional editorial designer and writer.
-Create polished, beautiful documents where the visual reading experience is the highest priority.
+const DOCUMENT_SYSTEM_PROMPT = `You are a professional document designer and writer.
+Return a complete document body as polished HTML with semantic structure and a compact inline <style> block.
+Prefer HTML when it improves readability; markdown is allowed only when the request is clearly text-first.
 
-## Preferred output
-Return a COMPLETE document body as rich HTML (no <html>, <head>, or <body> tags).
-Use semantic HTML and include an inline <style> block at the top when needed.
+Rules:
+- prioritize clarity, hierarchy, and scannability
+- use strong headings, concise paragraphs, and tasteful visual rhythm
+- no JavaScript, remote assets, or external stylesheets
+- output only the document content`; 
 
-Structured markdown is acceptable only as a fallback if HTML is genuinely unnecessary.
-Prefer premium HTML when it improves beauty and scannability.
-
-## Design goals
-- Make it feel like a premium brief, report, memo, proposal, or editorial article
-- Strong typography hierarchy
-- Beautiful spacing and readable margins
-- Clear section rhythm with cards, dividers, quotes, highlights, or stat blocks where appropriate
-- Tasteful color accents and polished surfaces
-- Visually intentional, not plain text dumped into a page
-
-## Writing rules
-- Concise, elegant, highly scannable
-- Strong title and short lead summary
-- Clear section headings and subheadings
-- Short paragraphs, bullets, and compact tables where useful
-- No filler, no generic fluff, no walls of text
-
-## Technical rules
-- No JavaScript
-- No external assets, remote fonts, or external stylesheets
-- Use only inline CSS inside a <style> block when styling is needed
-- Relative links only if necessary
-- Output only the document HTML body or, if truly needed, structured markdown`;
-
-const EDIT_DOCUMENT_SYSTEM_PROMPT = `You are a professional document editor and designer.
-You will receive the current document outline and a requested change.
-Return the COMPLETE updated document, preserving or improving its beauty and structure.
-
-## Preferred output
-Return rich HTML with inline styling when that best preserves quality.
-Structured markdown is acceptable only as a fallback.
-
-## Rules
-- Preserve the document's tone and information hierarchy unless explicitly asked to change them
-- APPEND by default when the user adds new material
-- Prefer tightening and clarifying over flattening or simplifying the design
-- Keep the result visually polished and highly scannable
-- Output only the updated document content`;
+const EDIT_DOCUMENT_SYSTEM_PROMPT = `You are a professional document editor.
+Return the complete updated document while preserving the existing layout quality and hierarchy.
+Prefer the smallest necessary change, append by default, and output only the updated content.`;
 
 interface DocumentTheme {
   name: string;
@@ -194,10 +160,10 @@ export function renderDocumentTextEdits(opts: {
 
     const limit = Math.min(targetNodes.length, sourceNodes.length);
     for (let index = 0; index < limit; index += 1) {
-      const nextText = sourceNodes[index]?.textContent?.trim();
+      const nextHtml = sourceNodes[index]?.innerHTML;
       const targetNode = targetNodes[index];
-      if (nextText && targetNode) {
-        targetNode.textContent = nextText;
+      if (typeof nextHtml === 'string' && targetNode) {
+        targetNode.innerHTML = nextHtml;
       }
     }
 
@@ -233,124 +199,107 @@ function inferArtDirection(documentType: ResolvedDocumentType): ArtDirection {
   }
 }
 
+interface DocumentPlan {
+  documentType: ResolvedDocumentType;
+  theme: DocumentTheme;
+  artDirection: ArtDirection;
+  isEdit: boolean;
+}
+
+function planDocumentRequest(input: DocumentInput): DocumentPlan {
+  const documentType = resolveDocumentType(input);
+  return {
+    documentType,
+    theme: pickDocumentTheme(input.prompt, documentType),
+    artDirection: inferArtDirection(documentType),
+    isEdit: !!input.existingHtml,
+  };
+}
+
 function getArtDirectionGuidance(tier: ArtDirection): string {
   switch (tier) {
     case 'clean':
-      return `## Art Direction: Clean
-- Minimal surface treatment — focus on clarity and scanability
-- 2 component types max (e.g. header + callout or simple list)
-- Monochrome palette with one accent colour
-- No gradients on title, no pull quotes
-- Feels like: a clean wiki page or README`;
+      return 'Clean: minimal, reference-friendly, strong hierarchy, very light surfaces.';
     case 'polished':
-      return `## Art Direction: Polished
-- Surface cards with subtle gradients, stat rows, comparison tables
-- 3–4 different component types
-- Professional but not flashy
-- Full palette with primary + accent colours
-- Feels like: a consulting brief or quarterly report`;
+      return 'Polished: subtle cards, callouts, stats, tables, and professional spacing.';
     case 'editorial':
-      return `## Art Direction: Editorial
-- Gradient title, hero header, pull quotes, feature grids
-- 4–5 different component types — magazine-quality layout
-- Rich palette, intentional white space, typographic contrast
-- Use the most visually dynamic components available
-- Feels like: a premium editorial article or investor pitch`;
+      return 'Editorial: premium hero header, pull quote or feature grid, richer contrast, and magazine-style rhythm.';
   }
 }
 
-async function buildCreatePrompt(input: DocumentInput): Promise<string> {
-  const documentType = resolveDocumentType(input);
-  const theme = pickDocumentTheme(input.prompt, documentType);
-  const artDirection = inferArtDirection(documentType);
+function getComponentHints(documentType: ResolvedDocumentType, tier: ArtDirection): string[] {
+  if (documentType === 'readme' || documentType === 'wiki') {
+    return [
+      'Use a clean header + quick overview block.',
+      'Prefer numbered steps, tidy lists, and one info callout when needed.',
+      'Keep surfaces subtle; do not over-decorate reference content.',
+    ];
+  }
 
-  const sections: string[] = [];
+  if (documentType === 'notes') {
+    return [
+      'Use a summary block followed by highlights, decisions, and action items.',
+      'One compact callout or divider is enough for visual rhythm.',
+    ];
+  }
 
-  // 1. Document type and visual tone
-  sections.push(`Document type: ${documentType}
-Visual tone: ${theme.label}`);
+  if (documentType === 'report' || documentType === 'brief' || documentType === 'proposal') {
+    return [
+      'Use a strong title + lead, then one stat row or key-metrics block if numbers exist.',
+      'Use a callout for the most important recommendation or risk.',
+      'Prefer one comparison table or two-column section over long prose.',
+    ];
+  }
 
-  // 2. Art direction tier
-  sections.push(getArtDirectionGuidance(artDirection));
-
-  // 3. Structure guide
-  sections.push(getDocumentStructureGuide(documentType));
-
-  // 4. Design rules (condensed from knowledge base)
-  try {
-    const designRules = await getKnowledge('document-design-rules');
-    sections.push(`## Design Rules Reference\n${designRules}`);
-  } catch { /* knowledge optional */ }
-
-  // 5. Component recipes (condensed from knowledge base)
-  try {
-    const components = await getKnowledge('document-components');
-    sections.push(`## Available Document Components\nUse these HTML/CSS patterns as building blocks. Pick 3–5 that fit the content:\n${components}`);
-  } catch { /* knowledge optional */ }
-
-  // 6. Exemplar excerpt
-  try {
-    const exemplar = await getKnowledge('example-document');
-    // Truncate to keep prompt manageable
-    const excerpt = exemplar.length > 3000 ? exemplar.slice(0, 3000) + '\n<!-- truncated -->' : exemplar;
-    sections.push(`## Reference: Premium Document Example\nStudy this example for quality, structure, and style. Match this level of polish:\n\`\`\`html\n${excerpt}\n\`\`\``);
-  } catch { /* knowledge optional */ }
-
-  // 7. Theme CSS variables for inline use
-  sections.push(`## Theme Palette (use these CSS custom properties)
-\`\`\`css
---doc-primary: ${theme.primary};
---doc-accent: ${theme.accent};
---doc-text: ${theme.text};
---doc-muted: ${theme.muted};
---doc-bg: ${theme.bg};
---doc-surface: ${theme.surface};
---doc-surface-alt: ${theme.surfaceAlt};
---doc-border: ${theme.border};
-\`\`\``);
-
-  // 8. User request
-  sections.push(`## User Request\n${input.prompt}`);
-
-  // 9. Final reminders
-  sections.push(`## Important
-- Design and visual polish come first
-- Prefer elegant HTML with beautiful layout and spacing
-- Use CSS custom properties (--doc-*) in your <style> block
-- Use markdown only if a simpler text-first response is clearly better
-- Every document MUST have a <style> block with custom properties
-- No walls of text: break up content with components
-- Choose specific, descriptive headings — never "Introduction" or "Conclusion"
-- Vary your component choices: don't repeat the same component type back-to-back`);
-
-  return sections.join('\n\n');
+  return tier === 'editorial'
+    ? [
+        'Open with a premium hero header and short lead paragraph.',
+        'Use one feature grid, pull quote, or timeline to break up long prose.',
+        'Keep paragraphs short and use visual rhythm every 2–3 sections.',
+      ]
+    : [
+        'Use a clean header, concise sections, and one visual break element.',
+      ];
 }
 
-async function buildEditPrompt(input: DocumentInput): Promise<string> {
-  const documentType = resolveDocumentType(input);
-  const existingSummary = input.existingMarkdown?.trim() || summarizeExistingDocument(input.existingHtml ?? '');
-  const theme = pickDocumentTheme(input.prompt, documentType);
-  const artDirection = inferArtDirection(documentType);
+function getExampleSnippet(documentType: ResolvedDocumentType, tier: ArtDirection): string {
+  if (tier === 'clean') {
+    return `<header class="doc-header"><div class="doc-eyebrow">Reference</div><h1>Setup Guide</h1><p class="doc-lead">Quick orientation and the few steps that matter most.</p></header>`;
+  }
 
-  const sections: string[] = [];
+  if (documentType === 'report' || documentType === 'brief' || documentType === 'proposal') {
+    return `<header class="doc-header"><div class="doc-eyebrow">Quarterly Report</div><h1>Operational Performance Summary</h1><p class="doc-lead">The three trends, risks, and decisions leadership should focus on this month.</p></header><div class="doc-callout"><strong>Recommendation:</strong><p>Prioritize onboarding automation to remove the current fulfillment bottleneck.</p></div>`;
+  }
 
-  sections.push(`Document type: ${documentType}
-Visual tone: ${theme.label}`);
+  return `<header class="doc-header"><div class="doc-eyebrow">Editorial Brief</div><h1 class="doc-title-gradient">The Future of Distributed Systems</h1><p class="doc-lead">A concise, high-signal narrative with strong hierarchy and visual breathing room.</p></header><figure class="doc-pullquote"><blockquote>“Architecture quality shows up first in readability.”</blockquote></figure>`;
+}
 
-  sections.push(getArtDirectionGuidance(artDirection));
+class DocumentPromptComposer {
+  private sections: string[] = [];
 
-  sections.push(`## Existing Document
-\`\`\`markdown
-${existingSummary}
-\`\`\``);
+  addBase(plan: DocumentPlan): this {
+    this.sections.push(`## Document Brief
+Type: ${plan.documentType}
+Visual tone: ${plan.theme.label}
+Art direction: ${getArtDirectionGuidance(plan.artDirection)}`);
+    return this;
+  }
 
-  // Include component recipes for edits too
-  try {
-    const components = await getKnowledge('document-components');
-    sections.push(`## Available Document Components\nUse these patterns when adding new sections:\n${components}`);
-  } catch { /* knowledge optional */ }
+  addStructure(documentType: ResolvedDocumentType): this {
+    this.sections.push(getDocumentStructureGuide(documentType));
+    return this;
+  }
 
-  sections.push(`## Theme Palette
+  addComponentHints(documentType: ResolvedDocumentType, tier: ArtDirection): this {
+    const hints = getComponentHints(documentType, tier);
+    if (hints.length > 0) {
+      this.sections.push(`## Visual Pattern Hints\n- ${hints.join('\n- ')}`);
+    }
+    return this;
+  }
+
+  addPalette(theme: DocumentTheme): this {
+    this.sections.push(`## Theme Palette
 \`\`\`css
 --doc-primary: ${theme.primary};
 --doc-accent: ${theme.accent};
@@ -361,17 +310,69 @@ ${existingSummary}
 --doc-surface-alt: ${theme.surfaceAlt};
 --doc-border: ${theme.border};
 \`\`\``);
+    return this;
+  }
 
-  sections.push(`## User Instruction\n${input.prompt}`);
+  addExample(documentType: ResolvedDocumentType, tier: ArtDirection, includeExample: boolean): this {
+    if (!includeExample) return this;
+    this.sections.push(`## Compact Example\n\`\`\`html\n${getExampleSnippet(documentType, tier)}\n\`\`\``);
+    return this;
+  }
 
-  sections.push(`## Important
-- Append new sections by default unless the user asked to rewrite or replace content
-- Preserve the document's structure, polish, and tone where possible
-- Prefer a visually rich HTML result if that best maintains beauty and readability
-- Use CSS custom properties (--doc-*) for colour consistency
-- Vary component types — don't repeat the same pattern back-to-back`);
+  addExistingDocument(summary: string): this {
+    this.sections.push(`## Existing Document\n\`\`\`markdown
+${summary}
+\`\`\``);
+    return this;
+  }
 
-  return sections.join('\n\n');
+  addRequest(label: 'User Request' | 'User Instruction', value: string): this {
+    this.sections.push(`## ${label}\n${value}`);
+    return this;
+  }
+
+  addRules(isEdit: boolean): this {
+    this.sections.push(`## Rules
+- Return a complete document body in HTML when styling matters; use markdown only for very plain notes/readmes
+- Keep a compact inline <style> block with reusable classes and --doc-* variables
+- Use short paragraphs, descriptive headings, and at least one visual rhythm element when the content is longer than a simple memo
+- ${isEdit ? 'Preserve the existing structure and make the smallest necessary change.' : 'Prefer polished structure over decorative excess.'}
+- Avoid walls of text, generic headings, and repeated identical component blocks`);
+    return this;
+  }
+
+  build(): string {
+    return this.sections.join('\n\n');
+  }
+}
+
+async function buildCreatePrompt(input: DocumentInput, plan: DocumentPlan): Promise<string> {
+  const includeExample = plan.artDirection !== 'clean';
+
+  return new DocumentPromptComposer()
+    .addBase(plan)
+    .addStructure(plan.documentType)
+    .addComponentHints(plan.documentType, plan.artDirection)
+    .addPalette(plan.theme)
+    .addExample(plan.documentType, plan.artDirection, includeExample)
+    .addRequest('User Request', input.prompt)
+    .addRules(false)
+    .build();
+}
+
+async function buildEditPrompt(input: DocumentInput, plan: DocumentPlan): Promise<string> {
+  const existingSummary = input.existingMarkdown?.trim() || summarizeExistingDocument(input.existingHtml ?? '');
+  const shouldIncludeExample = /restyle|redesign|make it look|polish|visual/i.test(input.prompt);
+
+  return new DocumentPromptComposer()
+    .addBase(plan)
+    .addExistingDocument(existingSummary)
+    .addComponentHints(plan.documentType, plan.artDirection)
+    .addPalette(plan.theme)
+    .addExample(plan.documentType, plan.artDirection, shouldIncludeExample)
+    .addRequest('User Instruction', input.prompt)
+    .addRules(true)
+    .build();
 }
 
 function getDocumentStructureGuide(documentType: ResolvedDocumentType): string {
@@ -621,11 +622,23 @@ export async function runDocumentWorkflow(
   const model = withDefaults(baseModel);
 
   try {
+    onEvent({ type: 'step-start', stepId: 'plan', label: 'Planning document…' });
+    onEvent({ type: 'progress', message: 'Understanding the document request…', pct: 8 });
+
+    const planResult = planDocumentRequest(input);
+
+    onEvent({
+      type: 'progress',
+      message: `Using ${planResult.artDirection} ${planResult.documentType} styling`,
+      pct: 16,
+    });
+    onEvent({ type: 'step-done', stepId: 'plan', label: 'Planning document…' });
+
     onEvent({ type: 'step-start', stepId: 'generate', label: isEdit ? 'Updating document…' : 'Writing document…' });
-    onEvent({ type: 'progress', message: isEdit ? 'Applying changes…' : 'Crafting your document…', pct: 20 });
+    onEvent({ type: 'progress', message: isEdit ? 'Applying changes…' : 'Crafting your document…', pct: 28 });
 
     const systemPrompt = isEdit ? EDIT_DOCUMENT_SYSTEM_PROMPT : DOCUMENT_SYSTEM_PROMPT;
-    const userPrompt = isEdit ? await buildEditPrompt(input) : await buildCreatePrompt(input);
+    const userPrompt = isEdit ? await buildEditPrompt(input, planResult) : await buildCreatePrompt(input, planResult);
 
     const historyMessages: ModelMessage[] = toModelMessages(
       input.chatHistory.slice(-6), // Keep last 6 messages for context
@@ -641,7 +654,8 @@ export async function runDocumentWorkflow(
 
     logPromptMetrics('document', requestMessages, {
       isEdit,
-      documentType: resolveDocumentType(input),
+      documentType: planResult.documentType,
+      artDirection: planResult.artDirection,
     });
 
     const stream = streamText({
@@ -675,19 +689,24 @@ export async function runDocumentWorkflow(
 
     // Sanitize the HTML for security
     const sanitized = sanitizeHtml(renderedHtml);
+    onEvent({ type: 'step-done', stepId: 'generate', label: isEdit ? 'Updating document…' : 'Writing document…' });
 
-    // Run QA validation (advisory only — does not block)
+    onEvent({ type: 'step-start', stepId: 'qa', label: 'Checking document quality…' });
     const qaResult = validateDocument(sanitized);
     aiDebugLog('document', 'document QA', {
       passed: qaResult.passed,
       score: qaResult.score,
       violations: qaResult.violations.length,
-      details: qaResult.violations.map(v => `[${v.severity}] ${v.rule}: ${v.detail}`),
+      details: qaResult.violations.map((v) => `[${v.severity}] ${v.rule}: ${v.detail}`),
     });
+    onEvent({
+      type: 'progress',
+      message: qaResult.passed ? `QA passed (score ${qaResult.score})` : `QA warnings detected (score ${qaResult.score})`,
+      pct: 88,
+    });
+    onEvent({ type: 'step-done', stepId: 'qa', label: 'Checking document quality…' });
 
-    onEvent({ type: 'step-done', stepId: 'generate', label: isEdit ? 'Updating document…' : 'Writing document…' });
-    onEvent({ type: 'progress', message: 'Done!', pct: 100 });
-
+    onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing document…' });
     const title = extractDocumentTitle(sanitized) || extractTitleFromPrompt(input.prompt);
 
     const output: DocumentOutput = {
@@ -696,6 +715,8 @@ export async function runDocumentWorkflow(
       title,
     };
 
+    onEvent({ type: 'step-done', stepId: 'finalize', label: 'Finalizing document…' });
+    onEvent({ type: 'progress', message: 'Done!', pct: 100 });
     onEvent({ type: 'complete', result: output });
     return output;
   } catch (err) {
@@ -1179,11 +1200,37 @@ function summarizeExistingDocument(html: string, maxChars: number = 4000): strin
   const doc = parser.parseFromString(html, 'text/html');
   const lines: string[] = [];
 
-  doc.body.querySelectorAll('h1, h2, h3, p, li, blockquote').forEach((el) => {
-    const text = el.textContent?.replace(/\s+/g, ' ').trim();
-    if (!text) return;
+  for (const el of Array.from(doc.body.querySelectorAll('h1, h2, h3, p, li, blockquote, pre, table'))) {
+    const tag = el.tagName.toLowerCase();
 
-    switch (el.tagName.toLowerCase()) {
+    if (tag === 'li' && el.parentElement?.tagName.toLowerCase() === 'ul') {
+      const item = toInlineMarkdown(el).trim();
+      if (item) lines.push(`- ${item}`);
+      continue;
+    }
+
+    if (tag === 'li' && el.parentElement?.tagName.toLowerCase() === 'ol') {
+      const item = toInlineMarkdown(el).trim();
+      if (item) lines.push(`1. ${item}`);
+      continue;
+    }
+
+    if (tag === 'pre') {
+      const code = el.textContent?.trim();
+      if (code) lines.push(`\`\`\`\n${code}\n\`\`\``);
+      continue;
+    }
+
+    if (tag === 'table') {
+      const tableMarkdown = tableToMarkdown(el as HTMLTableElement);
+      if (tableMarkdown) lines.push(tableMarkdown);
+      continue;
+    }
+
+    const text = toInlineMarkdown(el).trim();
+    if (!text) continue;
+
+    switch (tag) {
       case 'h1':
         lines.push(`# ${text}`);
         break;
@@ -1193,9 +1240,6 @@ function summarizeExistingDocument(html: string, maxChars: number = 4000): strin
       case 'h3':
         lines.push(`### ${text}`);
         break;
-      case 'li':
-        lines.push(`- ${text}`);
-        break;
       case 'blockquote':
         lines.push(`> ${text}`);
         break;
@@ -1203,10 +1247,56 @@ function summarizeExistingDocument(html: string, maxChars: number = 4000): strin
         lines.push(text);
         break;
     }
-  });
+  }
 
-  const summary = lines.join('\n').trim() || '# Untitled Document';
+  const summary = lines.join('\n\n').replace(/\n{3,}/g, '\n\n').trim() || '# Untitled Document';
   return summary.length > maxChars ? `${summary.slice(0, maxChars)}\n…` : summary;
+}
+
+function toInlineMarkdown(node: Node): string {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return node.textContent?.replace(/\s+/g, ' ') ?? '';
+  }
+
+  if (!(node instanceof HTMLElement)) {
+    return '';
+  }
+
+  const content = Array.from(node.childNodes).map((child) => toInlineMarkdown(child)).join('');
+  const normalized = content.replace(/\s+/g, ' ').trim();
+
+  switch (node.tagName.toLowerCase()) {
+    case 'strong':
+    case 'b':
+      return normalized ? `**${normalized}**` : '';
+    case 'em':
+    case 'i':
+      return normalized ? `*${normalized}*` : '';
+    case 'code':
+      return normalized ? `\`${normalized}\`` : '';
+    case 'a': {
+      const href = node.getAttribute('href')?.trim();
+      return href && normalized ? `[${normalized}](${href})` : normalized;
+    }
+    case 'br':
+      return '\n';
+    default:
+      return content;
+  }
+}
+
+function tableToMarkdown(table: HTMLTableElement): string {
+  const rows = Array.from(table.querySelectorAll('tr')).map((row) =>
+    Array.from(row.querySelectorAll('th, td')).map((cell) => toInlineMarkdown(cell).trim()),
+  ).filter((row) => row.length > 0);
+
+  if (rows.length === 0) return '';
+
+  const [headerRow = [], ...bodyRows] = rows;
+  const header = `| ${headerRow.join(' | ')} |`;
+  const separator = `| ${headerRow.map(() => '---').join(' | ')} |`;
+  const body = bodyRows.map((row) => `| ${row.join(' | ')} |`).join('\n');
+  return [header, separator, body].filter(Boolean).join('\n');
 }
 
 function normalizeTaskMarkup(text: string): string {
