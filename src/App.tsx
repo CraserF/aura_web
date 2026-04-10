@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { DocumentPdfPreview } from '@/components/DocumentPdfPreview';
-import { BookOpen, ChevronDown, Eye, FileDown, Loader2, PenSquare, Printer } from 'lucide-react';
+import { BookOpen, ChevronDown, Eye, FileDown, Link2, Loader2, PenSquare, Printer } from 'lucide-react';
 
 const LazyDocumentTextEditor = lazy(async () => {
   const mod = await import('@/components/DocumentTextEditor');
@@ -55,6 +55,7 @@ export default function App() {
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [textEditorOpen, setTextEditorOpen] = useState(false);
   const [editorInitialMarkdown, setEditorInitialMarkdown] = useState('');
+  const [textEditorMode, setTextEditorMode] = useState<'edit' | 'link'>('edit');
   const [documentAction, setDocumentAction] = useState<'preview-pdf' | 'export-pdf' | 'export-word' | 'save-text' | null>(null);
   const [documentError, setDocumentError] = useState<string | null>(null);
 
@@ -131,6 +132,9 @@ export default function App() {
   const showPresentation = activeDocument?.type === 'presentation';
   const showDocument = activeDocument?.type === 'document';
   const isDocumentBusy = documentAction !== null;
+  const canLinkAnotherDocument = activeDocument?.type === 'document'
+    ? project.documents.some((doc) => doc.type === 'document' && doc.id !== activeDocument.id)
+    : false;
 
   const handlePreviewPdf = useCallback(async () => {
     if (!activeDocument || activeDocument.type !== 'document' || !activeDocument.contentHtml) return;
@@ -202,10 +206,11 @@ export default function App() {
     }
   }, [activeDocument]);
 
-  const handleOpenTextEditor = useCallback(async () => {
+  const handleOpenTextEditor = useCallback(async (mode: 'edit' | 'link' = 'edit') => {
     if (!activeDocument || activeDocument.type !== 'document') return;
 
     setDocumentError(null);
+    setTextEditorMode(mode);
 
     if (activeDocument.sourceMarkdown?.trim()) {
       setEditorInitialMarkdown(activeDocument.sourceMarkdown);
@@ -324,7 +329,7 @@ export default function App() {
                           variant="ghost"
                           size="sm"
                           className="h-7 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
-                          onClick={() => void handleOpenTextEditor()}
+                          onClick={() => void handleOpenTextEditor('edit')}
                           disabled={isDocumentBusy}
                         >
                           {documentAction === 'save-text' ? (
@@ -336,6 +341,24 @@ export default function App() {
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>Edit the document wording without touching HTML</TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
+                          onClick={() => void handleOpenTextEditor('link')}
+                          disabled={isDocumentBusy || !canLinkAnotherDocument}
+                        >
+                          <Link2 className="size-3.5" />
+                          Link doc
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {canLinkAnotherDocument ? 'Insert a link to another document' : 'Create another document first to add an internal link'}
+                      </TooltipContent>
                     </Tooltip>
 
                     <Tooltip>
@@ -458,6 +481,9 @@ export default function App() {
           initialMarkdown={editorInitialMarkdown}
           onSave={handleSaveText}
           isSaving={documentAction === 'save-text'}
+          availableDocuments={project.documents}
+          currentDocumentId={activeDocument?.id}
+          autoOpenLinkPicker={textEditorMode === 'link'}
         />
       </Suspense>
     </div>

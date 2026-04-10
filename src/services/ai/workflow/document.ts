@@ -111,7 +111,7 @@ function resolveDocumentType(input: DocumentInput): ResolvedDocumentType {
 }
 
 export function deriveDocumentTextSource(html: string): string {
-  return summarizeExistingDocument(html);
+  return summarizeExistingDocument(html, 12000);
 }
 
 export function renderDocumentFromSource(opts: {
@@ -405,9 +405,10 @@ ${summary}
   }
 
   addProjectLinks(links: DocumentProjectLink[]): this {
-    if (!links || links.length === 0) return this;
-    const lines = links.map(({ id, title, type }) => `- <a href="#${id}">${title}</a> (${type})`);
-    this.sections.push(`## Available Project Links\nYou may reference the following documents and presentations using HTML anchor links (e.g. \`<a href="#id">Title</a>\`). Only link when it genuinely adds value — do not force links into the content.\n${lines.join('\n')}`);
+    const documentLinks = (links ?? []).filter((link) => link.type === 'document');
+    if (documentLinks.length === 0) return this;
+    const lines = documentLinks.map(({ id, title }) => `- <a href="#${id}">${title}</a>`);
+    this.sections.push(`## Available Project Documents\nYou may reference the following documents using HTML anchor links (e.g. \`<a href="#id">Title</a>\`). Only link when it genuinely adds value — do not force links into the content.\n${lines.join('\n')}`);
     return this;
   }
 
@@ -833,7 +834,51 @@ function looksLikeHtml(content: string): boolean {
   const trimmed = content.trim();
   if (!trimmed) return false;
 
-  return /^(?:<!doctype\s+html|<html\b|<head\b|<body\b|<(?:style|link|main|header|footer|article|section|aside|nav|div|figure|table|ul|ol|li|blockquote|h[1-6]|p)\b)/i.test(trimmed);
+  if (/^(?:<!doctype\s+html|<html\b|<head\b|<body\b|<(?:style|link|main|header|footer|article|section|aside|nav|div|figure|table|thead|tbody|tr|td|th|ul|ol|li|blockquote|h[1-6]|p|span|strong|em|code|pre)\b)/i.test(trimmed)) {
+    return true;
+  }
+
+  const htmlTagCount = (trimmed.match(/<\/?(?:html|head|body|style|link|main|header|footer|article|section|aside|nav|div|figure|table|thead|tbody|tr|td|th|ul|ol|li|blockquote|h[1-6]|p|span|strong|em|code|pre)\b/gi) ?? []).length;
+  return htmlTagCount >= 2;
+}
+
+function hasInlineMarkdownSyntax(value: string): boolean {
+  return /(?:\*\*[\s\S]+?\*\*|(^|[^*])\*[^*\n]+\*(?!\*)|`[^`]+`|\[[^\]]+\]\([^)]+\))/m.test(value);
+}
+
+function normalizeInlineMarkdownInHtml(html: string): string {
+  if (!html.trim() || !hasInlineMarkdownSyntax(html)) return html;
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<body>${html}</body>`, 'text/html');
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  const textNodes: Text[] = [];
+
+  while (walker.nextNode()) {
+    const textNode = walker.currentNode as Text;
+    const parentName = textNode.parentElement?.tagName.toLowerCase();
+    const value = textNode.textContent ?? '';
+
+    if (!value.trim() || !hasInlineMarkdownSyntax(value)) continue;
+    if (!parentName || ['style', 'script', 'pre', 'code', 'textarea', 'a'].includes(parentName)) continue;
+
+    textNodes.push(textNode);
+  }
+
+  for (const textNode of textNodes) {
+    const rawValue = textNode.textContent ?? '';
+    const rendered = renderInlineMarkdown(rawValue);
+    if (!rendered || rendered === escapeHtml(rawValue)) continue;
+
+    const template = doc.createElement('template');
+    template.innerHTML = rendered;
+    const replacementNodes = Array.from(template.content.childNodes);
+    if (replacementNodes.length > 0) {
+      textNode.replaceWith(...replacementNodes);
+    }
+  }
+
+  return doc.body.innerHTML.trim() || html;
 }
 
 function extractDocumentHtmlParts(html: string): { styleBlocks: string; bodyHtml: string; titleHint?: string } {
@@ -870,6 +915,7 @@ function renderDocumentContent(rawContent: string, input: DocumentInput): string
 
 function enhanceDocumentHtml(html: string, theme: DocumentTheme, documentType: ResolvedDocumentType): string {
   const { styleBlocks, bodyHtml, titleHint } = extractDocumentHtmlParts(html);
+  const normalizedBodyHtml = normalizeInlineMarkdownInHtml(bodyHtml);
 
   const hasOwnStyle = !!styleBlocks;
   const shellCss = hasOwnStyle
@@ -877,11 +923,11 @@ function enhanceDocumentHtml(html: string, theme: DocumentTheme, documentType: R
     : buildDocumentShellStyle(theme);
 
   const shellClass = `doc-shell theme-${theme.name} doc-type-${documentType}`;
-  let themedBody = /class=["'][^"']*\bdoc-shell\b[^"']*["']/i.test(bodyHtml)
-    ? bodyHtml.replace(/\bdoc-shell\b/, shellClass)
+  let themedBody = /class=["'][^"']*\bdoc-shell\b[^"']*["']/i.test(normalizedBodyHtml)
+    ? normalizedBodyHtml.replace(/\bdoc-shell\b/, shellClass)
     : `<article class="${shellClass}" data-doc-theme="${theme.name}" data-doc-type="${documentType}">
   <div class="doc-prose aura-fade-in">
-    ${bodyHtml}
+    ${normalizedBodyHtml}
   </div>
 </article>`;
 
@@ -892,7 +938,7 @@ function enhanceDocumentHtml(html: string, theme: DocumentTheme, documentType: R
       <div class="doc-eyebrow">${theme.label} · ${documentType}</div>
       <h1>${escapeHtml(titleHint)}</h1>
     </header>
-    ${bodyHtml}
+    ${normalizedBodyHtml}
   </div>
 </article>`;
   }
@@ -1033,6 +1079,59 @@ function buildDocumentShellVars(theme: DocumentTheme): string {
   .doc-shell *::after {
     animation: none !important;
     transition: none !important;
+  }
+}
+@media print {
+  .doc-shell {
+    max-width: none !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+  }
+  .doc-header,
+  .doc-section,
+  .doc-shell .section-card,
+  .doc-shell .module-card,
+  .doc-shell .benefit-item,
+  .doc-shell .callout,
+  .doc-shell .doc-aside {
+    background: #ffffff !important;
+    box-shadow: none !important;
+    border-color: rgba(100, 116, 139, 0.36) !important;
+  }
+  .doc-shell .doc-kpi,
+  .doc-shell .doc-story-card,
+  .doc-shell .doc-compare-card,
+  .doc-shell .doc-visual,
+  .doc-shell .doc-timeline-item,
+  .doc-shell .doc-rail-section,
+  .doc-shell .doc-proof-strip,
+  .doc-shell .doc-infographic-band {
+    background: #f8fafc !important;
+    box-shadow: none !important;
+    border-color: rgba(100, 116, 139, 0.34) !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .doc-shell .module-grid,
+  .doc-shell .grid-benefits,
+  .doc-shell .stats-grid,
+  .doc-shell .doc-kpi-grid,
+  .doc-shell .doc-story-grid,
+  .doc-shell .doc-comparison,
+  .doc-shell .doc-check-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .doc-shell .doc-sidebar-layout {
+    grid-template-columns: 1fr;
+  }
+  .doc-shell .doc-title-gradient {
+    background: none !important;
+    -webkit-text-fill-color: currentColor !important;
+    color: var(--doc-text) !important;
   }
 }
 </style>`;
@@ -1185,6 +1284,7 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
   color: var(--doc-text);
 }
 .doc-shell .doc-title-gradient {
+  color: var(--doc-text);
   background: linear-gradient(135deg, var(--doc-text) 0%, var(--doc-primary) 62%, var(--doc-accent) 100%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -1211,11 +1311,19 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
   line-height: 1.75;
   color: var(--doc-muted);
 }
+.doc-shell p,
+.doc-shell li,
+.doc-shell td,
+.doc-shell th {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
 .doc-shell p {
   margin: 0 0 12px;
   font-size: 15px;
   line-height: 1.72;
   color: var(--doc-text);
+  text-wrap: pretty;
 }
 .doc-shell p:last-child,
 .doc-shell li:last-child,
@@ -1803,11 +1911,11 @@ function normalizeTaskMarkup(text: string): string {
 function renderInlineMarkdown(text: string): string {
   const escaped = escapeHtml(text);
   return escaped
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, '$1<em>$2</em>')
-    .replace(/_([^_]+)_/g, '<em>$1</em>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
     .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+    .replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*\n][\s\S]*?)\*(?!\*)/g, '$1<em>$2</em>')
+    .replace(/(^|[^_])_([^_\n][\s\S]*?)_(?!_)/g, '$1<em>$2</em>');
 }
 
 function escapeHtml(value: string): string {

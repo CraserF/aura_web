@@ -25,6 +25,9 @@ interface InlineRunStyle {
   font?: string;
 }
 
+const DOCX_FONT_FAMILY = 'Aptos';
+const DOCX_LINK_COLOR = '1F4B99';
+
 function htmlToMarkdownFallback(html: string): string {
   if (!html.trim()) return '';
 
@@ -106,35 +109,40 @@ function htmlToMarkdownFallback(html: string): string {
 }
 
 function parseInlineRuns(text: string, base?: InlineRunStyle): TextRun[] {
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g).filter(Boolean);
+  const parts = text.split(/(\*\*[\s\S]+?\*\*|`[^`]+`|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g).filter(Boolean);
+  const resolvedBase: InlineRunStyle = {
+    font: DOCX_FONT_FAMILY,
+    color: '243447',
+    ...base,
+  };
 
   return parts.map((part) => {
     const boldMatch = part.match(/^\*\*([\s\S]+)\*\*$/);
     if (boldMatch) {
-      return new TextRun({ text: boldMatch[1], bold: true, ...base });
+      return new TextRun({ text: boldMatch[1], bold: true, ...resolvedBase });
     }
 
     const italicMatch = part.match(/^\*([^*]+)\*$/);
     if (italicMatch) {
-      return new TextRun({ text: italicMatch[1], italics: true, ...base });
+      return new TextRun({ text: italicMatch[1], italics: true, ...resolvedBase });
     }
 
     const codeMatch = part.match(/^`([^`]+)`$/);
     if (codeMatch) {
-      return new TextRun({ text: codeMatch[1], font: 'Courier New', ...base });
+      return new TextRun({ text: codeMatch[1], font: 'Courier New', ...resolvedBase });
     }
 
     const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
     if (linkMatch) {
       return new TextRun({
         text: `${linkMatch[1]} (${linkMatch[2]})`,
-        color: '2457A6',
+        color: DOCX_LINK_COLOR,
         underline: { type: 'single' },
-        ...base,
+        ...resolvedBase,
       });
     }
 
-    return new TextRun({ text: part, ...base });
+    return new TextRun({ text: part, ...resolvedBase });
   });
 }
 
@@ -306,7 +314,7 @@ function markdownToParagraphs(markdown: string, title: string): Paragraph[] {
   if (paragraphs.length === 0) {
     paragraphs.push(
       new Paragraph({
-        children: [new TextRun({ text: title, bold: true, size: 34, color: '162235' })],
+        children: [new TextRun({ text: title, bold: true, size: 34, color: '162235', font: DOCX_FONT_FAMILY })],
       }),
     );
   }
@@ -322,6 +330,23 @@ export async function exportDocumentDocx(job: DocumentDocxJob): Promise<void> {
     creator: 'Aura',
     title: job.title,
     description: 'Exported from Aura',
+    styles: {
+      default: {
+        document: {
+          run: {
+            font: DOCX_FONT_FAMILY,
+            color: '243447',
+            size: 24,
+          },
+          paragraph: {
+            spacing: {
+              after: 180,
+              line: 360,
+            },
+          },
+        },
+      },
+    },
     numbering: {
       config: [
         {
@@ -368,7 +393,7 @@ export async function exportDocumentDocx(job: DocumentDocxJob): Promise<void> {
               new Paragraph({
                 alignment: AlignmentType.CENTER,
                 children: [
-                  new TextRun({ text: 'Generated with Aura', color: '7A869A', size: 18 }),
+                  new TextRun({ text: 'Generated with Aura', color: '7A869A', size: 18, font: DOCX_FONT_FAMILY }),
                 ],
               }),
             ],

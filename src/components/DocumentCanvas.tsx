@@ -175,6 +175,64 @@ const PRINT_STYLES = `
   }
 `;
 
+function escapeInlineHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function hasInlineMarkdownSyntax(value: string): boolean {
+  return /(?:\*\*[\s\S]+?\*\*|(^|[^*])\*[^*\n]+\*(?!\*)|`[^`]+`|\[[^\]]+\]\([^)]+\))/m.test(value);
+}
+
+function renderInlineMarkdownText(text: string): string {
+  const escaped = escapeInlineHtml(text);
+  return escaped
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*\n][\s\S]*?)\*(?!\*)/g, '$1<em>$2</em>')
+    .replace(/(^|[^_])_([^_\n][\s\S]*?)_(?!_)/g, '$1<em>$2</em>');
+}
+
+function normalizeInlineMarkdownHtml(html: string): string {
+  if (!html.trim() || !hasInlineMarkdownSyntax(html)) return html;
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<body>${html}</body>`, 'text/html');
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  const textNodes: Text[] = [];
+
+  while (walker.nextNode()) {
+    const textNode = walker.currentNode as Text;
+    const parentName = textNode.parentElement?.tagName.toLowerCase();
+    const value = textNode.textContent ?? '';
+
+    if (!value.trim() || !hasInlineMarkdownSyntax(value)) continue;
+    if (!parentName || ['style', 'script', 'pre', 'code', 'textarea', 'a'].includes(parentName)) continue;
+
+    textNodes.push(textNode);
+  }
+
+  for (const textNode of textNodes) {
+    const rawValue = textNode.textContent ?? '';
+    const rendered = renderInlineMarkdownText(rawValue);
+    if (!rendered || rendered === escapeInlineHtml(rawValue)) continue;
+
+    const template = doc.createElement('template');
+    template.innerHTML = rendered;
+    const replacementNodes = Array.from(template.content.childNodes);
+    if (replacementNodes.length > 0) {
+      textNode.replaceWith(...replacementNodes);
+    }
+  }
+
+  return doc.body.innerHTML.trim() || html;
+}
+
 function extractStyleBlocks(html: string): { contentHtml: string; inlineStyles: string } {
   const styleMatches = html.match(/<style[\s\S]*?<\/style>/gi) ?? [];
   return {
@@ -187,6 +245,7 @@ function extractStyleBlocks(html: string): { contentHtml: string; inlineStyles: 
 function buildIframeDocument(bodyHtml: string, pagesEnabled: boolean): string {
   const styles = pagesEnabled ? PAGES_STYLES : WRAPPER_STYLES + PRINT_STYLES;
   const { contentHtml, inlineStyles } = extractStyleBlocks(bodyHtml);
+  const normalizedHtml = normalizeInlineMarkdownHtml(contentHtml || bodyHtml);
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -197,7 +256,7 @@ function buildIframeDocument(bodyHtml: string, pagesEnabled: boolean): string {
 </head>
 <body>
   <div class="aura-document-frame">
-${contentHtml || bodyHtml}
+${normalizedHtml}
   </div>
 </body>
 </html>`;
