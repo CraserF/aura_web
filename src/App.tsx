@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { DocumentPdfPreview } from '@/components/DocumentPdfPreview';
+import { sanitizeFilename } from '@/lib/sanitizeFilename';
 import { BookOpen, ChevronDown, Eye, FileDown, Link2, Loader2, PenSquare, Printer } from 'lucide-react';
 
 const LazyDocumentTextEditor = lazy(async () => {
@@ -38,6 +39,40 @@ function normalizeEditorMarkdown(value: string): string {
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+function normalizeDocumentReference(value: string): string {
+  const normalized = value
+    .trim()
+    .replace(/^.*#/, '')
+    .replace(/^[/#.]+/, '')
+    .replace(/\?.*$/, '')
+    .trim();
+
+  return sanitizeFilename(normalized || value);
+}
+
+function resolveProjectDocumentReference(documents: ProjectDocument[], value: string): ProjectDocument | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const hashRef = trimmed.includes('#') ? trimmed.slice(trimmed.lastIndexOf('#') + 1).trim() : '';
+  const pathRef = (trimmed
+    .replace(/^\.\//, '')
+    .replace(/^\//, '')
+    .split(/[?#]/)[0] ?? '')
+    .trim();
+  const normalizedRef = normalizeDocumentReference(trimmed);
+
+  return documents.find((doc) => {
+    const titleSlug = sanitizeFilename(doc.title || '');
+    const titleText = doc.title?.trim().toLowerCase() ?? '';
+    return doc.id === trimmed
+      || (!!hashRef && doc.id === hashRef)
+      || (!!pathRef && doc.id === pathRef)
+      || (!!normalizedRef && titleSlug === normalizedRef)
+      || (!!titleText && titleText === trimmed.toLowerCase());
+  });
 }
 
 export default function App() {
@@ -279,8 +314,8 @@ export default function App() {
   }, [activeDocument, updateDocument]);
 
   const handleNavigateToDocument = useCallback(
-    (docId: string) => {
-      const targetDoc = project.documents.find((d) => d.id === docId);
+    (documentRef: string) => {
+      const targetDoc = resolveProjectDocumentReference(project.documents, documentRef);
       if (targetDoc) {
         const { setActiveDocumentId } = useProjectStore.getState();
         setActiveDocumentId(targetDoc.id);

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  BlockTypeSelect,
   BoldItalicUnderlineToggles,
+  convertSelectionToNode$,
   CreateLink,
+  currentBlockType$,
   headingsPlugin,
   linkPlugin,
   listsPlugin,
@@ -15,6 +16,9 @@ import {
   type MDXEditorMethods,
   UndoRedo,
 } from '@mdxeditor/editor';
+import { useCellValue, usePublisher } from '@mdxeditor/gurx';
+import { $createHeadingNode, $createQuoteNode } from '@lexical/rich-text';
+import { $createParagraphNode } from 'lexical';
 import { Link2, RotateCcw } from 'lucide-react';
 import '@mdxeditor/editor/style.css';
 import {
@@ -42,8 +46,16 @@ interface DocumentTextEditorProps {
 }
 
 type EditorViewMode = 'rich' | 'markdown';
+type SupportedBlockType = 'paragraph' | 'quote' | 'h1' | 'h2' | 'h3';
 
 const RICH_EDITOR_CONTENT_CLASSNAME = 'aura-mdxeditor-content max-w-none min-h-[380px] px-2 py-1 focus:outline-none';
+const BLOCK_TYPE_OPTIONS: Array<{ value: SupportedBlockType; label: string }> = [
+  { value: 'paragraph', label: 'Paragraph' },
+  { value: 'h1', label: 'H1' },
+  { value: 'h2', label: 'H2' },
+  { value: 'h3', label: 'H3' },
+  { value: 'quote', label: 'Quote' },
+];
 
 function normalizeEditorMarkdown(value: string): string {
   return value
@@ -52,6 +64,45 @@ function normalizeEditorMarkdown(value: string): string {
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+function BlockTypeToolbar() {
+  const currentBlockType = useCellValue(currentBlockType$) || 'paragraph';
+  const convertSelectionToNode = usePublisher(convertSelectionToNode$);
+
+  const handleApplyBlockType = (blockType: SupportedBlockType) => {
+    switch (blockType) {
+      case 'paragraph':
+        convertSelectionToNode(() => $createParagraphNode());
+        break;
+      case 'quote':
+        convertSelectionToNode(() => $createQuoteNode());
+        break;
+      default:
+        convertSelectionToNode(() => $createHeadingNode(blockType));
+        break;
+    }
+  };
+
+  return (
+    <div className="ml-1 inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white/95 p-1 shadow-sm">
+      {BLOCK_TYPE_OPTIONS.map((option) => {
+        const isActive = currentBlockType === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => handleApplyBlockType(option.value)}
+            title={`Switch block to ${option.label}`}
+            className={`rounded px-2 py-1 text-xs font-medium transition-colors ${isActive ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 export function DocumentTextEditor({
@@ -221,7 +272,7 @@ export function DocumentTextEditor({
         <>
           <UndoRedo />
           <BoldItalicUnderlineToggles />
-          <BlockTypeSelect />
+          <BlockTypeToolbar />
           <ListsToggle />
           <CreateLink />
           <button
