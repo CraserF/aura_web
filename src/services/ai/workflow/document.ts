@@ -20,6 +20,10 @@ import type {
 } from './types';
 import type { AIMessage } from '../types';
 import { toModelMessages } from './engine';
+import {
+  selectDocumentBlueprint,
+  type DocumentBlueprint,
+} from '../templates/document-blueprints';
 
 export interface DocumentInput {
   prompt: string;
@@ -27,6 +31,7 @@ export interface DocumentInput {
   existingMarkdown?: string;
   chatHistory: AIMessage[];
   documentType?: string; // hints like "report", "notes", "wiki", "readme"
+  styleHint?: string;
 }
 
 export interface DocumentOutput {
@@ -39,18 +44,19 @@ type ResolvedDocumentType = 'report' | 'brief' | 'proposal' | 'notes' | 'wiki' |
 type ArtDirection = 'clean' | 'polished' | 'editorial';
 
 const DOCUMENT_SYSTEM_PROMPT = `You are a professional document designer and writer.
-Return a complete document body as polished HTML with semantic structure and a compact inline <style> block.
-Prefer HTML when it improves readability; markdown is allowed only when the request is clearly text-first.
+Return a complete document body that feels like a premium editorial or infographic-style document, not a bland memo.
+Prefer HTML with semantic structure and a compact inline <style> block whenever the request benefits from design, hierarchy, or visual explanation.
 
 Rules:
 - focus on the current document only; treat earlier chat as light background context
 - make each document feel purpose-built, not like a clone of other project docs
-- use strong headings, concise paragraphs, and tasteful visual rhythm
+- use strong headings, concise paragraphs, and clear visual rhythm
+- prefer summary bands, KPI rows, comparison cards, process rails, pull quotes, and sidebars over long generic prose
 - no JavaScript, remote assets, or external stylesheets
 - output only the document content`;
 
 const EDIT_DOCUMENT_SYSTEM_PROMPT = `You are a professional document editor.
-Return the complete updated document while preserving the existing layout quality and hierarchy.
+Return the complete updated document while preserving the existing layout quality, hierarchy, and visual identity.
 Keep the document focused on the current request, prefer the smallest necessary change, and output only the updated content.`;
 
 interface DocumentTheme {
@@ -205,15 +211,36 @@ interface DocumentPlan {
   documentType: ResolvedDocumentType;
   theme: DocumentTheme;
   artDirection: ArtDirection;
+  blueprint: DocumentBlueprint;
+  preferHtml: boolean;
   isEdit: boolean;
+}
+
+function shouldPreferDesignedHtml(documentType: ResolvedDocumentType, prompt: string, styleHint?: string): boolean {
+  const normalized = prompt.toLowerCase();
+  if (styleHint && styleHint !== 'auto') return true;
+  if (/\b(infographic|visual|graphic|editorial|magazine|beautiful|polish|premium|designed|timeline|kpi|dashboard|comparison|one-pager|one pager)\b/.test(normalized)) {
+    return true;
+  }
+
+  if (documentType === 'notes') return false;
+
+  if (documentType === 'wiki' || documentType === 'readme') {
+    return /\b(playbook|runbook|guide|overview|launch|onboard|process|roadmap|proposal)\b/.test(normalized);
+  }
+
+  return true;
 }
 
 function planDocumentRequest(input: DocumentInput): DocumentPlan {
   const documentType = resolveDocumentType(input);
+  const blueprint = selectDocumentBlueprint(input.prompt, documentType, input.styleHint);
   return {
     documentType,
-    theme: pickDocumentTheme(input.prompt, documentType),
-    artDirection: inferArtDirection(documentType),
+    theme: pickDocumentTheme(`${input.prompt} ${blueprint.label} ${input.styleHint ?? ''}`, documentType),
+    artDirection: blueprint.artDirection ?? inferArtDirection(documentType),
+    blueprint,
+    preferHtml: shouldPreferDesignedHtml(documentType, input.prompt, input.styleHint),
     isEdit: !!input.existingHtml,
   };
 }
@@ -289,7 +316,38 @@ class DocumentPromptComposer {
     this.sections.push(`## Document Brief
 Type: ${plan.documentType}
 Visual tone: ${plan.theme.label}
-Art direction: ${getArtDirectionGuidance(plan.artDirection)}`);
+Art direction: ${getArtDirectionGuidance(plan.artDirection)}
+Layout blueprint: ${plan.blueprint.label}
+Output mode: ${plan.preferHtml ? 'Designed HTML-first' : 'Clean reference-friendly'}`);
+    return this;
+  }
+
+  addBlueprint(blueprint: DocumentBlueprint, preferHtml: boolean): this {
+    this.sections.push(`## Layout Blueprint
+Name: ${blueprint.label}
+Description: ${blueprint.description}
+Visual thesis: ${blueprint.visualThesis}
+
+Composition rules:
+- ${blueprint.compositionRules.join('\n- ')}
+
+Component rules:
+- ${blueprint.componentRules.join('\n- ')}
+
+Recommended modules:
+- ${blueprint.recommendedModules.join('\n- ')}
+
+Reusable class patterns you may use when helpful:
+- \`.doc-kpi-grid > .doc-kpi\` for stats or headline facts
+- \`.doc-story-grid > .doc-story-card\` for narrative + insight blocks
+- \`.doc-comparison > .doc-compare-card\` for current-vs-future or option comparisons
+- \`.doc-timeline > .doc-timeline-item\` or \`.doc-progress\` for processes and journeys
+- \`.doc-proof-strip\` or \`.doc-infographic-band\` for full-width summary bands
+- \`.doc-sidebar-layout\` with \`.doc-main\` and \`.doc-aside\` for editorial layouts
+
+${preferHtml
+  ? 'Default to semantic HTML. Use one compact <style> block and these modules to make the document feel designed, graphic, and easy to scan.'
+  : 'Keep the layout cleaner and more reference-friendly, but still use one or two modules to avoid a wall of text.'}`);
     return this;
   }
 
@@ -321,9 +379,10 @@ Art direction: ${getArtDirectionGuidance(plan.artDirection)}`);
     return this;
   }
 
-  addExample(documentType: ResolvedDocumentType, tier: ArtDirection, includeExample: boolean): this {
+  addExample(blueprint: DocumentBlueprint, documentType: ResolvedDocumentType, tier: ArtDirection, includeExample: boolean): this {
     if (!includeExample) return this;
-    this.sections.push(`## Compact Example\n\`\`\`html\n${getExampleSnippet(documentType, tier)}\n\`\`\``);
+    const example = blueprint.exampleHtml || getExampleSnippet(documentType, tier);
+    this.sections.push(`## Compact Example\n\`\`\`html\n${example}\n\`\`\``);
     return this;
   }
 
@@ -339,12 +398,13 @@ ${summary}
     return this;
   }
 
-  addRules(isEdit: boolean): this {
+  addRules(isEdit: boolean, plan: DocumentPlan): this {
     this.sections.push(`## Rules
-- Return a complete document body in HTML when styling matters; use markdown only for very plain notes/readmes
-- Keep a compact inline <style> block with reusable classes and --doc-* variables
+- ${plan.preferHtml ? 'Return a complete HTML document body with semantic layout and one compact inline <style> block.' : 'Use HTML when it improves readability; markdown is acceptable only for very plain reference notes or readmes.'}
+- Keep reusable --doc-* variables and class-based layout modules so the document feels intentional rather than improvised
 - Focus on this single document; treat other project context as light background only
-- Make the document feel distinct by mixing 2–3 suitable patterns: accent headers, callouts, metadata grids, step pills, progress rows, or type tags
+- Make the document feel distinct by mixing 2–4 suitable patterns: hero summary, KPI rail, comparison cards, progress rows, timeline, pull quote, sidebar, or metadata grid
+- Prefer infographic-style clarity over decoration; every visual module should explain something
 - Subtle Aura-only motion is welcome on key containers via classes like aura-rise-in, aura-fade-in, or aura-pulse-soft
 - ${isEdit ? 'Preserve the existing structure and make the smallest necessary change.' : 'Prefer polished structure over decorative excess.'}
 - Avoid walls of text, generic headings, and repeated identical component blocks`);
@@ -357,31 +417,33 @@ ${summary}
 }
 
 async function buildCreatePrompt(input: DocumentInput, plan: DocumentPlan): Promise<string> {
-  const includeExample = plan.artDirection !== 'clean';
+  const includeExample = plan.preferHtml || plan.artDirection !== 'clean';
 
   return new DocumentPromptComposer()
     .addBase(plan)
+    .addBlueprint(plan.blueprint, plan.preferHtml)
     .addStructure(plan.documentType)
     .addComponentHints(plan.documentType, plan.artDirection, input.prompt)
     .addPalette(plan.theme)
-    .addExample(plan.documentType, plan.artDirection, includeExample)
+    .addExample(plan.blueprint, plan.documentType, plan.artDirection, includeExample)
     .addRequest('User Request', input.prompt)
-    .addRules(false)
+    .addRules(false, plan)
     .build();
 }
 
 async function buildEditPrompt(input: DocumentInput, plan: DocumentPlan): Promise<string> {
   const existingSummary = input.existingMarkdown?.trim() || summarizeExistingDocument(input.existingHtml ?? '');
-  const shouldIncludeExample = /restyle|redesign|make it look|polish|visual/i.test(input.prompt);
+  const shouldIncludeExample = /restyle|redesign|make it look|polish|visual|infographic|more graphic/i.test(input.prompt);
 
   return new DocumentPromptComposer()
     .addBase(plan)
+    .addBlueprint(plan.blueprint, plan.preferHtml)
     .addExistingDocument(existingSummary)
     .addComponentHints(plan.documentType, plan.artDirection, input.prompt)
     .addPalette(plan.theme)
-    .addExample(plan.documentType, plan.artDirection, shouldIncludeExample)
+    .addExample(plan.blueprint, plan.documentType, plan.artDirection, shouldIncludeExample)
     .addRequest('User Instruction', input.prompt)
-    .addRules(true)
+    .addRules(true, plan)
     .build();
 }
 
@@ -639,7 +701,7 @@ export async function runDocumentWorkflow(
 
     onEvent({
       type: 'progress',
-      message: `Using ${planResult.artDirection} ${planResult.documentType} styling`,
+      message: `Using ${planResult.artDirection} ${planResult.documentType} styling · ${planResult.blueprint.label}`,
       pct: 16,
     });
     onEvent({ type: 'step-done', stepId: 'plan', label: 'Planning document…' });
@@ -1033,8 +1095,18 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
   box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
 }
 .doc-header {
+  position: relative;
+  overflow: hidden;
   background: linear-gradient(135deg, var(--doc-surface-alt) 0%, rgba(255,255,255,0.95) 100%);
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.07);
+}
+.doc-header::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--doc-primary), var(--doc-accent));
+  opacity: 0.72;
 }
 .doc-shell.theme-studio .doc-header,
 .doc-shell.theme-neon .doc-header {
@@ -1054,6 +1126,12 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
   line-height: 1.04;
   letter-spacing: -0.035em;
   color: var(--doc-text);
+}
+.doc-shell .doc-title-gradient {
+  background: linear-gradient(135deg, var(--doc-text) 0%, var(--doc-primary) 62%, var(--doc-accent) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 .doc-shell h2 {
   margin: 0 0 12px;
@@ -1145,15 +1223,90 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
 }
 .doc-shell .module-grid,
 .doc-shell .grid-benefits,
-.doc-shell .stats-grid {
+.doc-shell .stats-grid,
+.doc-shell .doc-kpi-grid,
+.doc-shell .doc-story-grid,
+.doc-shell .doc-comparison,
+.doc-shell .doc-check-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
+}
+.doc-shell .doc-kpi,
+.doc-shell .doc-story-card,
+.doc-shell .doc-compare-card,
+.doc-shell .doc-visual,
+.doc-shell .doc-timeline-item,
+.doc-shell .doc-rail-section,
+.doc-shell .doc-aside,
+.doc-shell .doc-proof-strip,
+.doc-shell .doc-infographic-band {
+  position: relative;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--doc-border);
+  background: linear-gradient(180deg, rgba(255,255,255,0.94) 0%, color-mix(in srgb, var(--doc-surface-alt) 46%, white) 100%);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+}
+.doc-shell .doc-kpi-grid {
+  align-items: stretch;
+}
+.doc-shell .doc-kpi-value {
+  margin: 0 0 4px;
+  font-size: clamp(1.35rem, 2.5vw, 1.85rem);
+  line-height: 1;
+  font-weight: 800;
+  color: var(--doc-primary);
+}
+.doc-shell .doc-kpi-label {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--doc-muted);
+}
+.doc-shell .doc-infographic-band,
+.doc-shell .doc-proof-strip {
+  display: grid;
+  gap: 12px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--doc-primary) 8%, white) 0%, color-mix(in srgb, var(--doc-accent) 10%, white) 100%);
+}
+.doc-shell .doc-proof-strip strong,
+.doc-shell .doc-infographic-band strong {
+  color: var(--doc-primary);
+}
+.doc-shell .doc-sidebar-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(220px, 0.85fr);
+  gap: 16px;
+}
+.doc-shell .doc-main {
+  min-width: 0;
+}
+.doc-shell .doc-aside {
+  align-self: start;
+}
+.doc-shell .doc-timeline {
+  display: grid;
+  gap: 12px;
+}
+.doc-shell .doc-timeline-item {
+  padding-left: 18px;
+  border-left: 4px solid color-mix(in srgb, var(--doc-primary) 62%, white);
+}
+.doc-shell .doc-rail-section {
+  border-left: 4px solid var(--doc-accent);
 }
 .doc-shell .benefit-item {
   display: flex;
   align-items: flex-start;
   gap: 14px;
+}
+@media (max-width: 820px) {
+  .doc-shell .doc-sidebar-layout {
+    grid-template-columns: 1fr;
+  }
 }
 .doc-shell .icon {
   flex: none;
@@ -1223,6 +1376,78 @@ function renderMarkdownSection(sectionMarkdown: string): string {
   const heading = headingLine.replace(/^##\s+/, '').trim();
   const tone = inferSectionTone(heading);
   return `<section class="doc-section section-${tone} aura-rise-in"><h2>${renderInlineMarkdown(heading)}</h2>${renderMarkdownBlocks(lines.join('\n'))}</section>`;
+}
+
+function extractLabelValuePair(line: string): { label: string; value: string } | null {
+  const normalized = line.replace(/^\s*[-*]\s+/, '').trim();
+  const match = normalized.match(/^(?:\*\*([^*]+)\*\*|([^:]{2,32}))\s*:\s+(.+)$/);
+  if (!match) return null;
+
+  const label = (match[1] ?? match[2] ?? '').trim();
+  const value = (match[3] ?? '').trim();
+  if (!label || !value) return null;
+  return { label, value };
+}
+
+function consumeStructuredMarkdownModule(lines: string[], startIndex: number): { html: string; nextIndex: number } | null {
+  const pairs: Array<{ label: string; value: string }> = [];
+  let pairIndex = startIndex;
+
+  while (pairIndex < lines.length) {
+    const raw = lines[pairIndex]?.trim() ?? '';
+    if (!raw) break;
+    const pair = extractLabelValuePair(raw);
+    if (!pair) break;
+    pairs.push(pair);
+    pairIndex += 1;
+  }
+
+  if (pairs.length >= 2) {
+    const comparisonLike = pairs.every(({ label }) => /^(?:current|future|proposed|before|after|today|target|baseline|improved|option\s*[ab]|option\s*\d+)$/i.test(label));
+    const numericLike = pairs.every(({ value }) => /^(?:[$£€]?\d[\d.,%kKmM]*|[<>]?\d+(?:\.\d+)?%?|[\d.]+\s*(?:days?|weeks?|months?|quarters?|hrs?|hours?|mins?|minutes?|points?|x)|high|medium|low|yes|no)$/i.test(value.trim()));
+    const metadataLike = pairs.every(({ label, value }) => label.length <= 18 && value.length <= 48);
+
+    if (comparisonLike) {
+      return {
+        html: `<div class="doc-comparison">${pairs.map(({ label, value }) => `<article class="doc-compare-card aura-fade-in"><div class="doc-kpi-label">${escapeHtml(label)}</div><p>${renderInlineMarkdown(value)}</p></article>`).join('')}</div>`,
+        nextIndex: pairIndex - 1,
+      };
+    }
+
+    if (numericLike) {
+      return {
+        html: `<div class="doc-kpi-grid">${pairs.map(({ label, value }) => `<article class="doc-kpi aura-fade-in"><div class="doc-kpi-value">${escapeHtml(value)}</div><div class="doc-kpi-label">${escapeHtml(label)}</div></article>`).join('')}</div>`,
+        nextIndex: pairIndex - 1,
+      };
+    }
+
+    if (metadataLike && pairs.length <= 4) {
+      return {
+        html: `<div class="doc-meta-grid">${pairs.map(({ label, value }) => `<div class="aura-fade-in"><strong>${escapeHtml(label)}</strong><p>${renderInlineMarkdown(value)}</p></div>`).join('')}</div>`,
+        nextIndex: pairIndex - 1,
+      };
+    }
+  }
+
+  const timelineItems: string[] = [];
+  let timelineIndex = startIndex;
+  while (timelineIndex < lines.length) {
+    const raw = lines[timelineIndex]?.trim() ?? '';
+    if (!raw) break;
+    const match = raw.match(/^(?:[-*]\s+)?(?:(?:step|phase|stage|milestone)\s*\d+|q[1-4]|week\s*\d+)\s*[:\-]\s+(.+)$/i);
+    if (!match) break;
+    timelineItems.push(renderInlineMarkdown(match[1] ?? raw));
+    timelineIndex += 1;
+  }
+
+  if (timelineItems.length >= 2) {
+    return {
+      html: `<div class="doc-timeline">${timelineItems.map((item) => `<article class="doc-timeline-item aura-fade-in"><p>${item}</p></article>`).join('')}</div>`,
+      nextIndex: timelineIndex - 1,
+    };
+  }
+
+  return null;
 }
 
 function renderMarkdownBlocks(markdown: string, options?: { lead?: boolean }): string {
@@ -1312,6 +1537,15 @@ function renderMarkdownBlocks(markdown: string, options?: { lead?: boolean }): s
       const cleanedQuote = quoteText.replace(/^(?:⚠️?|warning|note|tip|success)\s*[—:-]?\s*/i, '');
       const label = tone.charAt(0).toUpperCase() + tone.slice(1);
       html.push(`<blockquote class="doc-callout ${tone} aura-fade-in"><strong>${label}</strong> — ${renderInlineMarkdown(cleanedQuote)}</blockquote>`);
+      continue;
+    }
+
+    const structuredModule = consumeStructuredMarkdownModule(lines, i);
+    if (structuredModule) {
+      flushParagraph();
+      closeLists();
+      html.push(structuredModule.html);
+      i = structuredModule.nextIndex;
       continue;
     }
 

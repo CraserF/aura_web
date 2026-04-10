@@ -32,37 +32,76 @@ function htmlToMarkdownFallback(html: string): string {
   const doc = parser.parseFromString(html, 'text/html');
   const lines: string[] = [];
 
-  doc.body.querySelectorAll('h1, h2, h3, p, li, blockquote, pre').forEach((el) => {
-    const text = el.textContent?.replace(/\s+/g, ' ').trim();
-    if (!text) return;
+  const cleanText = (value?: string | null): string => value?.replace(/\s+/g, ' ').trim() ?? '';
+  const pushLine = (value?: string | null) => {
+    const text = cleanText(value);
+    if (text) lines.push(text);
+  };
+
+  const summarizeCard = (el: Element): string => {
+    const label = cleanText(el.querySelector('.doc-kpi-label, strong, h3, h4')?.textContent);
+    const value = cleanText(el.querySelector('.doc-kpi-value')?.textContent);
+    const fullText = cleanText(el.textContent);
+
+    if (value && label) return `- **${label}**: ${value}`;
+    if (label && fullText && fullText !== label) return `- **${label}**: ${fullText.replace(label, '').trim()}`;
+    if (fullText) return `- ${fullText}`;
+    return '';
+  };
+
+  const visit = (el: Element) => {
+    if (el.matches('.doc-kpi, .doc-compare-card, .doc-timeline-item, .doc-meta-grid > div, .doc-story-card, .doc-aside')) {
+      pushLine(summarizeCard(el));
+      return;
+    }
+
+    if (el.matches('.doc-progress-step')) {
+      pushLine(`1. ${cleanText(el.textContent)}`);
+      return;
+    }
+
+    if (el.matches('.doc-proof-strip, .doc-infographic-band, .doc-callout, blockquote')) {
+      pushLine(`> ${cleanText(el.textContent)}`);
+      return;
+    }
 
     switch (el.tagName.toLowerCase()) {
       case 'h1':
-        lines.push(`# ${text}`);
-        break;
+        pushLine(`# ${cleanText(el.textContent)}`);
+        return;
       case 'h2':
-        lines.push(`## ${text}`);
-        break;
+        pushLine(`## ${cleanText(el.textContent)}`);
+        return;
       case 'h3':
-        lines.push(`### ${text}`);
-        break;
+        pushLine(`### ${cleanText(el.textContent)}`);
+        return;
+      case 'p':
+        pushLine(cleanText(el.textContent));
+        return;
       case 'li':
-        lines.push(`- ${text}`);
-        break;
-      case 'blockquote':
-        lines.push(`> ${text}`);
-        break;
+        pushLine(`- ${cleanText(el.textContent)}`);
+        return;
       case 'pre':
-        lines.push('```');
-        lines.push(text);
-        lines.push('```');
-        break;
+        pushLine('```');
+        pushLine(el.textContent);
+        pushLine('```');
+        return;
+      case 'table': {
+        const rows = Array.from(el.querySelectorAll('tr')).map((row) => Array.from(row.querySelectorAll('th, td')).map((cell) => cleanText(cell.textContent)).filter(Boolean));
+        const headerRow = rows[0] ?? [];
+        if (headerRow.length > 0) {
+          pushLine(`| ${headerRow.join(' | ')} |`);
+          pushLine(`| ${headerRow.map(() => '---').join(' | ')} |`);
+          rows.slice(1).forEach((row) => pushLine(`| ${row.join(' | ')} |`));
+        }
+        return;
+      }
       default:
-        lines.push(text);
-        break;
+        Array.from(el.children).forEach(visit);
     }
-  });
+  };
 
+  Array.from(doc.body.children).forEach(visit);
   return lines.join('\n').trim();
 }
 

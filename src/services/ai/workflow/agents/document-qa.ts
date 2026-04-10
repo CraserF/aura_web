@@ -78,22 +78,53 @@ export function validateDocument(html: string): DocumentQAResult {
   if (body.querySelector('.doc-feature-grid, .doc-feature')) componentTypes.add('feature-grid');
   if (body.querySelector('.doc-callout')) componentTypes.add('callout');
   if (body.querySelector('.doc-pullquote, blockquote, figure')) componentTypes.add('quote');
-  if (body.querySelector('.doc-timeline')) componentTypes.add('timeline');
-  if (body.querySelector('.doc-comparison, table')) componentTypes.add('table');
-  if (body.querySelector('.doc-two-col')) componentTypes.add('two-col');
+  if (body.querySelector('.doc-timeline, .doc-timeline-item')) componentTypes.add('timeline');
+  if (body.querySelector('.doc-comparison, table, .doc-compare-card')) componentTypes.add('table');
+  if (body.querySelector('.doc-two-col, .doc-sidebar-layout')) componentTypes.add('two-col');
   if (body.querySelector('.doc-divider, hr')) componentTypes.add('divider');
   if (body.querySelector('.doc-header, header')) componentTypes.add('header');
   if (body.querySelector('ul, ol')) componentTypes.add('list');
+  if (body.querySelector('.doc-kpi-grid, .doc-kpi, .doc-infographic-band, .doc-proof-strip')) componentTypes.add('infographic');
+  if (body.querySelector('.doc-meta-grid, .doc-progress, .doc-rail-section, .doc-aside')) componentTypes.add('structured-info');
+  if (body.querySelector('.doc-story-grid, .doc-story-card, .doc-visual')) componentTypes.add('editorial');
 
   const bodyText = body.textContent || '';
   const wordCount = bodyText.split(/\s+/).filter(Boolean).length;
   const minComponents = wordCount > 800 ? 4 : wordCount > 400 ? 3 : 2;
+  const hasStructuredHeader = !!body.querySelector('.doc-header, header');
+  const hasInfographicAnchor = !!body.querySelector('.doc-kpi-grid, .doc-comparison, .doc-timeline, .doc-progress, .doc-meta-grid, .doc-story-grid, .doc-infographic-band, .doc-proof-strip, table');
 
   if (componentTypes.size < minComponents) {
     violations.push({
       rule: 'component-variety',
       severity: 'warning',
-      detail: `Only ${componentTypes.size} component type(s) used (${Array.from(componentTypes).join(', ')}). For ${wordCount} words, aim for ${minComponents}+.`,
+      detail: `Only ${componentTypes.size} component type(s) used (${Array.from(componentTypes).join(', ')}). For ${wordCount} words, aim for ${minComponents}+.` ,
+    });
+  }
+
+  if (wordCount > 180 && !hasStructuredHeader) {
+    violations.push({
+      rule: 'missing-hero-header',
+      severity: 'warning',
+      detail: 'Longer documents should open with a clear header or hero summary block, not plain text alone.',
+    });
+  }
+
+  if (wordCount > 450 && !hasInfographicAnchor) {
+    violations.push({
+      rule: 'missing-infographic-anchor',
+      severity: 'warning',
+      detail: 'Longer documents should include at least one infographic-style module such as a KPI grid, comparison, timeline, progress row, or evidence band.',
+    });
+  }
+
+  const paragraphCount = body.querySelectorAll('p').length;
+  const sectionLikeCount = Math.max(1, body.querySelectorAll('section, article, .doc-section, .section-card, .module-card').length);
+  if (wordCount > 350 && paragraphCount > sectionLikeCount * 4 && componentTypes.size < minComponents + 1) {
+    violations.push({
+      rule: 'text-density',
+      severity: 'warning',
+      detail: 'The document is still text-heavy for its length — add more visual breaks or structured summary modules.',
     });
   }
 
@@ -138,6 +169,8 @@ export function validateDocument(html: string): DocumentQAResult {
   // Bonus for component variety
   if (componentTypes.size >= 4) score += 5;
   if (componentTypes.size >= 5) score += 5;
+  if (hasStructuredHeader) score += 3;
+  if (hasInfographicAnchor) score += 4;
 
   // Penalty for very short documents that are just text
   if (wordCount > 200 && componentTypes.size < 2) score -= 15;

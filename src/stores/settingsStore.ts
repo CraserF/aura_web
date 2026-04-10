@@ -3,11 +3,14 @@ import { persist } from 'zustand/middleware';
 import type { ProviderId, ProviderConfig } from '@/types';
 import { normalizeOllamaHost, OLLAMA_DEFAULT_HOST } from '@/services/ai/ollama';
 
+export type DocumentStylePreset = 'auto' | 'executive' | 'editorial' | 'infographic' | 'playbook' | 'research' | 'proposal';
+
 interface SettingsState {
   providerId: ProviderId;
   providers: Record<ProviderId, ProviderConfig>;
   showSettings: boolean;
   alwaysRunEvaluation: boolean;
+  documentStylePreset: DocumentStylePreset;
 
   setProviderId: (id: ProviderId) => void;
   setApiKey: (providerId: ProviderId, apiKey: string) => void;
@@ -15,6 +18,7 @@ interface SettingsState {
   setModel: (providerId: ProviderId, model: string) => void;
   setShowSettings: (show: boolean) => void;
   setAlwaysRunEvaluation: (enabled: boolean) => void;
+  setDocumentStylePreset: (preset: DocumentStylePreset) => void;
   getActiveProvider: () => ProviderConfig;
   hasApiKey: () => boolean;
 }
@@ -61,6 +65,7 @@ export const useSettingsStore = create<SettingsState>()(
       providers: defaultProviders,
       showSettings: false,
       alwaysRunEvaluation: true,
+      documentStylePreset: 'auto',
 
       setProviderId: (providerId) => set({ providerId }),
 
@@ -95,6 +100,8 @@ export const useSettingsStore = create<SettingsState>()(
 
       setAlwaysRunEvaluation: (alwaysRunEvaluation) => set({ alwaysRunEvaluation }),
 
+      setDocumentStylePreset: (documentStylePreset) => set({ documentStylePreset }),
+
       getActiveProvider: () => {
         const state = get();
         return state.providers[state.providerId];
@@ -111,11 +118,12 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'aura-settings',
-      version: 2,
+      version: 3,
       partialize: (state) => ({
         providerId: state.providerId,
         providers: state.providers,
         alwaysRunEvaluation: state.alwaysRunEvaluation,
+        documentStylePreset: state.documentStylePreset,
       }),
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
@@ -145,6 +153,7 @@ export const useSettingsStore = create<SettingsState>()(
         return {
           ...state,
           providers,
+          documentStylePreset: (state.documentStylePreset as DocumentStylePreset | undefined) ?? 'auto',
         };
       },
     },

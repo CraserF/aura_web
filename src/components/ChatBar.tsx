@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { ArrowUp, Square } from 'lucide-react';
+import { ArrowUp, Sparkles, Square } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
 import { usePresentationStore } from '@/stores/presentationStore';
 import { useProjectStore } from '@/stores/projectStore';
@@ -10,6 +10,23 @@ import type { ChatMessage as ChatMessageType, WorkflowStep } from '@/types';
 import type { ProjectDocument } from '@/types/project';
 import { commitVersion } from '@/services/storage/versionHistory';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+const DOCUMENT_STYLE_OPTIONS = [
+  { value: 'auto', label: 'Auto' },
+  { value: 'executive', label: 'Executive' },
+  { value: 'editorial', label: 'Editorial' },
+  { value: 'infographic', label: 'Infographic' },
+  { value: 'playbook', label: 'Playbook' },
+  { value: 'research', label: 'Research' },
+  { value: 'proposal', label: 'Proposal' },
+] as const;
 
 /** Detect if the user wants to create/edit a document or presentation */
 function detectWorkflowType(
@@ -75,6 +92,8 @@ export function ChatBar() {
   const getActiveProvider = useSettingsStore((s) => s.getActiveProvider);
   const hasApiKey = useSettingsStore((s) => s.hasApiKey);
   const setShowSettings = useSettingsStore((s) => s.setShowSettings);
+  const documentStylePreset = useSettingsStore((s) => s.documentStylePreset);
+  const setDocumentStylePreset = useSettingsStore((s) => s.setDocumentStylePreset);
 
   const isGenerating = status.state === 'generating';
 
@@ -336,6 +355,7 @@ export function ChatBar() {
             existingHtml: existingDoc,
             existingMarkdown: activeDocument?.type === 'document' ? activeDocument.sourceMarkdown : undefined,
             chatHistory,
+            styleHint: documentStylePreset,
           },
           llmConfig: {
             providerEntry,
@@ -407,6 +427,7 @@ export function ChatBar() {
     slidesHtml, setStatus, setStreamingContent, appendStreamingContent,
     providerId, getActiveProvider, setSlides, setTitle, updateStepStatus,
     activeDocument, addDocument, updateDocument, project, showAllMessages, applyToAllDocuments,
+    documentStylePreset,
   ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -424,6 +445,8 @@ export function ChatBar() {
   }, []);
 
   const canSend = input.trim().length > 0 && !isGenerating;
+  const showDocumentStyleMenu = !activeDocument || activeDocument.type === 'document';
+  const documentStyleLabel = DOCUMENT_STYLE_OPTIONS.find((option) => option.value === documentStylePreset)?.label ?? 'Auto';
 
   const placeholder = isGenerating
     ? 'Generating\u2026'
@@ -444,10 +467,36 @@ export function ChatBar() {
           rows={2}
           className="w-full resize-none rounded-xl border border-border bg-muted/50 px-4 py-3 pb-11 text-sm leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-foreground/20 focus:bg-background disabled:opacity-50"
         />
-        <div className="absolute bottom-2.5 left-4 right-4 flex items-center justify-between">
-          <span className="text-[11px] text-muted-foreground/50">
-            {isGenerating ? 'Generating\u2026' : 'Enter to send · Shift+Enter for new line'}
-          </span>
+        <div className="absolute bottom-2.5 left-4 right-4 flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            {showDocumentStyleMenu && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border/70 bg-background/80 px-2 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+                    aria-label="Choose document style"
+                  >
+                    <Sparkles size={12} strokeWidth={2} />
+                    <span>{documentStyleLabel}</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" side="top">
+                  {DOCUMENT_STYLE_OPTIONS.map((option, index) => (
+                    <div key={option.value}>
+                      {index === 1 && <DropdownMenuSeparator />}
+                      <DropdownMenuItem onSelect={() => setDocumentStylePreset(option.value)}>
+                        {documentStylePreset === option.value ? '✓ ' : ''}{option.label}
+                      </DropdownMenuItem>
+                    </div>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            <span className="truncate text-[11px] text-muted-foreground/50">
+              {isGenerating ? 'Generating\u2026' : 'Enter to send · Shift+Enter for new line'}
+            </span>
+          </div>
           {isGenerating ? (
             <button
               type="button"

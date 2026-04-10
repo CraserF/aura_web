@@ -20,9 +20,9 @@ interface DocumentCanvasProps {
 
 const FALLBACK_DOCUMENT_STYLES = `
   .doc-shell {
-    max-width: 920px;
+    max-width: 980px;
     margin: 0 auto;
-    padding: clamp(20px, 3vw, 34px) clamp(18px, 3vw, 28px) clamp(28px, 4vw, 42px);
+    padding: clamp(22px, 3.2vw, 38px) clamp(18px, 3vw, 30px) clamp(30px, 4vw, 46px);
     border-radius: 22px;
     color: var(--doc-text, #162235);
     font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
@@ -54,25 +54,30 @@ const WRAPPER_STYLES = `
     margin: 0;
     min-height: 100%;
     background:
-      radial-gradient(circle at top left, rgba(99, 102, 241, 0.10), transparent 0, transparent 34%),
+      radial-gradient(circle at top left, rgba(99, 102, 241, 0.11), transparent 0, transparent 34%),
+      radial-gradient(circle at top right, rgba(14, 165, 233, 0.08), transparent 0, transparent 30%),
       linear-gradient(180deg, #f5f7fb 0%, #eef3f9 100%);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
     color: #1a1a1a;
     line-height: 1.6;
   }
   body {
-    padding: 28px 20px 40px;
+    padding: 30px 20px 46px;
   }
   * {
     box-sizing: border-box;
   }
   .aura-document-frame {
-    max-width: 1120px;
+    max-width: 1180px;
     margin: 0 auto;
+    padding: 6px 0 20px;
   }
   .aura-document-frame > :not(style) {
     margin-left: auto;
     margin-right: auto;
+  }
+  .aura-document-frame > .doc-shell {
+    position: relative;
   }
 
   ${FALLBACK_DOCUMENT_STYLES}

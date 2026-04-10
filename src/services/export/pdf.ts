@@ -49,6 +49,12 @@ const EXPORT_BASE_STYLES = `
   .aura-pdf-root .module-card,
   .aura-pdf-root .benefit-item,
   .aura-pdf-root .callout,
+  .aura-pdf-root .doc-kpi,
+  .aura-pdf-root .doc-story-card,
+  .aura-pdf-root .doc-compare-card,
+  .aura-pdf-root .doc-timeline-item,
+  .aura-pdf-root .doc-proof-strip,
+  .aura-pdf-root .doc-infographic-band,
   .aura-pdf-root table,
   .aura-pdf-root blockquote,
   .aura-pdf-root pre {
@@ -60,7 +66,14 @@ const EXPORT_BASE_STYLES = `
   .aura-pdf-root .section-card,
   .aura-pdf-root .module-card,
   .aura-pdf-root .benefit-item,
-  .aura-pdf-root .callout {
+  .aura-pdf-root .callout,
+  .aura-pdf-root .doc-kpi,
+  .aura-pdf-root .doc-story-card,
+  .aura-pdf-root .doc-compare-card,
+  .aura-pdf-root .doc-timeline-item,
+  .aura-pdf-root .doc-proof-strip,
+  .aura-pdf-root .doc-infographic-band,
+  .aura-pdf-root .doc-aside {
     padding: 14px 16px;
     border-radius: 14px;
     border: 1px solid rgba(31, 75, 153, 0.12);
@@ -70,9 +83,18 @@ const EXPORT_BASE_STYLES = `
 
   .aura-pdf-root .module-grid,
   .aura-pdf-root .grid-benefits,
-  .aura-pdf-root .stats-grid {
+  .aura-pdf-root .stats-grid,
+  .aura-pdf-root .doc-kpi-grid,
+  .aura-pdf-root .doc-story-grid,
+  .aura-pdf-root .doc-comparison {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+
+  .aura-pdf-root .doc-sidebar-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(180px, 0.85fr);
     gap: 12px;
   }
 
@@ -145,7 +167,7 @@ function getPdfOptions(title: string) {
     },
     pagebreak: {
       mode: ['css', 'legacy'],
-      avoid: ['.doc-section', 'table', 'blockquote', 'pre'],
+      avoid: ['.doc-section', '.doc-kpi', '.doc-story-card', '.doc-compare-card', '.doc-proof-strip', 'table', 'blockquote', 'pre'],
     },
     jsPDF: {
       unit: 'mm',
