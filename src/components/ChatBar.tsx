@@ -350,9 +350,9 @@ export function ChatBar() {
           : undefined;
 
         // Build project links for cross-document linking
-        const projectLinks = project.documents
+        const projectLinks: import('@/services/ai/workflow').DocumentProjectLink[] = project.documents
           .filter((d) => d.id !== activeDocument?.id && d.contentHtml)
-          .map((d) => ({ id: d.id, title: d.title, type: d.type }));
+          .map((d) => ({ id: d.id, title: d.title, type: d.type as 'document' | 'presentation' }));
 
         const result = await runDocumentWorkflow({
           input: {

@@ -406,8 +406,8 @@ ${summary}
 
   addProjectLinks(links: DocumentProjectLink[]): this {
     if (!links || links.length === 0) return this;
-    const lines = links.map(({ id, title, type }) => `- [${title}](#${id}) (${type})`);
-    this.sections.push(`## Available Project Links\nYou may reference the following documents and presentations using relative anchor links (e.g. \`<a href="#id">Title</a>\`). Only link when it genuinely adds value — do not force links into the content.\n${lines.join('\n')}`);
+    const lines = links.map(({ id, title, type }) => `- <a href="#${id}">${title}</a> (${type})`);
+    this.sections.push(`## Available Project Links\nYou may reference the following documents and presentations using HTML anchor links (e.g. \`<a href="#id">Title</a>\`). Only link when it genuinely adds value — do not force links into the content.\n${lines.join('\n')}`);
     return this;
   }
 
