@@ -13,6 +13,31 @@ import {
   type DeckInstance,
 } from '@/services/presentation/engine';
 
+interface LockableScreenOrientation {
+  lock?: (orientation: 'any' | 'natural' | 'portrait' | 'landscape' | 'portrait-primary' | 'portrait-secondary' | 'landscape-primary' | 'landscape-secondary') => Promise<void>;
+  unlock?: () => void;
+}
+
+async function lockLandscapeOrientation(): Promise<void> {
+  const orientation = (screen.orientation ?? null) as LockableScreenOrientation | null;
+  if (!orientation?.lock) return;
+  try {
+    await orientation.lock('landscape');
+  } catch {
+    // Locking is browser/device restricted (notably on iOS Safari). Ignore safely.
+  }
+}
+
+function unlockOrientation(): void {
+  const orientation = (screen.orientation ?? null) as LockableScreenOrientation | null;
+  if (!orientation?.unlock) return;
+  try {
+    orientation.unlock();
+  } catch {
+    // Ignore failures; unlock support is browser/device dependent.
+  }
+}
+
 export function PresentationCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const deckRef = useRef<DeckInstance | null>(null);
@@ -87,9 +112,18 @@ export function PresentationCanvas() {
         embedded: false,
       });
 
-      container.requestFullscreen?.().catch(() => {});
+      void (async () => {
+        try {
+          if (!document.fullscreenElement) {
+            await container.requestFullscreen?.();
+          }
+        } catch {
+          // Ignore fullscreen failures; user gesture or browser policy may block it.
+        }
 
-      deckRef.current.reveal.layout();
+        await lockLandscapeOrientation();
+        deckRef.current?.reveal.layout();
+      })();
     } else {
       container.classList.remove('aura-present-mode');
       container.classList.add('aura-edit-mode');
@@ -100,7 +134,9 @@ export function PresentationCanvas() {
         embedded: true,
       });
 
-      if (document.fullscreenElement) {
+      unlockOrientation();
+
+      if (document.fullscreenElement === container) {
         document.exitFullscreen().catch(() => {});
       }
 
@@ -112,6 +148,7 @@ export function PresentationCanvas() {
   useEffect(() => {
     const onFsChange = () => {
       if (!document.fullscreenElement && isPresenting) {
+        unlockOrientation();
         setPresenting(false);
       }
     };
@@ -134,20 +171,20 @@ export function PresentationCanvas() {
   }, [setPresenting]);
 
   return (
-    <section className="relative flex min-h-0 flex-1 overflow-hidden bg-muted/30">
+    <section className="aura-canvas-shell aura-presentation-shell">
       <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
         {slidesHtml ? (
-          <>
+          <div className="aura-canvas-frame aura-presentation-frame">
             <div
               ref={containerRef}
-              className="h-full w-full aura-edit-mode"
+              className="h-full w-full aura-edit-mode aura-presentation-root"
             />
             <SlideNavOverlay
               currentIndex={currentIndex}
               goToSlide={goToSlide}
               onPresent={handlePresent}
             />
-          </>
+          </div>
         ) : (
           <>
             {/* Hidden container so reveal can mount once content arrives */}

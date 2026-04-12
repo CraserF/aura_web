@@ -31,6 +31,13 @@ This document defines the detailed implementation plan for mobile-adaptive rende
 
 ## Phased Execution
 
+Status snapshot (2026-04-12):
+
+- Phase F0: baseline contract documented (in progress, continue refining docs as behavior evolves).
+- Phase F1: initial implementation landed (shared presentation frame + 16:9 fit/contain behavior).
+- Phase F2: initial implementation landed (document canvas frame/boundary consistency in app shell).
+- Phase F3-F4: pending.
+
 ## Phase F0: UX and Architecture Baseline
 
 Deliverables:

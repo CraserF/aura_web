@@ -332,6 +332,20 @@ const buttonVariants = cva('inline-flex items-center ...', {
 });
 ```
 
+## Canvas Frame Contract
+
+Use a shared shell/frame contract for document and presentation canvases so artifact bounds are always visible and proportions are never distorted.
+
+Rules:
+
+- Wrap artifact canvases in `aura-canvas-shell` and `aura-canvas-frame`.
+- Keep presentation stages at a fixed 16:9 ratio with fit/contain behavior.
+- Treat extra viewport area as intentional gutters, not stretchable artifact background.
+- Keep frame styles in app shell CSS only; do not inject frame chrome into generated artifact HTML.
+- Preserve sandbox isolation for document iframe content while framing at the host-app layer.
+
+When adding new canvas behaviors, verify mobile/tablet/desktop behavior before marking work complete.
+
 ### Responsive Design
 
 The app is moving from desktop-first toward responsive shell behavior. Keep desktop layouts stable while introducing mobile-specific overlays, drawers, or condensed controls behind explicit UI flags when needed. Use these breakpoints if adding responsive behavior:

@@ -89,7 +89,15 @@ export function VersionHistoryPanel({ open, onClose }: VersionHistoryPanelProps)
   if (!open) return null;
 
   return (
-    <div className="flex w-72 shrink-0 flex-col border-l border-border bg-background">
+    <>
+      <button
+        type="button"
+        aria-label="Close version history"
+        className="fixed inset-0 z-30 bg-background/70 backdrop-blur-sm lg:hidden"
+        onClick={onClose}
+      />
+
+      <aside className="fixed inset-y-0 right-0 z-40 flex w-[min(22rem,calc(100vw-1rem))] flex-col border-l border-border bg-background shadow-xl lg:static lg:z-auto lg:w-72 lg:shrink-0 lg:shadow-none">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
@@ -196,6 +204,7 @@ export function VersionHistoryPanel({ open, onClose }: VersionHistoryPanelProps)
           </div>
         )}
       </div>
-    </div>
+      </aside>
+    </>
   );
 }

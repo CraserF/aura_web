@@ -219,3 +219,81 @@ body {
   height: auto;
   border-radius: 0.75rem;
 }
+
+.aura-canvas-shell {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  padding: clamp(0.55rem, 1.8vw, 1.25rem);
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(14, 116, 144, 0.08), transparent 38%),
+    linear-gradient(180deg, #f5f8fc 0%, #edf2f8 100%);
+}
+
+.aura-canvas-frame {
+  position: relative;
+  margin: 0 auto;
+  width: 100%;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow:
+    0 14px 36px rgba(15, 23, 42, 0.12),
+    0 2px 0 rgba(255, 255, 255, 0.85) inset;
+}
+
+.aura-presentation-shell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.aura-presentation-frame {
+  aspect-ratio: 16 / 9;
+  width: min(100%, calc((100dvh - 11.75rem) * 1.7778));
+  max-height: 100%;
+  max-width: min(100%, 1620px);
+  background:
+    radial-gradient(circle at 20% 24%, rgba(56, 189, 248, 0.18), transparent 42%),
+    radial-gradient(circle at 82% 70%, rgba(59, 130, 246, 0.18), transparent 44%),
+    #091124;
+}
+
+.aura-presentation-root .reveal-viewport {
+  background: transparent !important;
+}
+
+.aura-document-shell {
+  display: flex;
+}
+
+.aura-document-frame-surface {
+  height: 100%;
+  max-width: min(100%, 1280px);
+  background: #f8fafc;
+}
+
+.aura-document-frame-paged {
+  max-width: min(100%, 1120px);
+  background: linear-gradient(180deg, #eef2f8 0%, #e4eaf2 100%);
+}
+
+.aura-document-frame-scroll {
+  background: linear-gradient(180deg, #f8fbff 0%, #f0f4fa 100%);
+}
+
+@media (max-width: 768px) {
+  .aura-canvas-shell {
+    padding: 0.45rem;
+  }
+
+  .aura-canvas-frame {
+    border-radius: 12px;
+  }
+
+  .aura-presentation-frame {
+    width: 100%;
+  }
+}

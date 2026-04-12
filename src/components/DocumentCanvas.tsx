@@ -446,18 +446,24 @@ export function DocumentCanvas({ html, pagesEnabled = false, onNavigate }: Docum
   }
 
   return (
-    <iframe
-      ref={iframeRef}
-      className="size-full border-0"
-      // allow-scripts: lets our injected navigation script intercept link clicks
-      //   and postMessage the parent. Content is already sanitised (user scripts stripped).
-      // allow-same-origin is intentionally OMITTED so iframe has null origin and
-      //   cannot access the parent's cookies or localStorage.
-      // allow-modals: lets browser print dialogs open from within the frame.
-      sandbox="allow-scripts allow-modals"
-      title="Document preview"
-      aria-label="Document content"
-    />
+    <section className="aura-canvas-shell aura-document-shell">
+      <div
+        className={`aura-canvas-frame aura-document-frame-surface ${pagesEnabled ? 'aura-document-frame-paged' : 'aura-document-frame-scroll'}`}
+      >
+        <iframe
+          ref={iframeRef}
+          className="size-full border-0 bg-transparent"
+          // allow-scripts: lets our injected navigation script intercept link clicks
+          //   and postMessage the parent. Content is already sanitised (user scripts stripped).
+          // allow-same-origin is intentionally OMITTED so iframe has null origin and
+          //   cannot access the parent's cookies or localStorage.
+          // allow-modals: lets browser print dialogs open from within the frame.
+          sandbox="allow-scripts allow-modals"
+          title="Document preview"
+          aria-label="Document content"
+        />
+      </div>
+    </section>
   );
 }
 

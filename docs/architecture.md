@@ -147,6 +147,9 @@ Key rules:
 - `DocumentCanvas` renders inside a sandboxed iframe; print/export strips motion and keeps the static document readable
 - the paged A4 document mode remains implemented, but the current Pages toggle can now be hidden behind the persisted `showDocumentPagesView` feature flag while outline-oriented navigation work continues
 - below the desktop breakpoint, `ProjectSidebar` and `ChatPanel` can be treated as dismissible drawers controlled by `App.tsx`, while the desktop side-rail layout remains intact above that breakpoint
+- both `DocumentCanvas` and `PresentationCanvas` now use a shared app-shell frame (`aura-canvas-shell` + `aura-canvas-frame`) so artifact boundaries stay visible across mobile, tablet, and desktop
+- presentation stage rendering is ratio-locked to 16:9 with fit/contain behavior (letterboxing/pillarboxing) instead of stretch-to-fill
+- document rendering uses the same outer frame contract so boundaries remain explicit in both scroll and paged views while the inner iframe content remains isolated/sandboxed
 
 ---
 

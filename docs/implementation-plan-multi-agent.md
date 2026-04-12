@@ -50,8 +50,8 @@ Validation backfill note:
 - [x] Add chat activity indicator and global progress visibility above the chat composer
 - [x] Update architecture/pattern docs for the above changes
 - [x] Backfill manual mobile and desktop validation evidence for completed Workstream A items
-- [ ] Convert version history panel to mobile overlay behavior while preserving desktop side rail behavior
-- [ ] Add clearer visual separation between New Project action and New Document action (label or icon grouping)
+- [x] Convert version history panel to mobile overlay behavior while preserving desktop side rail behavior
+- [x] Add clearer visual separation between New Project action and New Document action (label or icon grouping)
 
 - [ ] Run PDF preview spike and record decision (keep current stack vs replace)
 - [ ] Implement standalone read-only HTML export for documents
@@ -70,6 +70,11 @@ Validation backfill note:
 
 - [ ] Add planning and implementation for mobile-adaptive generated documents and presentations
 - [ ] Ensure generated documents consistently show a visible document boundary frame so users can recognize document edges
+
+Workstream F progress note:
+
+- Initial shared canvas-frame implementation landed for both document and presentation canvases.
+- Automated checks are passing; required manual viewport validation matrix is still pending before checkbox completion.
 
 ## Workstreams
 
@@ -221,6 +226,10 @@ Blocking dependency:
 Validation requirement:
 - Must include manual visual review across mobile/tablet/desktop for at least three representative generated artifacts.
 
+Status:
+- In progress: Phase F1/F2 first implementation slice complete (shared frame contract + 16:9 fit/contain presentation stage + explicit document frame shell).
+- Remaining: Phase F3/F4 generation guidance and full manual viewport validation matrix.
+
 Detailed execution plan:
 - See docs/workstream-f-mobile-adaptive-artifacts.md
 
@@ -285,3 +294,27 @@ For any PR touching behavior, update all applicable docs in the same branch:
 - Tests (`bun run test`): pass (5 files, 49 tests)
 - Manual validation: pass (ongoing manual mobile verification feedback is positive)
 - Result: replaced nested object+iframe with a single iframe in PDF preview to reduce blob local-resource warning noise
+
+- Date: 2026-04-12
+- Agent: GitHub Copilot
+- Scope: Workstream A follow-ups (version history mobile overlay + New Project/New Document action separation)
+- Build (`bun run build`): pass
+- Tests (`bun run test`): pass (5 files, 49 tests)
+- Manual validation: pending
+- Result: implemented overlay behavior for version history on mobile and icon-level separation between project and document creation actions
+
+- Date: 2026-04-12
+- Agent: GitHub Copilot
+- Scope: Workstream F Phase F1/F2 first slice (shared canvas-frame contract + presentation 16:9 fit/contain + document frame boundary)
+- Build (`bun run build`): pass
+- Tests (`bun run test`): pass (5 files, 49 tests)
+- Manual validation: pending (mobile/tablet/desktop artifact matrix not yet executed in interactive UI)
+- Result: initial mobile-adaptive framing shipped and documented; checklist items remain open until manual matrix is recorded
+
+- Date: 2026-04-12
+- Agent: GitHub Copilot
+- Scope: Presentation fullscreen orientation handling (best-effort landscape lock + unlock on exit)
+- Build (`bun run build`): pass
+- Tests (`bun run test`): pass (5 files, 49 tests)
+- Manual validation: pending (requires device/browser fullscreen verification; prior manual checks reported all other paths working well)
+- Result: fullscreen now attempts `screen.orientation.lock('landscape')` when supported and safely falls back without breaking presentation mode

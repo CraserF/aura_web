@@ -2,12 +2,11 @@ import { useState, useRef, useEffect } from 'react';
 import {
   FileText,
   Presentation,
-  Plus,
+  FilePlus,
   Trash2,
   ChevronRight,
   FolderOpen,
   MoreHorizontal,
-  FilePlus,
   Pencil,
   X,
 } from 'lucide-react';
@@ -52,8 +51,10 @@ function NewDocMenu({ onAdd }: NewDocMenuProps) {
           variant="ghost"
           size="icon"
           className="size-7 shrink-0 rounded-md text-muted-foreground hover:text-foreground"
+          aria-label="Create document or presentation"
+          title="Create document or presentation"
         >
-          <Plus className="size-3.5" />
+          <FilePlus className="size-3.5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">

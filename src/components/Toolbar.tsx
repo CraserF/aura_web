@@ -3,7 +3,7 @@ import {
   Download,
   Upload,
   Play,
-  Plus,
+  FolderPlus,
   MessageSquare,
   AlertTriangle,
   History,
@@ -193,7 +193,7 @@ export function Toolbar({
                 className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
                 onClick={handleNew}
               >
-                <Plus className="size-4" />
+                <FolderPlus className="size-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>New project</TooltipContent>
@@ -306,7 +306,7 @@ export function Toolbar({
                   className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
                   onClick={handleNew}
                 >
-                  <Plus className="size-4" />
+                  <FolderPlus className="size-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>New project</TooltipContent>
