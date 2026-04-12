@@ -30,6 +30,22 @@ const DOCUMENT_STYLE_OPTIONS = [
   { value: 'proposal', label: 'Proposal' },
 ] as const;
 
+function progressWidthClass(pct?: number): string {
+  if (!pct || pct <= 0) return 'w-0';
+  if (pct >= 100) return 'w-full';
+  if (pct <= 5) return 'w-[5%]';
+  if (pct <= 10) return 'w-[10%]';
+  if (pct <= 20) return 'w-[20%]';
+  if (pct <= 30) return 'w-[30%]';
+  if (pct <= 40) return 'w-[40%]';
+  if (pct <= 50) return 'w-1/2';
+  if (pct <= 60) return 'w-[60%]';
+  if (pct <= 70) return 'w-[70%]';
+  if (pct <= 80) return 'w-[80%]';
+  if (pct <= 90) return 'w-[90%]';
+  return 'w-[95%]';
+}
+
 function isMessageInScope(
   message: ChatMessageType,
   activeDocumentId: string | undefined,
@@ -548,6 +564,29 @@ export function ChatBar() {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
+        {isGenerating && (
+          <div className="mb-2 rounded-lg border border-border/70 bg-muted/60 px-3 py-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="truncate text-[11px] font-medium text-foreground/80">
+                {status.step ?? 'Working...'}
+              </p>
+              {typeof status.pct === 'number' && status.pct > 0 && (
+                <span className="text-[10px] tabular-nums text-muted-foreground">{status.pct}%</span>
+              )}
+            </div>
+            {typeof status.pct === 'number' && status.pct > 0 && (
+              <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-foreground/10">
+                <div
+                  className={cn(
+                    'h-full rounded-full bg-gradient-to-r from-blue-500 to-violet-500 transition-all duration-500',
+                    progressWidthClass(status.pct),
+                  )}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Attachment previews */}
         {attachments.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-2">

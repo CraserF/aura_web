@@ -86,15 +86,16 @@ export function ProviderModal() {
 
   return (
     <Dialog open={showSettings} onOpenChange={setShowSettings}>
-      <DialogContent className="max-h-[calc(100vh-1.5rem)] overflow-y-auto sm:max-h-[90vh] sm:max-w-lg">
-        <DialogHeader className="pr-8">
-          <DialogTitle>AI Provider</DialogTitle>
-          <DialogDescription>
-            Choose a provider and enter your API key. Keys are stored locally.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-h-[calc(100vh-1rem)] w-[calc(100%-1rem)] overflow-hidden p-0 sm:max-h-[90vh] sm:max-w-lg">
+        <div className="flex max-h-[calc(100vh-1rem)] flex-col sm:max-h-[90vh]">
+          <DialogHeader className="pr-8 px-4 pt-4 sm:px-6 sm:pt-6">
+            <DialogTitle>AI Provider</DialogTitle>
+            <DialogDescription>
+              Choose a provider and enter your API key. Keys are stored locally.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-5">
+          <div className="flex-1 space-y-5 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {OPTIONS.map((opt) => (
               <button
@@ -153,9 +154,9 @@ export function ProviderModal() {
               </button>
             </div>
           </div>
-        </div>
+          </div>
 
-        <DialogFooter>
+          <DialogFooter className="border-t border-border px-4 py-3 sm:px-6">
           <Button
             variant="outline"
             size="sm"
@@ -163,7 +164,8 @@ export function ProviderModal() {
           >
             Done
           </Button>
-        </DialogFooter>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );

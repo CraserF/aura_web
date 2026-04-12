@@ -60,18 +60,11 @@ export function DocumentPdfPreview({
               </div>
             </div>
           ) : pdfUrl ? (
-            <object
-              aria-label="PDF preview"
-              data={pdfUrl}
-              type="application/pdf"
-              className="h-full w-full bg-white"
-            >
-              <iframe
-                title="PDF preview"
-                src={pdfUrl}
-                className="h-full w-full border-0 bg-white"
-              />
-            </object>
+            <iframe
+              title="PDF preview"
+              src={pdfUrl}
+              className="h-full w-full border-0 bg-white"
+            />
           ) : (
             <div className="flex h-full items-center justify-center px-6">
               <div className="max-w-md rounded-2xl border border-border bg-background p-5 text-center shadow-sm">

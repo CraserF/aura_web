@@ -46,6 +46,8 @@ Validation backfill note:
 - [x] Add a mobile document tools strip above the chat composer
 - [x] Make document outline affordance explicit in project sidebar
 - [x] Convert toolbar to a two-row mobile layout with New/Open/Save on the second row
+- [x] Improve settings modal mobile scroll behavior and short-height usability
+- [x] Add chat activity indicator and global progress visibility above the chat composer
 - [x] Update architecture/pattern docs for the above changes
 - [x] Backfill manual mobile and desktop validation evidence for completed Workstream A items
 
@@ -63,6 +65,9 @@ Validation backfill note:
 - [ ] Add document edit-intent routing (content-only vs style/hybrid/structural)
 - [ ] Add presentation edit-intent routing to preserve locked design on content-only changes
 - [ ] Add prompt-size/branch observability metrics for lean edit paths
+
+- [ ] Add planning and implementation for mobile-adaptive generated documents and presentations
+- [ ] Ensure generated documents consistently show a visible document boundary frame so users can recognize document edges
 
 ## Workstreams
 
@@ -179,6 +184,32 @@ Blocking dependency:
 Validation requirement:
 - Must include prompt-size comparison evidence for at least one content-only edit and one style edit.
 
+## Workstream F: Mobile-Adaptive Artifact Design System
+
+Owner: unassigned
+
+Target files:
+- src/services/ai/workflow/document.ts
+- src/services/ai/workflow/presentation.ts
+- src/services/ai/prompts/composer.ts
+- src/services/ai/templates/document-blueprints.ts
+- src/components/DocumentCanvas.tsx
+- src/components/PresentationCanvas.tsx
+- docs/architecture.md
+- docs/coding-patterns.md
+
+Tasks:
+- Define a mobile-accommodating output strategy for generated documents and presentations.
+- Add explicit prompt and template rules so generated artifacts adapt layout for narrow screens without destroying desktop quality.
+- Ensure document rendering always includes a clear, consistent boundary frame so users can identify where the document starts and ends.
+- Add responsive acceptance criteria for generated artifact quality on mobile, tablet, and desktop.
+
+Blocking dependency:
+- None.
+
+Validation requirement:
+- Must include manual visual review across mobile/tablet/desktop for at least three representative generated artifacts.
+
 ## Documentation Requirements (Per PR)
 
 For any PR touching behavior, update all applicable docs in the same branch:
@@ -224,3 +255,19 @@ For any PR touching behavior, update all applicable docs in the same branch:
 - Tests (`bun run test`): pass (5 files, 49 tests)
 - Manual validation: pass (user confirmed remaining mobile features are working well during manual testing)
 - Result: Workstream A manual-validation backfill recorded; settings responsiveness issue addressed with mobile scroll support
+
+- Date: 2026-04-12
+- Agent: GitHub Copilot
+- Scope: Mobile polish pass (settings modal short-height behavior, chat activity badge, global progress above composer, mobile export/preview action grouping)
+- Build (`bun run build`): pass
+- Tests (`bun run test`): pass (5 files, 49 tests)
+- Manual validation: pass (user confirmed manual testing for mobile features is good)
+- Result: requested mobile polish shipped and validated; preview action moved under mobile export dropdown
+
+- Date: 2026-04-12
+- Agent: GitHub Copilot
+- Scope: PDF preview console warning mitigation by simplifying blob preview rendering and final mobile polish validation
+- Build (`bun run build`): pass
+- Tests (`bun run test`): pass (5 files, 49 tests)
+- Manual validation: pass (ongoing manual mobile verification feedback is positive)
+- Result: replaced nested object+iframe with a single iframe in PDF preview to reduce blob local-resource warning noise

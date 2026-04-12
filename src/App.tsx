@@ -470,6 +470,13 @@ export default function App() {
                       <DropdownMenuContent align="start">
                         <DropdownMenuItem onSelect={(event) => {
                           event.preventDefault();
+                          void handlePreviewPdf();
+                        }}>
+                          <Eye className="mr-2 size-3.5" />
+                          Preview PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={(event) => {
+                          event.preventDefault();
                           void handleExportPdf();
                         }}>
                           Export PDF
@@ -534,30 +541,15 @@ export default function App() {
                   Link
                 </Button>
 
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="h-7 shrink-0 gap-1.5 rounded-md px-2 text-xs"
-                  onClick={handlePreviewPdf}
-                  disabled={isDocumentBusy}
-                >
-                  {documentAction === 'preview-pdf' ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <Eye className="size-3.5" />
-                  )}
-                  Preview PDF
-                </Button>
-
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
-                      variant="ghost"
+                      variant="secondary"
                       size="sm"
-                      className="h-7 shrink-0 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
+                      className="h-7 shrink-0 gap-1.5 rounded-md px-2 text-xs"
                       disabled={isDocumentBusy}
                     >
-                      {documentAction === 'export-pdf' || documentAction === 'export-word' ? (
+                      {documentAction === 'preview-pdf' || documentAction === 'export-pdf' || documentAction === 'export-word' ? (
                         <Loader2 className="size-3.5 animate-spin" />
                       ) : (
                         <FileDown className="size-3.5" />
@@ -567,6 +559,13 @@ export default function App() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start">
+                    <DropdownMenuItem onSelect={(event) => {
+                      event.preventDefault();
+                      void handlePreviewPdf();
+                    }}>
+                      <Eye className="mr-2 size-3.5" />
+                      Preview PDF
+                    </DropdownMenuItem>
                     <DropdownMenuItem onSelect={(event) => {
                       event.preventDefault();
                       void handleExportPdf();

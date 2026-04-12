@@ -31,7 +31,6 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
   const setApplyToAllDocuments = useChatStore((s) => s.setApplyToAllDocuments);
   const activeDocument = useProjectStore((s) => s.activeDocument());
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
   const isGenerating = status.state === 'generating';
 
   const visibleMessages = useMemo(

@@ -49,6 +49,7 @@ export function Toolbar({
   const setPresenting = usePresentationStore((s) => s.setPresenting);
 
   const messages = useChatStore((s) => s.messages);
+  const status = useChatStore((s) => s.status);
   const clearMessages = useChatStore((s) => s.clearMessages);
   const setMessages = useChatStore((s) => s.setMessages);
 
@@ -121,6 +122,7 @@ export function Toolbar({
   };
 
   const canPresent = activeDocument?.type === 'presentation' && !!slidesHtml && !isPresenting;
+  const hasChatActivity = status.state === 'generating';
 
   return (
     <>
@@ -277,10 +279,16 @@ export function Toolbar({
               <Button
                 variant={chatPanelOpen ? 'secondary' : 'ghost'}
                 size="icon"
-                className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+                className="relative size-8 rounded-lg text-muted-foreground hover:text-foreground"
                 onClick={onToggleChatPanel}
               >
                 <MessageSquare className="size-4" />
+                {hasChatActivity && (
+                  <span className="absolute right-1.5 top-1.5 flex size-2" aria-hidden="true">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+                  </span>
+                )}
               </Button>
             </TooltipTrigger>
             <TooltipContent>{chatPanelOpen ? 'Hide' : 'Show'} chat history</TooltipContent>
@@ -369,10 +377,16 @@ export function Toolbar({
                 <Button
                   variant={chatPanelOpen ? 'secondary' : 'ghost'}
                   size="icon"
-                  className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+                  className="relative size-8 rounded-lg text-muted-foreground hover:text-foreground"
                   onClick={onToggleChatPanel}
                 >
                   <MessageSquare className="size-4" />
+                  {hasChatActivity && (
+                    <span className="absolute right-1.5 top-1.5 flex size-2" aria-hidden="true">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+                    </span>
+                  )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{chatPanelOpen ? 'Hide' : 'Show'} chat history</TooltipContent>
