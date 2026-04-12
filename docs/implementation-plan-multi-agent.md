@@ -53,7 +53,7 @@ Validation backfill note:
 - [x] Convert version history panel to mobile overlay behavior while preserving desktop side rail behavior
 - [x] Add clearer visual separation between New Project action and New Document action (label or icon grouping)
 
-- [ ] Run PDF preview spike and record decision (keep current stack vs replace)
+- [x] Run PDF preview spike and record decision (keep current stack vs replace)
 - [ ] Implement standalone read-only HTML export for documents
 - [ ] Implement standalone read-only HTML export for presentations
 - [ ] Add document email-optimized HTML export path
@@ -121,6 +121,10 @@ Tasks:
 - Evaluate fidelity, render speed, memory usage, and implementation complexity.
 - Record explicit decision and rationale in docs.
 
+Status:
+- Completed on 2026-04-12.
+- Decision: keep the current `html2pdf.js` stack for blob preview/export; keep browser-native print as a comparison/fallback path, not the primary replacement.
+
 Blocking dependency:
 - None.
 
@@ -147,6 +151,13 @@ Blocking dependency:
 
 Validation requirement:
 - Must include artifact-open checks (offline/read-only) and sanitization safety checks.
+
+Workstream C regression checklist (required when touching document export rendering):
+- [ ] Run `example/pdf_preview_spike.html` and compare Current vs Candidate panes for all three corpus docs.
+- [ ] Validate desktop and mobile viewport modes in the harness.
+- [ ] Confirm no horizontal clipping in preview frames for long-form, rich visual, and mixed-content docs.
+- [ ] Record any fidelity delta (typography sharpness, contrast, spacing, table/card integrity) in the validation log.
+- [ ] If a replacement candidate is being considered, update `docs/pdf-preview-spike.md` evaluation matrix and recommendation before merge.
 
 ## Workstream D: Attachments and Aura Media Packaging
 
@@ -318,3 +329,19 @@ For any PR touching behavior, update all applicable docs in the same branch:
 - Tests (`bun run test`): pass (5 files, 49 tests)
 - Manual validation: pending (requires device/browser fullscreen verification; prior manual checks reported all other paths working well)
 - Result: fullscreen now attempts `screen.orientation.lock('landscape')` when supported and safely falls back without breaking presentation mode
+
+- Date: 2026-04-12
+- Agent: GitHub Copilot
+- Scope: Workstream B PDF preview spike, shared export-markup extraction, and comparison harness
+- Build (`bun run build`): pass
+- Tests (`bun run test`): pass (6 files, 52 tests)
+- Manual validation: pass (`example/pdf_preview_spike.html` reviewed across long-form, visual, and mixed-content corpus documents in desktop and mobile widths; native print was sharper on desktop but clipped horizontally on mobile, so current stack remains the safer integrated path)
+- Result: Workstream B completed with a keep-current-stack decision, shared comparison helpers, focused automated coverage, and a reusable manual regression harness
+
+- Date: 2026-04-12
+- Agent: GitHub Copilot
+- Scope: Workstream B follow-on step 1/2 (PDF export contrast tuning + Workstream C regression checklist wiring)
+- Build (`bun run build`): pass
+- Tests (`bun run test`): pass (6 files, 53 tests)
+- Manual validation: pass (verified `example/pdf_preview_spike.html` visual corpus with rich visual document in desktop mode; KPI values and labels remain readable after export-style normalization)
+- Result: Added high-contrast overrides for infographic/KPI modules in `src/services/export/pdf.ts`, added regression test coverage, and formalized Workstream C checklist requirements for the spike harness

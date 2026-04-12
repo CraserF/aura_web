@@ -5,6 +5,12 @@ export interface DocumentPdfJob {
   title: string;
 }
 
+export interface PreparedDocumentPdfMarkup {
+  normalizedHtml: string;
+  pageMarkup: string;
+  documentMarkup: string;
+}
+
 const EXPORT_BASE_STYLES = `
   html, body {
     margin: 0;
@@ -130,6 +136,45 @@ const EXPORT_BASE_STYLES = `
     border: 1px solid rgba(148, 163, 184, 0.34);
     background: #f8fafc;
     box-shadow: none;
+  }
+
+  .aura-pdf-root .doc-kpi,
+  .aura-pdf-root .doc-kpi *,
+  .aura-pdf-root .doc-story-card,
+  .aura-pdf-root .doc-story-card *,
+  .aura-pdf-root .doc-compare-card,
+  .aura-pdf-root .doc-compare-card *,
+  .aura-pdf-root .doc-proof-strip,
+  .aura-pdf-root .doc-proof-strip * {
+    color: #0f172a !important;
+    text-shadow: none !important;
+  }
+
+  .aura-pdf-root .doc-infographic-band,
+  .aura-pdf-root .doc-infographic-band * {
+    color: #0f172a !important;
+    text-shadow: none !important;
+  }
+
+  .aura-pdf-root .doc-infographic-band {
+    background: #f8fafc !important;
+    border-color: rgba(148, 163, 184, 0.34) !important;
+  }
+
+  .aura-pdf-root .doc-infographic-band .doc-kpi {
+    background: #ffffff !important;
+    border-color: rgba(148, 163, 184, 0.4) !important;
+  }
+
+  .aura-pdf-root .doc-kpi-value,
+  .aura-pdf-root .doc-title-gradient {
+    color: #0f172a !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  .aura-pdf-root .doc-kpi-label,
+  .aura-pdf-root .doc-eyebrow {
+    color: #475569 !important;
   }
 
   .aura-pdf-root .doc-header {
@@ -269,6 +314,29 @@ function normalizeInlineMarkdownHtml(html: string): string {
   return doc.body.innerHTML.trim() || html;
 }
 
+export function prepareDocumentPdfMarkup(html: string, title: string): PreparedDocumentPdfMarkup {
+  const normalizedHtml = normalizeInlineMarkdownHtml(html);
+  const pageMarkup = `<div class="aura-pdf-page"><div class="aura-pdf-root">${normalizedHtml}</div></div>`;
+  const documentMarkup = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escapeInlineHtml(title)}</title>
+  <style>${EXPORT_BASE_STYLES}</style>
+</head>
+<body>
+  ${pageMarkup}
+</body>
+</html>`;
+
+  return {
+    normalizedHtml,
+    pageMarkup,
+    documentMarkup,
+  };
+}
+
 function createExportContainer(html: string): { element: HTMLDivElement; cleanup: () => void } {
   const host = document.createElement('div');
   host.style.position = 'fixed';
@@ -281,8 +349,8 @@ function createExportContainer(html: string): { element: HTMLDivElement; cleanup
   host.style.zIndex = '-1';
   host.setAttribute('aria-hidden', 'true');
 
-  const normalizedHtml = normalizeInlineMarkdownHtml(html);
-  host.innerHTML = `<style>${EXPORT_BASE_STYLES}</style><div class="aura-pdf-page"><div class="aura-pdf-root">${normalizedHtml}</div></div>`;
+  const preparedMarkup = prepareDocumentPdfMarkup(html, 'Document');
+  host.innerHTML = `<style>${EXPORT_BASE_STYLES}</style>${preparedMarkup.pageMarkup}`;
   document.body.appendChild(host);
 
   return {
@@ -332,6 +400,20 @@ export async function createDocumentPdfBlob(job: DocumentPdfJob): Promise<Blob> 
   }
 }
 
+export async function createDocumentPdfRasterPreview(job: DocumentPdfJob): Promise<string> {
+  const { element, cleanup } = createExportContainer(job.html);
+
+  try {
+    const html2pdf = await loadHtml2Pdf();
+    const source = element.querySelector('.aura-pdf-page') ?? element;
+    const worker = html2pdf().set(getPdfOptions(job.title)).from(source).toCanvas().toImg();
+    const dataUrl = await worker.outputImg('datauristring');
+    return dataUrl as string;
+  } finally {
+    cleanup();
+  }
+}
+
 export async function exportDocumentPdf(job: DocumentPdfJob): Promise<void> {
   const { element, cleanup } = createExportContainer(job.html);
 
@@ -350,19 +432,10 @@ export function openDocumentPrintPreview(job: DocumentPdfJob): void {
     throw new Error('Browser blocked the print preview window. Please allow pop-ups for Aura.');
   }
 
+  const preparedMarkup = prepareDocumentPdfMarkup(job.html, job.title);
+
   printWindow.document.open();
-  printWindow.document.write(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${job.title}</title>
-  <style>${EXPORT_BASE_STYLES}</style>
-</head>
-<body>
-  <div class="aura-pdf-page">
-    <div class="aura-pdf-root">${job.html}</div>
-  </div>
+  printWindow.document.write(`${preparedMarkup.documentMarkup}
   <script>
     window.addEventListener('load', () => {
       setTimeout(() => {
@@ -371,7 +444,6 @@ export function openDocumentPrintPreview(job: DocumentPdfJob): void {
       }, 120);
     });
   </script>
-</body>
-</html>`);
+`);
   printWindow.document.close();
 }

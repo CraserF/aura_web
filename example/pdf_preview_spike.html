@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aura PDF Preview Spike</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f3efe8;
+      --panel: rgba(255, 252, 247, 0.88);
+      --panel-strong: #fffdf9;
+      --ink: #1d2433;
+      --muted: #5b6578;
+      --border: rgba(39, 52, 78, 0.14);
+      --accent: #205781;
+      --accent-soft: rgba(32, 87, 129, 0.12);
+      --shadow: 0 20px 45px rgba(30, 43, 62, 0.08);
+      --preview-width: min(100%, 980px);
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.9), transparent 36%),
+        linear-gradient(180deg, #fbf7f0 0%, var(--bg) 55%, #ebe2d2 100%);
+      color: var(--ink);
+    }
+
+    main {
+      width: min(1400px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 28px 0 40px;
+    }
+
+    .hero {
+      display: grid;
+      gap: 10px;
+      padding: 28px;
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      background: linear-gradient(135deg, rgba(255, 253, 249, 0.94), rgba(250, 244, 233, 0.78));
+      box-shadow: var(--shadow);
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-family: "IBM Plex Serif", Georgia, serif;
+      font-size: clamp(2rem, 4vw, 3.5rem);
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 72ch;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.55;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 20px;
+      align-items: center;
+    }
+
+    label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    select,
+    button {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--panel-strong);
+      color: var(--ink);
+      padding: 10px 14px;
+      font: inherit;
+      box-shadow: 0 4px 18px rgba(30, 43, 62, 0.04);
+    }
+
+    button {
+      cursor: pointer;
+      transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+    }
+
+    button[data-active="true"] {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 22px;
+    }
+
+    .summary-card,
+    .panel {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      -webkit-backdrop-filter: blur(14px);
+      backdrop-filter: blur(14px);
+    }
+
+    .viewport-button-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .summary-card {
+      padding: 18px;
+    }
+
+    .summary-card strong {
+      display: block;
+      font-size: 1.05rem;
+      margin-bottom: 6px;
+    }
+
+    .summary-card span {
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 0.95rem;
+    }
+
+    .panes {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 24px;
+    }
+
+    .panel {
+      overflow: hidden;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.5);
+    }
+
+    .panel-header h2 {
+      margin: 0;
+      font-size: 1rem;
+      line-height: 1.2;
+    }
+
+    .panel-header p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.4;
+    }
+
+    .tag {
+      align-self: start;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .viewport-shell {
+      padding: 18px;
+      display: flex;
+      justify-content: center;
+      background: linear-gradient(180deg, rgba(247, 243, 235, 0.9), rgba(236, 230, 218, 0.95));
+    }
+
+    .viewport-frame {
+      width: var(--preview-width);
+      min-height: 720px;
+      border-radius: 20px;
+      border: 1px solid rgba(28, 39, 57, 0.12);
+      background: #ddd5c6;
+      padding: 18px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+    }
+
+    .viewport-frame iframe,
+    .viewport-frame img {
+      width: 100%;
+      border: 0;
+      border-radius: 14px;
+      background: white;
+      box-shadow: 0 18px 40px rgba(36, 46, 62, 0.16);
+    }
+
+    .viewport-frame iframe {
+      height: 680px;
+    }
+
+    .viewport-frame img {
+      display: block;
+      height: auto;
+      object-fit: contain;
+    }
+
+    .notes {
+      padding: 18px 20px 22px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.93rem;
+      line-height: 1.55;
+    }
+
+    .notes strong {
+      color: var(--ink);
+    }
+
+    @media (max-width: 1100px) {
+      .summary,
+      .panes {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      main {
+        width: min(100vw - 20px, 1400px);
+      }
+
+      .hero {
+        padding: 22px;
+      }
+
+      .viewport-shell {
+        padding: 14px;
+      }
+
+      .viewport-frame {
+        min-height: 610px;
+        padding: 12px;
+      }
+
+      .viewport-frame iframe {
+        height: 580px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <h1>PDF Preview Spike Harness</h1>
+      <p>
+        Side-by-side comparison for Workstream B. The left pane renders the current html2pdf.js output as the inspectable html2canvas raster stage.
+        The right pane renders the native browser print candidate from the exact same normalized HTML and export styles.
+      </p>
+
+      <div class="controls">
+        <div>
+          <label for="doc-select">Corpus document</label>
+          <select id="doc-select"></select>
+        </div>
+
+        <div>
+          <label>Viewport</label>
+          <div class="viewport-button-group">
+            <button type="button" data-viewport="desktop" data-active="true">Desktop</button>
+            <button type="button" data-viewport="mobile" data-active="false">Mobile</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="summary" aria-label="Corpus summary">
+      <article class="summary-card">
+        <strong>Long-form narrative report</strong>
+        <span>Editorial pacing, long paragraphs, callouts, and story cards.</span>
+      </article>
+      <article class="summary-card">
+        <strong>Rich visual document</strong>
+        <span>Metric bands, card grids, comparison modules, and infographics.</span>
+      </article>
+      <article class="summary-card">
+        <strong>Mixed content document</strong>
+        <span>Lists, table layout, inline links, and code-style callouts on the same page.</span>
+      </article>
+    </section>
+
+    <section class="panes">
+      <article class="panel">
+        <header class="panel-header">
+          <div>
+            <h2>Current stack</h2>
+            <p>html2pdf.js using html2canvas + jsPDF, shown as the inspectable html2canvas raster stage before jsPDF packaging.</p>
+          </div>
+          <span class="tag">Current</span>
+        </header>
+        <div class="viewport-shell">
+          <div class="viewport-frame">
+            <img id="current-image" alt="Current html2pdf raster output" />
+          </div>
+        </div>
+        <div class="notes">
+          <strong>Inspect for:</strong> pagination seams, font fidelity, flattened gradients, and card/table integrity after rasterization. This is the pre-jsPDF image stage used by the current stack.
+        </div>
+      </article>
+
+      <article class="panel">
+        <header class="panel-header">
+          <div>
+            <h2>Replacement candidate</h2>
+            <p>Native browser print markup using the same normalized HTML and export CSS, without html2canvas/jsPDF.</p>
+          </div>
+          <span class="tag">Candidate</span>
+        </header>
+        <div class="viewport-shell">
+          <div class="viewport-frame">
+            <iframe id="candidate-frame" title="Native print candidate"></iframe>
+          </div>
+        </div>
+        <div class="notes">
+          <strong>Inspect for:</strong> browser-native layout fidelity, live text sharpness, print CSS behavior, and missing download automation.
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script type="module">
+    import { createDocumentPdfRasterPreview, prepareDocumentPdfMarkup } from '/src/services/export/pdf.ts';
+
+    const corpus = [
+      {
+        id: 'narrative',
+        label: 'Long-form narrative report',
+        title: 'Three Signals Reshaping the Category',
+        html: `
+          <div class="doc-shell" style="font-family: 'Georgia', serif; color:#132033; background:linear-gradient(180deg,#fffefb 0%,#f8f3eb 100%); padding:24px; border-radius:24px;">
+            <header class="doc-header">
+              <div class="doc-eyebrow">Editorial Report</div>
+              <h1 class="doc-title-gradient" style="font-size:2.7rem; margin-bottom:12px;">Three Signals Reshaping the Category</h1>
+              <p class="doc-lead" style="font-size:1.1rem; max-width:56ch;">A long-form narrative report with denser paragraphs, evidence sidebars, and section pacing that should remain readable after pagination.</p>
+            </header>
+            <section class="doc-section">
+              <h2>1. Consolidation is changing buyer behaviour</h2>
+              <p>Mid-market teams increasingly prefer fewer vendors, and they are willing to trade some feature depth for faster implementation, better onboarding, and clearer proof of value in the first month.</p>
+              <p>That shift makes narrative clarity matter. It is no longer enough to list features. Documents now need to layer evidence, contrast, and sequence so decision-makers can skim without losing the argument.</p>
+              <blockquote style="margin:0; padding:18px 20px; border-left:4px solid #205781; background:rgba(32,87,129,0.08);">“Category winners are explaining the path to value more clearly than competitors, not just adding capabilities more quickly.”</blockquote>
+            </section>
+            <div class="doc-story-grid">
+              <article class="doc-story-card">
+                <div class="doc-kpi-label">Signal 01</div>
+                <h3>Fewer tools, tighter expectations</h3>
+                <p>Procurement is looking for integration and operational simplicity before it asks for extensibility.</p>
+              </article>
+              <article class="doc-story-card">
+                <div class="doc-kpi-label">Signal 02</div>
+                <h3>Messaging is now workflow design</h3>
+                <p>Teams judge products by how quickly the document itself reveals the next step and the likely payoff.</p>
+              </article>
+            </div>
+            <section class="doc-section">
+              <h2>2. Recommendation</h2>
+              <p>Reframe the category story around speed-to-confidence. Use modular visual breaks to keep the report scannable on screens while still holding together on paper or PDF export.</p>
+            </section>
+          </div>
+        `,
+      },
+      {
+        id: 'visual',
+        label: 'Rich visual document with cards and sections',
+        title: '2026 Growth Outlook',
+        html: `
+          <div class="doc-shell" style="font-family: 'Inter', sans-serif; color:#0f172a; background:linear-gradient(160deg,#fcfffb 0%,#eef8f1 100%); padding:24px; border-radius:28px;">
+            <section class="doc-infographic-band" style="display:grid; gap:18px; background:linear-gradient(135deg,#14342f,#1f5c53); color:white; padding:24px; border-radius:22px;">
+              <div>
+                <div class="doc-kpi-label" style="letter-spacing:0.08em; text-transform:uppercase; opacity:0.72;">Snapshot</div>
+                <h1 style="margin:10px 0 8px; font-size:2.5rem;">2026 Growth Outlook</h1>
+                <p style="margin:0; max-width:48ch; color:rgba(255,255,255,0.86);">A richer visual document with card modules, dashboard-like spacing, and more saturated surfaces.</p>
+              </div>
+              <div class="doc-kpi-grid">
+                <div class="doc-kpi"><div class="doc-kpi-value" style="font-size:2rem; font-weight:700;">+18%</div><div class="doc-kpi-label">Revenue</div></div>
+                <div class="doc-kpi"><div class="doc-kpi-value" style="font-size:2rem; font-weight:700;">6 wks</div><div class="doc-kpi-label">Payback</div></div>
+                <div class="doc-kpi"><div class="doc-kpi-value" style="font-size:2rem; font-weight:700;">3</div><div class="doc-kpi-label">Priority bets</div></div>
+                <div class="doc-kpi"><div class="doc-kpi-value" style="font-size:2rem; font-weight:700;">91%</div><div class="doc-kpi-label">Retention</div></div>
+              </div>
+            </section>
+            <div class="doc-comparison" style="margin-top:16px;">
+              <article class="doc-compare-card"><div class="doc-kpi-label">Current</div><h3>Strong demand, uneven activation</h3><p>Lead flow is healthy, but onboarding complexity still slows expansion.</p></article>
+              <article class="doc-compare-card"><div class="doc-kpi-label">Future state</div><h3>Simpler value story</h3><p>A more visual operating narrative helps teams move from interest to rollout with less friction.</p></article>
+            </div>
+            <section class="doc-section" style="margin-top:16px;">
+              <h2>Recommended bets</h2>
+              <div class="module-grid">
+                <article class="module-card"><h3>Pricing clarity</h3><p>Explain value thresholds with fewer caveats and stronger examples.</p></article>
+                <article class="module-card"><h3>Proof loops</h3><p>Turn customer outcomes into repeated, reusable evidence blocks.</p></article>
+                <article class="module-card"><h3>Activation kits</h3><p>Package onboarding into visible, short-duration milestones.</p></article>
+                <article class="module-card"><h3>Field enablement</h3><p>Give sales and success teams the same concise narrative scaffold.</p></article>
+              </div>
+            </section>
+          </div>
+        `,
+      },
+      {
+        id: 'mixed',
+        label: 'Mixed content with lists, tables, and links',
+        title: 'Operations Review Memo',
+        html: `
+          <div class="doc-shell" style="font-family: 'Source Sans 3', sans-serif; color:#1e293b; background:#ffffff; padding:24px; border-radius:24px;">
+            <header class="doc-header">
+              <div class="doc-eyebrow">Operations Memo</div>
+              <h1>Q2 Readiness Review</h1>
+              <p class="doc-lead">A mixed-content document with lists, a table, inline markdown, and references that often expose export edge cases.</p>
+            </header>
+            <section class="doc-section">
+              <h2>Priority actions</h2>
+              <ul>
+                <li>Resolve the final vendor handoff for analytics instrumentation.</li>
+                <li>Confirm migration sequence for onboarding templates.</li>
+                <li>Publish the support runbook and link it from the launch checklist.</li>
+              </ul>
+              <p>Key reference: [Launch checklist](https://example.com/checklist) and \`ops-ready\` flag must both remain readable after export.</p>
+            </section>
+            <section class="doc-section">
+              <h2>Risk table</h2>
+              <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                  <tr>
+                    <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(100,116,139,0.35);">Area</th>
+                    <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(100,116,139,0.35);">Status</th>
+                    <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(100,116,139,0.35);">Note</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style="padding:10px; border-bottom:1px solid rgba(148,163,184,0.24);">Instrumentation</td>
+                    <td style="padding:10px; border-bottom:1px solid rgba(148,163,184,0.24);">At risk</td>
+                    <td style="padding:10px; border-bottom:1px solid rgba(148,163,184,0.24);">SDK ownership still split across two teams.</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px; border-bottom:1px solid rgba(148,163,184,0.24);">Support content</td>
+                    <td style="padding:10px; border-bottom:1px solid rgba(148,163,184,0.24);">On track</td>
+                    <td style="padding:10px; border-bottom:1px solid rgba(148,163,184,0.24);">Final copy review closes Thursday.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+          </div>
+        `,
+      },
+    ];
+
+    const select = document.getElementById('doc-select');
+    const currentImage = document.getElementById('current-image');
+    const candidateFrame = document.getElementById('candidate-frame');
+    const viewportButtons = Array.from(document.querySelectorAll('[data-viewport]'));
+    const rootStyle = document.documentElement.style;
+
+    for (const doc of corpus) {
+      const option = document.createElement('option');
+      option.value = doc.id;
+      option.textContent = doc.label;
+      select.appendChild(option);
+    }
+
+    async function renderSelectedDocument() {
+      const selected = corpus.find((entry) => entry.id === select.value) ?? corpus[0];
+
+      const rasterPreview = await createDocumentPdfRasterPreview({
+        title: selected.title,
+        html: selected.html,
+      });
+      currentImage.src = rasterPreview;
+
+      const prepared = prepareDocumentPdfMarkup(selected.html, selected.title);
+      candidateFrame.srcdoc = prepared.documentMarkup;
+    }
+
+    function applyViewport(viewport) {
+      const isMobile = viewport === 'mobile';
+      rootStyle.setProperty('--preview-width', isMobile ? '390px' : 'min(100%, 980px)');
+      for (const button of viewportButtons) {
+        button.dataset.active = String(button.dataset.viewport === viewport);
+      }
+    }
+
+    viewportButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        applyViewport(button.dataset.viewport || 'desktop');
+      });
+    });
+
+    select.addEventListener('change', () => {
+      void renderSelectedDocument();
+    });
+
+    select.value = corpus[0].id;
+    applyViewport('desktop');
+    void renderSelectedDocument();
+  </script>
+</body>
+</html>

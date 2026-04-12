@@ -145,6 +145,7 @@ Key rules:
 - the default view shows the active document's messages plus project-scope messages
 - `All chat` exposes the full project history, while `Multi-doc` sends the next prompt as shared project context
 - `DocumentCanvas` renders inside a sandboxed iframe; print/export strips motion and keeps the static document readable
+- PDF export currently stays on `html2pdf.js` for blob preview + direct download. A browser-native print candidate was validated in Workstream B and kept as a fallback/comparison path because its fixed A4 layout clipped in mobile preview frames even though desktop text rendering was sharper.
 - the paged A4 document mode remains implemented, but the current Pages toggle can now be hidden behind the persisted `showDocumentPagesView` feature flag while outline-oriented navigation work continues
 - below the desktop breakpoint, `ProjectSidebar` and `ChatPanel` can be treated as dismissible drawers controlled by `App.tsx`, while the desktop side-rail layout remains intact above that breakpoint
 - both `DocumentCanvas` and `PresentationCanvas` now use a shared app-shell frame (`aura-canvas-shell` + `aura-canvas-frame`) so artifact boundaries stay visible across mobile, tablet, and desktop
