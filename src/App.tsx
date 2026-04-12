@@ -10,6 +10,7 @@ import { VersionHistoryPanel } from '@/components/VersionHistoryPanel';
 import { useProjectStore } from '@/stores/projectStore';
 import { usePresentationStore } from '@/stores/presentationStore';
 import { useChatStore } from '@/stores/chatStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import {
   autosaveProject,
   getProjectAutosave,
@@ -91,6 +92,7 @@ export default function App() {
 
   const messages = useChatStore((s) => s.messages);
   const setMessages = useChatStore((s) => s.setMessages);
+  const showDocumentPagesView = useSettingsStore((s) => s.showDocumentPagesView);
 
   const [chatPanelOpen, setChatPanelOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -150,7 +152,7 @@ export default function App() {
 
   // Auto-open chat panel when messages arrive
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length > 0 && window.matchMedia('(min-width: 1024px)').matches) {
       setChatPanelOpen(true);
     }
   }, [messages.length]);
@@ -357,6 +359,7 @@ export default function App() {
       <div className="flex min-h-0 flex-1">
         <ProjectSidebar
           open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
           onRequestAddDocument={handleAddDocument}
         />
 
@@ -369,7 +372,7 @@ export default function App() {
           {showPresentation && <PresentationCanvas />}
           {showDocument && (
             <div className="flex flex-1 flex-col overflow-hidden">
-              <div className="flex shrink-0 items-center gap-1 border-b border-border px-3 py-1.5">
+              <div className="hidden shrink-0 items-center gap-1 border-b border-border px-3 py-1.5 sm:flex">
                 {activeDocument.contentHtml && (
                   <>
                     <Tooltip>
@@ -410,20 +413,22 @@ export default function App() {
                       </TooltipContent>
                     </Tooltip>
 
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant={activeDocument.pagesEnabled ? 'secondary' : 'ghost'}
-                          size="sm"
-                          className="h-7 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
-                          onClick={handleTogglePages}
-                        >
-                          <BookOpen className="size-3.5" />
-                          Pages
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>{activeDocument.pagesEnabled ? 'Switch to scroll view' : 'Switch to A4 page view'}</TooltipContent>
-                    </Tooltip>
+                    {showDocumentPagesView && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant={activeDocument.pagesEnabled ? 'secondary' : 'ghost'}
+                            size="sm"
+                            className="h-7 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
+                            onClick={handleTogglePages}
+                          >
+                            <BookOpen className="size-3.5" />
+                            Pages
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{activeDocument.pagesEnabled ? 'Switch to scroll view' : 'Switch to A4 page view'}</TooltipContent>
+                      </Tooltip>
+                    )}
 
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -498,6 +503,95 @@ export default function App() {
                 pagesEnabled={activeDocument.pagesEnabled}
                 onNavigate={handleNavigateToDocument}
               />
+            </div>
+          )}
+          {showDocument && activeDocument?.contentHtml && (
+            <div className="border-t border-border/80 bg-muted/20 px-3 py-2 sm:hidden">
+              <div className="mx-auto flex max-w-3xl items-center gap-1.5 overflow-x-auto">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 shrink-0 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => void handleOpenTextEditor('edit')}
+                  disabled={isDocumentBusy}
+                >
+                  {documentAction === 'save-text' ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <PenSquare className="size-3.5" />
+                  )}
+                  Edit
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 shrink-0 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => void handleOpenTextEditor('link')}
+                  disabled={isDocumentBusy || !canLinkAnotherDocument}
+                >
+                  <Link2 className="size-3.5" />
+                  Link
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="h-7 shrink-0 gap-1.5 rounded-md px-2 text-xs"
+                  onClick={handlePreviewPdf}
+                  disabled={isDocumentBusy}
+                >
+                  {documentAction === 'preview-pdf' ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Eye className="size-3.5" />
+                  )}
+                  Preview PDF
+                </Button>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 shrink-0 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
+                      disabled={isDocumentBusy}
+                    >
+                      {documentAction === 'export-pdf' || documentAction === 'export-word' ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <FileDown className="size-3.5" />
+                      )}
+                      Export
+                      <ChevronDown className="size-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem onSelect={(event) => {
+                      event.preventDefault();
+                      void handleExportPdf();
+                    }}>
+                      Export PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={(event) => {
+                      event.preventDefault();
+                      void handleExportWord();
+                    }}>
+                      Export Word (.docx)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={(event) => {
+                      event.preventDefault();
+                      void handlePrint();
+                    }}>
+                      <Printer className="mr-2 size-3.5" />
+                      Print preview…
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              {documentError && (
+                <p className="mx-auto mt-1 max-w-3xl truncate text-xs text-destructive">{documentError}</p>
+              )}
             </div>
           )}
           <ChatBar />

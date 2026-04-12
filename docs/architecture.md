@@ -43,7 +43,7 @@ Key components:
 
 | Component | Responsibility |
 |---|---|
-| `App.tsx` | Root layout, autosave orchestration, mode management |
+| `App.tsx` | Root layout, autosave orchestration, mode management, responsive panel orchestration |
 | `Toolbar.tsx` | Top bar — logo, title, file actions, settings |
 | `PresentationCanvas.tsx` | reveal.js wrapper, slide rendering, navigation |
 | `ChatBar.tsx` | Chat input, message history, AI generation trigger |
@@ -69,7 +69,7 @@ Zustand stores manage application state. Each store is a single `create()` call 
 |---|---|
 | `presentationStore` | `title`, `slidesHtml`, `themeCss`, `currentIndex`, `slideCount`, `isPresenting` |
 | `chatStore` | `messages[]`, `status` (idle/generating/error), `streamingContent`, `showAllMessages`, `applyToAllDocuments` |
-| `settingsStore` | `providerId`, `providers` record (per-provider config), `showSettings` — persisted to localStorage |
+| `settingsStore` | `providerId`, `providers` record (per-provider config), `showSettings`, rollout flags such as `showDocumentPagesView` — persisted to localStorage |
 
 ### Services (`src/services/`)
 
@@ -145,6 +145,8 @@ Key rules:
 - the default view shows the active document's messages plus project-scope messages
 - `All chat` exposes the full project history, while `Multi-doc` sends the next prompt as shared project context
 - `DocumentCanvas` renders inside a sandboxed iframe; print/export strips motion and keeps the static document readable
+- the paged A4 document mode remains implemented, but the current Pages toggle can now be hidden behind the persisted `showDocumentPagesView` feature flag while outline-oriented navigation work continues
+- below the desktop breakpoint, `ProjectSidebar` and `ChatPanel` can be treated as dismissible drawers controlled by `App.tsx`, while the desktop side-rail layout remains intact above that breakpoint
 
 ---
 

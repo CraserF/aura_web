@@ -334,11 +334,13 @@ const buttonVariants = cva('inline-flex items-center ...', {
 
 ### Responsive Design
 
-The app currently targets desktop browsers. Use these breakpoints if adding responsive behavior:
+The app is moving from desktop-first toward responsive shell behavior. Keep desktop layouts stable while introducing mobile-specific overlays, drawers, or condensed controls behind explicit UI flags when needed. Use these breakpoints if adding responsive behavior:
 
 - `sm:` — 640px (small tablets)
 - `md:` — 768px (tablets)
 - `lg:` — 1024px (desktops)
+
+When rolling out unfinished responsive UI, prefer a persisted settings flag in `settingsStore` over deleting the existing code path. Example: the document Pages toggle can be hidden with `showDocumentPagesView` while the underlying `pagesEnabled` rendering logic remains intact for later iteration.
 
 ---
 

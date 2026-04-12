@@ -11,6 +11,7 @@ interface SettingsState {
   showSettings: boolean;
   alwaysRunEvaluation: boolean;
   documentStylePreset: DocumentStylePreset;
+  showDocumentPagesView: boolean;
 
   setProviderId: (id: ProviderId) => void;
   setApiKey: (providerId: ProviderId, apiKey: string) => void;
@@ -19,6 +20,7 @@ interface SettingsState {
   setShowSettings: (show: boolean) => void;
   setAlwaysRunEvaluation: (enabled: boolean) => void;
   setDocumentStylePreset: (preset: DocumentStylePreset) => void;
+  setShowDocumentPagesView: (enabled: boolean) => void;
   getActiveProvider: () => ProviderConfig;
   hasApiKey: () => boolean;
 }
@@ -66,6 +68,7 @@ export const useSettingsStore = create<SettingsState>()(
       showSettings: false,
       alwaysRunEvaluation: true,
       documentStylePreset: 'auto',
+      showDocumentPagesView: false,
 
       setProviderId: (providerId) => set({ providerId }),
 
@@ -102,6 +105,8 @@ export const useSettingsStore = create<SettingsState>()(
 
       setDocumentStylePreset: (documentStylePreset) => set({ documentStylePreset }),
 
+      setShowDocumentPagesView: (showDocumentPagesView) => set({ showDocumentPagesView }),
+
       getActiveProvider: () => {
         const state = get();
         return state.providers[state.providerId];
@@ -118,12 +123,13 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'aura-settings',
-      version: 3,
+      version: 4,
       partialize: (state) => ({
         providerId: state.providerId,
         providers: state.providers,
         alwaysRunEvaluation: state.alwaysRunEvaluation,
         documentStylePreset: state.documentStylePreset,
+        showDocumentPagesView: state.showDocumentPagesView,
       }),
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
@@ -154,6 +160,7 @@ export const useSettingsStore = create<SettingsState>()(
           ...state,
           providers,
           documentStylePreset: (state.documentStylePreset as DocumentStylePreset | undefined) ?? 'auto',
+          showDocumentPagesView: (state.showDocumentPagesView as boolean | undefined) ?? false,
         };
       },
     },
