@@ -50,6 +50,8 @@ Validation backfill note:
 - [x] Add chat activity indicator and global progress visibility above the chat composer
 - [x] Update architecture/pattern docs for the above changes
 - [x] Backfill manual mobile and desktop validation evidence for completed Workstream A items
+- [ ] Convert version history panel to mobile overlay behavior while preserving desktop side rail behavior
+- [ ] Add clearer visual separation between New Project action and New Document action (label or icon grouping)
 
 - [ ] Run PDF preview spike and record decision (keep current stack vs replace)
 - [ ] Implement standalone read-only HTML export for documents
@@ -91,6 +93,10 @@ Acceptance:
 Status:
 - Completed first pass.
 - Follow-up tuning still possible (button density, spacing, swipe/gesture enhancements).
+
+Additional scoped tasks:
+- Convert version history panel to overlay/drawer behavior on small screens.
+- Introduce explicit separation between project-level creation actions and document-level creation actions.
 
 Validation requirement:
 - Must include mobile and desktop manual checks for overlay behavior before marking additional UX items complete.
@@ -214,6 +220,9 @@ Blocking dependency:
 
 Validation requirement:
 - Must include manual visual review across mobile/tablet/desktop for at least three representative generated artifacts.
+
+Detailed execution plan:
+- See docs/workstream-f-mobile-adaptive-artifacts.md
 
 ## Documentation Requirements (Per PR)
 
