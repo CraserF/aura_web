@@ -45,8 +45,9 @@ Validation backfill note:
 - [x] Stop auto-opening chat history on small screens
 - [x] Add a mobile document tools strip above the chat composer
 - [x] Make document outline affordance explicit in project sidebar
+- [x] Convert toolbar to a two-row mobile layout with New/Open/Save on the second row
 - [x] Update architecture/pattern docs for the above changes
-- [ ] Backfill manual mobile and desktop validation evidence for completed Workstream A items
+- [x] Backfill manual mobile and desktop validation evidence for completed Workstream A items
 
 - [ ] Run PDF preview spike and record decision (keep current stack vs replace)
 - [ ] Implement standalone read-only HTML export for documents
@@ -207,3 +208,19 @@ For any PR touching behavior, update all applicable docs in the same branch:
 - Tests (`bun run test`): pass (5 files, 49 tests)
 - Manual validation: pending (UI paths not manually exercised in this CLI session)
 - Result: code and automated validation pass; manual UI verification still required for UX completion sign-off
+
+- Date: 2026-04-12
+- Agent: GitHub Copilot
+- Scope: Improve mobile toolbar responsiveness with two-row layout and reduced action crowding
+- Build (`bun run build`): pass
+- Tests (`bun run test`): pass (5 files, 49 tests)
+- Manual validation: pending (mobile viewport behavior still requires interactive QA)
+- Result: automated validation passes; manual mobile UX checks still required before final sign-off
+
+- Date: 2026-04-12
+- Agent: GitHub Copilot
+- Scope: Settings modal mobile scrollability + toolbar top-row settings placement + Workstream A manual validation backfill
+- Build (`bun run build`): pass
+- Tests (`bun run test`): pass (5 files, 49 tests)
+- Manual validation: pass (user confirmed remaining mobile features are working well during manual testing)
+- Result: Workstream A manual-validation backfill recorded; settings responsiveness issue addressed with mobile scroll support

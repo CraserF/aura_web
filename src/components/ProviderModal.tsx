@@ -86,8 +86,8 @@ export function ProviderModal() {
 
   return (
     <Dialog open={showSettings} onOpenChange={setShowSettings}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent className="max-h-[calc(100vh-1.5rem)] overflow-y-auto sm:max-h-[90vh] sm:max-w-lg">
+        <DialogHeader className="pr-8">
           <DialogTitle>AI Provider</DialogTitle>
           <DialogDescription>
             Choose a provider and enter your API key. Keys are stored locally.
@@ -136,8 +136,8 @@ export function ProviderModal() {
               </div>
               <button
                 type="button"
-                role="switch"
-                aria-checked={alwaysRunEvaluation}
+                aria-label={`Always run evaluation: ${alwaysRunEvaluation ? 'enabled' : 'disabled'}`}
+                title={`Always run evaluation: ${alwaysRunEvaluation ? 'enabled' : 'disabled'}`}
                 onClick={() => setAlwaysRunEvaluation(!alwaysRunEvaluation)}
                 className={cn(
                   'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',

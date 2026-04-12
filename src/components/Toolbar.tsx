@@ -124,48 +124,65 @@ export function Toolbar({
 
   return (
     <>
-      <header className="flex shrink-0 items-center justify-between border-b border-border px-4 py-2.5 sm:px-6">
-        <div className="flex min-w-0 items-center gap-2.5">
+      <header className="flex shrink-0 flex-col gap-2 border-b border-border px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-0 sm:px-6">
+        <div className="flex min-w-0 items-center justify-between gap-2.5">
           {/* Sidebar toggle */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={sidebarOpen ? 'secondary' : 'ghost'}
-                size="icon"
-                className="size-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
-                onClick={onToggleSidebar}
-              >
-                <PanelLeft className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{sidebarOpen ? 'Hide' : 'Show'} sidebar</TooltipContent>
-          </Tooltip>
+          <div className="flex min-w-0 items-center gap-2.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={sidebarOpen ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="size-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
+                  onClick={onToggleSidebar}
+                >
+                  <PanelLeft className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{sidebarOpen ? 'Hide' : 'Show'} sidebar</TooltipContent>
+            </Tooltip>
 
-          <Separator orientation="vertical" className="hidden h-4 sm:block" />
-
-          {/* Brand + project title */}
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-sm">
-              <span className="text-[10px] font-bold">A</span>
-            </div>
-            <span className="text-sm font-semibold text-foreground hidden sm:inline">Aura</span>
             <Separator orientation="vertical" className="hidden h-4 sm:block" />
-            <FolderOpen className="size-3.5 shrink-0 text-violet-500 hidden sm:block" />
-            <p className="max-w-36 truncate text-sm text-muted-foreground sm:max-w-64">
-              {project.title}
-            </p>
-            {activeDocument && (
-              <>
-                <span className="text-muted-foreground/40 hidden sm:inline">/</span>
-                <p className="hidden max-w-32 truncate text-sm text-foreground sm:block">
-                  {activeDocument.title}
-                </p>
-              </>
-            )}
+
+            {/* Brand + project title */}
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-sm">
+                <span className="text-[10px] font-bold">A</span>
+              </div>
+              <span className="hidden text-sm font-semibold text-foreground sm:inline">Aura</span>
+              <Separator orientation="vertical" className="hidden h-4 sm:block" />
+              <FolderOpen className="hidden size-3.5 shrink-0 text-violet-500 sm:block" />
+              <p className="max-w-32 truncate text-sm text-muted-foreground sm:max-w-64">
+                {project.title}
+              </p>
+              {activeDocument && (
+                <>
+                  <span className="hidden text-muted-foreground/40 sm:inline">/</span>
+                  <p className="hidden max-w-32 truncate text-sm text-foreground sm:block">
+                    {activeDocument.title}
+                  </p>
+                </>
+              )}
+            </div>
           </div>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground hover:text-foreground sm:hidden"
+            onClick={() => setShowSettings(true)}
+            aria-label="Open settings"
+          >
+            <span
+              className={`size-1.5 rounded-full ${
+                hasApiKey() ? 'bg-emerald-500' : 'bg-muted-foreground/40'
+              }`}
+            />
+            <Settings className="size-3.5" />
+          </Button>
         </div>
 
-        <div className="flex items-center gap-0.5">
+        <div className="hidden items-center gap-0.5 sm:flex">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -269,15 +286,109 @@ export function Toolbar({
             <TooltipContent>{chatPanelOpen ? 'Hide' : 'Show'} chat history</TooltipContent>
           </Tooltip>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".aura"
-            onChange={handleFileChange}
-            aria-label="Open .aura project file"
-            className="hidden"
-          />
         </div>
+
+        <div className="flex w-full items-center justify-between sm:hidden">
+          <div className="flex items-center gap-0.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+                  onClick={handleNew}
+                >
+                  <Plus className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>New project</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+                  onClick={handleOpen}
+                >
+                  <Upload className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Open .aura file</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+                  onClick={handleSave}
+                  disabled={!hasContent}
+                >
+                  <Download className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Save project as .aura</TooltipContent>
+            </Tooltip>
+          </div>
+
+          <div className="flex items-center gap-0.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+                  onClick={handlePresent}
+                  disabled={!canPresent}
+                >
+                  <Play className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Present fullscreen</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={historyPanelOpen ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+                  onClick={onToggleHistoryPanel}
+                >
+                  <History className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Version history</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={chatPanelOpen ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+                  onClick={onToggleChatPanel}
+                >
+                  <MessageSquare className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{chatPanelOpen ? 'Hide' : 'Show'} chat history</TooltipContent>
+            </Tooltip>
+          </div>
+
+        </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".aura"
+          onChange={handleFileChange}
+          aria-label="Open .aura project file"
+          className="hidden"
+        />
       </header>
 
       {importError && (
