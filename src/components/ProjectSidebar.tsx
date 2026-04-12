@@ -363,7 +363,9 @@ export function ProjectSidebar({ open, onClose, onRequestAddDocument }: ProjectS
 
   const handleSelectDocument = (id: string) => {
     setActiveDocumentId(id);
-    onClose?.();
+    if (window.matchMedia('(max-width: 1023px)').matches) {
+      onClose?.();
+    }
   };
 
   return (

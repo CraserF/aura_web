@@ -203,6 +203,11 @@ Tasks:
 - Add explicit prompt and template rules so generated artifacts adapt layout for narrow screens without destroying desktop quality.
 - Ensure document rendering always includes a clear, consistent boundary frame so users can identify where the document starts and ends.
 - Add responsive acceptance criteria for generated artifact quality on mobile, tablet, and desktop.
+- Evaluate Reveal.js proportion guidance for presentations (fixed stage ratio with letterboxing/pillarboxing, not stretch-to-fill) and codify viewport-frame behavior.
+- Define a shared canvas-frame pattern for both documents and presentations so each artifact has a visible boundary outline and preserved proportions on all screens.
+- Add spacing behavior rules so larger screens keep surrounding breathing room without stretching artifact backgrounds.
+- Standardize default proportions to: presentation 16:9 stage (1920x1080 source) and document A4 frame with responsive fit/contain behavior.
+- Ensure both canvases use fit/contain scaling and never distort aspect ratio; extra space should become intentional gutters (side or bottom) instead of stretched artifact backgrounds.
 
 Blocking dependency:
 - None.

@@ -68,10 +68,14 @@ const providers: Record<ProviderId, ProviderEntry> = {
     defaultModel: 'llama3.1',
     createModel: async (config: ProviderModelConfig) => {
       const { createOpenAI } = await import('@ai-sdk/openai');
-      return createOpenAI({
+      const provider = createOpenAI({
         apiKey: config.apiKey || 'ollama',
         baseURL: toOllamaOpenAIBaseUrl(config.baseUrl),
-      })(config.model || 'llama3.1');
+      });
+
+      // Ollama's /v1/responses compatibility is incomplete for some input item
+      // types (for example item_reference). Use chat/completions explicitly.
+      return provider.chat(config.model || 'llama3.1');
     },
   },
 };
