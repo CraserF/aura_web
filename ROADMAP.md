@@ -179,6 +179,17 @@ src/
 
 ## Roadmap
 
+### Immediate Planning Artifacts
+
+Detailed implementation-planning docs for the next roadmap wave:
+
+- [Charts Integration Plan](docs/roadmap/charts-integration-plan.md)
+- [Memory Markdown Plan](docs/roadmap/memory-markdown-plan.md)
+- [Account Creation, Cloud, and Collaboration Plan](docs/roadmap/account-creation-cloud-plan.md)
+- [Spreadsheet Integration Plan](docs/roadmap/spreadsheet-integration-plan.md)
+- [API Platform & Visual Automation Plan](docs/roadmap/api-platform-plan.md)
+- [MCP Integration Plan](docs/roadmap/mcp-integration-plan.md)
+
 ### Phase 1 — Foundation
 > Get a React app rendering reveal.js slides programmatically.
 

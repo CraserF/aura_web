@@ -154,6 +154,7 @@ We welcome contributions! Please read [docs/CONTRIBUTING.md](docs/CONTRIBUTING.m
 ## Roadmap
 
 See [ROADMAP.md](ROADMAP.md) for the full project vision, phased roadmap, architecture decisions, and development principles.
+Immediate feature-planning docs are in [`docs/roadmap/`](docs/roadmap/).
 
 **What's next:**
 - Slide thumbnail strip
