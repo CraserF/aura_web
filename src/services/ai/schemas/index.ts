@@ -50,3 +50,9 @@ export const ReviewResultSchema = z.object({
 
 export type ReviewIssueZ = z.infer<typeof ReviewIssueSchema>;
 export type ReviewResultZ = z.infer<typeof ReviewResultSchema>;
+
+export {
+  ChartDatasetSchema,
+  ChartSpecSchema,
+  type ChartSpecZ,
+} from './chart';

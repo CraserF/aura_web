@@ -3,6 +3,7 @@
 // ============================================
 
 import type { ChatMessage } from './index';
+import type { ChartSpec } from '@/services/charts';
 
 /** Document type within a project */
 export type DocumentType = 'document' | 'presentation';
@@ -29,6 +30,8 @@ export interface ProjectDocument {
   parentId?: string;
   /** Whether paginated A4-style view is enabled (documents only) */
   pagesEnabled?: boolean;
+  /** Chart specifications keyed by chart ID */
+  chartSpecs?: Record<string, ChartSpec>;
   createdAt: number;
   updatedAt: number;
   order: number;

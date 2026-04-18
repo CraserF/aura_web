@@ -2,7 +2,7 @@
  * HTML Sanitizer — Security layer for AI-generated HTML.
  *
  * Strips:
- * - All <script> tags (inline and external)
+ * - All <script> tags except data-only chart spec blocks
  * - All event handler attributes (onclick, onload, onerror, etc.)
  * - External resource URLs in src, href, action, formaction, data
  *   (only relative paths and data: URIs for images are allowed)
@@ -20,7 +20,7 @@
  */
 
 const BLOCKED_TAGS = new Set([
-  'script', 'iframe', 'object', 'embed', 'form',
+  'iframe', 'object', 'embed', 'form',
   'base', 'meta',
 ]);
 
@@ -100,11 +100,35 @@ function sanitizeElement(el: Element): void {
   attrsToRemove.forEach((a) => el.removeAttribute(a));
 }
 
+function isAllowedChartSpecScript(el: Element): boolean {
+  if (el.tagName.toLowerCase() !== 'script') return false;
+  const type = (el.getAttribute('type') ?? '').trim().toLowerCase();
+  return type === 'application/json' && el.hasAttribute('data-aura-chart-spec');
+}
+
+function removeUnsafeScripts(doc: Document): void {
+  doc.querySelectorAll('script').forEach((script) => {
+    if (!isAllowedChartSpecScript(script)) {
+      script.remove();
+    }
+  });
+}
+
 function serializeSafeHeadNodes(doc: Document): string {
   return Array.from(doc.head.querySelectorAll('style, link'))
     .map((node) => node.outerHTML)
     .join('\n')
     .trim();
+}
+
+function serializeChartSpecScripts(doc: Document): string {
+  const scripts: string[] = [];
+  doc.querySelectorAll('script').forEach((node) => {
+    if (isAllowedChartSpecScript(node)) {
+      scripts.push(node.outerHTML);
+    }
+  });
+  return scripts.join('\n').trim();
 }
 
 /**
@@ -119,6 +143,7 @@ export function sanitizeHtml(html: string): string {
   BLOCKED_TAGS.forEach((tag) => {
     doc.querySelectorAll(tag).forEach((el) => el.remove());
   });
+  removeUnsafeScripts(doc);
 
   // Remove <link rel="stylesheet"> pointing externally
   doc.querySelectorAll('link').forEach((link) => {
@@ -132,10 +157,11 @@ export function sanitizeHtml(html: string): string {
   doc.querySelectorAll('*').forEach(sanitizeElement);
 
   const preservedHead = serializeSafeHeadNodes(doc);
+  const chartScripts = serializeChartSpecScripts(doc);
   const bodyHtml = doc.body.innerHTML.trim();
 
   // Return safe styles + body HTML so document CSS is preserved even when the parser hoists <style> into <head>.
-  return [preservedHead, bodyHtml].filter(Boolean).join('\n');
+  return [preservedHead, chartScripts, bodyHtml].filter(Boolean).join('\n');
 }
 
 /**
@@ -149,6 +175,7 @@ export function sanitizeInnerHtml(html: string): string {
   BLOCKED_TAGS.forEach((tag) => {
     doc.querySelectorAll(tag).forEach((el) => el.remove());
   });
+  removeUnsafeScripts(doc);
 
   doc.querySelectorAll('link').forEach((link) => {
     const href = link.getAttribute('href') ?? '';
@@ -158,6 +185,7 @@ export function sanitizeInnerHtml(html: string): string {
   doc.querySelectorAll('*').forEach(sanitizeElement);
 
   const preservedHead = serializeSafeHeadNodes(doc);
+  const chartScripts = serializeChartSpecScripts(doc);
   const bodyHtml = doc.body.innerHTML.trim();
-  return [preservedHead, bodyHtml].filter(Boolean).join('\n');
+  return [preservedHead, chartScripts, bodyHtml].filter(Boolean).join('\n');
 }

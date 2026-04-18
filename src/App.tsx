@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { DocumentPdfPreview } from '@/components/DocumentPdfPreview';
 import { sanitizeFilename } from '@/lib/sanitizeFilename';
+import { extractChartSpecsFromHtml } from '@/services/charts';
 import { BookOpen, ChevronDown, Eye, FileDown, Link2, Loader2, PenSquare, Printer } from 'lucide-react';
 
 const LazyDocumentTextEditor = lazy(async () => {
@@ -166,6 +167,7 @@ export default function App() {
         contentHtml: '',
         themeCss: '',
         slideCount: 0,
+        chartSpecs: {},
         order: project.documents.length,
         parentId,
         createdAt: Date.now(),
@@ -297,6 +299,7 @@ export default function App() {
         title: result.title || activeDocument.title,
         contentHtml: result.html,
         sourceMarkdown: result.markdown,
+        chartSpecs: extractChartSpecsFromHtml(result.html),
       });
       setEditorInitialMarkdown(result.markdown);
       setTextEditorOpen(false);

@@ -16,6 +16,7 @@ import { buildQualitySection } from './sections/quality';
 import { buildAntiPatternsSection, buildCondensedAntiPatterns } from './sections/anti-patterns';
 import { buildTemplateExamplesSection } from './sections/template-examples';
 import { buildModernPatternsSection } from './sections/modern-patterns';
+import { buildChartGuidanceSection } from './sections/charts';
 
 export class PromptComposer {
   private sections: string[] = [];
@@ -76,6 +77,12 @@ export class PromptComposer {
     return this;
   }
 
+  /** Add structured chart placeholder guidance */
+  addCharts(): this {
+    this.sections.push(buildChartGuidanceSection());
+    return this;
+  }
+
   /** Add quality checklist and response format */
   addQuality(): this {
     this.sections.push(buildQualitySection(this._slideCount));
@@ -132,6 +139,7 @@ export async function buildDesignerPrompt(
     .addLayout()
     .addAnimation(animLevel)
     .addSvg()
+    .addCharts()
     .addCustom(buildCondensedAntiPatterns())
     .addCustom(`## DECK SYSTEM FOUNDATION
 
@@ -197,6 +205,7 @@ export function buildEditDesignerPrompt(
     .addBase(palette)
     .addAnimation(animLevel)
     .addSvg()
+    .addCharts()
     .addCustom(buildCondensedAntiPatterns())
     .addCustom(`## YOUR TASK — EDIT MODE
 

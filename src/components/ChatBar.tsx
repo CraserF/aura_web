@@ -12,6 +12,7 @@ import { commitVersion } from '@/services/storage/versionHistory';
 import { readFileAsAttachment, buildAttachmentContext } from '@/lib/fileAttachment';
 import { detectWorkflowType } from '@/lib/workflowType';
 import { cn } from '@/lib/utils';
+import { extractChartSpecsFromHtml } from '@/services/charts';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -252,13 +253,16 @@ export function ChatBar() {
           // HTML is already sanitized by runPresentationWorkflow
           if (activeDocument?.type === 'presentation') {
             // Update existing presentation document
+            const chartSpecs = extractChartSpecsFromHtml(result.html);
             updateDocument(activeDocument.id, {
               contentHtml: result.html,
               title: result.title || activeDocument.title,
               slideCount: result.slideCount,
+              chartSpecs,
             });
           } else {
             // Create a new presentation document
+            const chartSpecs = extractChartSpecsFromHtml(result.html);
             const newDoc: ProjectDocument = {
               id: crypto.randomUUID(),
               title: result.title || 'Presentation',
@@ -266,6 +270,7 @@ export function ChatBar() {
               contentHtml: result.html,
               themeCss: '',
               slideCount: result.slideCount,
+              chartSpecs,
               order: project.documents.length,
               createdAt: Date.now(),
               updatedAt: Date.now(),
@@ -388,12 +393,15 @@ export function ChatBar() {
 
         if (result.html) {
           if (activeDocument?.type === 'document') {
+            const chartSpecs = extractChartSpecsFromHtml(result.html);
             updateDocument(activeDocument.id, {
               contentHtml: result.html,
               sourceMarkdown: result.markdown,
               title: result.title || activeDocument.title,
+              chartSpecs,
             });
           } else {
+            const chartSpecs = extractChartSpecsFromHtml(result.html);
             const newDoc: ProjectDocument = {
               id: crypto.randomUUID(),
               title: result.title || 'Document',
@@ -402,6 +410,7 @@ export function ChatBar() {
               sourceMarkdown: result.markdown,
               themeCss: '',
               slideCount: 0,
+              chartSpecs,
               order: project.documents.length,
               createdAt: Date.now(),
               updatedAt: Date.now(),
