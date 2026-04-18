@@ -113,8 +113,10 @@ export function renderChart(opts: {
   const normalized = normalizeSpec(opts.spec, theme);
 
   const canvas = document.createElement('canvas');
+  const ariaLabel = normalized.title?.trim()
+    || `Chart visualization: ${normalized.datasets.map((dataset) => dataset.label).join(', ') || 'data'}`;
   canvas.setAttribute('role', 'img');
-  canvas.setAttribute('aria-label', normalized.title || normalized.id);
+  canvas.setAttribute('aria-label', ariaLabel);
   opts.container.innerHTML = '';
   opts.container.appendChild(canvas);
 

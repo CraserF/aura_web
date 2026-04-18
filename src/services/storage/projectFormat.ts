@@ -15,6 +15,7 @@ import { saveAs } from 'file-saver';
 import type { ProjectData, ProjectDocument, ProjectManifest } from '@/types/project';
 import type { ChatMessage } from '@/types';
 import { sanitizeFilename } from '@/lib/sanitizeFilename';
+import { extractChartSpecsFromHtml } from '@/services/charts';
 
 const FORMAT_VERSION = '2.1';
 
@@ -156,7 +157,7 @@ async function upgradeV1ToProject(
     contentHtml: slidesHtml,
     themeCss,
     slideCount: (v1Manifest.slideCount as number) ?? 0,
-    chartSpecs: {},
+    chartSpecs: extractChartSpecsFromHtml(slidesHtml),
     order: 0,
     createdAt: (v1Manifest.createdAt as number) ?? now,
     updatedAt: (v1Manifest.updatedAt as number) ?? now,

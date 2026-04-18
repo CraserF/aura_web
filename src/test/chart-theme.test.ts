@@ -13,4 +13,10 @@ describe('chart theme', () => {
     expect(theme.textColor).toBe('#f8fafc');
     expect(theme.gridColor).toBe('rgba(148,163,184,0.28)');
   });
+
+  it('falls back to defaults when invalid colors are provided', () => {
+    const theme = buildChartTheme({ text: 'invalid', background: 'not-a-color' });
+    expect(theme.textColor).toBe('#0f172a');
+    expect(theme.backgroundColor).toBe('#ffffff');
+  });
 });
