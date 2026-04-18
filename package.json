@@ -29,6 +29,7 @@
     "@vitejs/plugin-react": "^4.7.0",
     "ai": "^6.0.158",
     "buffer": "^6.0.3",
+    "chart.js": "^4.5.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "docx": "^9.6.1",

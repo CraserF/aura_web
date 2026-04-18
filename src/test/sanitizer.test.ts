@@ -10,6 +10,20 @@ describe('sanitizeHtml', () => {
     expect(result).toContain('<p>Hello</p>');
   });
 
+  it('preserves JSON chart spec script blocks', () => {
+    const input = '<script type="application/json" data-aura-chart-spec>{"id":"chart-1"}</script>';
+    const result = sanitizeHtml(input);
+    expect(result).toContain('data-aura-chart-spec');
+    expect(result).toContain('"chart-1"');
+  });
+
+  it('removes chart spec script blocks when script type is not application/json', () => {
+    const input = '<script type="text/javascript" data-aura-chart-spec>console.log("x")</script>';
+    const result = sanitizeHtml(input);
+    expect(result).not.toContain('data-aura-chart-spec');
+    expect(result).not.toContain('<script');
+  });
+
   it('removes <iframe> tags', () => {
     const input = '<div><iframe src="https://evil.com"></iframe></div>';
     const result = sanitizeHtml(input);

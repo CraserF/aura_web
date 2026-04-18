@@ -64,6 +64,10 @@ Rules:
 - prefer summary bands, KPI rows, comparison cards, process rails, pull quotes, and sidebars over long generic prose
 - for notes, wikis, and reference material: use a clean minimal layout — no decorative elements, just clear hierarchy
 - no JavaScript, remote assets, or external stylesheets
+- when data visualization is needed, emit structured chart placeholders:
+  <script type="application/json" data-aura-chart-spec>{...ChartSpec JSON...}</script>
+  <div data-aura-chart="matching-id"></div>
+- chart placeholder script must use type="application/json" and data-aura-chart-spec
 - output only the document content`;
 
 const EDIT_DOCUMENT_SYSTEM_PROMPT = `You are a professional document editor.
