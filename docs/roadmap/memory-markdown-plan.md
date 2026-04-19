@@ -1,95 +1,399 @@
 # Memory Markdown — Implementation Plan
 
 > Status: planning (no implementation in this document)  
-> Scope: semantic file-based memory system for user/project intelligence with privacy boundaries
+> Scope: semantic file-based memory system for user/project intelligence with privacy boundaries  
+> Last updated: 2026-04-19  
+> Depends on: none (can start independently)  
+> Feeds into: Account/Cloud phase (sync), API/MCP phase (memory read/write tools)
 
 ## 1) Goals
 
-- Introduce Aura-native memory files in markdown for durable, inspectable intelligence.
-- Support multi-level memory granularity: brief summary, expanded notes, full-source links.
+- Introduce Aura-native memory files in markdown for durable, inspectable AI intelligence.
+- Support multi-level memory granularity: brief summary (~100 tokens), expanded overview (~2K tokens), full-source detail.
 - Allow cross-project user memory while keeping per-user private memory encrypted.
-- Keep structure hierarchical and Aura-compatible for future cloud sync/collaboration.
+- Structure memory for agent performance — not generic docs browsing.
+- Scale over time via layered summaries and deduplication, not one giant context file.
+- Make skills and tools shareable across users. Keep personal memories private and encrypted.
 
 ## 2) Product Principles
 
-- Memory is for **agent performance and continuity**, not generic docs browsing.
-- Memory should scale over time via layered summaries, not one giant context file.
-- Files remain portable and human-readable where possible.
-- Personal memory must be private by default and decryptable only on authorized devices.
+1. **Memory is for agent performance and continuity** — it makes Aura better at its job over time.
+2. **Files remain portable and human-readable** — plain markdown with YAML frontmatter.
+3. **Hierarchical by default** — every directory has summary layers (L0/L1/L2) so token budgets are respected.
+4. **Personal memory is private by default** — encrypted at rest, decryptable only on authorized devices.
+5. **Scale through compaction, not deletion** — old memories get summarized, not thrown away.
+6. **Simple first** — start with file-based local storage. Cloud sync and multi-user come in the Account phase.
 
-## 3) Current-State Findings (repo investigation)
+## 3) Current-State Summary
 
-- `.aura` packaging and project metadata are already established (`projectFormat.ts`).
-- Chat/document history already exists and can seed memory extraction pipelines.
-- No dedicated memory file model, memory index, or encryption keychain layer yet.
+| Area | Status | Notes |
+|------|--------|-------|
+| .aura packaging and project metadata | Done | `projectFormat.ts` |
+| Chat/document history | Done | Can seed memory extraction pipelines |
+| Memory file model / index | Not started | No dedicated memory types or storage |
+| Encryption / keychain | Not started | No per-user key material handling |
+| Semantic retrieval | Not started | No embedding or search infrastructure |
 
-## 4) Proposed Aura Memory Format (AMF)
+## 4) Architecture — Aura Memory Format (AMF)
 
-Folder model inside project or global aura workspace:
+### 4.1 Three-Layer Detail Model (adapted from OpenViking)
 
-- `memory/identity/` — stable user profile, preferences, communication style
-- `memory/skills/` — learned workflows, tool patterns, reusable tactics
-- `memory/projects/<project-id>/` — project-specific memory graph
-- `memory/research/` — extracted findings from docs/sessions
-- `memory/snapshots/` — periodic rolled-up state summaries
+Every directory in the memory tree has three layers of detail:
 
-File format:
+| Layer | File | Token Budget | Purpose |
+|-------|------|-------------|---------|
+| **L0 (Abstract)** | `.abstract.md` | ~100 tokens | Quick relevance check, semantic search index |
+| **L1 (Overview)** | `.overview.md` | ~2,000 tokens | Navigation map, decision-making context |
+| **L2 (Detail)** | Individual `.md` files | Unlimited | Full content, loaded on-demand only |
 
-- Markdown with YAML frontmatter:
-  - `memoryId`, `ownerId`, `scope`, `sensitivity`, `sourceRefs`, `updatedAt`, `version`
-- Body sections:
-  - `Summary`
-  - `Details`
-  - `Evidence`
-  - `Actionable Use`
+**Generation is bottom-up**: L2 files exist first. L0/L1 are generated from L2 content by the AI, and regenerated when L2 changes.
 
-## 5) Privacy, Roles, and Encryption
+**Token budget management in prompts**:
+1. Always load L0 for relevance check (~100 tokens per directory).
+2. Load L1 if L0 matches — usually sufficient for agent decision-making.
+3. Load L2 only when confirmed necessary for the task.
 
-- Separate memory namespaces per user in shared aura folders.
-- Encrypt personal memories at rest (device-bound key material; future cloud key wrapping).
-- Role model for shared memories:
-  - owner
-  - collaborator-read
-  - collaborator-write
-  - tool-agent-read (scoped)
+This achieves 80-95% token reduction compared to loading all memory into context.
 
-## 6) Retrieval & Semantic Layer
+### 4.2 Directory Structure
 
-- Build file-level semantic index over memory markdown chunks.
-- Retrieval pipeline:
-  1. scope filter (project/user/team)
-  2. permission filter
-  3. semantic rank
-  4. budget-aware context assembly
-- Keep explicit provenance links to originating files/sessions.
+```
+{aura-workspace}/
+  .aura/
+    memory/
+      master.key                          # Local encryption key (never synced)
+      
+      identity/                           # Stable user profile
+        .abstract.md
+        .overview.md
+        profile.md                        # Name, role, communication style
+        preferences/
+          {topic}.md                      # Merge-updated per topic
+          
+      skills/                            # Learned workflows and tactics
+        .abstract.md
+        .overview.md
+        {skill-name}.md                  # Shareable skill definitions
+        
+      entities/                          # People, orgs, tools the user works with
+        .abstract.md
+        .overview.md
+        {entity-name}.md                 # Append-only (new facts appended)
+        
+      events/                            # Immutable event log (decisions, milestones)
+        .abstract.md
+        .overview.md
+        {date}-{slug}.md                 # Never auto-updated
+        
+      projects/
+        {project-id}/
+          .abstract.md
+          .overview.md
+          context/                       # Project-specific knowledge
+            {topic}.md
+          sessions/                      # Archived chat sessions
+            {session-id}/
+              messages.jsonl
+              .abstract.md
+              .overview.md
+              
+      agent/                            # Agent's own learned knowledge
+        .abstract.md
+        .overview.md
+        cases/                          # Problem + solution pairs (immutable)
+          {case-id}.md
+        patterns/                       # Reusable patterns (merge-updated)
+          {pattern-name}.md
+        tools/                          # Tool usage knowledge (merge-updated)
+          {tool-name}.md
+```
 
-## 7) Milestones
+### 4.3 Memory File Format
 
-### M1 — Memory File Standard
-- Define schema, frontmatter rules, and folder hierarchy.
-- Define memory write/update policies and conflict behavior.
+Every memory file uses markdown with YAML frontmatter:
+
+```markdown
+---
+memoryId: "mem_a1b2c3d4"
+type: identity | skill | entity | event | case | pattern | tool | context
+scope: global | project:{project-id}
+sensitivity: public | private | encrypted
+owner: "{user-id}"
+sourceRefs:
+  - "session:sess_xyz"
+  - "document:doc_abc"
+updateStrategy: merge | append | immutable
+createdAt: "2026-04-19T10:00:00Z"
+updatedAt: "2026-04-19T10:00:00Z"
+version: 1
+tags:
+  - "project/aura"
+  - "skill/presentations"
+---
+
+## Summary
+One-paragraph distillation (~100 tokens).
+
+## Details
+Expanded context with specifics (~500-2000 tokens).
+
+## Evidence
+Links to source sessions, documents, or external references.
+
+## Actionable Use
+When and how this memory should influence agent behavior.
+```
+
+### 4.4 Update Strategies (critical for long-term health)
+
+| Memory Type | Strategy | Behavior |
+|-------------|----------|----------|
+| `identity/profile.md` | **merge** | New facts merged into existing content, old facts preserved |
+| `identity/preferences/` | **merge** | Per-topic files, updated in-place |
+| `entities/` | **append** | New facts appended to entity file, never overwrite |
+| `events/` | **immutable** | Never auto-updated after creation |
+| `skills/` | **merge** | Skill definitions refined over time |
+| `agent/cases/` | **immutable** | Problem+solution pairs frozen once created |
+| `agent/patterns/` | **merge** | Reusable patterns refined with new examples |
+| `agent/tools/` | **merge** | Tool usage knowledge accumulated |
+| `projects/context/` | **merge** | Project-specific knowledge updated |
+| `projects/sessions/` | **immutable** | Archived, never modified |
+
+### 4.5 Cross-References
+
+Use `[[entity-name]]` style links in memory files to create a knowledge graph:
+
+```markdown
+## Details
+Discussed the sales dashboard redesign with [[Sarah Chen]].
+She prefers [[minimal chart palettes]] and referenced the [[Q1 revenue report]].
+```
+
+Build a link index at project load time — enables graph-based retrieval without a separate database.
+
+## 5) Memory Extraction Pipeline
+
+### 5.1 When extraction runs
+
+- **On session commit**: when a chat session ends or the user switches projects.
+- **On document generation**: when the AI produces a notable output.
+- **On explicit user request**: "remember that..." or "note that...".
+
+### 5.2 Extraction flow
+
+```
+Chat messages / Document outcomes
+        │
+        ▼
+  ┌─────────────────────┐
+  │  LLM Extract Pass   │  Generate candidate memories from conversation
+  │  (structured output) │  (what to remember, which category, which scope)
+  └──────────┬──────────┘
+             │
+             ▼
+  ┌─────────────────────┐
+  │  Dedup Check         │  Compare against existing memories
+  │  (embedding search)  │  Find similar existing entries
+  └──────────┬──────────┘
+             │
+             ▼
+  ┌─────────────────────┐
+  │  LLM Dedup Decision │  For each candidate vs existing match:
+  │                      │  → skip (duplicate)
+  │                      │  → create (new information)
+  │                      │  → merge (enrich existing)
+  │                      │  → delete (superseded)
+  └──────────┬──────────┘
+             │
+             ▼
+  ┌─────────────────────┐
+  │  Write to Files      │  Create/update .md files
+  │  Regenerate L0/L1    │  Update directory summaries
+  └─────────────────────┘
+```
+
+### 5.3 Memory candidate schema (AI structured output)
+
+```typescript
+interface MemoryCandidate {
+  type: 'identity' | 'skill' | 'entity' | 'event' | 'case' | 'pattern' | 'tool' | 'context';
+  scope: 'global' | `project:${string}`;
+  sensitivity: 'public' | 'private';
+  title: string;
+  summary: string;
+  details: string;
+  evidence: string[];
+  actionableUse: string;
+  tags: string[];
+}
+```
+
+## 6) Retrieval Pipeline
+
+### 6.1 Hierarchical retrieval (not flat vector search)
+
+```
+User query / Agent context need
+        │
+        ▼
+  ┌─────────────────────┐
+  │  Scope Filter        │  global vs project-specific
+  └──────────┬──────────┘
+             │
+             ▼
+  ┌─────────────────────┐
+  │  L0 Vector Search    │  Search .abstract.md files
+  │                      │  Find top-3 relevant directories
+  └──────────┬──────────┘
+             │
+             ▼
+  ┌─────────────────────┐
+  │  L1 Drill-Down       │  Load .overview.md for matched dirs
+  │                      │  Score: 0.5 × embedding + 0.5 × parent
+  └──────────┬──────────┘
+             │
+             ▼
+  ┌─────────────────────┐
+  │  L2 On-Demand Load   │  Load specific files only if L1
+  │                      │  indicates they're needed
+  └──────────┬──────────┘
+             │
+             ▼
+  ┌─────────────────────┐
+  │  Budget Assembly     │  Fit retrieved memories into
+  │                      │  available token budget
+  └─────────────────────┘
+```
+
+### 6.2 Embedding strategy
+
+**Phase 1 (local, no server):** Use a lightweight local embedding model or TF-IDF over memory file content. Store embeddings alongside memory files as `.embeddings.json`.
+
+**Phase 2 (with cloud):** Use a proper embedding API (OpenAI, Cohere, or local model) with vector storage in the cloud backend.
+
+**Key constraint:** Memory retrieval must work offline. Cloud-only embeddings are not acceptable for Phase 1.
+
+### 6.3 Context assembly budget
+
+| Context slot | Token budget | Source |
+|--------------|-------------|--------|
+| User identity | ~200 tokens | `identity/.overview.md` |
+| Relevant skills | ~500 tokens | Top-matched `skills/*.md` summaries |
+| Project context | ~500 tokens | `projects/{id}/.overview.md` |
+| Recent cases/patterns | ~300 tokens | Top-matched agent memories |
+| Reserved for data/charts | ~500 tokens | Extract API results |
+| **Total memory budget** | **~2,000 tokens** | Fits in system message alongside prompts |
+
+## 7) Privacy, Roles, and Encryption
+
+### 7.1 Single-user (Phase 1)
+
+- All memories stored locally in `.aura/memory/`.
+- `sensitivity: 'private'` files are flagged but not encrypted (single-user, local device).
+- No role model needed yet.
+
+### 7.2 Multi-user (Phase 2 — Account/Cloud)
+
+- Separate memory namespaces per `userId`.
+- Encrypt `sensitivity: 'encrypted'` files at rest using per-user keys.
+- Encryption scheme (envelope pattern):
+  - **Root key**: per-device, stored in OS keychain or local file.
+  - **User key (KEK)**: derived at runtime via HKDF from root key + userId. Never stored.
+  - **File key (DEK)**: random per write, encrypted by user KEK, stored in file header.
+- Magic bytes prefix (`AURA1`) on encrypted files — files without it are treated as plaintext.
+
+### 7.3 Role model for shared memories
+
+| Role | Read own | Write own | Read shared | Write shared | Admin |
+|------|----------|-----------|-------------|--------------|-------|
+| owner | Yes | Yes | Yes | Yes | Yes |
+| collaborator-write | Yes | Yes | Yes | Yes | No |
+| collaborator-read | Yes | Yes | Yes | No | No |
+| agent-read | Scoped | No | Scoped | No | No |
+
+### 7.4 Shareable vs private
+
+| Memory type | Shareable? | Notes |
+|-------------|-----------|-------|
+| Skills | Yes | Exportable, publishable to explore page |
+| Tools knowledge | Yes | Best practices for tool usage |
+| Identity/Profile | Never | Always per-user encrypted |
+| Preferences | Never | Per-user only |
+| Events | Configurable | Project events may be shared, personal events never |
+| Cases/Patterns | Configurable | Team knowledge vs personal insights |
+
+## 8) Milestones
+
+### M1 — Memory File Standard + Local Storage
+**Parallel-safe: yes — independent of all other features**
+
+| Task | Description | Est. |
+|------|-------------|------|
+| M1.1 | Define AMF schema types and Zod validators | S |
+| M1.2 | Implement memory file read/write utilities (parse frontmatter, validate, write) | M |
+| M1.3 | Implement directory structure creation and management | S |
+| M1.4 | Implement L0/L1 summary generation (AI-driven, from L2 files) | M |
+| M1.5 | Define memory write/update policies (merge, append, immutable) | M |
+| M1.6 | Implement cross-reference link parser (`[[entity-name]]` → index) | S |
+| M1.7 | Add memory directory to .aura file packaging | S |
 
 ### M2 — Capture + Retrieval
-- Add memory extraction from chat/doc outcomes.
-- Add semantic index and scoped retrieval for prompts.
+**Depends on: M1**
 
-### M3 — Privacy + Multi-User Collaboration
-- Add per-user encryption and role-aware shared memory.
-- Add sync-ready metadata for cloud replication.
+| Task | Description | Est. |
+|------|-------------|------|
+| M2.1 | Build memory extraction pipeline (LLM structured output) | L |
+| M2.2 | Build dedup checker (embedding similarity + LLM decision) | L |
+| M2.3 | Build local embedding index (TF-IDF or lightweight model) | M |
+| M2.4 | Build hierarchical retrieval pipeline (L0 → L1 → L2 drill-down) | L |
+| M2.5 | Build context assembly with token budgeting | M |
+| M2.6 | Wire retrieval into AI workflow (inject relevant memory into system prompts) | M |
+| M2.7 | Add session archival on chat end (messages.jsonl + summaries) | M |
 
-## 8) Validation Requirements
+### M3 — Privacy + Multi-User Preparation
+**Depends on: M2, Account/Cloud M1**
 
-- Unit tests: parser/validator, permission checks, scope resolution.
-- Security tests: unauthorized memory access denial, encryption/decryption failure handling.
-- Manual checks: memory quality review, retrieval relevance, multi-user separation behavior.
+| Task | Description | Est. |
+|------|-------------|------|
+| M3.1 | Implement per-user encryption (envelope pattern: root → KEK → DEK) | L |
+| M3.2 | Implement role-aware memory access control | M |
+| M3.3 | Add sync-ready metadata for cloud replication | M |
+| M3.4 | Implement skill export/import for sharing | M |
+| M3.5 | Implement memory compaction (periodic L0/L1 regeneration, stale memory pruning) | M |
 
-## 9) Risks & Mitigations
+**Size estimates: S = < 1 day, M = 1-3 days, L = 3-5 days**
 
-- **Memory bloat** → snapshot compaction + retention policies.
-- **Privacy leakage** → strict namespace isolation + encryption defaults.
-- **Low retrieval quality** → explicit evidence fields + ranking feedback loop.
+## 9) Validation Requirements
 
-## 10) External References to Evaluate
+- **Unit tests**: frontmatter parser/validator, update strategy enforcement (merge vs append vs immutable), link parser, token budget calculator, Zod schema validation.
+- **Integration tests**: extraction pipeline end-to-end (chat → memory files), retrieval pipeline (query → ranked results), .aura save/load with memory directory.
+- **Security tests**: unauthorized memory access denial, encryption/decryption cycle, role-based access enforcement, encrypted file corruption handling.
+- **Quality tests**: memory relevance scoring (are the right memories retrieved?), dedup accuracy (false positive/negative rates), L0/L1 summary quality (do summaries capture key information?).
+- **Manual checks**: memory growth over 10+ sessions (does it scale?), retrieval relevance review, multi-project memory separation.
 
-- OpenViking memory patterns (adapt concepts, keep Aura format opinionated).
-- Obsidian-style markdown graph ideas (for structure, not UI parity).
+## 10) Risks & Mitigations
+
+| Risk | Mitigation |
+|------|------------|
+| Memory bloat over time | Snapshot compaction + retention policies. L0/L1 regeneration compresses knowledge. Stale memory pruning based on last-accessed timestamp. |
+| Privacy leakage in shared contexts | Strict namespace isolation + sensitivity flags + encryption defaults. Never include `private` memories in shared project contexts. |
+| Low retrieval quality | Explicit evidence fields in memory format. Hierarchical retrieval (not flat search). Feedback loop: if agent uses a memory and user corrects, update the memory. |
+| Extraction noise (irrelevant memories) | Structured output with explicit `actionableUse` field. Dedup pipeline filters duplicates. Minimum confidence threshold on extraction. |
+| Embedding model quality (local) | Start with TF-IDF (no model dependency). Upgrade to local transformer embeddings or API-based when cloud is available. |
+| Cross-reference graph complexity | Simple `[[link]]` index, not a full graph database. Rebuild index on project load. Good enough for navigational retrieval. |
+
+## 11) External References Evaluated
+
+| Source | What we adopted | What we skipped |
+|--------|----------------|-----------------|
+| **OpenViking** | L0/L1/L2 hierarchy, 8 memory categories, update strategies (merge/append/immutable), dedup pipeline (skip/create/merge/delete), envelope encryption, directory-recursive retrieval | Full virtual filesystem URI scheme, complex multi-tenant account model (simplified for Aura) |
+| **Obsidian** | YAML frontmatter format, `[[wikilink]]` cross-references, hierarchical tags, local-first philosophy | Plugin architecture, graph visualization UI, community theme system |
+| **Claude Code memory** | Section-based format (Summary/Details/Evidence/Actionable Use), scope awareness (global vs project) | Single-file index approach (Aura uses directory hierarchy instead) |
+
+## 12) Open Questions
+
+1. **Local embedding model**: Which model for offline semantic search? Options: TF-IDF (zero dependencies), onnxruntime-web with a small transformer, or defer to keyword search until cloud phase.
+2. **Memory UI**: Should users see their memory tree in a sidebar? Or is memory purely agent-internal with a "view memories" debug/settings panel? Recommendation: minimal "Memory" tab in settings that shows the directory tree as read-only.
+3. **Memory export format**: Should exported skills use standard markdown, or a custom Aura skill format with execution metadata? Start with markdown, add execution metadata later.
+4. **Retention policy**: How long to keep archived session messages? Recommendation: keep L0/L1 summaries indefinitely, delete raw messages.jsonl after 90 days.
+5. **Memory conflict on sync**: When cloud sync introduces conflicting memory files, merge strategy? Defer to Account/Cloud plan.

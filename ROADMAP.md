@@ -179,83 +179,155 @@ src/
 
 ## Roadmap
 
-### Immediate Planning Artifacts
+### Completed Phases (MVP)
 
-Detailed implementation-planning docs for the next roadmap wave:
+Phases 1–5 delivered the MVP: presentation generation, document generation, chat-based refinement, .aura file format, auto-save, and AI workflow pipeline. See git history for details.
 
-- [Charts Integration Plan](docs/roadmap/charts-integration-plan.md)
-- [Memory Markdown Plan](docs/roadmap/memory-markdown-plan.md)
-- [Account Creation, Cloud, and Collaboration Plan](docs/roadmap/account-creation-cloud-plan.md)
-- [Spreadsheet Integration Plan](docs/roadmap/spreadsheet-integration-plan.md)
-- [API Platform & Visual Automation Plan](docs/roadmap/api-platform-plan.md)
-- [MCP Integration Plan](docs/roadmap/mcp-integration-plan.md)
+### Next Wave — Detailed Plans
 
-### Phase 1 — Foundation
-> Get a React app rendering reveal.js slides programmatically.
+Each feature has a standalone implementation plan with milestones, validation requirements, and open questions:
 
-| # | Task | Details |
-|---|---|---|
-| 1 | Init project scaffold | Vite + React-TS (via `bun create vite`), install reveal.js, zustand, jszip, file-saver, lucide-react, tailwindcss |
-| 2 | PresentationCanvas component | React wrapper: init reveal.js in `useEffect`, `updateSlides(html)` → innerHTML + `deck.sync()`, navigation state synced to store |
-| 3 | Presentation engine service | `initDeck()`, `updateContent()`, `navigateTo()`, `enterFullscreen()`, `exitFullscreen()`, `getSlideCount()`, `getCurrentIndex()` |
-| 4 | Zustand stores | `presentationStore` (slides, index, mode), `chatStore` (messages, streaming), `settingsStore` (provider, key → localStorage) |
-| 5 | Verify with test slides | Hardcode 3–4 beautiful demo slides; confirm transitions, navigation, and React lifecycle integration |
+- [Charts Integration Plan](docs/roadmap/charts-integration-plan.md) — chart runtime completion + DuckDB data layer
+- [Spreadsheet Integration Plan](docs/roadmap/spreadsheet-integration-plan.md) — prompt-first spreadsheets on DuckDB
+- [Memory Markdown Plan](docs/roadmap/memory-markdown-plan.md) — semantic file-based memory with L0/L1/L2 hierarchy
+- [Account Creation, Cloud, and Collaboration Plan](docs/roadmap/account-creation-cloud-plan.md) — Supabase BaaS, portfolio, versioning
+- [API Platform & Visual Automation Plan](docs/roadmap/api-platform-plan.md) — Hono API server, automation builder
+- [MCP Integration Plan](docs/roadmap/mcp-integration-plan.md) — MCP server for external LLM clients
 
-### Phase 2 — Shell
-> Build the app chrome: toolbar, canvas layout, chat bar, slide strip.
-> *Can begin in parallel with Phase 1, step 5.*
+### Dependency Graph
 
-| # | Task | Details |
-|---|---|---|
-| 6 | App layout & modes | Edit mode (toolbar + canvas + strip + chat) vs Present mode (fullscreen reveal.js, ESC exits) |
-| 7 | Toolbar | Logo, editable title, Save/Download/Present/Settings buttons. Frosted glass aesthetic (`backdrop-blur-xl bg-white/80`) |
-| 8 | ChatBar | Floating pill input (`rounded-full max-w-2xl`), "Describe your presentation..." placeholder, Enter to send, expandable message history |
-| 9 | SlideStrip | `h-20` horizontal scroll, CSS-scaled (`transform: scale(0.15)`) mini slide clones, click to navigate, current highlighted |
-| 10 | AI working indicator | Shimmer gradient bar under toolbar, skeleton placeholders on canvas, animated dots in chat |
+```
+Phase 6: Charts M1          Phase 7: Memory M1
+(chart runtime)              (file format + local storage)
+  ↓                            ↓
+Phase 6: Charts M2  ←────→  Phase 7: Memory M2
+(DuckDB foundation)          (capture + retrieval)
+  ↓                            ↓
+Phase 8: Spreadsheets M1    Phase 9: Account/Cloud M1
+(grid + ingestion)           (Supabase auth + storage)
+  ↓                            ↓
+Phase 8: Spreadsheets M2    Phase 9: Account/Cloud M2
+(prompt-to-SQL)              (portfolio + sync)
+  ↓                            ↓
+Phase 8: Spreadsheets M3    Phase 9: Account/Cloud M3–M4
+(linking + chart interop)    (versioning + explore)
+                               ↓
+                        Phase 10: API M1 + MCP M1
+                        (server + read-only tools)
+                               ↓
+                        Phase 10: API M2 + MCP M2
+                        (write tools + workflows)
+                               ↓
+                        Phase 10: API M3 + MCP M3
+                        (automation builder + hardening)
+```
 
-### Phase 3 — Brain
-> Wire up AI to generate and refine slides from user prompts.
-> *Depends on Phase 1 completion.*
+### Parallelization Guide
 
-| # | Task | Details |
-|---|---|---|
-| 11 | AI provider interface | `ProviderEntry { id, name, defaultModel, createModel(config): LanguageModelV1 }` via Vercel AI SDK |
-| 12 | Provider adapters | `ProviderEntry` configs in `registry.ts` using Vercel AI SDK factories (`@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/google`). DeepSeek and Ollama via OpenAI-compatible adapter. |
-| 13 | System prompt | Instruct AI to output `<section>` HTML with inline CSS. Enforce design principles, palettes, typography, `data-transition`, `fragment` animations. Include examples. |
-| 14 | Chat flow wiring | Prompt → stream → extract HTML → `setSlides()` → canvas re-renders → done |
-| 15 | Iterative refinement | Follow-up messages include current slides HTML as context; AI modifies specific slides |
+Multiple developers/agents can work simultaneously on these independent tracks:
 
-### Phase 4 — Storage
-> Save/load `.aura` files, auto-save to IndexedDB.
-> *Can run in parallel with Phase 3.*
+| Track | Can start now | Depends on |
+|-------|--------------|------------|
+| **Charts M1** (runtime completion) | Yes | Nothing — independent |
+| **Charts M2** (DuckDB foundation) | Yes | Nothing — independent |
+| **Memory M1** (file format + storage) | Yes | Nothing — independent |
+| **Spreadsheets M1** (grid UI scaffolding) | Yes | Grid renderer is independent of DuckDB |
+| **Spreadsheets M1** (DuckDB wiring) | After Charts M2 | Shared DuckDB service |
+| **Memory M2** (capture + retrieval) | After Memory M1 | Memory file format |
+| **Account/Cloud M1** (auth + storage) | After Memory M1 | Memory format for sync |
+| **Account/Cloud M2** (portfolio) | After Account M1 | Auth + storage |
+| **Account/Cloud M3** (versioning) | After Account M1 | Auth (parallel with M2) |
+| **API M1** | After Account M1 | Auth tokens |
+| **MCP M1** | After Account M1 | Auth tokens (parallel with API) |
 
-| # | Task | Details |
-|---|---|---|
-| 16 | `.aura` file format | Pack/unpack zip: manifest.json, slides.html, theme.css, chat-history.json |
-| 17 | Auto-save | IndexedDB, debounced 2s, restore prompt on app load |
-| 18 | Toolbar integration | Wire Save, Download, Open, New actions to storage services |
+### Phase 6 — Charts + Data Layer
+> Complete chart runtime. Introduce DuckDB-WASM as shared data engine.
 
-### Phase 5 — Polish
-> Premium look and feel, error handling, keyboard shortcuts.
-> *Depends on all previous phases.*
+| Milestone | Key deliverables | Parallel? |
+|-----------|-----------------|-----------|
+| **Charts M1** — Runtime Completion | Document iframe chart hydration, PDF/DOCX export chart flattening, chart data editor dialog | Yes — independent |
+| **Charts M2** — DuckDB Foundation | `@duckdb/duckdb-wasm` lazy singleton, Parquet↔IndexedDB persistence, extract APIs (describeTable, sampleRows, aggregateQuery), CSV/JSON/XLSX ingestion | Yes — independent |
+| **Charts M3** — Data Integration | ChartSpec DataSource extension, extract APIs as AI tools, prompt guardrails, chart-from-table workflow | After M1 + M2 |
 
-| # | Task | Details |
-|---|---|---|
-| 19 | Slide quality tuning | Enhance system prompt: palettes, inline SVG icons, typography hierarchy, layout patterns, consistent transitions |
-| 20 | Settings modal | Provider dropdown, API key input, optional base URL, test connection button |
-| 21 | App UI animations | Chat expand/collapse, slide strip momentum scroll, mode transitions, AI shimmer — CSS transitions primarily |
-| 22 | Keyboard shortcuts | `⌘/Ctrl+Enter` send, `⌘/Ctrl+S` save, `F5` present, `Esc` exit, `←/→` navigate |
-| 23 | Error handling | No key → settings prompt, API error → retry in chat, empty state → welcome screen |
+**Key technology decisions:**
+- DuckDB-WASM (~10 MB gzipped, lazy-loaded) as the single analytical engine
+- SheetJS for XLSX parsing (DuckDB handles CSV/JSON natively)
+- No Polars initially — evaluate post-M2 benchmarks
+- Parquet as persistence format in .aura files and IndexedDB
+
+### Phase 7 — Memory System
+> Semantic file-based memory with hierarchical detail and privacy boundaries.
+
+| Milestone | Key deliverables | Parallel? |
+|-----------|-----------------|-----------|
+| **Memory M1** — File Standard | AMF schema + Zod validators, memory file read/write utilities, L0/L1/L2 summary generation, cross-reference `[[link]]` parser | Yes — independent |
+| **Memory M2** — Capture + Retrieval | Memory extraction pipeline (LLM structured output → dedup → write), local embedding index, hierarchical retrieval (L0→L1→L2), context assembly with token budgeting | After M1 |
+| **Memory M3** — Privacy + Multi-User | Per-user encryption (envelope: root→KEK→DEK), role-aware access, skill export/import, memory compaction | After M2 + Account M1 |
+
+**Key design decisions:**
+- L0/L1/L2 hierarchy (adapted from OpenViking): ~100 tokens / ~2K tokens / unlimited
+- 8 memory categories with explicit update strategies (merge/append/immutable)
+- Markdown + YAML frontmatter format — human-readable, portable
+- Local-first retrieval (TF-IDF initially, upgrade to embeddings with cloud)
+
+### Phase 8 — Spreadsheets
+> Prompt-first spreadsheets with DuckDB-WASM backend and linked content.
+
+| Milestone | Key deliverables | Parallel? |
+|-----------|-----------------|-----------|
+| **Spreadsheets M1** — Grid + Ingestion | `'spreadsheet'` document type, grid renderer (Glide Data Grid recommended), CSV/XLSX/JSON ingestion, cell editing, multi-tab workbook, Parquet persistence | Grid UI: independent. DuckDB wiring: after Charts M2 |
+| **Spreadsheets M2** — Prompted Computation | Prompt-to-SQL pipeline, computed columns (FormulaEntry), named ranges, sort/filter/group UI | After M1 |
+| **Spreadsheets M3** — Linking + Interop | Linked tables in docs/presentations, chart binding to table refs, dependency tracking, refresh pipeline | After M2 + Charts M3 |
+
+**Key design decisions:**
+- DuckDB as storage engine (not in-memory cell grid) — handles millions of rows
+- Virtualized viewport queries (only materialize visible rows)
+- Grid library: Glide Data Grid recommended (canvas-based, MIT) — decision needed before M1.4
+- Formula language: DuckDB SQL expressions — decision on simplified syntax TBD
+
+### Phase 9 — Account, Cloud, and Collaboration
+> User accounts, cloud persistence, portfolio management, simplified version control.
+
+| Milestone | Key deliverables | Parallel? |
+|-----------|-----------------|-----------|
+| **Account M1** — Auth + Cloud Foundation | Supabase client SDK, auth UI (sign-up/in/out), JWT session management, Supabase Storage for .aura files, RLS policies | After Memory M1 |
+| **Account M2** — Portfolio + Sync | Portfolio page (project grid), project CRUD, memory sync protocol, conflict detection, offline queue | After M1 |
+| **Account M3** — Versioning Abstraction | Plain-language git wrapper ("save version", "remix", "combine"), version history UI, fork/remix flow | After M1 (parallel with M2) |
+| **Account M4** — Public Collaboration + Explore | Visibility toggle, public project view, remix capability, explore page, bookmark/like signals | After M2 + M3 |
+
+**Key technology decisions:**
+- **Supabase** over Firebase — self-host capability essential for open-source
+- **Supabase Auth** initially — add Better Auth for org/team features when needed (paid tier)
+- **isomorphic-git** kept for client-side — Jujutsu cannot run in-browser
+- Plain-language abstraction layer over git ("save version" not "commit")
+- Offline-first: local IndexedDB is primary, cloud sync is additive
+
+### Phase 10 — API & MCP Platform
+> External API, visual automations, and MCP server for cross-LLM continuity.
+
+| Milestone | Key deliverables | Parallel? |
+|-----------|-----------------|-----------|
+| **API M1** — Contract + Server | Hono server on Bun, OpenAPI spec, auth middleware, project/document CRUD endpoints, rate limiting | After Account M1 |
+| **MCP M1** — Server Skeleton | `@modelcontextprotocol/sdk` stdio transport, read-only project/document/memory tools, test with Claude Code + Cursor | After Account M1 (parallel with API M1) |
+| **API M2** — Workflow Execution | Async run lifecycle, AI workflow integration, token accounting, memory/data endpoints | After API M1 |
+| **MCP M2** — Write Tools | Mutation tools (create, update, generate), HTTP+SSE transport, conflict detection | After MCP M1 + API M1 |
+| **API M3** — Visual Builder | Automation data model, flow editor, prompt template editor, trigger system, guardrails | After API M2 |
+| **MCP M3** — Production Hardening | Audit logging, rate limiting, permission scoping, multi-client compatibility | After MCP M2 |
+
+**Key technology decisions:**
+- **Hono** as API framework — lightweight, TypeScript-native, runs on Bun/Workers/Vercel
+- MCP server as separate package (doesn't affect web app bundle)
+- API and MCP share service layer — no duplicate business logic
+- Tiered access: free (limited), pro (full), enterprise (dedicated)
 
 ### Future Phases
 
 | Phase | Scope |
 |---|---|
-| 6 — Documents | Word processing mode with AI-generated rich HTML documents |
-| 7 — Spreadsheets | Grid rendering, AI-driven formulas and calculations |
-| 8 — Cloud | User accounts, cloud storage, sync across devices |
-| 9 — Collaboration | Real-time multi-user editing via CRDT or OT |
-| 10 — Platform Expansion | Electron desktop app, PWA, potential Flutter native |
+| 11 — Platform Expansion | Electron desktop app, PWA, mobile considerations |
+| 12 — Real-Time Collaboration | Live multi-user editing (evaluate CRDTs vs OT based on Account phase learnings) |
+| 13 — Marketplace | Skill/template marketplace, automation sharing, revenue sharing |
+| 14 — Enterprise | SSO/SAML, compliance, audit trails, dedicated hosting |
 
 ---
 
@@ -275,6 +347,11 @@ These decisions were made during initial planning and should be revisited only w
 | File format | `.aura` zip bundle | Single JSON file | Zip is extensible (add assets, images later), human-inspectable, and keeps concerns separated (HTML, CSS, metadata). |
 | Slide thumbnails | CSS `transform: scale()` on cloned HTML | Canvas/image rendering | Cheap, accurate, real-time. No canvas overhead or library dependency. |
 | Streaming strategy | Buffer full response, then inject | Progressive HTML injection | Partial HTML in reveal.js causes flicker and broken layouts. Buffer + shimmer animation provides better UX. |
+| Data engine | DuckDB-WASM | Custom grid engine, IndexedDB raw storage | Columnar OLAP engine handles millions of rows in-browser. SQL is the universal query language. Shared by charts and spreadsheets. ~10 MB lazy-loaded. |
+| BaaS | Supabase | Firebase | Self-hostable (essential for open-source). Postgres RLS. Predictable pricing. Firebase has better offline sync but can't be self-hosted. |
+| Version control (client) | isomorphic-git | Jujutsu (jj) | jj has no WASM/browser build. isomorphic-git works in IndexedDB. Plain-language abstraction layer hides git complexity. |
+| API framework | Hono | Express, Fastify | 12x smaller than Express. Native TypeScript. Runs on Bun, Workers, Vercel Edge. OpenAPI via @hono/zod-openapi. |
+| Memory format | Markdown + YAML frontmatter | JSON, SQLite | Human-readable, portable, inspectable. YAML frontmatter for metadata. Three-layer hierarchy (L0/L1/L2) for token efficiency. |
 
 ---
 
@@ -428,4 +505,4 @@ The AI layer is the most likely to change as models improve and pricing shifts:
 
 ---
 
-*This is a living document. Last updated: 22 March 2026.*
+*This is a living document. Last updated: 19 April 2026.*
