@@ -267,11 +267,27 @@ User query / Agent context need
 
 ### 6.2 Embedding strategy
 
-**Phase 1 (local, no server):** Use a lightweight local embedding model or TF-IDF over memory file content. Store embeddings alongside memory files as `.embeddings.json`.
+**Decision: Two-tier approach.**
 
-**Phase 2 (with cloud):** Use a proper embedding API (OpenAI, Cohere, or local model) with vector storage in the cloud backend.
+**Tier 1 — TF-IDF (zero dependencies, ships immediately):**
+- Pure JS implementation (~50 lines), no model download.
+- Good for exact-term matching, weak for synonyms/paraphrase.
+- Store TF-IDF index alongside memory files as `.search-index.json`.
+- Latency: < 1ms for 100 documents.
 
-**Key constraint:** Memory retrieval must work offline. Cloud-only embeddings are not acceptable for Phase 1.
+**Tier 2 — Transformers.js (opt-in upgrade for semantic search):**
+- Uses `@huggingface/transformers` with `Xenova/all-MiniLM-L6-v2` (q8 quantized).
+- 384-dim embeddings, ~23 MB model + ~10 MB WASM runtime (~33 MB one-time download).
+- Cached automatically via browser Cache API — works offline after first download.
+- Runs in Web Worker (non-blocking main thread). ~50-200ms per embedding batch.
+- Handles semantic matching: "authentication" matches "login flow and OAuth setup".
+- Store 384-dim vectors alongside memory files as `.embeddings.json`.
+
+**User-facing**: TF-IDF active by default. Settings toggle to enable "Enhanced memory search" which downloads the model on first enable. Both work offline after setup.
+
+**Vite integration**: No special plugins needed. Standard ESM import + `new URL('./worker.ts', import.meta.url)` pattern for Web Worker.
+
+**Key constraint:** Memory retrieval must work offline. Cloud-only embeddings are not acceptable.
 
 ### 6.3 Context assembly budget
 
@@ -379,7 +395,7 @@ User query / Agent context need
 | Privacy leakage in shared contexts | Strict namespace isolation + sensitivity flags + encryption defaults. Never include `private` memories in shared project contexts. |
 | Low retrieval quality | Explicit evidence fields in memory format. Hierarchical retrieval (not flat search). Feedback loop: if agent uses a memory and user corrects, update the memory. |
 | Extraction noise (irrelevant memories) | Structured output with explicit `actionableUse` field. Dedup pipeline filters duplicates. Minimum confidence threshold on extraction. |
-| Embedding model quality (local) | Start with TF-IDF (no model dependency). Upgrade to local transformer embeddings or API-based when cloud is available. |
+| Embedding model quality (local) | TF-IDF as baseline (zero-dep). Transformers.js (`all-MiniLM-L6-v2`, q8, ~33 MB) as opt-in upgrade for semantic search. Both work offline. |
 | Cross-reference graph complexity | Simple `[[link]]` index, not a full graph database. Rebuild index on project load. Good enough for navigational retrieval. |
 
 ## 11) External References Evaluated
@@ -392,8 +408,8 @@ User query / Agent context need
 
 ## 12) Open Questions
 
-1. **Local embedding model**: Which model for offline semantic search? Options: TF-IDF (zero dependencies), onnxruntime-web with a small transformer, or defer to keyword search until cloud phase.
-2. **Memory UI**: Should users see their memory tree in a sidebar? Or is memory purely agent-internal with a "view memories" debug/settings panel? Recommendation: minimal "Memory" tab in settings that shows the directory tree as read-only.
+1. ~~**Local embedding model**~~: **Decided — TF-IDF baseline + Transformers.js (`all-MiniLM-L6-v2`) opt-in upgrade.**
+2. **Memory UI**: Some memory can be visible to users, but not everything needs to be. Not a focus for initial implementation — add later. Eventually could show how projects link together and overall thoughts/memories on a topic (graph-style visualization). Start with a minimal "Memory" tab in settings showing the directory tree as read-only.
 3. **Memory export format**: Should exported skills use standard markdown, or a custom Aura skill format with execution metadata? Start with markdown, add execution metadata later.
 4. **Retention policy**: How long to keep archived session messages? Recommendation: keep L0/L1 summaries indefinitely, delete raw messages.jsonl after 90 days.
 5. **Memory conflict on sync**: When cloud sync introduces conflicting memory files, merge strategy? Defer to Account/Cloud plan.

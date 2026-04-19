@@ -129,9 +129,7 @@ Same extract API as charts (defined in Charts M2):
 | Glide Data Grid | ~100 KB | Canvas-based | MIT | Fast rendering, good for large datasets |
 | Custom (canvas) | 0 | DIY | — | Maximum control, maximum effort |
 
-**Recommendation**: **Glide Data Grid** — canvas-based rendering handles 100k+ rows smoothly, MIT licensed, smaller than AG Grid, purpose-built for data grid UX. If more control is needed, fall back to TanStack Table (headless) with custom virtualized renderer.
-
-**Open question for user**: Do you have a preference on grid library, or should we prototype with Glide Data Grid?
+**Decision: Glide Data Grid** — canvas-based rendering handles 100k+ rows smoothly, MIT licensed, smaller than AG Grid, purpose-built for data grid UX.
 
 ### 4.2 Rendering Architecture
 
@@ -262,7 +260,7 @@ Parquet is chosen because:
 
 ## 10) Open Questions
 
-1. **Grid library**: Glide Data Grid vs TanStack Table vs AG Grid Community? Needs prototyping.
-2. **Formula language**: Pure DuckDB SQL expressions, or a simplified formula syntax that compiles to SQL? SQL is more powerful but less familiar to spreadsheet users.
+1. ~~**Grid library**~~: **Decided — Glide Data Grid.**
+2. **Formula language**: Start with pure DuckDB SQL expressions. Add simplified shorthand functions (e.g., `SUM(col)` → `SELECT SUM(col) FROM ...`) as syntactic sugar later. SQL is the foundation; shorthands compile down to SQL.
 3. **External data sources**: Should spreadsheets support live connections to external databases/APIs, or only imported snapshots? Deferred to post-M3.
 4. **Collaboration on spreadsheets**: Cell-level conflict resolution is hard. Deferred to account/cloud phase.

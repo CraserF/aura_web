@@ -193,33 +193,34 @@ Each feature has a standalone implementation plan with milestones, validation re
 - [Account Creation, Cloud, and Collaboration Plan](docs/roadmap/account-creation-cloud-plan.md) — Supabase BaaS, portfolio, versioning
 - [API Platform & Visual Automation Plan](docs/roadmap/api-platform-plan.md) — Hono API server, automation builder
 - [MCP Integration Plan](docs/roadmap/mcp-integration-plan.md) — MCP server for external LLM clients
+- [UX Improvements Plan](docs/roadmap/ux-improvements-plan.md) — multi-slide queue, PDF fixes, UI polish
 
 ### Dependency Graph
 
 ```
-Phase 6: Charts M1          Phase 7: Memory M1
-(chart runtime)              (file format + local storage)
-  ↓                            ↓
-Phase 6: Charts M2  ←────→  Phase 7: Memory M2
-(DuckDB foundation)          (capture + retrieval)
-  ↓                            ↓
-Phase 8: Spreadsheets M1    Phase 9: Account/Cloud M1
-(grid + ingestion)           (Supabase auth + storage)
-  ↓                            ↓
-Phase 8: Spreadsheets M2    Phase 9: Account/Cloud M2
-(prompt-to-SQL)              (portfolio + sync)
-  ↓                            ↓
-Phase 8: Spreadsheets M3    Phase 9: Account/Cloud M3–M4
-(linking + chart interop)    (versioning + explore)
-                               ↓
-                        Phase 10: API M1 + MCP M1
-                        (server + read-only tools)
-                               ↓
-                        Phase 10: API M2 + MCP M2
-                        (write tools + workflows)
-                               ↓
-                        Phase 10: API M3 + MCP M3
-                        (automation builder + hardening)
+UX M1 (PDF fix + quick wins)    Phase 6: Charts M1      Phase 7: Memory M1
+  (independent — start now)     (chart runtime)          (file format + local)
+                                  ↓                        ↓
+UX M2 (multi-slide queue)      Phase 6: Charts M2  ←→  Phase 7: Memory M2
+  (independent — start now)     (DuckDB foundation)      (capture + retrieval)
+                                  ↓                        ↓
+UX M3 (UI polish)              Phase 8: Spreadsheets   Phase 9: Account/Cloud M1
+  (incremental, any time)       M1 (grid + ingestion)   (Supabase auth + storage)
+                                  ↓                        ↓
+                                Phase 8: Spreadsheets   Phase 9: Account/Cloud M2
+                                M2 (prompt-to-SQL)       (portfolio + sync)
+                                  ↓                        ↓
+                                Phase 8: Spreadsheets   Phase 9: Account/Cloud M3–M4
+                                M3 (linking + interop)   (versioning + explore)
+                                                           ↓
+                                                    Phase 10: API M1 + MCP M1
+                                                    (server + read-only tools)
+                                                           ↓
+                                                    Phase 10: API M2 + MCP M2
+                                                    (write tools + workflows)
+                                                           ↓
+                                                    Phase 10: API M3 + MCP M3
+                                                    (automation builder + hardening)
 ```
 
 ### Parallelization Guide
@@ -228,6 +229,9 @@ Multiple developers/agents can work simultaneously on these independent tracks:
 
 | Track | Can start now | Depends on |
 |-------|--------------|------------|
+| **UX M1** (PDF chart fix + quick wins) | Yes | Nothing — independent |
+| **UX M2** (multi-slide queue) | Yes | Nothing — touches planner + orchestrator only |
+| **UX M3** (UI polish) | Yes | Nothing — incremental, do alongside other work |
 | **Charts M1** (runtime completion) | Yes | Nothing — independent |
 | **Charts M2** (DuckDB foundation) | Yes | Nothing — independent |
 | **Memory M1** (file format + storage) | Yes | Nothing — independent |
@@ -239,6 +243,23 @@ Multiple developers/agents can work simultaneously on these independent tracks:
 | **Account/Cloud M3** (versioning) | After Account M1 | Auth (parallel with M2) |
 | **API M1** | After Account M1 | Auth tokens |
 | **MCP M1** | After Account M1 | Auth tokens (parallel with API) |
+
+### UX Improvements (cross-cutting, start immediately)
+> Multi-slide queue, PDF export fixes, UI polish. No dependencies — can run in parallel with everything.
+
+| Milestone | Key deliverables | Parallel? |
+|-----------|-----------------|-----------|
+| **UX M1** — Critical Fixes + Quick Wins | Chart flattening for PDF export (P0), memoized chat messages, smart loading messages, confirmation dialogs | Yes — independent |
+| **UX M2** — Multi-Slide Queue | `batch_create` intent detection, shared style context, queued sequential generation, abbreviated prompts for slides 2-N (30-40% token savings), generation lock, progress UI | Yes — independent |
+| **UX M3** — UI Polish | `react-resizable-panels` for chat/canvas split, state-driven animations, OKLCH color tokens, streaming feedback hierarchy, presentation PDF (slide-per-page) | Yes — incremental |
+
+**Key design decisions:**
+- Multi-slide batch only triggered when user explicitly describes multiple distinct slides
+- Single-slide paradigm remains the default (no change for typical usage)
+- Shared style context generated once, referenced by all slides in a batch (token savings)
+- Generation lock: one generation per document type at a time
+- Chart flattening: `chart.toBase64Image()` → replace `<canvas>` with `<img>` before html2pdf
+- Server-side PDF (Playwright) deferred to Phase 10 when API server exists
 
 ### Phase 6 — Charts + Data Layer
 > Complete chart runtime. Introduce DuckDB-WASM as shared data engine.
