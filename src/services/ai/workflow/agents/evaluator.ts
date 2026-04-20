@@ -19,6 +19,7 @@ import { CACHE_CONTROL } from '../engine';
 import { aiDebugLog, toErrorInfo } from '../../debug';
 import type { PlanResult } from './planner';
 import type { EventListener } from '../types';
+import { withRetry } from '../../fallbackModel';
 
 const EvaluationSchema = z.object({
   score: z.number().min(1).max(10),
@@ -104,19 +105,21 @@ export async function evaluateAndRevise(
     try {
       const truncatedHtml = truncateForEval(currentHtml);
       aiDebugLog('evaluator', `eval pass ${i + 1}: sending ${truncatedHtml.length} chars (original ${currentHtml.length})`);
-      const evalResult = await generateObject({
-        model,
-        schema: EvaluationSchema,
-        messages: [
-          { role: 'system', content: buildEvaluatorPrompt(planResult), providerOptions: CACHE_CONTROL } as ModelMessage,
-          {
-            role: 'user',
-            content: `Brief: ${planResult.style}, ${planResult.styleManifest.compositionMode}\n\nSlide HTML:\n\`\`\`html\n${truncatedHtml}\n\`\`\``,
-          },
-        ],
-        maxOutputTokens: 1024,
-        abortSignal: signal,
-      });
+      const evalResult = await withRetry(() =>
+        generateObject({
+          model,
+          schema: EvaluationSchema,
+          messages: [
+            { role: 'system', content: buildEvaluatorPrompt(planResult), providerOptions: CACHE_CONTROL } as ModelMessage,
+            {
+              role: 'user',
+              content: `Brief: ${planResult.style}, ${planResult.styleManifest.compositionMode}\n\nSlide HTML:\n\`\`\`html\n${truncatedHtml}\n\`\`\``,
+            },
+          ],
+          maxOutputTokens: 1024,
+          abortSignal: signal,
+        }),
+      );
       evaluation = evalResult.object;
       const evalMs = (performance.now() - evalT0).toFixed(0);
       aiDebugLog('evaluator', `eval pass ${i + 1} complete in ${evalMs}ms`, {
@@ -163,15 +166,17 @@ export async function evaluateAndRevise(
     const revT0 = performance.now();
 
     try {
-      const revisionResult = await generateText({
-        model,
-        messages: [
-          { role: 'system', content: revisionSystem, providerOptions: CACHE_CONTROL } as ModelMessage,
-          { role: 'user', content: revisionPrompt },
-        ],
-        maxOutputTokens: 8192,
-        abortSignal: signal,
-      });
+      const revisionResult = await withRetry(() =>
+        generateText({
+          model,
+          messages: [
+            { role: 'system', content: revisionSystem, providerOptions: CACHE_CONTROL } as ModelMessage,
+            { role: 'user', content: revisionPrompt },
+          ],
+          maxOutputTokens: 8192,
+          abortSignal: signal,
+        }),
+      );
 
       const revMs = (performance.now() - revT0).toFixed(0);
       aiDebugLog('evaluator', `revision complete in ${revMs}ms`, { usage: revisionResult.usage });

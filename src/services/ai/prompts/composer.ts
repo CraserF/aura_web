@@ -116,6 +116,22 @@ export class PromptComposer {
     return this;
   }
 
+  /** Repeat the most critical format rules verbatim at the end of the prompt.
+   * LLMs weight recency heavily — rules buried early get forgotten; rules at
+   * the very end are reliably followed. Call this last, immediately before build(). */
+  addPostRules(): this {
+    this.sections.push(`## ⚑ POST_RULES — FINAL FORMAT CHECKLIST (read this last, follow it exactly)
+
+These rules are repeated here because recency matters. Violating any of them produces a broken slide.
+
+1. **All CSS must live in the \`<style>\` block.** No \`style="…"\` attributes on individual HTML elements — not even for colors, font sizes, or widths. Use CSS classes.
+2. **\`submitFinalSlide\` is the ONLY valid completion signal.** Never stop, truncate, or output a code block without calling \`submitFinalSlide\`. Every generation MUST end with a \`submitFinalSlide\` tool call.
+3. **\`data-background-color\` must be a concrete hex value.** Never set it to a CSS variable like \`var(--bg)\` or a CSS color name — always a literal \`#rrggbb\` hex code.
+4. **No external image URLs.** Do not use \`src="https://…"\` on \`<img>\` elements or \`background-image: url(https://…)\` in CSS. Use Bootstrap Icons, emoji, or inline \`<svg>\` only.
+5. **Output structure is exactly: \`<link>\` (if fonts needed) + \`<style>\` block + \`<section>\` element(s) — nothing else.** No \`<!DOCTYPE>\`, no \`<html>\`, no \`<body>\`, no markdown prose outside the code block.`);
+    return this;
+  }
+
   /** Build the final prompt string */
   build(): string {
     return this.sections.join('\n\n');
@@ -161,6 +177,7 @@ Requirements:
   return composer
     .addTemplateExamples(templateExamplesSection)
     .addQuality()
+    .addPostRules()
     .build();
 }
 
@@ -220,6 +237,55 @@ You are modifying existing slide(s) based on a user request.
 - If the request is to add slides, treat existing slides as immutable unless the user explicitly requested edits to specific existing slides.
 - For add-slide requests, append new slide sections and keep existing \`<style>\` and \`<section>\` elements unchanged.
 - No external image URLs. Use Bootstrap Icons, emoji, or inline SVG.
-- Output the COMPLETE slide(s) in a single code block. NOTHING else.`)
+- Output the COMPLETE slide(s) in a single code block. NOTHING else.
+
+**PREFERRED OUTPUT FORMAT — SEARCH/REPLACE patches:**
+For targeted edits (title changes, color adjustments, text updates, layout tweaks), output ONLY the changed parts using this format:
+
+<<<<<<< FIND
+<exact existing HTML substring to replace>
+=======
+<replacement HTML>
+>>>>>>> REPLACE
+
+Rules for patches:
+- Each FIND block must be a UNIQUE, exact substring of the existing HTML (copy verbatim, no paraphrasing)
+- Use multiple patch blocks for multiple changes
+- FIND blocks must not overlap
+- If the change is too large to patch cleanly (e.g., full layout restructure), output the complete HTML instead (no patch blocks)
+- Do NOT output both patches AND full HTML — pick one format`)
+    .addPostRules()
     .build();
+}
+
+/**
+ * Build the prompt for a single slide within a batch generation queue.
+ * Slide 1 gets the full enhanced prompt.
+ * Slides 2-N get an abbreviated prompt referencing the shared style from slide 1.
+ */
+export function buildBatchSlidePrompt(
+  baseEnhancedPrompt: string,
+  brief: { index: number; title: string; contentGuidance: string; visualGuidance?: string },
+  totalSlides: number,
+  sharedStyleBlock?: string,
+): string {
+  const slideInstruction = `\n\n---\nBATCH SLIDE ${brief.index} of ${totalSlides}\nTitle: ${brief.title}\nContent guidance: ${brief.contentGuidance}${brief.visualGuidance ? `\nVisual guidance: ${brief.visualGuidance}` : ''}\n\nThis is slide ${brief.index} in a ${totalSlides}-slide deck. Generate ONE <section> only.`;
+
+  if (brief.index === 1 || !sharedStyleBlock) {
+    // Full prompt for slide 1
+    return baseEnhancedPrompt + slideInstruction;
+  }
+
+  // Abbreviated prompt for slides 2-N: reference shared style
+  return `You are generating slide ${brief.index} of ${totalSlides} in a batch deck.
+
+SHARED STYLE (from slide 1 — reuse these exact CSS variables and class names):
+${sharedStyleBlock}
+
+Do NOT redefine the CSS variables or @keyframes from above. Output ONLY:
+- A <section> element with data-background-color matching the palette
+- Any NEW CSS classes needed for this slide's unique layout (in a <style> block that EXTENDS the shared style, not replaces it)
+- The section content using the established class names from the shared style
+
+${slideInstruction}`;
 }

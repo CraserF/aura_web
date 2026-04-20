@@ -27,6 +27,20 @@ import type { SlideOutline } from '../../schemas';
 
 export type { RequestIntent, SlideOutline };
 
+export interface SlideBrief {
+  index: number;        // 1-based
+  title: string;
+  contentGuidance: string;  // What this slide should cover
+  visualGuidance?: string;  // Any specific visual requests
+}
+
+export interface SharedStyleContext {
+  palette: string;     // e.g. "dark, bg=#0d0d0d, accent=#6366f1"
+  fonts: string;       // e.g. "Inter (body), Plus Jakarta Sans (display)"
+  layoutStyle: string; // exemplar pack ID e.g. "editorial-infographic"
+  tone: string;        // e.g. "professional, modern, high-contrast"
+}
+
 export interface PlanResult {
   intent: RequestIntent;
   blocked: boolean;
@@ -42,6 +56,10 @@ export interface PlanResult {
   outline?: SlideOutline[];
   /** True if the outline came from the generic fallback (LLM parse failed) */
   outlineFallback?: boolean;
+  /** Individual slide briefs for batch_create intent */
+  slideBriefs?: SlideBrief[];
+  /** Shared style context extracted from slide 1 for batch_create intent */
+  sharedStyle?: SharedStyleContext;
 }
 
 type ExemplarBackedTemplateId = ReturnType<typeof resolveTemplatePlan>['templateId'];
@@ -81,6 +99,30 @@ export async function plan(
   let outline: SlideOutline[] | undefined;
   let outlineFallback: boolean | undefined;
   let enhancedPrompt = prompt;
+
+  // Batch create: decompose into individual slide briefs, build shared style context
+  if (intent === 'batch_create') {
+    const slideBriefs = parseSlideBriefs(prompt);
+    const sharedStyle = buildSharedStyleContext(templatePlan, blueprint);
+    enhancedPrompt = buildEnhancedPrompt(prompt, undefined, 'create', templatePlan.styleManifest);
+
+    const elapsed = (performance.now() - t0).toFixed(0);
+    aiDebugLog('planner', `batch plan complete in ${elapsed}ms`, { slideCount: slideBriefs.length });
+
+    return {
+      intent: 'batch_create',
+      blocked: false,
+      style,
+      selectedTemplate: templatePlan.templateId,
+      exemplarPackId: templatePlan.exemplarPackId,
+      animationLevel,
+      blueprint,
+      styleManifest: templatePlan.styleManifest,
+      enhancedPrompt,
+      slideBriefs,
+      sharedStyle,
+    };
+  }
 
   if (intent === 'create') {
     // For single-slide generation, skip the deck outline — just enhance the prompt
@@ -316,4 +358,60 @@ function buildRecipeGuidance(
     default:
       return `${prefix} template-native premium slide — keep one strong focal area and a disciplined supporting component family.`;
   }
+}
+
+// ── Batch helper functions ──────────────────────────────────
+
+/**
+ * Parse user prompt into individual slide briefs.
+ * Handles formats: "deck: intro, problem, solution" or numbered lists.
+ */
+function parseSlideBriefs(prompt: string): SlideBrief[] {
+  // Try to find content after colon
+  const colonMatch = prompt.match(/:\s*(.+)$/s);
+  const colonContent = colonMatch?.[1];
+  if (colonContent) {
+    const items = colonContent
+      .split(/,\s*|\n\s*\d+\.\s*/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 10); // cap at 10 slides
+
+    if (items.length >= 2) {
+      return items.map((item, i) => ({
+        index: i + 1,
+        title: item.charAt(0).toUpperCase() + item.slice(1),
+        contentGuidance: item,
+      }));
+    }
+  }
+
+  // Try numbered list extraction "1. Intro 2. Problem"
+  const numberedMatches = [...prompt.matchAll(/\d+\.\s+([^\d.]+?)(?=\d+\.|$)/gs)];
+  if (numberedMatches.length >= 2) {
+    return numberedMatches.slice(0, 10).map((m, i) => ({
+      index: i + 1,
+      title: m[1]?.trim() ?? `Slide ${i + 1}`,
+      contentGuidance: m[1]?.trim() ?? '',
+    }));
+  }
+
+  // Fallback: 3-slide generic deck
+  return [
+    { index: 1, title: 'Introduction', contentGuidance: 'Introduction and overview' },
+    { index: 2, title: 'Main Content', contentGuidance: 'Main content and details' },
+    { index: 3, title: 'Conclusion', contentGuidance: 'Conclusion and next steps' },
+  ];
+}
+
+function buildSharedStyleContext(
+  templatePlan: ReturnType<typeof resolveTemplatePlan>,
+  blueprint: TemplateBlueprint,
+): SharedStyleContext {
+  return {
+    palette: `${blueprint.palette.mode}, bg=${blueprint.palette.bg}, accent=${blueprint.palette.accent}`,
+    fonts: 'as specified by designer in slide 1 <style> block',
+    layoutStyle: templatePlan.exemplarPackId,
+    tone: `${blueprint.palette.mode}, ${templatePlan.style}`,
+  };
 }

@@ -72,6 +72,8 @@ export function ChatBar() {
   const appendStreamingContent = useChatStore((s) => s.appendStreamingContent);
   const showAllMessages = useChatStore((s) => s.showAllMessages);
   const applyToAllDocuments = useChatStore((s) => s.applyToAllDocuments);
+  const pendingRetryPrompt = useChatStore((s) => s.pendingRetryPrompt);
+  const setPendingRetryPrompt = useChatStore((s) => s.setPendingRetryPrompt);
 
   const slidesHtml = usePresentationStore((s) => s.slidesHtml);
   const setSlides = usePresentationStore((s) => s.setSlides);
@@ -94,6 +96,17 @@ export function ChatBar() {
 
   const workflowStepsRef = useRef<WorkflowStep[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Pick up retry requests from the chat panel
+  useEffect(() => {
+    if (!pendingRetryPrompt || isGenerating) return;
+    setPendingRetryPrompt(null);
+    setInput(pendingRetryPrompt);
+    // Submit on next tick so input state has settled
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
+  }, [pendingRetryPrompt, isGenerating, setPendingRetryPrompt]);
 
   const updateStepStatus = useCallback(
     (stepId: string, stepStatus: WorkflowStep['status']) => {
@@ -224,6 +237,15 @@ export function ChatBar() {
             case 'draft-complete':
               if (event.html) setSlides(event.html);
               setStatus({ state: 'generating', startedAt: Date.now(), step: 'Running final QA checks…', pct: 72, steps: [...workflowStepsRef.current] });
+              break;
+            case 'batch-slide-complete':
+              // Progressively update canvas as each slide completes
+              setSlides(event.html);
+              setStatus({ state: 'generating', startedAt: Date.now(), step: `Slide ${event.slideIndex} of ${event.totalSlides} complete`, pct: Math.round(20 + (event.slideIndex / event.totalSlides) * 70), steps: [...workflowStepsRef.current] });
+              break;
+            case 'step-update':
+              updateStepStatus(event.stepId, event.status);
+              setStatus({ state: 'generating', startedAt: Date.now(), step: event.label, steps: [...workflowStepsRef.current] });
               break;
             case 'progress':
               setStatus({ state: 'generating', startedAt: Date.now(), step: event.message, pct: event.pct, steps: [...workflowStepsRef.current] });

@@ -1,4 +1,6 @@
-import { Suspense, lazy, useEffect, useState, useCallback } from 'react';
+import { Suspense, lazy, useEffect, useState, useCallback, useRef } from 'react';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import type { ImperativePanelHandle } from 'react-resizable-panels';
 import { Toolbar } from '@/components/Toolbar';
 import { PresentationCanvas } from '@/components/PresentationCanvas';
 import { DocumentCanvas } from '@/components/DocumentCanvas';
@@ -96,6 +98,7 @@ export default function App() {
   const showDocumentPagesView = useSettingsStore((s) => s.showDocumentPagesView);
 
   const [chatPanelOpen, setChatPanelOpen] = useState(false);
+  const chatPanelRef = useRef<ImperativePanelHandle>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
@@ -104,7 +107,7 @@ export default function App() {
   const [editorInitialMarkdown, setEditorInitialMarkdown] = useState('');
   const [editorContentSource, setEditorContentSource] = useState<'original' | 'derived'>('original');
   const [textEditorMode, setTextEditorMode] = useState<'edit' | 'link'>('edit');
-  const [documentAction, setDocumentAction] = useState<'preview-pdf' | 'export-pdf' | 'export-word' | 'save-text' | null>(null);
+  const [documentAction, setDocumentAction] = useState<'preview-pdf' | 'export-pdf' | 'export-word' | 'save-text' | 'export-presentation-pdf' | null>(null);
   const [documentError, setDocumentError] = useState<string | null>(null);
 
   // Restore autosaved project on mount
@@ -157,6 +160,26 @@ export default function App() {
       setChatPanelOpen(true);
     }
   }, [messages.length]);
+
+  // Sync chatPanelOpen state with the resizable panel (desktop only)
+  useEffect(() => {
+    const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+    if (chatPanelOpen && isDesktop) {
+      chatPanelRef.current?.expand();
+    } else {
+      chatPanelRef.current?.collapse();
+    }
+  }, [chatPanelOpen]);
+
+  // Collapse the chat panel when resizing to mobile
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      if (!e.matches) chatPanelRef.current?.collapse();
+    };
+    mq.addEventListener('change', handleChange);
+    return () => mq.removeEventListener('change', handleChange);
+  }, []);
 
   const handleAddDocument = useCallback(
     (type: 'document' | 'presentation', parentId?: string) => {
@@ -349,6 +372,23 @@ export default function App() {
     }
   }, [activeDocument]);
 
+  const handleExportPresentationPdf = useCallback(async () => {
+    if (!activeDocument || activeDocument.type !== 'presentation' || !activeDocument.contentHtml) return;
+
+    setDocumentError(null);
+    setDocumentAction('export-presentation-pdf');
+
+    try {
+      const { exportPresentationPdf } = await import('@/services/export/pdf');
+      await exportPresentationPdf(activeDocument.contentHtml, activeDocument.title);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to export presentation PDF.';
+      setDocumentError(message);
+    } finally {
+      setDocumentAction(null);
+    }
+  }, [activeDocument]);
+
   return (
     <div className="flex h-full flex-col bg-background">
       <Toolbar
@@ -366,13 +406,49 @@ export default function App() {
           onRequestAddDocument={handleAddDocument}
         />
 
-        <main className="flex min-w-0 flex-1 flex-col">
+        <PanelGroup
+          direction="horizontal"
+          autoSaveId="aura-chat-canvas-split"
+          className="min-h-0 flex-1"
+        >
+          <Panel className="flex min-w-0 flex-col">
+            <main className="flex min-h-0 flex-1 flex-col">
           {!activeDocument && (
             <div className="flex flex-1 items-center justify-center">
               <EmptyProjectState onAdd={handleAddDocument} />
             </div>
           )}
-          {showPresentation && <PresentationCanvas />}
+          {showPresentation && (
+            <div className="flex flex-1 flex-col overflow-hidden">
+              {activeDocument?.contentHtml && (
+                <div className="hidden shrink-0 items-center gap-1 border-b border-border px-3 py-1.5 sm:flex">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() => void handleExportPresentationPdf()}
+                        disabled={documentAction === 'export-presentation-pdf'}
+                      >
+                        {documentAction === 'export-presentation-pdf' ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <FileDown className="size-3.5" />
+                        )}
+                        Export PDF
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Export slides as PDF (one page per slide)</TooltipContent>
+                  </Tooltip>
+                  {documentError && showPresentation && (
+                    <p className="ml-2 truncate text-xs text-destructive">{documentError}</p>
+                  )}
+                </div>
+              )}
+              <PresentationCanvas />
+            </div>
+          )}
           {showDocument && (
             <div className="flex flex-1 flex-col overflow-hidden">
               <div className="hidden shrink-0 items-center gap-1 border-b border-border px-3 py-1.5 sm:flex">
@@ -598,13 +674,27 @@ export default function App() {
           )}
           <ChatBar />
         </main>
+        </Panel>
+
+          <PanelResizeHandle className="hidden w-1 cursor-col-resize bg-transparent transition-colors hover:bg-border lg:flex" />
+
+          <Panel
+            ref={chatPanelRef}
+            defaultSize={28}
+            minSize={0}
+            maxSize={50}
+            collapsible
+            onCollapse={() => setChatPanelOpen(false)}
+            onExpand={() => setChatPanelOpen(true)}
+          >
+            <ChatPanel open={chatPanelOpen} onClose={() => setChatPanelOpen(false)} />
+          </Panel>
+        </PanelGroup>
 
         <VersionHistoryPanel
           open={historyPanelOpen}
           onClose={() => setHistoryPanelOpen(false)}
         />
-
-        <ChatPanel open={chatPanelOpen} onClose={() => setChatPanelOpen(false)} />
       </div>
       <ProviderModal />
       <DocumentPdfPreview

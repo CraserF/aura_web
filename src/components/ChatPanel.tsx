@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { RotateCcw, X } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
 import { useProjectStore } from '@/stores/projectStore';
 import type { ChatMessage as ChatMessageType } from '@/types';
-import { ChatMessage } from './ChatMessage';
+import ChatMessage from './ChatMessage';
 import { AIWorkingIndicator } from './AIWorkingIndicator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -29,18 +29,52 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
   const applyToAllDocuments = useChatStore((s) => s.applyToAllDocuments);
   const setShowAllMessages = useChatStore((s) => s.setShowAllMessages);
   const setApplyToAllDocuments = useChatStore((s) => s.setApplyToAllDocuments);
+  const isContextLong = useChatStore((s) => s.isContextLong);
+  const setPendingRetryPrompt = useChatStore((s) => s.setPendingRetryPrompt);
   const activeDocument = useProjectStore((s) => s.activeDocument());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isGenerating = status.state === 'generating';
+
+  // Track whether to show the post-generation action bar
+  const [showRetryBar, setShowRetryBar] = useState(false);
+  const prevGeneratingRef = useRef(false);
 
   const visibleMessages = useMemo(
     () => messages.filter((message) => isMessageVisible(message, activeDocument?.id, showAllMessages)),
     [messages, activeDocument?.id, showAllMessages],
   );
 
+  // Detect transition from generating → idle to show retry bar
+  useEffect(() => {
+    if (prevGeneratingRef.current && !isGenerating) {
+      setShowRetryBar(true);
+    }
+    prevGeneratingRef.current = isGenerating;
+  }, [isGenerating]);
+
+  // Hide retry bar when a new message arrives
+  useEffect(() => {
+    setShowRetryBar(false);
+  }, [messages.length]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [visibleMessages, status]);
+
+  // Find the last user message prompt for retry
+  const lastUserPrompt = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (msg?.role === 'user' && msg.content) return msg.content;
+    }
+    return null;
+  }, [messages]);
+
+  const handleRetry = () => {
+    if (!lastUserPrompt) return;
+    setShowRetryBar(false);
+    setPendingRetryPrompt(lastUserPrompt);
+  };
 
   if (!open) return null;
 
@@ -53,7 +87,7 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
         onClick={onClose}
       />
 
-      <aside className="fixed inset-y-0 right-0 z-40 flex min-h-0 w-[min(24rem,calc(100vw-1rem))] flex-col overflow-hidden border-l border-border bg-background shadow-xl lg:static lg:z-auto lg:w-80 lg:shrink-0 lg:shadow-none xl:w-96">
+      <aside className="fixed inset-y-0 right-0 z-40 flex min-h-0 w-[min(24rem,calc(100vw-1rem))] flex-col overflow-hidden border-l border-border bg-background shadow-xl lg:static lg:inset-auto lg:z-auto lg:h-full lg:w-full lg:shadow-none">
         <div className="border-b border-border px-4 py-2.5">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
@@ -93,6 +127,13 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
           </div>
         </div>
 
+        {isContextLong() && (
+          <div className="px-3 py-1.5 text-xs text-muted-foreground bg-muted/50 border-b border-border flex items-center gap-1.5">
+            <span>⚠</span>
+            <span>Conversation is getting long — older context may be summarised.</span>
+          </div>
+        )}
+
         <ScrollArea className="min-h-0 flex-1">
           {visibleMessages.length === 0 ? (
             <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
@@ -106,6 +147,19 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
                 <ChatMessage key={msg.id} message={msg} />
               ))}
               {isGenerating && <AIWorkingIndicator />}
+              {showRetryBar && !isGenerating && lastUserPrompt && (
+                <div className="flex items-center gap-2 px-4 py-2 sm:px-6 animate-message-in">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={handleRetry}
+                  >
+                    <RotateCcw className="size-3" />
+                    Retry
+                  </Button>
+                </div>
+              )}
               <div ref={messagesEndRef} />
             </div>
           )}

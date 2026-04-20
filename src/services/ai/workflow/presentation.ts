@@ -77,6 +77,40 @@ export async function runPresentationWorkflow(
     // Check for abort between phases
     if (signal?.aborted) throw new DOMException('Workflow aborted', 'AbortError');
 
+    // ── Batch create flow ────────────────────────────────────────
+    if (planResult.intent === 'batch_create' && planResult.slideBriefs && planResult.slideBriefs.length > 0) {
+      onEvent({ type: 'step-start', stepId: 'design', label: `Designing ${planResult.slideBriefs.length} slides…` });
+      onEvent({ type: 'progress', message: `Planning ${planResult.slideBriefs.length} slides…`, pct: 25 });
+
+      const { runBatchQueue } = await import('./batchQueue');
+
+      const batchResult = await runBatchQueue({
+        planResult,
+        model,
+        onEvent,
+        onSlideComplete: (combinedHtml, slideIndex, totalSlides) => {
+          onEvent({ type: 'batch-slide-complete', html: combinedHtml, slideIndex, totalSlides });
+        },
+        signal,
+      });
+
+      onEvent({ type: 'step-done', stepId: 'design', label: `Designing ${planResult.slideBriefs.length} slides…` });
+      onEvent({ type: 'step-skipped', stepId: 'evaluate', label: 'Evaluating quality…' });
+      onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing presentation…' });
+
+      const batchOutput: PresentationOutput = {
+        html: batchResult.html,
+        title: batchResult.title,
+        slideCount: batchResult.slideCount,
+        reviewPassed: true,
+      };
+
+      onEvent({ type: 'step-done', stepId: 'finalize', label: 'Finalizing presentation…' });
+      onEvent({ type: 'complete', result: batchOutput });
+
+      return batchOutput;
+    }
+
     // ── Phase 2: Design (ToolLoopAgent with self-validation) ─────
     const designStepId = isEdit ? 'targeted-design' : 'design';
     const designLabel = isEdit ? 'Editing slides…' : 'Designing your slide…';

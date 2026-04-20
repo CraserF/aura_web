@@ -1,4 +1,5 @@
 import { sanitizeFilename } from '@/lib/sanitizeFilename';
+import { flattenChartsForExport } from './chartExport';
 
 export interface DocumentPdfJob {
   html: string;
@@ -390,6 +391,7 @@ export async function createDocumentPdfBlob(job: DocumentPdfJob): Promise<Blob> 
   const { element, cleanup } = createExportContainer(job.html);
 
   try {
+    await flattenChartsForExport(element);
     const html2pdf = await loadHtml2Pdf();
     const source = element.querySelector('.aura-pdf-page') ?? element;
     const worker = html2pdf().set(getPdfOptions(job.title)).from(source).toPdf();
@@ -404,6 +406,7 @@ export async function createDocumentPdfRasterPreview(job: DocumentPdfJob): Promi
   const { element, cleanup } = createExportContainer(job.html);
 
   try {
+    await flattenChartsForExport(element);
     const html2pdf = await loadHtml2Pdf();
     const source = element.querySelector('.aura-pdf-page') ?? element;
     const worker = html2pdf().set(getPdfOptions(job.title)).from(source).toCanvas().toImg();
@@ -418,6 +421,7 @@ export async function exportDocumentPdf(job: DocumentPdfJob): Promise<void> {
   const { element, cleanup } = createExportContainer(job.html);
 
   try {
+    await flattenChartsForExport(element);
     const html2pdf = await loadHtml2Pdf();
     const source = element.querySelector('.aura-pdf-page') ?? element;
     await html2pdf().set(getPdfOptions(job.title)).from(source).save();
@@ -434,8 +438,22 @@ export function openDocumentPrintPreview(job: DocumentPdfJob): void {
 
   const preparedMarkup = prepareDocumentPdfMarkup(job.html, job.title);
 
+  // Build document markup with mobile viewport meta and responsive overrides
+  const mobileStyles = `
+@media (max-width: 768px) {
+  body { width: 100% !important; }
+  .page { width: 100% !important; padding: 1rem !important; box-sizing: border-box !important; }
+}`;
+
+  const mobileReadyMarkup = preparedMarkup.documentMarkup
+    .replace(
+      '<meta name="viewport" content="width=device-width, initial-scale=1.0" />',
+      '<meta name="viewport" content="width=device-width, initial-scale=1" />',
+    )
+    .replace('</style>', `${mobileStyles}\n</style>`);
+
   printWindow.document.open();
-  printWindow.document.write(`${preparedMarkup.documentMarkup}
+  printWindow.document.write(`${mobileReadyMarkup}
   <script>
     window.addEventListener('load', () => {
       setTimeout(() => {
@@ -446,4 +464,55 @@ export function openDocumentPrintPreview(job: DocumentPdfJob): void {
   </script>
 `);
   printWindow.document.close();
+}
+
+export async function exportPresentationPdf(
+  slidesHtml: string,
+  title: string = 'presentation',
+): Promise<void> {
+  // Parse shared link tags, style block, and individual sections
+  const linkMatches = slidesHtml.match(/<link[^>]*>/gi) ?? [];
+  const styleMatch = slidesHtml.match(/<style[\s\S]*?<\/style>/i)?.[0] ?? '';
+  const sectionRegex = /<section[\s\S]*?<\/section>/gi;
+  const sections: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = sectionRegex.exec(slidesHtml)) !== null) {
+    sections.push(m[0]);
+  }
+
+  if (sections.length === 0) return;
+
+  const container = document.createElement('div');
+  container.style.cssText = 'position:fixed;top:-99999px;left:-99999px;';
+
+  for (const section of sections) {
+    const page = document.createElement('div');
+    page.style.cssText =
+      'width:960px;height:540px;overflow:hidden;page-break-after:always;position:relative;';
+
+    const bgMatch = section.match(/data-background-color=["']([^"']+)["']/);
+    if (bgMatch?.[1]) page.style.backgroundColor = bgMatch[1];
+
+    page.innerHTML = linkMatches.join('') + styleMatch + section;
+    container.appendChild(page);
+  }
+
+  document.body.appendChild(container);
+
+  try {
+    const html2pdf = await loadHtml2Pdf();
+    await html2pdf()
+      .set({
+        margin: 0,
+        filename: `${sanitizeFilename(title)}.pdf`,
+        image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: { scale: 1, useCORS: true, allowTaint: true },
+        jsPDF: { unit: 'px', format: [960, 540], orientation: 'landscape' },
+        pagebreak: { mode: 'css' },
+      })
+      .from(container)
+      .save();
+  } finally {
+    document.body.removeChild(container);
+  }
 }

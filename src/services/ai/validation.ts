@@ -8,6 +8,7 @@ export type RequestIntent =
   | 'modify'
   | 'refine_style'
   | 'add_slides'
+  | 'batch_create'   // explicit multi-slide queue with distinct content per slide
   | 'off_topic'
   | 'blocked';
 
@@ -55,6 +56,12 @@ export function classifyIntent(
     }
   }
 
+  // Batch create detection: explicit multi-slide request with content breakdown
+  if (!hasExistingSlides) {
+    const isBatch = detectBatchIntent(trimmed);
+    if (isBatch) return { intent: 'batch_create' };
+  }
+
   if (hasExistingSlides) {
     if (/\b(style|theme|color|font|background|design|look)\b/i.test(trimmed)) return { intent: 'refine_style' };
     if (/\b(add|append|insert|include|new\s+slide)\b/i.test(trimmed)) return { intent: 'add_slides' };
@@ -62,4 +69,35 @@ export function classifyIntent(
   }
 
   return { intent: 'create' };
+}
+
+/**
+ * Detect whether a prompt is an explicit multi-slide batch request with
+ * distinct content per slide. Conservative — only fires when the user
+ * clearly specifies multiple slides with a content breakdown.
+ */
+function detectBatchIntent(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+
+  // "create X slides: ..." or "make X slides: ..."
+  if (/\b(?:create|make|generate|build)\s+(\d+|a\s+(?:few|couple of)|several|multiple)\s+slides?\b/i.test(prompt)) {
+    // Must also have content breakdown (numbered list, colon-separated topics, or "first slide... second slide...")
+    const hasContentBreakdown =
+      /:\s*[\w\s,]+(?:,\s*[\w\s]+){1,}/.test(prompt) || // "slides: intro, problem, solution"
+      /\b(first|1st|second|2nd|third|3rd)\s+slide\b/i.test(lower) || // "first slide..., second slide..."
+      /\d+\.\s+\w/.test(prompt); // numbered list "1. Intro 2. Problem"
+    if (hasContentBreakdown) return true;
+  }
+
+  // "a deck" or "a presentation" with explicit slide count AND content list
+  if (/\b(deck|presentation)\b/i.test(lower)) {
+    const hasSlideCount =
+      /\b(\d+)[-\s]slide\b/i.test(lower) || /\b(\d+)\s+slides?\b/i.test(lower);
+    const hasContentList = /:\s*[\w\s]+(?:,\s*[\w\s]+){2,}/.test(prompt); // "deck: intro, problem, solution, pricing"
+    if (hasSlideCount && hasContentList) return true;
+    // also "4-slide pitch deck: intro, problem..." pattern
+    if (hasSlideCount && /:\s*\w/.test(prompt)) return true;
+  }
+
+  return false;
 }
