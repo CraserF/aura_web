@@ -1,0 +1,242 @@
+- generic [ref=e2]:
+  - region "Skip to main content":
+    - link "Skip to main content" [ref=e3] [cursor=pointer]:
+      - /url: "#__docusaurus_skipToContent_fallback"
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - text: ⭐️ If you like PptxGenJS, give it a star on
+      - link "GitHub" [ref=e6] [cursor=pointer]:
+        - /url: https://github.com/gitbrent/PptxGenJS
+      - text: "! ⭐️"
+    - button "Close" [ref=e7] [cursor=pointer]:
+      - img [ref=e8]
+  - navigation "Main" [ref=e11]:
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - link "PptGenJS Logo PptxGenJS" [ref=e14] [cursor=pointer]:
+          - /url: /PptxGenJS/
+          - img "PptGenJS Logo" [ref=e16]
+          - generic [ref=e17]: PptxGenJS
+        - link "documentation" [ref=e18] [cursor=pointer]:
+          - /url: /PptxGenJS/docs/introduction/
+          - text: Docs
+        - link "demos" [ref=e19] [cursor=pointer]:
+          - /url: /PptxGenJS/demos/
+          - text: Demo Showcase
+        - link "html-to-pptx" [ref=e20] [cursor=pointer]:
+          - /url: /PptxGenJS/html2pptx/
+          - text: HTML-to-PPTX Feature
+        - link "latest release" [ref=e21] [cursor=pointer]:
+          - /url: https://github.com/gitbrent/PptxGenJS/releases
+          - text: Latest Release
+          - img [ref=e22]
+      - generic [ref=e24]:
+        - link "npm home page" [ref=e25] [cursor=pointer]:
+          - /url: https://www.npmjs.com/package/pptxgenjs
+          - text: npm
+          - img [ref=e26]
+        - link "GitHub repository" [ref=e28] [cursor=pointer]:
+          - /url: https://github.com/gitbrent/PptxGenJS/
+          - text: GitHub
+          - img [ref=e29]
+        - button "Switch between dark and light mode (currently light mode)" [disabled] [ref=e32]:
+          - img [ref=e33]
+  - generic [ref=e37]:
+    - complementary [ref=e38]:
+      - generic [ref=e40]:
+        - navigation "Docs sidebar" [ref=e41]:
+          - list [ref=e42]:
+            - listitem [ref=e43]:
+              - link "Introduction" [ref=e44] [cursor=pointer]:
+                - /url: /PptxGenJS/docs/introduction/
+            - listitem [ref=e45]:
+              - button "Get Started" [expanded] [ref=e47] [cursor=pointer]
+              - list [ref=e48]:
+                - listitem [ref=e49]:
+                  - link "Quick Start Guide" [ref=e50] [cursor=pointer]:
+                    - /url: /PptxGenJS/docs/quick-start/
+                - listitem [ref=e51]:
+                  - link "Installation" [ref=e52] [cursor=pointer]:
+                    - /url: /PptxGenJS/docs/installation/
+                - listitem [ref=e53]:
+                  - link "Universal Compatibility" [ref=e54] [cursor=pointer]:
+                    - /url: /PptxGenJS/docs/compatibility/
+                - listitem [ref=e55]:
+                  - link "Integration by Environment" [ref=e56] [cursor=pointer]:
+                    - /url: /PptxGenJS/docs/integration/
+            - listitem [ref=e57]:
+              - button "Usage" [ref=e59] [cursor=pointer]
+            - listitem [ref=e60]:
+              - button "Features" [ref=e62] [cursor=pointer]
+            - listitem [ref=e63]:
+              - button "API Reference" [ref=e65] [cursor=pointer]
+            - listitem [ref=e66]:
+              - button "Troubleshooting" [ref=e68] [cursor=pointer]
+            - listitem [ref=e69]:
+              - button "Misc" [ref=e71] [cursor=pointer]
+        - button "Collapse sidebar" [ref=e72] [cursor=pointer]:
+          - img [ref=e73]
+    - main [ref=e77]:
+      - generic [ref=e79]:
+        - generic [ref=e81]:
+          - article [ref=e82]:
+            - navigation "Breadcrumbs" [ref=e83]:
+              - list [ref=e84]:
+                - listitem [ref=e85]:
+                  - link "Home page" [ref=e86] [cursor=pointer]:
+                    - /url: /PptxGenJS/
+                    - img [ref=e87]
+                - listitem [ref=e89]:
+                  - generic [ref=e90]: Get Started
+                - listitem [ref=e91]:
+                  - generic [ref=e92]: Quick Start Guide
+            - generic [ref=e93]:
+              - heading "Quick Start Guide" [level=1] [ref=e95]
+              - heading "Create a PowerPoint in 4 easy stepsDirect link to Create a PowerPoint in 4 easy steps" [level=2] [ref=e96]:
+                - text: Create a PowerPoint in 4 easy steps
+                - link "Direct link to Create a PowerPoint in 4 easy steps" [ref=e97] [cursor=pointer]:
+                  - /url: "#create-a-powerpoint-in-4-easy-steps"
+                  - text: "#"
+              - paragraph [ref=e98]: PptxGenJS PowerPoint presentations are created by following 4 basic steps. See examples below by environment.
+              - paragraph [ref=e99]: That's really all there is to it!
+              - heading "Node-Based ApplicationsDirect link to Node-Based Applications" [level=2] [ref=e100]:
+                - text: Node-Based Applications
+                - link "Direct link to Node-Based Applications" [ref=e101] [cursor=pointer]:
+                  - /url: "#node-based-applications"
+                  - text: "#"
+              - generic [ref=e102]:
+                - generic [ref=e103]: HelloWorld.ts
+                - generic [ref=e104]:
+                  - code [ref=e106]:
+                    - generic [ref=e107]: import pptxgen from "pptxgenjs";
+                    - generic [ref=e108]: // 1. Create a Presentation
+                    - generic [ref=e109]: let pres = new pptxgen();
+                    - generic [ref=e110]: // 2. Add a Slide to the presentation
+                    - generic [ref=e111]: let slide = pres.addSlide();
+                    - generic [ref=e112]: // 3. Add 1+ objects (Tables, Shapes, etc.) to the Slide
+                    - generic [ref=e113]: let textboxText = "Hello World from PptxGenJS!";
+                    - generic [ref=e114]: "let textboxOpts = { x: 1, y: 1, color: \"363636\" };"
+                    - generic [ref=e115]: slide.addText(textboxText, textboxOpts);
+                    - generic [ref=e116]: // 4. Save the Presentation
+                    - generic [ref=e117]: "pres.writeFile({ fileName: \"Hello-World.pptx\" });"
+                  - button "Copy code to clipboard" [ref=e119] [cursor=pointer]:
+                    - generic [ref=e120]:
+                      - img [ref=e121]
+                      - img [ref=e123]
+              - heading "TypeScript SupportDirect link to TypeScript Support" [level=3] [ref=e125]:
+                - text: TypeScript Support
+                - link "Direct link to TypeScript Support" [ref=e126] [cursor=pointer]:
+                  - /url: "#typescript-support"
+                  - text: "#"
+              - paragraph [ref=e127]: Modern application developers using ES6 with Angular, React, TypeScript, etc. benefit from full typescript defs.
+              - paragraph [ref=e128]: Learn as you code in a modern development with included TypeScript definitions the documentation comes to you.
+              - paragraph [ref=e129]:
+                - img "TypeScript Support" [ref=e130]
+              - paragraph [ref=e131]: Develop your apps quickly without needing to look up documentation.
+              - paragraph [ref=e132]:
+                - img "TypeScript Support" [ref=e133]
+              - heading "Client Web BrowserDirect link to Client Web Browser" [level=2] [ref=e134]:
+                - text: Client Web Browser
+                - link "Direct link to Client Web Browser" [ref=e135] [cursor=pointer]:
+                  - /url: "#client-web-browser"
+                  - text: "#"
+              - generic [ref=e136]:
+                - generic [ref=e137]: HelloWorld.js
+                - generic [ref=e138]:
+                  - code [ref=e140]:
+                    - generic [ref=e141]: // 1. Create a new Presentation
+                    - generic [ref=e142]: let pres = new PptxGenJS();
+                    - generic [ref=e143]: // 2. Add a Slide
+                    - generic [ref=e144]: let slide = pres.addSlide();
+                    - generic [ref=e145]: // 3. Add one or more objects (Tables, Shapes, Images, Text and Media) to the Slide
+                    - generic [ref=e146]: let textboxText = "Hello World from PptxGenJS!";
+                    - generic [ref=e147]: "let textboxOpts = { x: 1, y: 1, color: \"363636\" };"
+                    - generic [ref=e148]: slide.addText(textboxText, textboxOpts);
+                    - generic [ref=e149]: // 4. Save the Presentation
+                    - generic [ref=e150]: "pres.writeFile({ fileName: \"Hello-World.pptx\" });"
+                  - button "Copy code to clipboard" [ref=e152] [cursor=pointer]:
+                    - generic [ref=e153]:
+                      - img [ref=e154]
+                      - img [ref=e156]
+            - generic [ref=e162]:
+              - text: Last updated on
+              - time [ref=e164]: May 19, 2025
+              - text: by Brent Ely
+          - navigation "Docs pages" [ref=e165]:
+            - link "Previous « Introduction" [ref=e166] [cursor=pointer]:
+              - /url: /PptxGenJS/docs/introduction/
+              - generic [ref=e167]: Previous
+              - generic [ref=e168]: « Introduction
+            - link "Next Installation »" [ref=e169] [cursor=pointer]:
+              - /url: /PptxGenJS/docs/installation/
+              - generic [ref=e170]: Next
+              - generic [ref=e171]: Installation »
+        - list [ref=e174]:
+          - listitem [ref=e175]:
+            - link "Create a PowerPoint in 4 easy steps" [ref=e176] [cursor=pointer]:
+              - /url: "#create-a-powerpoint-in-4-easy-steps"
+          - listitem [ref=e177]:
+            - link "Node-Based Applications" [ref=e178] [cursor=pointer]:
+              - /url: "#node-based-applications"
+            - list [ref=e179]:
+              - listitem [ref=e180]:
+                - link "TypeScript Support" [ref=e181] [cursor=pointer]:
+                  - /url: "#typescript-support"
+          - listitem [ref=e182]:
+            - link "Client Web Browser" [ref=e183] [cursor=pointer]:
+              - /url: "#client-web-browser"
+  - contentinfo [ref=e184]:
+    - generic [ref=e185]:
+      - generic [ref=e186]:
+        - generic [ref=e187]:
+          - generic [ref=e188]: Learn
+          - list [ref=e189]:
+            - listitem [ref=e190]:
+              - link "Quick Start" [ref=e191] [cursor=pointer]:
+                - /url: /PptxGenJS/docs/quick-start/
+            - listitem [ref=e192]:
+              - link "Installation" [ref=e193] [cursor=pointer]:
+                - /url: /PptxGenJS/docs/installation/
+            - listitem [ref=e194]:
+              - link "Demos" [ref=e195] [cursor=pointer]:
+                - /url: /PptxGenJS/demos/
+        - generic [ref=e196]:
+          - generic [ref=e197]: Community
+          - list [ref=e198]:
+            - listitem [ref=e199]:
+              - link "Stack Overflow" [ref=e200] [cursor=pointer]:
+                - /url: https://stackoverflow.com/questions/tagged/pptxgenjs
+                - text: Stack Overflow
+                - img [ref=e201]
+            - listitem [ref=e203]:
+              - link "Reddit" [ref=e204] [cursor=pointer]:
+                - /url: https://www.reddit.com/search/?q=%22pptxgenjs%22
+                - text: Reddit
+                - img [ref=e205]
+        - generic [ref=e207]:
+          - generic [ref=e208]: More
+          - list [ref=e209]:
+            - listitem [ref=e210]:
+              - link "GitHub Project" [ref=e211] [cursor=pointer]:
+                - /url: https://github.com/gitbrent/pptxgenjs
+                - text: GitHub Project
+                - img [ref=e212]
+            - listitem [ref=e214]:
+              - link "Social Media" [ref=e215] [cursor=pointer]:
+                - /url: https://fosstodon.org/@gitbrent
+                - text: Social Media
+                - img [ref=e216]
+        - generic [ref=e218]:
+          - generic [ref=e219]: Legal
+          - list [ref=e220]:
+            - listitem [ref=e221]:
+              - link "Privacy" [ref=e222] [cursor=pointer]:
+                - /url: /PptxGenJS/privacy/
+            - listitem [ref=e223]:
+              - link "License" [ref=e224] [cursor=pointer]:
+                - /url: /PptxGenJS/license/
+      - generic [ref=e225]:
+        - link "PptxGenJS Logo" [ref=e227] [cursor=pointer]:
+          - /url: https://github.com/gitbrent/PptxGenJS
+          - img "PptxGenJS Logo" [ref=e228]
+        - generic [ref=e229]: Copyright © 2025 Brent Ely

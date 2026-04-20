@@ -1,0 +1,71 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: 🚀
+      - paragraph [ref=e7]:
+        - strong [ref=e8]: "New:"
+        - text: Now uses
+        - link "Rspack" [ref=e9] [cursor=pointer]:
+          - /url: https://rspack.dev
+        - text: — much faster results, better tree-shaking, accuracy and reliability !
+      - button "Dismiss announcement" [ref=e10] [cursor=pointer]: ×
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - link "BundlePhobia" [ref=e15] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e16]: BundlePhobia
+        - generic [ref=e17]:
+          - list [ref=e18]:
+            - listitem [ref=e19]:
+              - link "Badges" [ref=e20] [cursor=pointer]:
+                - /url: https://badgen.net/#bundlephobia
+            - listitem [ref=e21]:
+              - link "Sponsor" [ref=e22] [cursor=pointer]:
+                - /url: https://github.com/sponsors/pastelsky
+            - listitem [ref=e23]:
+              - link "Blog" [ref=e24] [cursor=pointer]:
+                - /url: /blog
+            - listitem [ref=e25]:
+              - link "Scan package.json" [ref=e26] [cursor=pointer]:
+                - /url: /scan
+          - link "Github Link" [ref=e27] [cursor=pointer]:
+            - /url: https://github.com/pastelsky/bundlephobia
+            - img "Github Link" [ref=e28]
+      - generic [ref=e34]:
+        - generic [ref=e35]:
+          - combobox "find package" [ref=e37]: pptxgenjs
+          - generic:
+            - heading "pptxgenjs" [level=1]
+        - button [ref=e38] [cursor=pointer]:
+          - img [ref=e39]
+    - generic [ref=e41]:
+      - generic [ref=e43]:
+        - heading "Recent searches" [level=4] [ref=e44]
+        - list
+      - generic [ref=e45]:
+        - generic [ref=e46]:
+          - heading "What does Bundlephobia do?" [level=3] [ref=e47]
+          - paragraph [ref=e48]: JavaScript bloat is more real today than it ever was. Sites continuously get bigger as more (often redundant) libraries are thrown to solve new problems. Until of-course, the big rewrite happens.
+          - paragraph [ref=e49]:
+            - text: Bundlephobia lets you understand the performance cost of
+            - code [ref=e50]: npm install
+            - text: ing a new npm package before it becomes a part of your bundle. Analyze size, compositions and exports
+          - paragraph [ref=e51]:
+            - text: Credits to
+            - link "@thekitze" [ref=e52] [cursor=pointer]:
+              - /url: https://twitter.com/thekitze
+            - text: for the name.
+          - generic [ref=e53]:
+            - text: Hosted on
+            - link [ref=e54] [cursor=pointer]:
+              - /url: https://digitalocean.com
+              - img [ref=e55]
+        - generic [ref=e58]:
+          - img [ref=e59]
+          - text: ️
+          - link "@pastelsky" [ref=e61] [cursor=pointer]:
+            - /url: https://github.com/pastelsky
+          - link "Star on GitHub" [ref=e62] [cursor=pointer]:
+            - /url: https://github.com/pastelsky/bundlephobia
+            - button "Star on GitHub" [ref=e63]
+  - alert [ref=e64]

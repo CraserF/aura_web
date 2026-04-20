@@ -325,7 +325,137 @@ const MemoizedChatMessage = React.memo(ChatMessage);
 | Syncing to cloud | "Syncing your project..." |
 | Loading project | "Loading 'Q2 Sales Report'..." |
 
-## 5) Milestones
+## 5) Generation Workflow Improvements (from Dyad research)
+
+These are targeted improvements to the AI generation pipeline — accuracy, token efficiency, and resilience. They don't change what the user sees dramatically but make generation faster, cheaper, and more reliable.
+
+### 5.1 Critical Rule Repetition at Prompt End
+
+**What Dyad does:** The most important output format rules are repeated verbatim at the end of the system prompt, immediately before the conversation starts. LLMs weight recency heavily — a rule buried in section 3 of a long prompt is forgotten; a rule at the very end is followed.
+
+**For Aura:** Append a `POST_RULES` block to `composer.ts` after all knowledge docs. The block repeats:
+- No inline styles — all CSS in the `<style>` block
+- Exact `data-aura-chart-spec` format for charts
+- `submitFinalSlide` is the only valid completion signal
+
+**Effort:** S. **Impact:** High — reduces format drift on long prompts.
+
+### 5.2 SEARCH/REPLACE Diff Format for Edit Flow
+
+**What Dyad does:** Instead of regenerating a full file on edits, the model outputs surgical SEARCH/REPLACE blocks:
+```
+<<<<<<< FIND
+<div class="hero-title">Old Title</div>
+=======
+<div class="hero-title">New Title</div>
+>>>>>>> REPLACE
+```
+
+A `dryRunPatch()` pre-validates all FIND blocks match before applying any changes.
+
+**For Aura's edit flow:** Currently the designer regenerates the entire slide HTML on every edit. A targeted patch format would:
+- Reduce output tokens by 60-80% for typical edits ("change the title", "make the background darker")
+- Improve accuracy — the model only touches what changed
+- Produce a clean diff for version history
+
+**Slide patch format:**
+```typescript
+interface SlidePatch {
+  patches: Array<{
+    find: string;    // Exact HTML substring to find
+    replace: string; // Replacement HTML
+  }>;
+}
+```
+
+Pre-flight validation: if any `find` string isn't present in the current slide HTML, reject all patches and fall back to full regeneration.
+
+**Effort:** L. **Impact:** High — meaningful token savings on every edit and more precise changes.
+
+### 5.3 Pre-Flight QA Gate on submitFinalSlide
+
+**What Dyad does:** Before executing file writes, `dryRunSearchReplace()` validates all SEARCH blocks exist. Failure aborts execution — nothing partial is applied.
+
+**For Aura:** The `submitFinalSlide` tool currently accepts whatever HTML the designer submits. Instead, run the QA validator programmatically inside `execute()` before accepting. If it fails, return the errors as tool output so the model self-corrects:
+
+```typescript
+// In qa-validator.ts tool execute():
+const errors = validateSlideHtml(input.html);
+if (errors.length > 0) {
+  return {
+    accepted: false,
+    errors,
+    guidance: 'Fix the above issues and call submitFinalSlide again.'
+  };
+}
+// Only accept if clean
+acceptSlide(input.html);
+return { accepted: true };
+```
+
+This is already the intent of the validate→submit loop but making it a hard gate (reject on submit, not just suggest fixes) removes the failure mode where the designer submits known-broken HTML.
+
+**Effort:** M. **Impact:** High — eliminates a class of QA bypass bugs.
+
+### 5.4 FallbackModel Wrapper with Retry-Replay
+
+**What Dyad does:** A `FallbackModel` wrapper implements `LanguageModelV1` and maintains a list of models. On retryable errors (429, 500-504, "overloaded"), it switches to the next model. If the stream dies mid-generation, it replays already-completed tool exchanges before resuming.
+
+**For Aura:** Wrap `createModel()` output in a fallback chain. If the primary model (e.g. claude-sonnet) is overloaded, transparently retry with a fallback. Retry-replay is especially valuable — if the designer stream dies mid validate→fix loop, the completed `validateSlideHtml` calls don't need to re-run.
+
+```typescript
+// Retryable status codes
+const RETRYABLE = [408, 429, 500, 501, 502, 503, 504];
+```
+
+**Effort:** M. **Impact:** Medium — improves resilience, reduces "generation failed" UX.
+
+### 5.5 Token Estimation + Context Warning
+
+**What Dyad does:** `estimateTokens(text) = Math.ceil(text.length / 4)`. When the conversation exceeds 80% of the context window, it runs a compaction pass: LLM summarises the history into a structured block, future turns only load post-compaction messages.
+
+**For Aura:** Full compaction is overkill for single-slide generation. The practical adoptions are:
+
+1. **Token estimation in `chatStore`**: Track approximate token usage for the running conversation. Surface a "Your conversation is getting long — older context may be dropped" indicator when approaching the limit.
+
+2. **Selective history inclusion**: When building the message array for a new generation, don't blindly include all chat history. Include: the last N user/assistant turns + any `existingSlidesHtml` context. Drop older turns that don't contribute to the current slide.
+
+**Effort:** M. **Impact:** Medium — prevents silent context truncation surprises.
+
+### 5.6 Planner Questionnaire (Surface Planning Output)
+
+**What Dyad does:** A `planning_questionnaire` tool emits 1-3 structured questions (radio, checkbox, text) before committing to a plan. Rule: never more than 3 questions at a time, never a wall of questions. After the user answers, the plan is executed immediately — no "shall I proceed?" turn.
+
+**For Aura:** The planner currently classifies intent silently and passes a brief to the designer. For ambiguous requests, surface 1-2 quick clarifying options as structured chat UI elements before generating:
+
+```
+User: "Create a slide about our roadmap"
+
+Aura: Before I start, quick question:
+  ○ Timeline / milestones layout
+  ○ High-level themes / pillars layout
+  ○ Mix of both
+                              [Generate →]
+```
+
+The planner emits these options as structured output when `confidence < threshold`. The designer receives the user's answer as additional brief context.
+
+**Prompt rule to add:** "After the user responds to a clarifying question, immediately begin generating — do not describe what you're about to do."
+
+**Effort:** L. **Impact:** Medium — better first-time accuracy, fewer regeneration cycles.
+
+### 5.7 cleanMessage() Defensive Utility
+
+**What Dyad does:** `cleanMessage()` strips three API edge cases that cause hard errors:
+1. Orphaned reasoning parts (reasoning content with no following output — causes Anthropic errors when `thinking` mode is enabled)
+2. Stale `itemId` in OpenAI provider metadata
+3. Tool-call input that is an empty string instead of an object (LiteLLM compatibility)
+
+**For Aura:** Port cases 1 and 3. Case 1 is immediately relevant if `thinking` mode is added to Anthropic calls (which gives better quality on complex slides). Case 3 matters for OpenAI-compatible providers.
+
+**Effort:** S. **Impact:** Low now, high if thinking mode is enabled.
+
+## 6) Milestones
 
 ### M1 — Critical Fixes + Quick Wins (no dependencies)
 **Parallel-safe: yes — independent of all other features**
@@ -364,15 +494,29 @@ const MemoizedChatMessage = React.memo(ChatMessage);
 | M3.5 | Presentation PDF export (slide-by-slide to landscape pages) | M |
 | M3.6 | Mobile print preview improvements | M |
 
+### M4 — Generation Workflow Improvements
+**Parallel-safe: yes — changes are isolated to prompt builders and workflow agents**
+
+| Task | Description | Est. |
+|------|-------------|------|
+| M4.1 | Add POST_RULES block at end of designer + revision prompts (critical rules repeated last) | S |
+| M4.2 | Implement SEARCH/REPLACE diff format for edit flow (replace full-slide re-generation) | L |
+| M4.3 | Pre-flight QA gate on `submitFinalSlide` (return errors as tool output, not exceptions) | M |
+| M4.4 | Implement `FallbackModel` wrapper with retry-replay on quota/rate-limit errors | M |
+| M4.5 | Token estimation + context-size warning (`text.length / 4` heuristic, surfaced to user) | S |
+| M4.6 | Planner questionnaire (1-3 structured questions before generation when ambiguous) | M |
+| M4.7 | `cleanMessage()` defensive utility for thinking-mode content stripping | S |
+| M4.8 | Integration tests: diff patching round-trip, QA gate rejection flow, fallback retry | M |
+
 **Size estimates: S = < 1 day, M = 1-3 days, L = 3-5 days**
 
-## 6) Validation Requirements
+## 7) Validation Requirements
 
 - **Multi-slide queue**: Test intent detection accuracy (single vs batch prompts). Test style consistency across queued slides (same palette, fonts). Test cancel mid-queue (completed slides preserved). Test generation lock (reject concurrent requests).
 - **PDF export**: Chart appears in exported PDF (not blank). Multi-page documents paginate correctly. Presentation PDF has one slide per page. Font rendering quality check (visual comparison).
 - **UI polish**: Panel resize persists across sessions. Animations don't cause layout shifts. Memoization reduces re-render count (measure with React DevTools profiler). Destructive action requires confirmation.
 
-## 7) Risks & Mitigations
+## 8) Risks & Mitigations
 
 | Risk | Mitigation |
 |------|------------|
@@ -382,7 +526,7 @@ const MemoizedChatMessage = React.memo(ChatMessage);
 | react-resizable-panels bundle size | ~8 KB gzipped — negligible. |
 | OKLCH browser support | Supported in all modern browsers (Chrome 111+, Firefox 113+, Safari 15.4+). Aura already targets modern browsers only. |
 
-## 8) Open Questions
+## 9) Open Questions
 
 1. **Batch slide count limit**: Should there be a max number of slides in a single batch? Recommendation: cap at 10 slides per batch to prevent runaway token usage and long wait times.
 2. **Parallel vs sequential generation**: Could slides 2-N be generated in parallel (multiple LLM calls)? Sequential is safer for token budgeting and progress UX. Parallel saves time but complicates error handling and ordering. Start sequential, evaluate parallel later.

@@ -193,7 +193,8 @@ Each feature has a standalone implementation plan with milestones, validation re
 - [Account Creation, Cloud, and Collaboration Plan](docs/roadmap/account-creation-cloud-plan.md) — Supabase BaaS, portfolio, versioning
 - [API Platform & Visual Automation Plan](docs/roadmap/api-platform-plan.md) — Hono API server, automation builder
 - [MCP Integration Plan](docs/roadmap/mcp-integration-plan.md) — MCP server for external LLM clients
-- [UX Improvements Plan](docs/roadmap/ux-improvements-plan.md) — multi-slide queue, PDF fixes, UI polish
+- [UX Improvements Plan](docs/roadmap/ux-improvements-plan.md) — multi-slide queue, PDF fixes, UI polish, generation workflow accuracy
+- [PowerPoint Export Plan](docs/roadmap/pptx-export-plan.md) — PptxGenJS client-side PPTX generation, DOM extraction layer
 
 ### Dependency Graph
 
