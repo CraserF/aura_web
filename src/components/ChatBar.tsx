@@ -14,6 +14,8 @@ import { readFileAsAttachment, buildAttachmentContext } from '@/lib/fileAttachme
 import { detectWorkflowType } from '@/lib/workflowType';
 import { cn } from '@/lib/utils';
 import { extractChartSpecsFromHtml } from '@/services/charts';
+import { createDefaultSheet, replaceSheetData } from '@/services/spreadsheet/workbook';
+import { canCreateSpreadsheetFromPrompt, planSpreadsheetStarter } from '@/services/spreadsheet/starter';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,6 +57,18 @@ function isMessageInScope(
 ): boolean {
   if (showAllMessages || !activeDocumentId) return true;
   return message.scope === 'project' || !message.documentId || message.documentId === activeDocumentId;
+}
+
+function isDefaultSpreadsheetSheet(document: ProjectDocument | null): boolean {
+  const sheet = document?.workbook?.sheets[document.workbook.activeSheetIndex];
+  if (!sheet) return false;
+
+  return sheet.name === 'Sheet 1'
+    && sheet.schema.length === 3
+    && sheet.schema.map((column) => column.name).join(',') === 'A,B,C'
+    && sheet.formulas.length === 0
+    && !sheet.sortState
+    && !sheet.filterState;
 }
 
 export function ChatBar() {
@@ -245,17 +259,113 @@ export function ChatBar() {
     const isEdit = !!activeDocument?.contentHtml;
 
     if (workflowType === 'spreadsheet') {
-      addMessage({
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: 'Spreadsheet mode is active. Use the sheet toolbar to import CSV/JSON/XLSX, then edit cells directly in the grid. Prompt-driven spreadsheet operations are planned for the next phase.',
-        timestamp: Date.now(),
-        documentId: scopedDocumentId,
-        scope: messageScope,
-      });
-      setStatus({ state: 'idle' });
+      if (!canCreateSpreadsheetFromPrompt(promptWithContext)) {
+        addMessage({
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: 'Spreadsheet prompts currently support creating starter sheets from scratch. Try “create a budget tracker”, “make a sales table with sample data”, or “design a table with columns name, amount, status”.',
+          timestamp: Date.now(),
+          documentId: scopedDocumentId,
+          scope: messageScope,
+        });
+        setStatus({ state: 'idle' });
+        setStreamingContent('');
+        return;
+      }
+
+      setStatus({ state: 'generating', startedAt: Date.now(), step: 'Building spreadsheet…', pct: 20 });
       setStreamingContent('');
-      return;
+
+      try {
+        const plan = planSpreadsheetStarter(promptWithContext);
+
+        let targetDocument = activeDocument?.type === 'spreadsheet' ? activeDocument : null;
+
+        if (!targetDocument) {
+          const newSheet = createDefaultSheet(plan.sheetName);
+          targetDocument = {
+            id: crypto.randomUUID(),
+            title: plan.workbookTitle,
+            type: 'spreadsheet',
+            contentHtml: '',
+            themeCss: '',
+            slideCount: 0,
+            chartSpecs: {},
+            workbook: {
+              sheets: [newSheet],
+              activeSheetIndex: 0,
+            },
+            order: project.documents.length,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          };
+          addDocument(targetDocument);
+        }
+
+        const workbook = targetDocument.workbook;
+        if (!workbook) {
+          throw new Error('Spreadsheet document is missing workbook metadata.');
+        }
+
+        const shouldReuseActiveSheet = isDefaultSpreadsheetSheet(targetDocument);
+        const activeSheetIndex = workbook.activeSheetIndex;
+        const targetSheet = shouldReuseActiveSheet
+          ? workbook.sheets[activeSheetIndex]
+          : createDefaultSheet(plan.sheetName);
+
+        if (!targetSheet) {
+          throw new Error('Spreadsheet sheet is unavailable.');
+        }
+
+        const appliedSchema = await replaceSheetData(targetSheet, plan.schema, plan.rows);
+        const nextSheet = {
+          ...targetSheet,
+          name: plan.sheetName,
+          schema: appliedSchema,
+        };
+
+        const nextSheets = shouldReuseActiveSheet
+          ? workbook.sheets.map((sheet, index) => index === activeSheetIndex ? nextSheet : sheet)
+          : [...workbook.sheets, nextSheet];
+
+        const nextWorkbook = {
+          ...workbook,
+          sheets: nextSheets,
+          activeSheetIndex: shouldReuseActiveSheet ? activeSheetIndex : nextSheets.length - 1,
+        };
+
+        const shouldRenameDocument = !activeDocument || activeDocument.title === 'New Spreadsheet';
+        updateDocument(targetDocument.id, {
+          title: shouldRenameDocument ? plan.workbookTitle : targetDocument.title,
+          workbook: nextWorkbook,
+        });
+
+        const spreadsheetSummary = plan.chartHint
+          ? `${plan.summary} ${plan.chartHint}`
+          : plan.summary;
+
+        addMessage({
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: spreadsheetSummary,
+          timestamp: Date.now(),
+          documentId: targetDocument.id,
+          scope: messageScope,
+        });
+
+        const updatedProject = useProjectStore.getState().project;
+        commitVersion(updatedProject, `Created spreadsheet starter: ${prompt.slice(0, 60)}`).catch((e) => console.warn('[VersionHistory] commit failed:', e));
+
+        setStatus({ state: 'idle' });
+        setStreamingContent('');
+        return;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Spreadsheet generation failed';
+        setStatus({ state: 'error', message });
+        setStreamingContent('');
+        addMessage({ id: crypto.randomUUID(), role: 'assistant', content: `Error: ${message}`, timestamp: Date.now(), documentId: scopedDocumentId, scope: messageScope });
+        return;
+      }
     }
 
     if (workflowType === 'presentation') {
