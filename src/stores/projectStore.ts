@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { ProjectData, ProjectDocument } from '@/types/project';
 import type { ChatMessage } from '@/types';
+import { createInitialMemoryTree } from '@/services/memory';
 
 function newProject(): ProjectData {
   return {
@@ -11,6 +12,7 @@ function newProject(): ProjectData {
     documents: [],
     activeDocumentId: null,
     chatHistory: [],
+    memoryTree: createInitialMemoryTree(),
     sections: { drafts: [], main: [], suggestions: [], issues: [] },
     createdAt: Date.now(),
     updatedAt: Date.now(),

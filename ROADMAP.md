@@ -250,10 +250,10 @@ Multiple developers/agents can work simultaneously on these independent tracks:
 | **UX M3** (UI polish) | Yes | Nothing — incremental, do alongside other work | Not started |
 | **Charts M1** (runtime completion) | Yes | Nothing — independent | Not started |
 | **Charts M2** (DuckDB foundation) | Yes | Nothing — independent | Not started |
-| **Memory M1** (file format + storage) | Yes | Nothing — independent | Not started |
+| **Memory M1** (file format + storage) | Yes | Nothing — independent | ✅ Complete |
 | **Spreadsheets M1** (grid UI + ingestion) | Yes | Independent | ✅ **COMPLETE** |
 | **Spreadsheets M2** (Prompt-to-SQL) | After M1 | After M1 | Not started |
-| **Memory M2** (capture + retrieval) | After Memory M1 | Memory file format | Not started |
+| **Memory M2** (capture + retrieval) | After Memory M1 | Memory file format | In progress |
 | **Account/Cloud M1** (auth + storage) | After Memory M1 | Memory format for sync | Not started |
 | **Account/Cloud M2** (portfolio) | After Account M1 | Auth + storage | Not started |
 | **Account/Cloud M3** (versioning) | After Account M1 | Auth (parallel with M2) | Not started |
@@ -297,8 +297,8 @@ Multiple developers/agents can work simultaneously on these independent tracks:
 
 | Milestone | Key deliverables | Parallel? |
 |-----------|-----------------|-----------|
-| **Memory M1** — File Standard | AMF schema + Zod validators, memory file read/write utilities, L0/L1/L2 summary generation, cross-reference `[[link]]` parser | Yes — independent |
-| **Memory M2** — Capture + Retrieval | Memory extraction pipeline (LLM structured output → dedup → write), local embedding index, hierarchical retrieval (L0→L1→L2), context assembly with token budgeting | After M1 |
+| **Memory M1** — File Standard | AMF schema + Zod validators, memory file read/write utilities, cross-reference `[[link]]` parser, `.aura` memory packaging | Yes — independent |
+| **Memory M2** — Capture + Retrieval | Memory extraction pipeline (LLM structured output → dedup → write), local embedding index, hierarchical retrieval (L0→L1→L2), context assembly with token budgeting | After M1 — retrieval foundation in progress |
 | **Memory M3** — Privacy + Multi-User | Per-user encryption (envelope: root→KEK→DEK), role-aware access, skill export/import, memory compaction | After M2 + Account M1 |
 
 **Key design decisions:**

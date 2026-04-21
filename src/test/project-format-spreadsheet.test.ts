@@ -53,11 +53,34 @@ const zipFiles: Record<string, { async: (type: string) => Promise<unknown> }> = 
   'documents/doc-1.sheet-1.parquet': {
     async: async () => new Uint8Array([1, 2, 3]),
   },
+  'memory/context/mem_ctx0001a.md': {
+    async: async () => `---
+memoryId: "mem_ctx0001a"
+type: context
+scope: global
+sensitivity: public
+owner: "user@example.com"
+sourceRefs: []
+updateStrategy: merge
+createdAt: "2026-04-21T10:00:00Z"
+updatedAt: "2026-04-21T10:00:00Z"
+version: 1
+tags: ["finance"]
+---
+
+## Summary
+Spreadsheet memory about finance workbook conventions.
+
+## Details
+Preserve sheet naming and import parquet artifacts when loading projects.
+`,
+  },
 };
 
 const zipMock = {
   files: {
     'documents/doc-1.meta.json': {},
+    'memory/context/mem_ctx0001a.md': {},
   },
   file(path: string) {
     return zipFiles[path];
@@ -108,5 +131,7 @@ describe('projectFormat spreadsheet persistence', () => {
     expect(project.documents).toHaveLength(1);
     expect(project.documents[0]?.type).toBe('spreadsheet');
     expect(importSheetParquetMock).toHaveBeenCalledWith('sheet_table_1', expect.any(Uint8Array));
+    expect(project.memoryTree).toBeDefined();
+    expect(project.memoryTree?.subdirs.find((dir) => dir.path === 'context')?.files).toHaveLength(1);
   });
 });

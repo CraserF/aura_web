@@ -16,6 +16,7 @@ import type { ProjectData, ProjectDocument, ProjectManifest } from '@/types/proj
 import type { ChatMessage } from '@/types';
 import { sanitizeFilename } from '@/lib/sanitizeFilename';
 import { extractChartSpecsFromHtml } from '@/services/charts';
+import { exportMemoryTree, hasArchivedMemory, importMemoryTree } from '@/services/memory';
 import { exportSheetParquet, importSheetParquet } from '@/services/spreadsheet/workbook';
 
 const FORMAT_VERSION = '2.1';
@@ -39,6 +40,12 @@ export async function downloadProjectFile(project: ProjectData): Promise<void> {
 
   zip.file('manifest.json', JSON.stringify(manifest, null, 2));
   zip.file('chat-history.json', JSON.stringify(project.chatHistory, null, 2));
+
+  if (project.memoryTree) {
+    for (const entry of exportMemoryTree(project.memoryTree)) {
+      zip.file(entry.path, entry.content);
+    }
+  }
 
   const docsFolder = zip.folder('documents')!;
   for (const doc of project.documents) {
@@ -147,6 +154,19 @@ export async function openProjectFile(file: File): Promise<ProjectData> {
       ? manifest.activeDocumentId
       : (documents[0]?.id ?? null);
 
+  const memoryPaths = Object.keys(zip.files).filter(
+    (filePath) => filePath.startsWith('memory/') && filePath.endsWith('.md'),
+  );
+  const memoryEntries = await Promise.all(
+    memoryPaths.map(async (path) => ({
+      path,
+      content: ((await zip.file(path)?.async('string')) as string | undefined) ?? '',
+    })),
+  );
+  const memoryTree = hasArchivedMemory(memoryEntries)
+    ? importMemoryTree(memoryEntries.filter((entry) => entry.content))
+    : undefined;
+
   return {
     id: manifest.id,
     title: manifest.title,
@@ -155,6 +175,7 @@ export async function openProjectFile(file: File): Promise<ProjectData> {
     documents,
     activeDocumentId: restoredActiveDocumentId,
     chatHistory,
+    memoryTree,
     sections: { drafts: [], main: [], suggestions: [], issues: [] },
     createdAt: manifest.createdAt,
     updatedAt: manifest.updatedAt,

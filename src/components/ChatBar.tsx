@@ -6,6 +6,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { WorkflowEvent } from '@/services/ai/workflow';
 import type { AIMessage } from '@/services/ai/types';
+import type { LLMConfig } from '@/services/ai/workflow/types';
 import type { ChatMessage as ChatMessageType, FileAttachment, WorkflowStep } from '@/types';
 import type { ProjectDocument } from '@/types/project';
 import { commitVersion } from '@/services/storage/versionHistory';
@@ -86,6 +87,7 @@ export function ChatBar() {
   const activeDocument = useProjectStore((s) => s.activeDocument());
   const addDocument = useProjectStore((s) => s.addDocument);
   const updateDocument = useProjectStore((s) => s.updateDocument);
+  const setProject = useProjectStore((s) => s.setProject);
 
   const providerId = useSettingsStore((s) => s.providerId);
   const getActiveProvider = useSettingsStore((s) => s.getActiveProvider);
@@ -129,6 +131,45 @@ export function ChatBar() {
     },
     [],
   );
+
+  const queueMemoryExtraction = useCallback(async (
+    llmConfig: LLMConfig,
+    conversation: AIMessage[],
+    artifactSummary: string,
+    sourceRefs: string[],
+  ) => {
+    try {
+      const { createInitialMemoryTree, extractMemoriesFromConversation, persistMemoryCandidates } = await import('@/services/memory');
+      const candidates = await extractMemoriesFromConversation({
+        llmConfig,
+        conversation,
+        projectId: project.id,
+        artifactSummary,
+      });
+
+      if (candidates.length === 0) {
+        return;
+      }
+
+      const currentProject = useProjectStore.getState().project;
+      const nextMemoryTree = currentProject.memoryTree
+        ? structuredClone(currentProject.memoryTree)
+        : createInitialMemoryTree();
+
+      persistMemoryCandidates(nextMemoryTree, candidates, {
+        owner: 'local-user',
+        sourceRefs,
+      });
+
+      setProject({
+        ...currentProject,
+        memoryTree: nextMemoryTree,
+        updatedAt: Date.now(),
+      });
+    } catch (error) {
+      console.warn('[Memory] post-generation extraction failed:', error);
+    }
+  }, [project.id, setProject]);
 
   const handleSubmit = useCallback(async () => {
     // Consume any pending auto-submit prompt (set by clarifying question selection)
@@ -321,6 +362,23 @@ export function ChatBar() {
           signal: abortController.signal,
         });
 
+        const llmConfig: LLMConfig = {
+          providerEntry,
+          apiKey: config.apiKey,
+          baseUrl: config.baseUrl ?? '',
+          model: config.model,
+        };
+
+        const memoryConversation: AIMessage[] = [
+          ...chatHistory,
+          { role: 'user', content: promptWithContext },
+        ];
+
+        let memorySourceRefs = [`project:${project.id}`];
+        let memoryArtifactSummary = result.title
+          ? `Generated presentation \"${result.title}\" with ${result.slideCount} slides.`
+          : `Generated presentation with ${result.slideCount} slides.`;
+
         if (result.html) {
           // HTML is already sanitized by runPresentationWorkflow
           if (activeDocument?.type === 'presentation') {
@@ -332,6 +390,7 @@ export function ChatBar() {
               slideCount: result.slideCount,
               chartSpecs,
             });
+            memorySourceRefs = [...memorySourceRefs, `document:${activeDocument.id}`];
           } else {
             // Create a new presentation document
             const chartSpecs = extractChartSpecsFromHtml(result.html);
@@ -348,10 +407,14 @@ export function ChatBar() {
               updatedAt: Date.now(),
             };
             addDocument(newDoc);
+            memorySourceRefs = [...memorySourceRefs, `document:${newDoc.id}`];
           }
 
           if (result.title) setTitle(result.title);
           setSlides(result.html);
+          memoryArtifactSummary = result.title
+            ? `Generated presentation \"${result.title}\" with ${result.slideCount} slides and ${extractChartSpecsFromHtml(result.html).length} charts.`
+            : memoryArtifactSummary;
         }
 
         const reviewNote = result.reviewPassed ? '' : ' (QA flagged issues)';
@@ -373,6 +436,7 @@ export function ChatBar() {
         // Read latest state after addDocument/updateDocument mutation (getState avoids stale closure)
         const updatedProject = useProjectStore.getState().project;
         commitVersion(updatedProject, commitMsg).catch((e) => console.warn('[VersionHistory] commit failed:', e));
+        void queueMemoryExtraction(llmConfig, memoryConversation, memoryArtifactSummary, memorySourceRefs);
 
         setStatus({ state: 'idle' });
         setStreamingContent('');
@@ -463,6 +527,23 @@ export function ChatBar() {
           signal: abortController.signal,
         });
 
+        const llmConfig: LLMConfig = {
+          providerEntry,
+          apiKey: config.apiKey,
+          baseUrl: config.baseUrl ?? '',
+          model: config.model,
+        };
+
+        const memoryConversation: AIMessage[] = [
+          ...chatHistory,
+          { role: 'user', content: promptWithContext },
+        ];
+
+        let memorySourceRefs = [`project:${project.id}`];
+        let memoryArtifactSummary = result.title
+          ? `Generated document \"${result.title}\".`
+          : 'Generated document.';
+
         if (result.html) {
           if (activeDocument?.type === 'document') {
             const chartSpecs = extractChartSpecsFromHtml(result.html);
@@ -472,6 +553,7 @@ export function ChatBar() {
               title: result.title || activeDocument.title,
               chartSpecs,
             });
+            memorySourceRefs = [...memorySourceRefs, `document:${activeDocument.id}`];
           } else {
             const chartSpecs = extractChartSpecsFromHtml(result.html);
             const newDoc: ProjectDocument = {
@@ -488,7 +570,12 @@ export function ChatBar() {
               updatedAt: Date.now(),
             };
             addDocument(newDoc);
+            memorySourceRefs = [...memorySourceRefs, `document:${newDoc.id}`];
           }
+
+          memoryArtifactSummary = result.title
+            ? `Generated document \"${result.title}\" with ${result.markdown.length} markdown characters.`
+            : `Generated document with ${result.markdown.length} markdown characters.`;
         }
 
         addMessage({
@@ -506,6 +593,7 @@ export function ChatBar() {
         // Read latest state after addDocument/updateDocument mutation (getState avoids stale closure)
         const updatedProject = useProjectStore.getState().project;
         commitVersion(updatedProject, commitMsg).catch((e) => console.warn('[VersionHistory] commit failed:', e));
+        void queueMemoryExtraction(llmConfig, memoryConversation, memoryArtifactSummary, memorySourceRefs);
 
         setStatus({ state: 'idle' });
         setStreamingContent('');
@@ -527,7 +615,7 @@ export function ChatBar() {
     slidesHtml, setStatus, setStreamingContent, appendStreamingContent,
     providerId, getActiveProvider, setSlides, setTitle, updateStepStatus,
     activeDocument, addDocument, updateDocument, project, showAllMessages, applyToAllDocuments,
-    documentStylePreset,
+    documentStylePreset, queueMemoryExtraction,
   ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

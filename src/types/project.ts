@@ -4,6 +4,7 @@
 
 import type { ChatMessage } from './index';
 import type { ChartSpec } from '@/services/charts';
+import type { MemoryDirectory } from '@/services/memory';
 
 /** Document type within a project */
 export type DocumentType = 'document' | 'presentation' | 'spreadsheet';
@@ -101,6 +102,7 @@ export interface ProjectData {
   documents: ProjectDocument[];
   activeDocumentId: string | null;
   chatHistory: ChatMessage[];
+  memoryTree?: MemoryDirectory;
   sections: ProjectSections;
   createdAt: number;
   updatedAt: number;
