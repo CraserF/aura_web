@@ -9,6 +9,7 @@ import { ChatPanel } from '@/components/ChatPanel';
 import { ProviderModal } from '@/components/ProviderModal';
 import { ProjectSidebar } from '@/components/ProjectSidebar';
 import { VersionHistoryPanel } from '@/components/VersionHistoryPanel';
+import { SpreadsheetCanvas } from '@/components/SpreadsheetCanvas';
 import { useProjectStore } from '@/stores/projectStore';
 import { usePresentationStore } from '@/stores/presentationStore';
 import { useChatStore } from '@/stores/chatStore';
@@ -17,7 +18,7 @@ import {
   autosaveProject,
   getProjectAutosave,
 } from '@/services/storage/projectAutosave';
-import type { ProjectDocument } from '@/types/project';
+import type { ProjectDocument, WorkbookMeta } from '@/types/project';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
@@ -30,6 +31,24 @@ import { DocumentPdfPreview } from '@/components/DocumentPdfPreview';
 import { sanitizeFilename } from '@/lib/sanitizeFilename';
 import { extractChartSpecsFromHtml } from '@/services/charts';
 import { BookOpen, ChevronDown, Eye, FileDown, Link2, Loader2, PenSquare, Printer } from 'lucide-react';
+
+function createEmptyWorkbook(): WorkbookMeta {
+  return {
+    sheets: [
+      {
+        id: crypto.randomUUID(),
+        name: 'Sheet 1',
+        tableName: `sheet_${crypto.randomUUID().replace(/-/g, '')}`,
+        schema: [],
+        frozenRows: 1,
+        frozenCols: 0,
+        columnWidths: {},
+        formulas: [],
+      },
+    ],
+    activeSheetIndex: 0,
+  };
+}
 
 const LazyDocumentTextEditor = lazy(async () => {
   const mod = await import('@/components/DocumentTextEditor');
@@ -182,15 +201,16 @@ export default function App() {
   }, []);
 
   const handleAddDocument = useCallback(
-    (type: 'document' | 'presentation', parentId?: string) => {
+    (type: 'document' | 'presentation' | 'spreadsheet', parentId?: string) => {
       const doc: ProjectDocument = {
         id: crypto.randomUUID(),
-        title: type === 'presentation' ? 'New Presentation' : 'New Document',
+        title: type === 'presentation' ? 'New Presentation' : type === 'spreadsheet' ? 'New Spreadsheet' : 'New Document',
         type,
         contentHtml: '',
         themeCss: '',
         slideCount: 0,
         chartSpecs: {},
+        workbook: type === 'spreadsheet' ? createEmptyWorkbook() : undefined,
         order: project.documents.length,
         parentId,
         createdAt: Date.now(),
@@ -203,6 +223,7 @@ export default function App() {
 
   const showPresentation = activeDocument?.type === 'presentation';
   const showDocument = activeDocument?.type === 'document';
+  const showSpreadsheet = activeDocument?.type === 'spreadsheet';
   const isDocumentBusy = documentAction !== null;
   const canLinkAnotherDocument = activeDocument?.type === 'document'
     ? project.documents.some((doc) => doc.type === 'document' && doc.id !== activeDocument.id)
@@ -591,6 +612,14 @@ export default function App() {
               />
             </div>
           )}
+          {showSpreadsheet && activeDocument?.workbook && (
+            <div className="flex flex-1 flex-col overflow-hidden">
+              <SpreadsheetCanvas
+                document={activeDocument}
+                onChange={(updates) => updateDocument(activeDocument.id, updates)}
+              />
+            </div>
+          )}
           {showDocument && activeDocument?.contentHtml && (
             <div className="border-t border-border/80 bg-muted/20 px-3 py-2 sm:hidden">
               <div className="mx-auto flex max-w-3xl items-center gap-1.5 overflow-x-auto">
@@ -729,7 +758,7 @@ export default function App() {
 function EmptyProjectState({
   onAdd,
 }: {
-  onAdd: (type: 'document' | 'presentation') => void;
+  onAdd: (type: 'document' | 'presentation' | 'spreadsheet') => void;
 }) {
   return (
     <div className="max-w-lg px-6 text-center">
@@ -764,6 +793,18 @@ function EmptyProjectState({
           <div className="text-center">
             <p className="text-sm font-medium text-foreground">Presentation</p>
             <p className="text-xs text-muted-foreground">Slide deck with AI</p>
+          </div>
+        </button>
+        <button
+          onClick={() => onAdd('spreadsheet')}
+          className="group col-span-2 flex flex-col items-center gap-2.5 rounded-xl border border-border bg-card p-4 transition-all hover:border-emerald-300 hover:shadow-md"
+        >
+          <div className="flex size-10 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-sm transition-transform group-hover:scale-110">
+            <span className="text-xl">📊</span>
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-medium text-foreground">Spreadsheet</p>
+            <p className="text-xs text-muted-foreground">Prompt-first data workspace</p>
           </div>
         </button>
       </div>

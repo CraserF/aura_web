@@ -34,6 +34,15 @@ describe('detectWorkflowType', () => {
     expect(detectWorkflowType('write a readme for the project', undefined)).toBe('document');
   });
 
+  it('detects spreadsheet from "spreadsheet" keyword', () => {
+    expect(detectWorkflowType('create a spreadsheet for revenue tracking', undefined)).toBe('spreadsheet');
+  });
+
+  it('detects spreadsheet from file-format keywords', () => {
+    expect(detectWorkflowType('import this csv and summarize it', undefined)).toBe('spreadsheet');
+    expect(detectWorkflowType('open xlsx and show top rows', undefined)).toBe('spreadsheet');
+  });
+
   it('presentation keywords take priority over active doc type', () => {
     expect(detectWorkflowType('add slides to my deck', 'document')).toBe('presentation');
   });
@@ -45,6 +54,7 @@ describe('detectWorkflowType', () => {
   it('falls back to activeDocType when no keywords match', () => {
     expect(detectWorkflowType('make it better', 'document')).toBe('document');
     expect(detectWorkflowType('make it better', 'presentation')).toBe('presentation');
+    expect(detectWorkflowType('make it better', 'spreadsheet')).toBe('spreadsheet');
   });
 
   it('defaults to presentation when no keywords and no active doc', () => {

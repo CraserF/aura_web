@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   FileText,
   Presentation,
+  Table2,
   FilePlus,
   Trash2,
   ChevronRight,
@@ -40,7 +41,7 @@ function getDocColor(index: number): string {
 }
 
 interface NewDocMenuProps {
-  onAdd: (type: 'document' | 'presentation') => void;
+  onAdd: (type: 'document' | 'presentation' | 'spreadsheet') => void;
 }
 
 function NewDocMenu({ onAdd }: NewDocMenuProps) {
@@ -65,6 +66,10 @@ function NewDocMenu({ onAdd }: NewDocMenuProps) {
         <DropdownMenuItem onClick={() => onAdd('presentation')}>
           <Presentation className="mr-2 size-4 text-violet-500" />
           Presentation
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onAdd('spreadsheet')}>
+          <Table2 className="mr-2 size-4 text-emerald-500" />
+          Spreadsheet
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -128,7 +133,7 @@ interface DocItemProps {
   onClick: () => void;
   onDelete: () => void;
   onRename: (title: string) => void;
-  onAddSubDocument: (type: 'document' | 'presentation') => void;
+  onAddSubDocument: (type: 'document' | 'presentation' | 'spreadsheet') => void;
 }
 
 function DocItem({
@@ -176,6 +181,8 @@ function DocItem({
       >
         {doc.type === 'presentation' ? (
           <Presentation className="size-3.5" />
+        ) : doc.type === 'spreadsheet' ? (
+          <Table2 className="size-3.5" />
         ) : (
           <FileText className="size-3.5" />
         )}
@@ -254,6 +261,16 @@ function DocItem({
               <Presentation className="mr-2 size-3.5 text-violet-500" />
               Add sub-presentation
             </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddSubDocument('spreadsheet');
+                setShowMenu(false);
+              }}
+            >
+              <Table2 className="mr-2 size-3.5 text-emerald-500" />
+              Add sub-spreadsheet
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
@@ -292,7 +309,7 @@ function DocTree({
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
   onRename: (id: string, title: string) => void;
-  onAddSubDocument: (parentId: string, type: 'document' | 'presentation') => void;
+  onAddSubDocument: (parentId: string, type: 'document' | 'presentation' | 'spreadsheet') => void;
 }) {
   const children = docs
     .filter((d) => d.parentId === parentId)
@@ -333,7 +350,7 @@ function DocTree({
 interface ProjectSidebarProps {
   open: boolean;
   onClose?: () => void;
-  onRequestAddDocument?: (type: 'document' | 'presentation', parentId?: string) => void;
+  onRequestAddDocument?: (type: 'document' | 'presentation' | 'spreadsheet', parentId?: string) => void;
 }
 
 export function ProjectSidebar({ open, onClose, onRequestAddDocument }: ProjectSidebarProps) {
@@ -350,11 +367,11 @@ export function ProjectSidebar({ open, onClose, onRequestAddDocument }: ProjectS
 
   const sortedDocs = [...project.documents].sort((a, b) => a.order - b.order);
 
-  const handleAdd = (type: 'document' | 'presentation') => {
+  const handleAdd = (type: 'document' | 'presentation' | 'spreadsheet') => {
     onRequestAddDocument?.(type);
   };
 
-  const handleAddSubDocument = (parentId: string, type: 'document' | 'presentation') => {
+  const handleAddSubDocument = (parentId: string, type: 'document' | 'presentation' | 'spreadsheet') => {
     onRequestAddDocument?.(type, parentId);
   };
 

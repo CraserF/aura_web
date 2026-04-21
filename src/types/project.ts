@@ -6,7 +6,48 @@ import type { ChatMessage } from './index';
 import type { ChartSpec } from '@/services/charts';
 
 /** Document type within a project */
-export type DocumentType = 'document' | 'presentation';
+export type DocumentType = 'document' | 'presentation' | 'spreadsheet';
+
+export interface WorkbookMeta {
+  sheets: SheetMeta[];
+  activeSheetIndex: number;
+}
+
+export interface SheetMeta {
+  id: string;
+  name: string;
+  tableName: string;
+  schema: ColumnSchema[];
+  frozenRows: number;
+  frozenCols: number;
+  columnWidths: Record<string, number>;
+  formulas: FormulaEntry[];
+  sortState?: SortState;
+  filterState?: FilterState;
+}
+
+export interface ColumnSchema {
+  name: string;
+  type: 'text' | 'number' | 'date' | 'boolean';
+  nullable: boolean;
+  format?: string;
+}
+
+export interface FormulaEntry {
+  id: string;
+  column: string;
+  expression: string;
+  dependsOn: string[];
+}
+
+export interface SortState {
+  column: string;
+  direction: 'asc' | 'desc';
+}
+
+export interface FilterState {
+  query?: string;
+}
 
 /** Visibility level for a project */
 export type ProjectVisibility = 'private' | 'public';
@@ -32,6 +73,8 @@ export interface ProjectDocument {
   pagesEnabled?: boolean;
   /** Chart specifications keyed by chart ID */
   chartSpecs?: Record<string, ChartSpec>;
+  /** Spreadsheet workbook metadata (for spreadsheet docs) */
+  workbook?: WorkbookMeta;
   createdAt: number;
   updatedAt: number;
   order: number;

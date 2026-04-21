@@ -17,8 +17,13 @@ import type { DocumentType } from '@/types/project';
 export function detectWorkflowType(
   prompt: string,
   activeDocType: DocumentType | undefined,
-): 'document' | 'presentation' {
+): 'document' | 'presentation' | 'spreadsheet' {
   const p = prompt.toLowerCase();
+
+  const spreadsheetKeywords = [
+    'spreadsheet', 'sheet', 'table', 'csv', 'xlsx', 'excel', 'rows', 'columns',
+  ];
+  if (spreadsheetKeywords.some((k) => p.includes(k))) return 'spreadsheet';
 
   const presentationKeywords = [
     'slide', 'presentation', 'deck', 'slideshow',

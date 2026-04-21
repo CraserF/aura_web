@@ -16,6 +16,7 @@ import type { ProjectData, ProjectDocument, ProjectManifest } from '@/types/proj
 import type { ChatMessage } from '@/types';
 import { sanitizeFilename } from '@/lib/sanitizeFilename';
 import { extractChartSpecsFromHtml } from '@/services/charts';
+import { exportSheetParquet, importSheetParquet } from '@/services/spreadsheet/workbook';
 
 const FORMAT_VERSION = '2.1';
 
@@ -51,6 +52,7 @@ export async function downloadProjectFile(project: ProjectData): Promise<void> {
       sourceMarkdown: doc.sourceMarkdown,
       pagesEnabled: doc.pagesEnabled,
       chartSpecs: doc.chartSpecs,
+      workbook: doc.workbook,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     };
@@ -58,6 +60,16 @@ export async function downloadProjectFile(project: ProjectData): Promise<void> {
     docsFolder.file(`${doc.id}.html`, doc.contentHtml);
     if (doc.themeCss) {
       docsFolder.file(`${doc.id}.css`, doc.themeCss);
+    }
+    if (doc.type === 'spreadsheet' && doc.workbook) {
+      for (const sheet of doc.workbook.sheets) {
+        try {
+          const parquet = await exportSheetParquet(sheet.tableName);
+          docsFolder.file(`${doc.id}.${sheet.id}.parquet`, parquet);
+        } catch {
+          // Keep save resilient if a sheet table is not initialized yet.
+        }
+      }
     }
   }
 
@@ -110,6 +122,20 @@ export async function openProjectFile(file: File): Promise<ProjectData> {
         contentHtml,
         themeCss,
       });
+
+      if (meta.type === 'spreadsheet' && meta.workbook?.sheets?.length) {
+        for (const sheet of meta.workbook.sheets) {
+          const parquetPath = `documents/${docId}.${sheet.id}.parquet`;
+          const parquetBytes = await zip.file(parquetPath)?.async('uint8array');
+          if (parquetBytes) {
+            try {
+              await importSheetParquet(sheet.tableName, parquetBytes);
+            } catch {
+              // Keep load resilient when parquet artifacts are invalid.
+            }
+          }
+        }
+      }
     }
 
     // Sort by order

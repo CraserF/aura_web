@@ -188,6 +188,20 @@ export function ChatBar() {
     const workflowType = detectWorkflowType(prompt, activeDocument?.type);
     const isEdit = !!activeDocument?.contentHtml;
 
+    if (workflowType === 'spreadsheet') {
+      addMessage({
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: 'Spreadsheet mode is active. Use the sheet toolbar to import CSV/JSON/XLSX, then edit cells directly in the grid. Prompt-driven spreadsheet operations are planned for the next phase.',
+        timestamp: Date.now(),
+        documentId: scopedDocumentId,
+        scope: messageScope,
+      });
+      setStatus({ state: 'idle' });
+      setStreamingContent('');
+      return;
+    }
+
     if (workflowType === 'presentation') {
       // ─── Presentation workflow ─────────────────────────────────
       const isEditFlow = isEdit && activeDocument?.type === 'presentation';
@@ -426,7 +440,7 @@ export function ChatBar() {
 
         // Build project links for cross-document linking
         const projectLinks: import('@/services/ai/workflow').DocumentProjectLink[] = project.documents
-          .filter((d) => d.id !== activeDocument?.id && d.contentHtml)
+          .filter((d) => d.id !== activeDocument?.id && d.contentHtml && d.type !== 'spreadsheet')
           .map((d) => ({ id: d.id, title: d.title, type: d.type as 'document' | 'presentation' }));
 
         const result = await runDocumentWorkflow({
@@ -617,7 +631,7 @@ export function ChatBar() {
   const placeholder = isGenerating
     ? 'Generating\u2026'
     : activeDocument
-      ? `Update ${activeDocument.type === 'presentation' ? 'slides' : 'document'}\u2026`
+      ? `Update ${activeDocument.type === 'presentation' ? 'slides' : activeDocument.type === 'spreadsheet' ? 'spreadsheet' : 'document'}\u2026`
       : 'What would you like to create?';
 
   return (
