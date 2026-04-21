@@ -71,6 +71,41 @@ export function classifyIntent(
   return { intent: 'create' };
 }
 
+// ── Clarifying question detection ──────────────────────────
+
+import type { ClarifyOption } from '@/types';
+
+/** Layout options offered when a create prompt is short and layout-agnostic */
+const LAYOUT_OPTIONS: ClarifyOption[] = [
+  { label: 'Timeline / Roadmap', value: 'Use a timeline or roadmap layout with clearly sequenced steps or milestones.' },
+  { label: 'Comparison', value: 'Use a side-by-side comparison layout contrasting two or three distinct items.' },
+  { label: 'Data & Metrics', value: 'Use a data-driven layout leading with key numbers and a supporting insight panel.' },
+  { label: 'Statement / Big Idea', value: 'Use a bold statement layout with one dominant message and minimal supporting copy.' },
+];
+
+const LAYOUT_HINT_PATTERN =
+  /\b(timeline|roadmap|milestones?|comparison|versus|vs\.?|metrics|kpi|dashboard|stat|agenda|overview|quote|statement|closing|cta|hero|cover|intro|process|steps?|phase|checklist|pros\s+and\s+cons)\b/i;
+
+/**
+ * Returns clarifying layout options when the prompt is too short or vague for
+ * confident slide layout selection. Returns null when the prompt already
+ * contains enough direction to generate without asking.
+ *
+ * Only fires for `create` intents — callers should check intent first.
+ */
+export function detectAmbiguity(prompt: string): ClarifyOption[] | null {
+  const trimmed = prompt.trim();
+
+  // Long prompts are usually specific enough
+  const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+  if (wordCount >= 10) return null;
+
+  // If the prompt already names a layout type, skip the question
+  if (LAYOUT_HINT_PATTERN.test(trimmed)) return null;
+
+  return LAYOUT_OPTIONS;
+}
+
 /**
  * Detect whether a prompt is an explicit multi-slide batch request with
  * distinct content per slide. Conservative — only fires when the user

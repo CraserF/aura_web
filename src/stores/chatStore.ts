@@ -18,6 +18,12 @@ interface ChatState {
    * Cleared immediately after ChatBar reads it.
    */
   pendingRetryPrompt: string | null;
+  /**
+   * When set, ChatBar will immediately trigger generation with this prompt
+   * (bypassing the input textarea). Used by the clarifying-question UI.
+   * Cleared immediately after ChatBar reads it.
+   */
+  pendingAutoSubmitPrompt: string | null;
 
   addMessage: (message: ChatMessage) => void;
   setStatus: (status: GenerationStatus) => void;
@@ -31,6 +37,7 @@ interface ChatState {
   /** True when estimated tokens exceed 80 % of a 100 K context window. */
   isContextLong: () => boolean;
   setPendingRetryPrompt: (prompt: string | null) => void;
+  setPendingAutoSubmitPrompt: (prompt: string | null) => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -41,6 +48,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   applyToAllDocuments: false,
   estimatedTokens: 0,
   pendingRetryPrompt: null,
+  pendingAutoSubmitPrompt: null,
 
   addMessage: (message) =>
     set((state) => ({
@@ -70,4 +78,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isContextLong: () => get().estimatedTokens > 80_000,
 
   setPendingRetryPrompt: (prompt) => set({ pendingRetryPrompt: prompt }),
+
+  setPendingAutoSubmitPrompt: (prompt) => set({ pendingAutoSubmitPrompt: prompt }),
 }));

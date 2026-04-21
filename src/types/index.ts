@@ -22,6 +22,17 @@ export interface FileAttachment {
   content: string;
 }
 
+/** A layout/style choice offered to the user before generation */
+export interface ClarifyOption {
+  /** Short label shown on the button */
+  label: string;
+  /**
+   * Context appended to the original prompt when the option is selected.
+   * Empty string means "generate without additional guidance".
+   */
+  value: string;
+}
+
 /** A single chat message */
 export interface ChatMessage {
   id: string;
@@ -34,6 +45,12 @@ export interface ChatMessage {
   scope?: 'document' | 'project';
   /** Files attached to this message */
   attachments?: FileAttachment[];
+  /**
+   * When present, renders a row of option buttons beneath the message text.
+   * Clicking a button enriches the preceding user prompt with the option's
+   * value and immediately re-submits for generation.
+   */
+  clarifyOptions?: ClarifyOption[];
 }
 
 /** Active workflow step info for progress display */

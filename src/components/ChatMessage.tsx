@@ -2,7 +2,13 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import type { ChatMessage as ChatMessageType } from '@/types';
 
-function ChatMessage({ message }: { message: ChatMessageType }) {
+function ChatMessage({
+  message,
+  onClarifySelect,
+}: {
+  message: ChatMessageType;
+  onClarifySelect?: (optionValue: string) => void;
+}) {
   const isUser = message.role === 'user';
   const isError = message.content.startsWith('Error:');
 
@@ -46,6 +52,22 @@ function ChatMessage({ message }: { message: ChatMessageType }) {
         >
           {message.content}
         </p>
+
+        {/* Clarifying question options */}
+        {message.clarifyOptions && message.clarifyOptions.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {message.clarifyOptions.map((opt) => (
+              <button
+                key={opt.label}
+                type="button"
+                onClick={() => onClarifySelect?.(opt.value)}
+                className="rounded-lg border border-border/60 bg-background px-3 py-1.5 text-xs text-foreground transition-colors hover:border-foreground/30 hover:bg-muted active:scale-[0.97]"
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

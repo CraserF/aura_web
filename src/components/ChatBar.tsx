@@ -74,6 +74,8 @@ export function ChatBar() {
   const applyToAllDocuments = useChatStore((s) => s.applyToAllDocuments);
   const pendingRetryPrompt = useChatStore((s) => s.pendingRetryPrompt);
   const setPendingRetryPrompt = useChatStore((s) => s.setPendingRetryPrompt);
+  const pendingAutoSubmitPrompt = useChatStore((s) => s.pendingAutoSubmitPrompt);
+  const setPendingAutoSubmitPrompt = useChatStore((s) => s.setPendingAutoSubmitPrompt);
 
   const slidesHtml = usePresentationStore((s) => s.slidesHtml);
   const setSlides = usePresentationStore((s) => s.setSlides);
@@ -96,6 +98,8 @@ export function ChatBar() {
 
   const workflowStepsRef = useRef<WorkflowStep[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
+  /** Stores a prompt that should be auto-submitted on the next handleSubmit call */
+  const autoSubmitPromptRef = useRef<string | null>(null);
 
   // Pick up retry requests from the chat panel
   useEffect(() => {
@@ -108,6 +112,15 @@ export function ChatBar() {
     }, 0);
   }, [pendingRetryPrompt, isGenerating, setPendingRetryPrompt]);
 
+  // Auto-submit from clarifying question selection
+  useEffect(() => {
+    if (!pendingAutoSubmitPrompt || isGenerating) return;
+    setPendingAutoSubmitPrompt(null);
+    autoSubmitPromptRef.current = pendingAutoSubmitPrompt;
+    handleSubmit();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAutoSubmitPrompt, isGenerating]);
+
   const updateStepStatus = useCallback(
     (stepId: string, stepStatus: WorkflowStep['status']) => {
       workflowStepsRef.current = workflowStepsRef.current.map((s) =>
@@ -118,7 +131,12 @@ export function ChatBar() {
   );
 
   const handleSubmit = useCallback(async () => {
-    const prompt = input.trim();
+    // Consume any pending auto-submit prompt (set by clarifying question selection)
+    const autoPrompt = autoSubmitPromptRef.current;
+    autoSubmitPromptRef.current = null;
+
+    const rawPrompt = autoPrompt ?? input;
+    const prompt = rawPrompt.trim();
     if ((!prompt && attachments.length === 0) || isGenerating) return;
 
     if (!hasApiKey()) {
@@ -173,6 +191,24 @@ export function ChatBar() {
     if (workflowType === 'presentation') {
       // ─── Presentation workflow ─────────────────────────────────
       const isEditFlow = isEdit && activeDocument?.type === 'presentation';
+
+      // Ambiguity check: for new slides with short/vague prompts, ask for layout intent first
+      if (!isEditFlow && !autoPrompt) {
+        const { detectAmbiguity } = await import('@/services/ai/validation');
+        const clarifyOptions = detectAmbiguity(promptWithContext);
+        if (clarifyOptions) {
+          addMessage({
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content: 'Quick question — which layout style works best for this?',
+            timestamp: Date.now(),
+            documentId: scopedDocumentId,
+            scope: messageScope,
+            clarifyOptions,
+          });
+          return;
+        }
+      }
 
       workflowStepsRef.current = isEditFlow
         ? [

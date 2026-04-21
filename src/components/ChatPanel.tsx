@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { RotateCcw, X } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
 import { useProjectStore } from '@/stores/projectStore';
@@ -31,6 +31,7 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
   const setApplyToAllDocuments = useChatStore((s) => s.setApplyToAllDocuments);
   const isContextLong = useChatStore((s) => s.isContextLong);
   const setPendingRetryPrompt = useChatStore((s) => s.setPendingRetryPrompt);
+  const setPendingAutoSubmitPrompt = useChatStore((s) => s.setPendingAutoSubmitPrompt);
   const activeDocument = useProjectStore((s) => s.activeDocument());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isGenerating = status.state === 'generating';
@@ -75,6 +76,17 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
     setShowRetryBar(false);
     setPendingRetryPrompt(lastUserPrompt);
   };
+
+  // When the user clicks a clarifying option, enrich the last user prompt and auto-submit
+  const handleClarifySelect = useCallback(
+    (optionValue: string) => {
+      const lastUser = messages.findLast((m) => m.role === 'user');
+      const base = lastUser?.content ?? '';
+      const enriched = optionValue ? `${base}\n\n${optionValue}` : base;
+      setPendingAutoSubmitPrompt(enriched);
+    },
+    [messages, setPendingAutoSubmitPrompt],
+  );
 
   if (!open) return null;
 
@@ -144,7 +156,7 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
           ) : (
             <div className="divide-y divide-border">
               {visibleMessages.map((msg) => (
-                <ChatMessage key={msg.id} message={msg} />
+                <ChatMessage key={msg.id} message={msg} onClarifySelect={handleClarifySelect} />
               ))}
               {isGenerating && <AIWorkingIndicator />}
               {showRetryBar && !isGenerating && lastUserPrompt && (

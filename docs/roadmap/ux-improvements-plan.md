@@ -1,9 +1,9 @@
 # UX Improvements — Implementation Plan
 
-> Status: planning (no implementation in this document)  
-> Scope: multi-slide generation queue, PDF export improvements, UI polish from Dyad learnings  
-> Last updated: 2026-04-19  
-> Depends on: nothing (can start independently)  
+> Status: **complete**
+> Scope: multi-slide generation queue, PDF export improvements, UI polish from Dyad learnings
+> Last updated: 2026-04-21
+> Depends on: nothing (can start independently)
 > Applies across: all existing features + new features as they ship
 
 ## 1) Goals
@@ -460,57 +460,105 @@ The planner emits these options as structured output when `confidence < threshol
 ### M1 — Critical Fixes + Quick Wins (no dependencies)
 **Parallel-safe: yes — independent of all other features**
 
-| Task | Description | Est. |
-|------|-------------|------|
-| M1.1 | Chart flattening for PDF export (P0 fix) | S |
-| M1.2 | Wire chart flattening into document + presentation PDF pipelines | S |
-| M1.3 | PDF export tests (chart, multi-page, snapshot fidelity) | M |
-| M1.4 | Memoized chat messages (`React.memo`) | S |
-| M1.5 | Smart loading messages (replace generic spinners) | S |
-| M1.6 | Confirmation dialogs for destructive actions | S |
+| Task | Description | Est. | Status |
+|------|-------------|------|--------|
+| M1.1 | Chart flattening for PDF export (P0 fix) | S | ✅ Done |
+| M1.2 | Wire chart flattening into document + presentation PDF pipelines | S | ✅ Done |
+| M1.3 | PDF export tests (chart, multi-page, snapshot fidelity) | M | ✅ Done (`src/test/chartExport.test.ts`) |
+| M1.4 | Memoized chat messages (`React.memo`) | S | ✅ Done |
+| M1.5 | Smart loading messages (replace generic spinners) | S | ✅ Done |
+| M1.6 | Confirmation dialogs for destructive actions | S | ✅ Done |
 
 ### M2 — Multi-Slide Queue
 **Parallel-safe: yes — touches planner + workflow orchestrator only**
 
-| Task | Description | Est. |
-|------|-------------|------|
-| M2.1 | Add `batch_create` intent to planner with detection heuristics | M |
-| M2.2 | Implement `SharedStyleContext` generation (palette/fonts once) | M |
-| M2.3 | Implement slide queue runner (sequential generation with shared context) | L |
-| M2.4 | Abbreviated system prompt for slides 2-N (reference shared context) | M |
-| M2.5 | Generation lock (prevent concurrent generation of same type) | S |
-| M2.6 | Queue progress UI (step indicator, skeleton placeholders, cancel) | M |
-| M2.7 | Tests: batch intent detection, queue cancellation, style consistency | M |
+| Task | Description | Est. | Status |
+|------|-------------|------|--------|
+| M2.1 | Add `batch_create` intent to planner with detection heuristics | M | ✅ Done |
+| M2.2 | Implement `SharedStyleContext` generation (palette/fonts once) | M | ✅ Done |
+| M2.3 | Implement slide queue runner (sequential generation with shared context) | L | ✅ Done (`batchQueue.ts`) |
+| M2.4 | Abbreviated system prompt for slides 2-N (reference shared context) | M | ✅ Done |
+| M2.5 | Generation lock (prevent concurrent generation of same type) | S | ✅ Done |
+| M2.6 | Queue progress UI (step indicator, skeleton placeholders, cancel) | M | ✅ Done |
+| M2.7 | Tests: batch intent detection, queue cancellation, style consistency | M | ✅ Done (`src/test/batchIntentDetection.test.ts`) |
 
 ### M3 — UI Polish Pass
 **Can be done incrementally alongside other features**
 
-| Task | Description | Est. |
-|------|-------------|------|
-| M3.1 | Add `react-resizable-panels` for chat/canvas split | M |
-| M3.2 | State-driven animations (message appear, slide-strip transitions) | M |
-| M3.3 | OKLCH color token migration | S |
-| M3.4 | Streaming feedback hierarchy (loading → complete → actions) | M |
-| M3.5 | Presentation PDF export (slide-by-slide to landscape pages) | M |
-| M3.6 | Mobile print preview improvements | M |
+| Task | Description | Est. | Status |
+|------|-------------|------|--------|
+| M3.1 | Add `react-resizable-panels` for chat/canvas split | M | ✅ Done |
+| M3.2 | State-driven animations (message appear, slide-strip transitions) | M | ✅ Done |
+| M3.3 | OKLCH color token migration | S | ✅ Done |
+| M3.4 | Streaming feedback hierarchy (loading → complete → actions) | M | ✅ Done |
+| M3.5 | Presentation PDF export (slide-by-slide to landscape pages) | M | ✅ Done |
+| M3.6 | Mobile print preview improvements | M | ✅ Done (viewport meta + responsive overrides in `pdf.ts`, mobile action bar in `App.tsx`) |
 
 ### M4 — Generation Workflow Improvements
 **Parallel-safe: yes — changes are isolated to prompt builders and workflow agents**
 
-| Task | Description | Est. |
-|------|-------------|------|
-| M4.1 | Add POST_RULES block at end of designer + revision prompts (critical rules repeated last) | S |
-| M4.2 | Implement SEARCH/REPLACE diff format for edit flow (replace full-slide re-generation) | L |
-| M4.3 | Pre-flight QA gate on `submitFinalSlide` (return errors as tool output, not exceptions) | M |
-| M4.4 | Implement `FallbackModel` wrapper with retry-replay on quota/rate-limit errors | M |
-| M4.5 | Token estimation + context-size warning (`text.length / 4` heuristic, surfaced to user) | S |
-| M4.6 | Planner questionnaire (1-3 structured questions before generation when ambiguous) | M |
-| M4.7 | `cleanMessage()` defensive utility for thinking-mode content stripping | S |
-| M4.8 | Integration tests: diff patching round-trip, QA gate rejection flow, fallback retry | M |
+| Task | Description | Est. | Status |
+|------|-------------|------|--------|
+| M4.1 | Add POST_RULES block at end of designer + revision prompts (critical rules repeated last) | S | ✅ Done |
+| M4.2 | Implement SEARCH/REPLACE diff format for edit flow (replace full-slide re-generation) | L | ✅ Done (`patchUtils.ts`) |
+| M4.3 | Pre-flight QA gate on `submitFinalSlide` (return errors as tool output, not exceptions) | M | ✅ Done (`validation.ts` + `designer.ts`) |
+| M4.4 | Implement `FallbackModel` wrapper with retry-replay on quota/rate-limit errors | M | ✅ Done (`fallbackModel.ts` — `withRetry`) |
+| M4.5 | Token estimation + context-size warning (`text.length / 4` heuristic, surfaced to user) | S | ✅ Done (`chatStore.ts` + `ChatPanel.tsx` warning banner) |
+| M4.6 | Planner questionnaire (1-3 structured questions before generation when ambiguous) | M | ✅ Done (`detectAmbiguity` in `validation.ts`, clarify-option buttons in `ChatMessage.tsx`, auto-submit in `ChatBar.tsx`) |
+| M4.7 | `cleanMessage()` defensive utility for thinking-mode content stripping | S | ✅ Done (`cleanMessage.ts`) |
+| M4.8 | Integration tests: diff patching round-trip, QA gate rejection flow, fallback retry | M | ✅ Done (`patchUtils.test.ts`, `cleanMessage.test.ts`, `fallbackModel.test.ts`, `validation.test.ts`) |
 
 **Size estimates: S = < 1 day, M = 1-3 days, L = 3-5 days**
 
-## 7) Validation Requirements
+## 7) Implementation Summary
+
+All 28 milestone tasks are complete across two implementation sessions:
+
+**Session 1 (2026-04-20, commit `4e6e35e`):** M1.1–1.2, M1.4–1.6, M2.1–2.6, M3.1–3.6, M4.1–4.5, M4.7
+**Session 2 (2026-04-21):** M1.3 (chart export tests), M2.7 (batch intent tests), M4.6 (planner questionnaire), M4.8 (integration tests)
+
+### Key files added/modified in Session 2
+
+| File | Change |
+|------|--------|
+| `src/services/ai/validation.ts` | Added `detectAmbiguity()` + `ClarifyOption` import |
+| `src/types/index.ts` | Added `ClarifyOption` interface; `clarifyOptions` field on `ChatMessage` |
+| `src/stores/chatStore.ts` | Added `pendingAutoSubmitPrompt` state |
+| `src/components/ChatMessage.tsx` | Renders clarify-option buttons; accepts `onClarifySelect` prop |
+| `src/components/ChatPanel.tsx` | Passes `onClarifySelect` callback; resolves last user prompt for enrichment |
+| `src/components/ChatBar.tsx` | Pre-flight ambiguity check before generation; `autoSubmitPromptRef` for auto-submit |
+| `src/test/chartExport.test.ts` | 8 tests for Chart.js canvas flattening (M1.3) |
+| `src/test/batchIntentDetection.test.ts` | 14 tests for batch intent + general intent classification (M2.7) |
+| `src/test/patchUtils.test.ts` | 14 tests covering parse → dryRun → apply round-trip (M4.8) |
+| `src/test/cleanMessage.test.ts` | 7 tests for orphaned reasoning + empty tool input (M4.8) |
+| `src/test/fallbackModel.test.ts` | 9 tests for retry logic across retryable/non-retryable errors (M4.8) |
+| `src/test/validation.test.ts` | 7 tests for `detectAmbiguity` (M4.6 / M4.8) |
+
+## 7) Implementation Summary
+
+All 28 milestone tasks are complete across two implementation sessions:
+
+**Session 1 (2026-04-20, commit `4e6e35e`):** M1.1–1.2, M1.4–1.6, M2.1–2.6, M3.1–3.6, M4.1–4.5, M4.7
+**Session 2 (2026-04-21):** M1.3 (chart export tests), M2.7 (batch intent tests), M4.6 (planner questionnaire), M4.8 (integration tests)
+
+### Key files added/modified in Session 2
+
+| File | Change |
+|------|--------|
+| `src/services/ai/validation.ts` | Added `detectAmbiguity()` + `ClarifyOption` import |
+| `src/types/index.ts` | Added `ClarifyOption` interface; `clarifyOptions` field on `ChatMessage` |
+| `src/stores/chatStore.ts` | Added `pendingAutoSubmitPrompt` state |
+| `src/components/ChatMessage.tsx` | Renders clarify-option buttons; accepts `onClarifySelect` prop |
+| `src/components/ChatPanel.tsx` | Passes `onClarifySelect` callback; resolves last user prompt for enrichment |
+| `src/components/ChatBar.tsx` | Pre-flight ambiguity check before generation; `autoSubmitPromptRef` for auto-submit |
+| `src/test/chartExport.test.ts` | 8 tests for Chart.js canvas flattening (M1.3) |
+| `src/test/batchIntentDetection.test.ts` | 14 tests for batch intent + general intent classification (M2.7) |
+| `src/test/patchUtils.test.ts` | 14 tests covering parse → dryRun → apply round-trip (M4.8) |
+| `src/test/cleanMessage.test.ts` | 7 tests for orphaned reasoning + empty tool input (M4.8) |
+| `src/test/fallbackModel.test.ts` | 9 tests for retry logic across retryable/non-retryable errors (M4.8) |
+| `src/test/validation.test.ts` | 7 tests for `detectAmbiguity` (M4.6 / M4.8) |
+
+## 8) Validation Requirements
 
 - **Multi-slide queue**: Test intent detection accuracy (single vs batch prompts). Test style consistency across queued slides (same palette, fonts). Test cancel mid-queue (completed slides preserved). Test generation lock (reject concurrent requests).
 - **PDF export**: Chart appears in exported PDF (not blank). Multi-page documents paginate correctly. Presentation PDF has one slide per page. Font rendering quality check (visual comparison).
