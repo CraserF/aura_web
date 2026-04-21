@@ -48,6 +48,15 @@ export async function runPresentationWorkflow(
 ): Promise<PresentationOutput> {
   const { input, llmConfig, onEvent, signal } = opts;
   const isEdit = !!input.existingSlidesHtml;
+  const effectiveChatHistory = input.memoryContext
+    ? [
+        ...input.chatHistory,
+        {
+          role: 'assistant' as const,
+          content: `Relevant memory context:\n${input.memoryContext}`,
+        },
+      ]
+    : input.chatHistory;
   const workflowStart = performance.now();
 
   // Create the AI SDK model with shared defaults (temperature, maxOutputTokens)
@@ -121,7 +130,7 @@ export async function runPresentationWorkflow(
       ? await designEdit(
           planResult,
           input.existingSlidesHtml!,
-          input.chatHistory,
+          effectiveChatHistory,
           model,
           onEvent,
           signal,
@@ -129,7 +138,7 @@ export async function runPresentationWorkflow(
       : await design(
           planResult,
           input.existingSlidesHtml,
-          input.chatHistory,
+          effectiveChatHistory,
           model,
           onEvent,
           signal,

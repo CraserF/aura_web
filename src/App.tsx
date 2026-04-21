@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useState, useCallback, useRef } from 'react';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import type { ImperativePanelHandle } from 'react-resizable-panels';
+import { Group, Panel, Separator } from 'react-resizable-panels';
+import type { PanelImperativeHandle } from 'react-resizable-panels';
 import { Toolbar } from '@/components/Toolbar';
 import { PresentationCanvas } from '@/components/PresentationCanvas';
 import { DocumentCanvas } from '@/components/DocumentCanvas';
@@ -117,7 +117,7 @@ export default function App() {
   const showDocumentPagesView = useSettingsStore((s) => s.showDocumentPagesView);
 
   const [chatPanelOpen, setChatPanelOpen] = useState(false);
-  const chatPanelRef = useRef<ImperativePanelHandle>(null);
+  const chatPanelRef = useRef<PanelImperativeHandle>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
@@ -427,9 +427,8 @@ export default function App() {
           onRequestAddDocument={handleAddDocument}
         />
 
-        <PanelGroup
-          direction="horizontal"
-          autoSaveId="aura-chat-canvas-split"
+        <Group
+          orientation="horizontal"
           className="min-h-0 flex-1"
         >
           <Panel className="flex min-w-0 flex-col">
@@ -705,20 +704,19 @@ export default function App() {
         </main>
         </Panel>
 
-          <PanelResizeHandle className="hidden w-1 cursor-col-resize bg-transparent transition-colors hover:bg-border lg:flex" />
+          <Separator className="hidden w-1 cursor-col-resize bg-transparent transition-colors hover:bg-border lg:flex" />
 
           <Panel
-            ref={chatPanelRef}
+            panelRef={chatPanelRef}
             defaultSize={28}
             minSize={0}
             maxSize={50}
             collapsible
-            onCollapse={() => setChatPanelOpen(false)}
-            onExpand={() => setChatPanelOpen(true)}
+            onResize={(panelSize) => setChatPanelOpen(panelSize.asPercentage > 0)}
           >
             <ChatPanel open={chatPanelOpen} onClose={() => setChatPanelOpen(false)} />
           </Panel>
-        </PanelGroup>
+        </Group>
 
         <VersionHistoryPanel
           open={historyPanelOpen}

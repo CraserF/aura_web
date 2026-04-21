@@ -10,7 +10,7 @@
  * - M2-C: describeTable, sampleRows, aggregateQuery, ingestCsv, ingestJson
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ── DuckDB mock ────────────────────────────────────────────────────────────────
 

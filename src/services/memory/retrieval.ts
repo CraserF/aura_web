@@ -131,11 +131,16 @@ function collectDirectoryDocument(dir: MemoryDirectory, requestedScope?: MemoryS
     return null;
   }
 
+  const firstFile = scopedFiles[0];
+  if (!firstFile) {
+    return null;
+  }
+
   const aggregate = scopedFiles.map(getSearchableText).join('\n');
   return {
     dirPath: dir.path,
     detailLevel: 'L0',
-    memory: scopedFiles[0],
+    memory: firstFile,
     text: aggregate,
     score: 0,
   };
@@ -193,6 +198,10 @@ export interface RetrieveMemoryOptions {
   scope?: MemoryScope;
   topK?: number;
   maxDirectories?: number;
+}
+
+export interface BuildMemoryContextOptions extends RetrieveMemoryOptions {
+  maxTokens?: number;
 }
 
 export function retrieveMemories(
@@ -302,4 +311,18 @@ export function formatMemoryContext(assembly: MemoryContextAssembly): string {
         .join('\n');
     })
     .join('\n\n');
+}
+
+export function buildMemoryContext(
+  tree: MemoryDirectory,
+  query: string,
+  options: BuildMemoryContextOptions = {},
+): string {
+  const results = retrieveMemories(tree, query, options);
+  if (results.length === 0) {
+    return '';
+  }
+
+  const assembly = assembleMemoryContext(results, options.maxTokens ?? 2000);
+  return formatMemoryContext(assembly);
 }

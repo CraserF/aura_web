@@ -3,13 +3,11 @@ import {
   MemoryIdSchema,
   MemoryCategorySchema,
   MemoryScopeSchema,
-  MemoryFileSchema,
-  MemoryCandidateSchema,
   generateMemoryId,
   validateMemoryFile,
   validateMemoryCandidate,
 } from '@/services/memory/schema';
-import type { MemoryFrontmatter, MemoryContent, MemoryFile } from '@/services/memory/types';
+import type { MemoryFile } from '@/services/memory/types';
 
 describe('Memory Schema Validation', () => {
   describe('MemoryId', () => {

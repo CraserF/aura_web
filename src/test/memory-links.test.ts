@@ -18,8 +18,8 @@ describe('Memory Cross-References & Links', () => {
       const links = parseLinks(text);
 
       expect(links).toHaveLength(2);
-      expect(links[0].target).toBe('Sarah Chen');
-      expect(links[1].target).toBe('Q1 goals');
+      expect(links[0]?.target).toBe('Sarah Chen');
+      expect(links[1]?.target).toBe('Q1 goals');
     });
 
     it('parses multiple links in text', () => {
@@ -41,8 +41,8 @@ describe('Memory Cross-References & Links', () => {
       const links = parseLinks(text);
 
       expect(links).toHaveLength(1);
-      expect(links[0].text).toBe('dashboard|sales dashboard');
-      expect(links[0].target).toBe('sales dashboard');
+      expect(links[0]?.text).toBe('dashboard|sales dashboard');
+      expect(links[0]?.target).toBe('sales dashboard');
     });
 
     it('returns empty array for text without links', () => {
@@ -56,8 +56,8 @@ describe('Memory Cross-References & Links', () => {
       const text = 'Text with [[Link1]] and [[Link2]] here.';
       const links = parseLinks(text);
 
-      expect(links[0].startPos).toBe(10);
-      expect(links[0].endPos).toBeGreaterThan(links[0].startPos);
+      expect(links[0]?.startPos).toBe(10);
+      expect(links[0]?.endPos).toBeGreaterThan(links[0]?.startPos ?? 0);
     });
   });
 

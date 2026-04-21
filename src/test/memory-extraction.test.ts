@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { LanguageModel } from 'ai';
 import type { AIMessage, ProviderEntry } from '@/services/ai/types';
 import type { LLMConfig } from '@/services/ai/workflow/types';
+import type { MemoryCandidate } from '@/services/memory/types';
 import {
   createInitialMemoryTree,
   extractMemoriesFromConversation,
@@ -54,7 +55,7 @@ describe('memory extraction', () => {
                 actionableUse: 'Use when generating project finance updates.',
                 tags: ['finance', 'stakeholder'],
               },
-            ],
+            ] satisfies MemoryCandidate[],
           },
         })),
       },

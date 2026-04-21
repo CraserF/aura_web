@@ -22,7 +22,7 @@ vi.mock('@/services/data/extractApi', () => ({
       { name: 'date', type: 'DATE', nullCount: 0, uniqueCount: 365, min: '2026-01-01', max: '2026-12-31', mean: null },
     ],
   })),
-  sampleRows: vi.fn(async (tableName: string, n: number) =>
+  sampleRows: vi.fn(async (_tableName: string, n: number) =>
     Array.from({ length: Math.min(n, 3) }, (_, i) => ({
       category: `Cat${i}`,
       value: i * 10,

@@ -40,13 +40,16 @@ export function parseLinks(text: string): CrossReference[] {
   LINK_PATTERN.lastIndex = 0;
 
   while ((match = LINK_PATTERN.exec(text)) !== null) {
-    const linkText = match[1].trim();
+    const linkText = match[1]?.trim();
+    if (!linkText) {
+      continue;
+    }
 
     // Extract target (everything after | if present, else the text)
     let target = linkText;
     if (linkText.includes('|')) {
       const parts = linkText.split('|');
-      target = parts[1].trim();
+      target = parts[1]?.trim() || parts[0]?.trim() || linkText;
     }
 
     links.push({
@@ -96,7 +99,10 @@ export function buildCrossReferenceIndex(
       if (!index[link.target]) {
         index[link.target] = [];
       }
-      index[link.target].push(memory.frontmatter.memoryId);
+      const ids = index[link.target];
+      if (ids) {
+        ids.push(memory.frontmatter.memoryId);
+      }
     }
   }
 
@@ -129,14 +135,14 @@ export function findReferencers(
 ): MemoryId[] {
   // Try exact match first
   if (index[target]) {
-    return index[target];
+    return index[target] ?? [];
   }
 
   // Try normalized match
   const normalized = normalizeTarget(target);
   for (const key in index) {
     if (normalizeTarget(key) === normalized) {
-      return index[key];
+      return index[key] ?? [];
     }
   }
 
@@ -206,7 +212,7 @@ export function buildLinkGraph(memories: MemoryFile[]): LinkGraph {
 export function validateLinks(
   memory: MemoryFile,
   index: CrossReferenceIndex,
-  memoryIds: Set<MemoryId>
+  _memoryIds: Set<MemoryId>
 ): { broken: string[]; valid: string[] } {
   const references = findReferences(memory);
   const broken: string[] = [];

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   addMemoryToDirectory,
   assembleMemoryContext,
+  buildMemoryContext,
   createInitialMemoryTree,
   createMemoryFile,
   formatMemoryContext,
@@ -108,5 +109,26 @@ describe('memory retrieval', () => {
     expect(assembly.budgetExceeded).toBe(true);
     expect(assembly.trimmedMemories).toHaveLength(1);
     expect(formatMemoryContext(assembly)).toContain('Memory 1:');
+  });
+
+  it('builds a formatted memory context string from retrieval results', () => {
+    const tree = createInitialMemoryTree();
+
+    addMemoryToDirectory(
+      tree,
+      'skills',
+      createMemoryFile('skill', 'global', 'public', 'user@example.com', {
+        summary: 'Executive brief writing should lead with the conclusion and use compact KPI rows.',
+        details: 'Use short sections, a clear outcome statement, and a restrained visual hierarchy.',
+      }),
+    );
+
+    const context = buildMemoryContext(tree, 'executive brief KPI writing', {
+      topK: 3,
+      maxTokens: 400,
+    });
+
+    expect(context).toContain('Memory 1:');
+    expect(context).toContain('Executive brief writing');
   });
 });

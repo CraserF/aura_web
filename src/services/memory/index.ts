@@ -102,6 +102,8 @@ export {
   assembleMemoryContext,
   estimateTokenCount,
   formatMemoryContext,
+  buildMemoryContext,
+  type BuildMemoryContextOptions,
 } from './retrieval';
 
 // Extraction
@@ -109,6 +111,12 @@ export {
   extractMemoriesFromConversation,
   persistMemoryCandidates,
 } from './extraction';
+
+// Summaries
+export {
+  regenerateDirectorySummaries,
+  regenerateTreeSummaries,
+} from './summarize';
 
 // Update Policies
 export {

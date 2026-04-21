@@ -80,7 +80,14 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
   // When the user clicks a clarifying option, enrich the last user prompt and auto-submit
   const handleClarifySelect = useCallback(
     (optionValue: string) => {
-      const lastUser = messages.findLast((m) => m.role === 'user');
+      let lastUser: (typeof messages)[number] | null = null;
+      for (let index = messages.length - 1; index >= 0; index -= 1) {
+        const message = messages[index];
+        if (message?.role === 'user') {
+          lastUser = message;
+          break;
+        }
+      }
       const base = lastUser?.content ?? '';
       const enriched = optionValue ? `${base}\n\n${optionValue}` : base;
       setPendingAutoSubmitPrompt(enriched);

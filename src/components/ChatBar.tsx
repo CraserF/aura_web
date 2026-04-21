@@ -171,6 +171,21 @@ export function ChatBar() {
     }
   }, [project.id, setProject]);
 
+  const buildWorkflowMemoryContext = useCallback(async (prompt: string): Promise<string> => {
+    const currentProject = useProjectStore.getState().project;
+    if (!currentProject.memoryTree) {
+      return '';
+    }
+
+    const { buildMemoryContext } = await import('@/services/memory');
+    return buildMemoryContext(currentProject.memoryTree, prompt, {
+      scope: `project:${currentProject.id}`,
+      topK: 5,
+      maxDirectories: 3,
+      maxTokens: 1200,
+    });
+  }, []);
+
   const handleSubmit = useCallback(async () => {
     // Consume any pending auto-submit prompt (set by clarifying question selection)
     const autoPrompt = autoSubmitPromptRef.current;
@@ -346,11 +361,14 @@ export function ChatBar() {
 
         const existingSlides = isEditFlow ? activeDocument?.contentHtml : undefined;
 
+        const memoryContext = await buildWorkflowMemoryContext(promptWithContext);
+
         const result = await runPresentationWorkflow({
           input: {
             prompt: promptWithContext,
             existingSlidesHtml: existingSlides,
             chatHistory,
+            memoryContext,
           },
           llmConfig: {
             providerEntry,
@@ -507,12 +525,15 @@ export function ChatBar() {
           .filter((d) => d.id !== activeDocument?.id && d.contentHtml && d.type !== 'spreadsheet')
           .map((d) => ({ id: d.id, title: d.title, type: d.type as 'document' | 'presentation' }));
 
+        const memoryContext = await buildWorkflowMemoryContext(promptWithContext);
+
         const result = await runDocumentWorkflow({
           input: {
             prompt: promptWithContext,
             existingHtml: existingDoc,
             existingMarkdown: activeDocument?.type === 'document' ? activeDocument.sourceMarkdown : undefined,
             chatHistory,
+            memoryContext,
             styleHint: documentStylePreset,
             projectLinks: projectLinks.length > 0 ? projectLinks : undefined,
             imageParts: imageParts.length > 0 ? imageParts : undefined,
@@ -615,7 +636,7 @@ export function ChatBar() {
     slidesHtml, setStatus, setStreamingContent, appendStreamingContent,
     providerId, getActiveProvider, setSlides, setTitle, updateStepStatus,
     activeDocument, addDocument, updateDocument, project, showAllMessages, applyToAllDocuments,
-    documentStylePreset, queueMemoryExtraction,
+    documentStylePreset, queueMemoryExtraction, buildWorkflowMemoryContext,
   ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

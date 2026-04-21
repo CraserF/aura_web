@@ -17,7 +17,7 @@ interface SpreadsheetCanvasProps {
   onChange: (updates: Partial<ProjectDocument>) => void;
 }
 
-export function SpreadsheetCanvas({ document }: SpreadsheetCanvasProps) {
+export function SpreadsheetCanvas({ document, onChange }: SpreadsheetCanvasProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);

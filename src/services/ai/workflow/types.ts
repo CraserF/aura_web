@@ -36,6 +36,7 @@ export interface PresentationInput {
   prompt: string;
   existingSlidesHtml?: string;
   chatHistory: AIMessage[];
+  memoryContext?: string;
 }
 
 /** Output from the presentation workflow */

@@ -89,7 +89,7 @@ describe('Memory Directory Management', () => {
 
       const entitiesDir = findDirectory(tree, 'entities');
       expect(entitiesDir?.files).toHaveLength(1);
-      expect(entitiesDir?.files[0].frontmatter.memoryId).toBe(memory.frontmatter.memoryId);
+      expect(entitiesDir?.files[0]?.frontmatter.memoryId).toBe(memory.frontmatter.memoryId);
     });
 
     it('prevents duplicate memories', () => {
@@ -133,7 +133,7 @@ describe('Memory Directory Management', () => {
 
       const entitiesDir = findDirectory(tree, 'entities');
       expect(entitiesDir?.files).toHaveLength(1);
-      expect(entitiesDir?.files[0].content.summary).toContain('senior PM');
+      expect(entitiesDir?.files[0]?.content.summary).toContain('senior PM');
     });
   });
 

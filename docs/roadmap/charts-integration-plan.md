@@ -1,6 +1,6 @@
 # Charts Integration — Implementation Plan
 
-> Status: execution-ready (phase/batch tracker with required test gates)  
+> Status: **complete** (all M1–M3 batches done; post-M3 optimizations applied)  
 > Scope: chart runtime completion, data-efficiency strategy, DuckDB-WASM integration  
 > Last updated: 2026-04-21
 
@@ -291,3 +291,45 @@ Do not start the next phase until the current phase test gate is green.
 1. **Polars-WASM**: Start DuckDB-only. Add Polars adapter only if benchmarks show clear benefit for specific transform patterns. Decision deferred to post-M2.
 2. **Arrow-native rendering**: Should chart rendering accept Arrow tables directly, or always convert to JSON first? Decision deferred to M3 based on performance data.
 3. **OPFS vs IndexedDB**: OPFS (Origin Private File System) offers better performance for large files but has weaker browser support. Start with IndexedDB, evaluate OPFS migration later.
+
+---
+
+## 11) Post-M3 Optimizations (applied 2026-04-21)
+
+Two improvements from the M3-D benchmark report (`docs/benchmarks/duckdb-performance.md`) were implemented immediately after M3 completed.
+
+### 11.1 Parquet-first ingestion
+
+**Files changed:** `src/services/data/ingest.ts`, `src/services/data/index.ts`
+
+Added `IngestOptions { persist?: boolean }` to all three ingest functions:
+
+```typescript
+await ingestCsv('my_table', csvString, { persist: true });
+await ingestJson('my_table', jsonString, { persist: true });
+await ingestXlsx('my_table', xlsxBuffer, undefined, { persist: true });
+```
+
+When `persist: true`, the function calls `saveTableToIndexedDB` immediately after the DuckDB table is created. This writes a Parquet snapshot to IndexedDB, enabling 4–10× faster reload on next app launch compared to re-parsing the original CSV/JSON.
+
+Default is `false` for backward compatibility — callers that don't care about persistence are unaffected.
+
+### 11.2 Streaming queries for large aggregations
+
+**Files changed:** `src/services/data/extractApi.ts`, `src/services/data/index.ts`
+
+Added `aggregateQueryStream(tableName, sqlFragment)` — an `AsyncGenerator<Record<string, unknown>[]>` variant of `aggregateQuery` that uses DuckDB's `conn.send()` instead of `conn.query()`:
+
+```typescript
+for await (const batch of aggregateQueryStream('sales', 'region, SUM(amount) GROUP BY region')) {
+  processBatch(batch);
+}
+```
+
+Use this in place of `aggregateQuery` when the result set may exceed ~10k rows. It yields Arrow record batches as they arrive without materialising the full result table in memory, avoiding peak memory spikes.
+
+The original `aggregateQuery` is unchanged and remains the default for small/medium aggregations.
+
+### 11.3 Build fix
+
+Cleared stale `node_modules/.tmp/tsconfig.app.tsbuildinfo` incremental cache that was surfacing phantom type errors in `tsc -b`. Build is clean (`tsc -b && vite build` passes with 0 errors).

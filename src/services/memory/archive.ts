@@ -69,10 +69,14 @@ export function importMemoryTree(entries: MemoryArchiveEntry[]): MemoryDirectory
       continue;
     }
 
-    const fileName = segments.at(-1);
+    const fileName = segments[segments.length - 1];
     const dirPath = segments.slice(0, -1).join('/');
     const directory = findOrCreateDirectory(tree, dirPath);
     const parsed = parseMemoryFile(entry.content);
+
+    if (!fileName) {
+      continue;
+    }
 
     if (fileName === getL0FileName()) {
       setL0Summary(directory, parsed);

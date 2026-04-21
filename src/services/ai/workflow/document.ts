@@ -36,6 +36,7 @@ export interface DocumentInput {
   existingHtml?: string;
   existingMarkdown?: string;
   chatHistory: AIMessage[];
+  memoryContext?: string;
   documentType?: string; // hints like "report", "notes", "wiki", "readme"
   styleHint?: string;
   /** Other documents/presentations in the project — used to generate cross-document links */
@@ -73,6 +74,14 @@ Rules:
 const EDIT_DOCUMENT_SYSTEM_PROMPT = `You are a professional document editor.
 Return the complete updated document while preserving the existing layout quality, hierarchy, and visual identity.
 Keep the document focused on the current request, prefer the smallest necessary change, and output only the updated content.`;
+
+function withMemoryContext(prompt: string, memoryContext?: string): string {
+  if (!memoryContext) {
+    return prompt;
+  }
+
+  return `${prompt}\n\nRelevant memory context:\n${memoryContext}\n\nUse this memory only when it improves the current document.`;
+}
 
 interface DocumentTheme {
   name: string;
@@ -826,7 +835,10 @@ export async function runDocumentWorkflow(
     onEvent({ type: 'progress', message: isEdit ? 'Applying changes…' : 'Crafting your document…', pct: 28 });
 
     const systemPrompt = isEdit ? EDIT_DOCUMENT_SYSTEM_PROMPT : DOCUMENT_SYSTEM_PROMPT;
-    const userPrompt = isEdit ? await buildEditPrompt(input, planResult) : await buildCreatePrompt(input, planResult);
+    const userPrompt = withMemoryContext(
+      isEdit ? await buildEditPrompt(input, planResult) : await buildCreatePrompt(input, planResult),
+      input.memoryContext,
+    );
 
     const historyMessages: ModelMessage[] = toModelMessages(
       input.chatHistory.slice(-4), // Keep only the most recent context so the current document stays focused

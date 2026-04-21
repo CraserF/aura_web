@@ -30,11 +30,21 @@ export function createDefaultSheet(name = 'Sheet 1'): SheetMeta {
 }
 
 function quoteIdentifier(identifier: string): string {
-  return `"${identifier.replaceAll('"', '""')}"`;
+  return `"${identifier.split('"').join('""')}"`;
 }
 
 function sqlLiteral(value: string): string {
-  return `'${value.replaceAll("'", "''")}'`;
+  return `'${value.split("'").join("''")}'`;
+}
+
+type DuckDbFileApi = {
+  copyFileToBuffer?: (fileName: string) => Promise<Uint8Array>;
+  registerFileBuffer?: (fileName: string, data: Uint8Array) => Promise<void>;
+  dropFile?: (fileName: string) => Promise<void>;
+};
+
+function getDuckDbFileApi(connection: object): DuckDbFileApi {
+  return ((connection as { _db?: DuckDbFileApi })._db) ?? {};
 }
 
 function mapDuckTypeToSchemaType(type: string): ColumnSchema['type'] {
@@ -157,15 +167,18 @@ export async function ingestFileToSheet(sheet: SheetMeta, file: File): Promise<C
 
 export async function exportSheetParquet(tableName: string): Promise<Uint8Array> {
   const conn = await openConnection();
-  const db = conn['_db' as keyof typeof conn] as { copyFileToBuffer: (fileName: string) => Promise<Uint8Array>; dropFile: (fileName: string) => Promise<void> };
+  const db = getDuckDbFileApi(conn);
   const tempFile = `${tableName}_aura_export.parquet`;
 
   try {
     await conn.query(`COPY ${quoteIdentifier(tableName)} TO '${tempFile}' (FORMAT PARQUET)`);
+    if (!db.copyFileToBuffer) {
+      throw new Error('DuckDB file export API is unavailable.');
+    }
     return await db.copyFileToBuffer(tempFile);
   } finally {
     try {
-      await db.dropFile(tempFile);
+      await db.dropFile?.(tempFile);
     } catch {
       // best effort cleanup
     }
@@ -175,15 +188,18 @@ export async function exportSheetParquet(tableName: string): Promise<Uint8Array>
 
 export async function importSheetParquet(tableName: string, bytes: Uint8Array): Promise<void> {
   const conn = await openConnection();
-  const db = conn['_db' as keyof typeof conn] as { registerFileBuffer: (fileName: string, data: Uint8Array) => Promise<void>; dropFile: (fileName: string) => Promise<void> };
+  const db = getDuckDbFileApi(conn);
   const tempFile = `${tableName}_aura_import.parquet`;
 
   try {
+    if (!db.registerFileBuffer) {
+      throw new Error('DuckDB file import API is unavailable.');
+    }
     await db.registerFileBuffer(tempFile, bytes);
     await conn.query(`CREATE OR REPLACE TABLE ${quoteIdentifier(tableName)} AS SELECT * FROM '${tempFile}'`);
   } finally {
     try {
-      await db.dropFile(tempFile);
+      await db.dropFile?.(tempFile);
     } catch {
       // best effort cleanup
     }

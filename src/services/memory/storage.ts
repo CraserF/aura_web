@@ -23,7 +23,6 @@ import type {
   MemoryFile,
   MemoryFrontmatter,
   MemoryContent,
-  MemoryId,
   MemoryCategory,
   MemoryScope,
   MemorySensitivity,
@@ -60,6 +59,9 @@ function parseYaml(yamlText: string): Record<string, unknown> {
         const keyMatch = line.match(/^(\w+):\s*/);
         if (keyMatch) {
           const key = keyMatch[1];
+          if (!key) {
+            continue;
+          }
           const value = line.substring(keyMatch[0].length).trim();
           // Try to parse as JSON
           try {
@@ -72,7 +74,13 @@ function parseYaml(yamlText: string): Record<string, unknown> {
       continue;
     }
 
-    const [, key, value] = match;
+    const [, rawKey, rawValue] = match;
+    if (!rawKey || rawValue === undefined) {
+      continue;
+    }
+
+    const key = rawKey;
+    const value = rawValue;
 
     // Parse different types
     if (value === 'true') {
@@ -137,7 +145,7 @@ function extractSection(markdown: string, sectionName: string): string {
     'i'
   );
   const match = markdown.match(sectionRegex);
-  return match ? match[1].trim() : '';
+  return match?.[1]?.trim() ?? '';
 }
 
 /**
@@ -212,6 +220,9 @@ export function parseMemoryFile(fileContent: string): MemoryFile {
   }
 
   const [, frontmatterText, contentText] = match;
+  if (frontmatterText === undefined || contentText === undefined) {
+    throw new Error('Memory file frontmatter or content is missing');
+  }
 
   // Parse and validate frontmatter
   const frontmatterData = parseYaml(frontmatterText);
