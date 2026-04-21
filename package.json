@@ -16,6 +16,7 @@
     "@ai-sdk/anthropic": "^3.0.68",
     "@ai-sdk/google": "^3.0.61",
     "@ai-sdk/openai": "^3.0.52",
+    "@duckdb/duckdb-wasm": "^1.33.1-dev45.0",
     "@isomorphic-git/lightning-fs": "^4.6.2",
     "@mdxeditor/editor": "^3.54.0",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -45,6 +46,7 @@
     "react-resizable-panels": "^4.10.0",
     "reveal.js": "^5.2.1",
     "tailwind-merge": "^3.5.0",
+    "xlsx": "^0.18.5",
     "zod": "^4.3.6",
     "zustand": "^5.0.12"
   },

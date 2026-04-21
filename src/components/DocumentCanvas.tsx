@@ -11,6 +11,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { useProjectStore } from '@/stores/projectStore';
+import { hydrateDocumentCharts } from '@/services/charts';
 
 interface DocumentCanvasProps {
   html: string;
@@ -404,11 +405,12 @@ export function DocumentCanvas({ html, pagesEnabled = false, onNavigate }: Docum
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  const updateContent = useCallback((bodyHtml: string) => {
+  const updateContent = useCallback(async (bodyHtml: string) => {
     const iframe = iframeRef.current;
     if (!iframe) return;
 
-    const fullDoc = buildIframeDocument(bodyHtml, pagesEnabled);
+    const hydratedHtml = await hydrateDocumentCharts(bodyHtml);
+    const fullDoc = buildIframeDocument(hydratedHtml, pagesEnabled);
     const blob = new Blob([fullDoc], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
 
@@ -425,7 +427,7 @@ export function DocumentCanvas({ html, pagesEnabled = false, onNavigate }: Docum
 
   useEffect(() => {
     if (html) {
-      updateContent(html);
+      void updateContent(html);
     }
   }, [html, updateContent]);
 

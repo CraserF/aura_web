@@ -247,14 +247,14 @@ Do not start the next phase until the current phase test gate is green.
 
 | Phase | Batch | Status | Evidence (PR/commit/tests) |
 |------|------|--------|-----------------------------|
-| M1 | M1-A | ☐ Pending | |
-| M1 | M1-B | ☐ Pending | |
-| M1 | M1-C | ☐ Pending | |
-| M1 | M1-D | ☐ Pending | |
-| M2 | M2-A | ☐ Pending | |
-| M2 | M2-B | ☐ Pending | |
-| M2 | M2-C | ☐ Pending | |
-| M2 | M2-D | ☐ Pending | |
+| M1 | M1-A | ✅ Done | `documentChartHydration.ts` + `prerender.ts`; `document-chart-hydration.test.ts` (8 tests) |
+| M1 | M1-B | ✅ Done | `chartExport.ts` already implemented; `chartExport.test.ts` (8 tests) |
+| M1 | M1-C | ✅ Done | `ChartEditor.tsx` dialog + illustrative badge in `chart-plugin.ts`; `chart-editor.test.ts` (19 tests) |
+| M1 | M1-D | ✅ Done | `docx.ts` + `buildChartParagraphs` (ImageRun); `docx-chart-export.test.ts` (4 tests) |
+| M2 | M2-A | ✅ Done | `@duckdb/duckdb-wasm@1.33.1` installed; `src/services/data/duckdb.ts` lazy singleton |
+| M2 | M2-B | ✅ Done | `src/services/data/persistence.ts` Parquet ↔ IndexedDB round-trip |
+| M2 | M2-C | ✅ Done | `extractApi.ts` (describeTable, sampleRows, aggregateQuery) + `ingest.ts` (CSV/JSON/XLSX via SheetJS) |
+| M2 | M2-D | ✅ Done | `duckdb-foundation.test.ts` (15 tests) validates lazy-load isolation; all exports verified |
 | M3 | M3-A | ☐ Pending | |
 | M3 | M3-B | ☐ Pending | |
 | M3 | M3-C | ☐ Pending | |

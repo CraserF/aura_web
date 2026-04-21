@@ -58,6 +58,25 @@ function hydrateCharts(deckRoot: HTMLElement, mounted: Map<HTMLElement, Hydrated
 
     const rendered = renderChart({ container, spec });
     mounted.set(container, { id: chartId, destroy: rendered.destroy });
+
+    // M1.6 — illustrative data badge on presentations
+    if (spec.illustrative) {
+      const existing = container.querySelector('[data-aura-illustrative-badge]');
+      if (!existing) {
+        const badge = document.createElement('span');
+        badge.setAttribute('data-aura-illustrative-badge', '');
+        badge.textContent = 'Illustrative data';
+        badge.style.cssText =
+          'position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.55);color:#fff;'
+          + 'font-size:10px;font-family:system-ui,sans-serif;padding:2px 7px;border-radius:9999px;'
+          + 'pointer-events:none;letter-spacing:0.03em;backdrop-filter:blur(4px);z-index:10;';
+        // Ensure the container has relative positioning for the badge
+        if (getComputedStyle(container).position === 'static') {
+          container.style.position = 'relative';
+        }
+        container.appendChild(badge);
+      }
+    }
   });
 }
 

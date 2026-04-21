@@ -5,11 +5,14 @@ import {
   BorderStyle,
   Document,
   Footer,
+  ImageRun,
   LevelFormat,
   Packer,
   Paragraph,
   TextRun,
 } from 'docx';
+import { extractChartSpecsFromHtml } from '@/services/charts';
+import { prerenderChartToDataUrl } from '@/services/charts';
 
 export interface DocumentDocxJob {
   title: string;
@@ -322,9 +325,68 @@ function markdownToParagraphs(markdown: string, title: string): Paragraph[] {
   return paragraphs;
 }
 
+/**
+ * Build Paragraph objects for each chart found in the HTML.
+ * Charts are rendered to PNG via Chart.js and embedded as ImageRun elements.
+ * Returns an empty array if there are no charts or rendering fails.
+ */
+async function buildChartParagraphs(html: string): Promise<Paragraph[]> {
+  const specs = extractChartSpecsFromHtml(html);
+  const specEntries = Object.values(specs);
+  if (specEntries.length === 0) return [];
+
+  const paragraphs: Paragraph[] = [];
+
+  for (const spec of specEntries) {
+    const result = prerenderChartToDataUrl(spec);
+    if (!result) continue;
+
+    // Strip the data URL prefix to get raw base64
+    const base64 = result.dataUrl.replace(/^data:image\/png;base64,/, '');
+
+    if (spec.title) {
+      paragraphs.push(
+        new Paragraph({
+          children: [new TextRun({ text: spec.title, bold: true, size: 24, font: DOCX_FONT_FAMILY, color: '162235' })],
+          spacing: { before: 240, after: 80 },
+        }),
+      );
+    }
+
+    paragraphs.push(
+      new Paragraph({
+        children: [
+          new ImageRun({
+            type: 'png',
+            data: base64,
+            transformation: { width: 480, height: 240 },
+            altText: { title: spec.title ?? 'Chart', description: spec.title ?? 'Chart', name: spec.id },
+          }),
+        ],
+        spacing: { before: 80, after: 200 },
+      }),
+    );
+
+    if (spec.illustrative) {
+      paragraphs.push(
+        new Paragraph({
+          children: [new TextRun({ text: 'Illustrative data', italics: true, size: 18, color: '6B7280', font: DOCX_FONT_FAMILY })],
+          spacing: { after: 160 },
+        }),
+      );
+    }
+  }
+
+  return paragraphs;
+}
+
 export async function exportDocumentDocx(job: DocumentDocxJob): Promise<void> {
   const markdown = job.markdown?.trim() || htmlToMarkdownFallback(job.html ?? '') || `# ${job.title}`;
   const paragraphs = markdownToParagraphs(markdown, job.title);
+
+  // Append chart images if HTML was provided (charts are not representable in markdown).
+  const chartParagraphs = job.html ? await buildChartParagraphs(job.html) : [];
+  const allParagraphs = [...paragraphs, ...chartParagraphs];
 
   const doc = new Document({
     creator: 'Aura',
@@ -399,7 +461,7 @@ export async function exportDocumentDocx(job: DocumentDocxJob): Promise<void> {
             ],
           }),
         },
-        children: paragraphs,
+        children: allParagraphs,
       },
     ],
   });

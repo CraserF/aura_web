@@ -14,3 +14,5 @@ export { renderChart } from './renderer';
 export { snapshotChart } from './snapshot';
 export { parseMarkdownTable, type ParsedMarkdownTable } from './parseMarkdownTable';
 export { extractChartSpecsFromHtml } from './extract';
+export { hydrateDocumentCharts } from './documentChartHydration';
+export { prerenderChartToDataUrl, prerenderCharts, type PrerenderResult } from './prerender';

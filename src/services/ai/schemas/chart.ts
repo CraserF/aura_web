@@ -6,6 +6,24 @@ export const ChartDatasetSchema = z.object({
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional().describe('Hex color override'),
 });
 
+export const DataSourceSchema = z.object({
+  kind: z.enum(['inline', 'table-ref', 'query-ref']).describe('Data source type'),
+  refId: z.string().optional().describe('DuckDB table name (for table-ref)'),
+  query: z.string().optional().describe('SQL query to extract chart data'),
+});
+
+export const ExtractPlanSchema = z.object({
+  operation: z.enum(['groupBy', 'topN', 'window', 'sample', 'timeseries-bucket']),
+  params: z.record(z.string(), z.any()),
+});
+
+export const DataProvenanceSchema = z.object({
+  rowCount: z.number().int().nonnegative(),
+  sampled: z.boolean(),
+  generatedAt: z.string().describe('ISO 8601 timestamp'),
+  queryHash: z.string().describe('SHA-256 hex of query + snapshot'),
+});
+
 export const ChartSpecSchema = z.object({
   id: z.string().min(1).max(40).describe('Unique chart identifier'),
   type: z.enum([
@@ -29,6 +47,10 @@ export const ChartSpecSchema = z.object({
   beginAtZero: z.boolean().optional().default(true),
   aspectRatio: z.number().min(0.5).max(6).optional(),
   stacked: z.boolean().optional(),
+  dataSource: DataSourceSchema.optional(),
+  extractPlan: ExtractPlanSchema.optional(),
+  provenance: DataProvenanceSchema.optional(),
 });
 
 export type ChartSpecZ = z.infer<typeof ChartSpecSchema>;
+
