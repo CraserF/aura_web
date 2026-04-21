@@ -1,6 +1,6 @@
 # Memory Markdown — Implementation Plan
 
-> Status: planning (no implementation in this document)  
+> Status: execution-ready (phase-gated with test checkpoints)  
 > Scope: semantic file-based memory system for user/project intelligence with privacy boundaries  
 > Last updated: 2026-04-19  
 > Depends on: none (can start independently)  
@@ -340,6 +340,13 @@ User query / Agent context need
 
 ## 8) Milestones
 
+### Phase Execution Rules (applies to M1 → M3)
+
+1. Complete milestone tasks in order.
+2. Run and record the milestone-specific test gate before starting the next milestone.
+3. Do not mark a milestone complete unless all gate checks pass.
+4. Keep the execution record updated in this file as work lands.
+
 ### M1 — Memory File Standard + Local Storage
 **Parallel-safe: yes — independent of all other features**
 
@@ -352,6 +359,11 @@ User query / Agent context need
 | M1.5 | Define memory write/update policies (merge, append, immutable) | M |
 | M1.6 | Implement cross-reference link parser (`[[entity-name]]` → index) | S |
 | M1.7 | Add memory directory to .aura file packaging | S |
+
+**M1 test gate (required before M2):**
+- Unit: AMF schema validation, frontmatter read/write, update strategy enforcement, cross-reference parsing.
+- Integration: `.aura` package save/load includes memory directory + metadata integrity.
+- Manual: create sample memory tree and verify L0/L1 regeneration from L2 changes.
 
 ### M2 — Capture + Retrieval
 **Depends on: M1**
@@ -366,6 +378,11 @@ User query / Agent context need
 | M2.6 | Wire retrieval into AI workflow (inject relevant memory into system prompts) | M |
 | M2.7 | Add session archival on chat end (messages.jsonl + summaries) | M |
 
+**M2 test gate (required before M3):**
+- Unit: extraction candidate mapping, dedup decision branches (skip/create/merge/delete), token budget calculator.
+- Integration: end-to-end chat/session → extraction → write → retrieval → prompt assembly.
+- Quality: relevance checks on top-k retrieval and dedup false-positive/false-negative sampling.
+
 ### M3 — Privacy + Multi-User Preparation
 **Depends on: M2, Account/Cloud M1**
 
@@ -376,6 +393,11 @@ User query / Agent context need
 | M3.3 | Add sync-ready metadata for cloud replication | M |
 | M3.4 | Implement skill export/import for sharing | M |
 | M3.5 | Implement memory compaction (periodic L0/L1 regeneration, stale memory pruning) | M |
+
+**M3 test gate (required before rollout):**
+- Unit: envelope encryption/decryption primitives and role policy checks.
+- Integration: per-user namespace isolation, encrypted file read/write cycle, share/export-import workflows.
+- Security: unauthorized access denial, corrupted encrypted file handling, key-rotation safety checks.
 
 **Size estimates: S = < 1 day, M = 1-3 days, L = 3-5 days**
 
@@ -413,3 +435,17 @@ User query / Agent context need
 3. **Memory export format**: Should exported skills use standard markdown, or a custom Aura skill format with execution metadata? Start with markdown, add execution metadata later.
 4. **Retention policy**: How long to keep archived session messages? Recommendation: keep L0/L1 summaries indefinitely, delete raw messages.jsonl after 90 days.
 5. **Memory conflict on sync**: When cloud sync introduces conflicting memory files, merge strategy? Defer to Account/Cloud plan.
+
+## 13) Execution Record (update as work ships)
+
+### Milestone completion tracker
+
+- [ ] M1 complete
+- [ ] M2 complete
+- [ ] M3 complete
+
+### Checkpoint log
+
+| Date | Milestone | Change summary | Test gate result | Owner |
+|------|-----------|----------------|------------------|-------|
+| _TBD_ | _TBD_ | _TBD_ | _TBD_ | _TBD_ |
