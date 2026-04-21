@@ -205,7 +205,10 @@ export function SpreadsheetCanvas({ document, onChange }: SpreadsheetCanvasProps
               {viewport.rows.length === 0 && (
                 <tr>
                   <td colSpan={Math.max(2, viewport.columns.length + 1)} className="px-2 py-6 text-center text-muted-foreground">
-                    Import CSV/JSON/XLSX to populate this sheet.
+                    <div className="space-y-1">
+                      <p>Create a sheet from chat or import CSV/JSON/XLSX.</p>
+                      <p className="text-[11px] text-muted-foreground/80">Try: "Create a budget tracker", "Make a sales table with sample data", or "Design a table with columns name, amount, status".</p>
+                    </div>
                   </td>
                 </tr>
               )}

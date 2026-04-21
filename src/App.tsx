@@ -184,7 +184,7 @@ export default function App() {
   useEffect(() => {
     const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
     if (chatPanelOpen && isDesktop) {
-      chatPanelRef.current?.expand();
+      chatPanelRef.current?.resize('28%');
     } else {
       chatPanelRef.current?.collapse();
     }
@@ -431,7 +431,7 @@ export default function App() {
           orientation="horizontal"
           className="min-h-0 flex-1"
         >
-          <Panel className="flex min-w-0 flex-col">
+          <Panel className="flex min-w-0 flex-col" minSize={360}>
             <main className="flex min-h-0 flex-1 flex-col">
           {!activeDocument && (
             <div className="flex flex-1 items-center justify-center">
@@ -708,10 +708,11 @@ export default function App() {
 
           <Panel
             panelRef={chatPanelRef}
-            defaultSize={28}
-            minSize={0}
-            maxSize={50}
+            defaultSize="0%"
+            minSize="15%"
+            maxSize="60%"
             collapsible
+            collapsedSize="0%"
             onResize={(panelSize) => setChatPanelOpen(panelSize.asPercentage > 0)}
           >
             <ChatPanel open={chatPanelOpen} onClose={() => setChatPanelOpen(false)} />

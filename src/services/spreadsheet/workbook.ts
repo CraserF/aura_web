@@ -37,6 +37,44 @@ function sqlLiteral(value: string): string {
   return `'${value.split("'").join("''")}'`;
 }
 
+function sqlValue(value: unknown, type: ColumnSchema['type']): string {
+  if (value == null || value === '') {
+    return 'NULL';
+  }
+
+  if (type === 'number') {
+    const numeric = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(numeric) ? String(numeric) : 'NULL';
+  }
+
+  if (type === 'boolean') {
+    if (typeof value === 'boolean') {
+      return value ? 'TRUE' : 'FALSE';
+    }
+
+    const normalized = String(value).trim().toLowerCase();
+    if (normalized === 'true' || normalized === 'yes') return 'TRUE';
+    if (normalized === 'false' || normalized === 'no') return 'FALSE';
+    return 'NULL';
+  }
+
+  return sqlLiteral(String(value));
+}
+
+function columnSqlType(type: ColumnSchema['type']): string {
+  switch (type) {
+    case 'number':
+      return 'DOUBLE';
+    case 'boolean':
+      return 'BOOLEAN';
+    case 'date':
+      return 'VARCHAR';
+    case 'text':
+    default:
+      return 'VARCHAR';
+  }
+}
+
 type DuckDbFileApi = {
   copyFileToBuffer?: (fileName: string) => Promise<Uint8Array>;
   registerFileBuffer?: (fileName: string, data: Uint8Array) => Promise<void>;
@@ -136,6 +174,38 @@ export async function appendEmptyRow(sheet: SheetMeta): Promise<void> {
     await conn.query(
       `INSERT INTO ${quoteIdentifier(sheet.tableName)} (${columnNames.join(', ')}) VALUES (${values.join(', ')})`,
     );
+  } finally {
+    await conn.close();
+  }
+}
+
+export async function replaceSheetData(
+  sheet: SheetMeta,
+  schema: ColumnSchema[],
+  rows: Array<Record<string, unknown>>,
+): Promise<ColumnSchema[]> {
+  const conn = await openConnection();
+
+  try {
+    const nextSchema = schema.length > 0 ? schema : createDefaultSheet(sheet.name).schema;
+    const columnSql = nextSchema
+      .map((column) => `${quoteIdentifier(column.name)} ${columnSqlType(column.type)}${column.nullable ? '' : ' NOT NULL'}`)
+      .join(', ');
+
+    await conn.query(`CREATE OR REPLACE TABLE ${quoteIdentifier(sheet.tableName)} (${columnSql})`);
+
+    if (rows.length > 0) {
+      const columnNames = nextSchema.map((column) => quoteIdentifier(column.name)).join(', ');
+      const valuesSql = rows
+        .map((row) => `(${nextSchema.map((column) => sqlValue(row[column.name], column.type)).join(', ')})`)
+        .join(', ');
+
+      await conn.query(
+        `INSERT INTO ${quoteIdentifier(sheet.tableName)} (${columnNames}) VALUES ${valuesSql}`,
+      );
+    }
+
+    return nextSchema;
   } finally {
     await conn.close();
   }
