@@ -187,7 +187,7 @@ Phases 1–5 delivered the MVP: presentation generation, document generation, ch
 
 Each feature has a standalone implementation plan with milestones, validation requirements, and open questions:
 
-- [Charts Integration Plan](docs/roadmap/charts-integration-plan.md) — chart runtime completion + DuckDB data layer
+- [Charts Integration Plan](docs/roadmap/charts-integration-plan.md) — chart runtime completion + DuckDB data layer, now split into sequential M1→M3 execution batches with test gates
 - [Spreadsheet Integration Plan](docs/roadmap/spreadsheet-integration-plan.md) — prompt-first spreadsheets on DuckDB
 - [Memory Markdown Plan](docs/roadmap/memory-markdown-plan.md) — semantic file-based memory with L0/L1/L2 hierarchy
 - [Account Creation, Cloud, and Collaboration Plan](docs/roadmap/account-creation-cloud-plan.md) — Supabase BaaS, portfolio, versioning
