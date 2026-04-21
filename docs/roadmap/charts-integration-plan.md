@@ -1,8 +1,8 @@
 # Charts Integration — Implementation Plan
 
-> Status: planning (no implementation in this document)  
+> Status: execution-ready (phase/batch tracker with required test gates)  
 > Scope: chart runtime completion, data-efficiency strategy, DuckDB-WASM integration  
-> Last updated: 2026-04-19
+> Last updated: 2026-04-21
 
 ## 1) Goals
 
@@ -193,14 +193,81 @@ On app load → read parquet from IndexedDB → registerFileBuffer → CREATE TA
 
 **Size estimates: S = < 1 day, M = 1-3 days, L = 3-5 days**
 
-## 6) Validation Requirements
+## 6) Phase/Batch Execution Order (sequential)
+
+Run phases in strict order: **M1 → M2 → M3**.  
+Do not start the next phase until the current phase test gate is green.
+
+### M1 Batches (runtime completion)
+
+- **Batch M1-A**: M1.1 + M1.2
+  - Scope: document iframe hydration + chart lifecycle cleanup
+  - Test gate: chart hydration tests for reveal/document + cleanup on remove/unmount
+- **Batch M1-B**: M1.3
+  - Scope: PDF chart flattening (snapshot → image replacement)
+  - Test gate: export tests proving non-blank chart output
+- **Batch M1-C**: M1.4 + M1.6
+  - Scope: data editor dialog + illustrative data badge
+  - Test gate: editor unit/integration tests + badge rendering tests
+- **Batch M1-D**: M1.5
+  - Scope: DOCX chart snapshot integration
+  - Test gate: DOCX export tests proving chart image inclusion
+
+### M2 Batches (DuckDB foundation)
+
+- **Batch M2-A**: M2.1 + M2.2
+  - Scope: dependency + lazy DuckDB singleton
+  - Test gate: lazy-load tests + no app-start load regression
+- **Batch M2-B**: M2.3
+  - Scope: Parquet/IndexedDB persistence round-trip
+  - Test gate: round-trip integrity tests
+- **Batch M2-C**: M2.4 + M2.5
+  - Scope: extract APIs + CSV/JSON/XLSX ingest pipeline
+  - Test gate: query correctness + ingest fixture tests
+- **Batch M2-D**: M2.6
+  - Scope: bundle-size/lazy-load validation
+  - Test gate: build artifact validation + manual startup checks
+
+### M3 Batches (chart + data integration)
+
+- **Batch M3-A**: M3.1 + M3.3
+  - Scope: ChartSpec data-source extensions + prompt guardrails
+  - Test gate: schema and prompt policy tests
+- **Batch M3-B**: M3.2
+  - Scope: wire extract APIs as AI tools
+  - Test gate: tool wiring tests + workflow regression tests
+- **Batch M3-C**: M3.4 + M3.5
+  - Scope: chart-from-table flow + staleness detection
+  - Test gate: end-to-end flow tests + reopen staleness checks
+- **Batch M3-D**: M3.6
+  - Scope: small/medium/large performance benchmarks
+  - Test gate: benchmark report committed
+
+### Progress Recording (update as batches land)
+
+| Phase | Batch | Status | Evidence (PR/commit/tests) |
+|------|------|--------|-----------------------------|
+| M1 | M1-A | ☐ Pending | |
+| M1 | M1-B | ☐ Pending | |
+| M1 | M1-C | ☐ Pending | |
+| M1 | M1-D | ☐ Pending | |
+| M2 | M2-A | ☐ Pending | |
+| M2 | M2-B | ☐ Pending | |
+| M2 | M2-C | ☐ Pending | |
+| M2 | M2-D | ☐ Pending | |
+| M3 | M3-A | ☐ Pending | |
+| M3 | M3-B | ☐ Pending | |
+| M3 | M3-C | ☐ Pending | |
+| M3 | M3-D | ☐ Pending | |
+
+## 7) Validation Requirements
 
 - **Unit tests**: schema validation, type inference overrides, extract planner behavior, DuckDB query correctness.
 - **Integration tests**: chart re-open persistence, chart rendering in both surfaces (Reveal.js + document iframe), export snapshot integrity, DuckDB persistence round-trip.
 - **Performance tests**: DuckDB ingestion time for 10k/100k/1M rows, query latency, memory pressure.
 - **Manual checks**: light/dark theme parity, large dataset responsiveness, empty/invalid data fallback, lazy-load bundle impact on initial page load.
 
-## 7) Risks & Mitigations
+## 8) Risks & Mitigations
 
 | Risk | Mitigation |
 |------|------------|
@@ -211,7 +278,7 @@ On app load → read parquet from IndexedDB → registerFileBuffer → CREATE TA
 | XLSX requires SheetJS | SheetJS (community edition) is MIT licensed, ~1 MB. Acceptable for the value it provides. |
 | Arrow result format overhead | Use `.toArray().map(r => r.toJSON())` for small results, streaming `.send()` for large results. Consider Arrow-native chart rendering if performance demands. |
 
-## 8) Deliverables
+## 9) Deliverables
 
 - Updated `docs/chart-system-design.md` with data-efficiency additions.
 - `src/services/data/` module (DuckDB singleton, persistence, extract APIs).
@@ -219,7 +286,7 @@ On app load → read parquet from IndexedDB → registerFileBuffer → CREATE TA
 - Performance benchmarks document (small/medium/large datasets).
 - Contributor-ready implementation checklist per milestone.
 
-## 9) Open Questions
+## 10) Open Questions
 
 1. **Polars-WASM**: Start DuckDB-only. Add Polars adapter only if benchmarks show clear benefit for specific transform patterns. Decision deferred to post-M2.
 2. **Arrow-native rendering**: Should chart rendering accept Arrow tables directly, or always convert to JSON first? Decision deferred to M3 based on performance data.
