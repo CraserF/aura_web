@@ -7,9 +7,26 @@
  *
  * All functions create a new DuckDB table (or replace an existing one) with
  * the provided `tableName` using the ingested data.
+ *
+ * Pass `{ persist: true }` to any ingest function to automatically save the
+ * resulting table to IndexedDB as Parquet immediately after ingestion. This
+ * enables 4–10× faster reload on the next app launch compared to re-ingesting
+ * from the original source.
  */
 
 import { openConnection } from './duckdb';
+import { saveTableToIndexedDB } from './persistence';
+
+// ── Options ────────────────────────────────────────────────────────────────────
+
+export interface IngestOptions {
+  /**
+   * If true, persist the table to IndexedDB as Parquet after ingestion.
+   * Enables faster reloads (Parquet → DuckDB is 4–10× faster than re-parsing
+   * CSV/JSON). Default: false.
+   */
+  persist?: boolean;
+}
 
 // ── CSV ────────────────────────────────────────────────────────────────────────
 
@@ -17,7 +34,7 @@ import { openConnection } from './duckdb';
  * Ingest a CSV string into DuckDB as table `tableName`.
  * DuckDB auto-detects column types, delimiters, and headers.
  */
-export async function ingestCsv(tableName: string, csvContent: string): Promise<void> {
+export async function ingestCsv(tableName: string, csvContent: string, options?: IngestOptions): Promise<void> {
   const conn = await openConnection();
   const db = conn['_db' as keyof typeof conn] as any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -31,6 +48,7 @@ export async function ingestCsv(tableName: string, csvContent: string): Promise<
     try { await db.dropFile(fileName); } catch { /* best-effort */ }
     await conn.close();
   }
+  if (options?.persist) await saveTableToIndexedDB(tableName);
 }
 
 // ── JSON ───────────────────────────────────────────────────────────────────────
@@ -39,7 +57,7 @@ export async function ingestCsv(tableName: string, csvContent: string): Promise<
  * Ingest a JSON string (array of objects) into DuckDB as table `tableName`.
  * The JSON must be an array at the top level.
  */
-export async function ingestJson(tableName: string, jsonContent: string): Promise<void> {
+export async function ingestJson(tableName: string, jsonContent: string, options?: IngestOptions): Promise<void> {
   const conn = await openConnection();
   const db = conn['_db' as keyof typeof conn] as any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -53,6 +71,7 @@ export async function ingestJson(tableName: string, jsonContent: string): Promis
     try { await db.dropFile(fileName); } catch { /* best-effort */ }
     await conn.close();
   }
+  if (options?.persist) await saveTableToIndexedDB(tableName);
 }
 
 // ── XLSX ───────────────────────────────────────────────────────────────────────
@@ -64,11 +83,13 @@ export async function ingestJson(tableName: string, jsonContent: string): Promis
  * @param tableName  Target DuckDB table name.
  * @param buffer     Raw XLSX bytes as ArrayBuffer.
  * @param sheetName  Worksheet name. Defaults to the first sheet.
+ * @param options    Ingest options (e.g. persist).
  */
 export async function ingestXlsx(
   tableName: string,
   buffer: ArrayBuffer,
   sheetName?: string,
+  options?: IngestOptions,
 ): Promise<void> {
   // Lazy-load SheetJS to avoid bundling it unless XLSX is actually used.
   const XLSX = await import('xlsx');
@@ -83,5 +104,5 @@ export async function ingestXlsx(
   }
 
   const csv = XLSX.utils.sheet_to_csv(sheet, { FS: ',', blankrows: false });
-  await ingestCsv(tableName, csv);
+  await ingestCsv(tableName, csv, options);
 }

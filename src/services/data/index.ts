@@ -7,9 +7,10 @@
 
 export { getDB, openConnection, query, destroyDB } from './duckdb';
 export { saveTableToIndexedDB, loadTableFromIndexedDB, deleteTableFromIndexedDB, listPersistedTables } from './persistence';
-export { describeTable, sampleRows, aggregateQuery } from './extractApi';
+export { describeTable, sampleRows, aggregateQuery, aggregateQueryStream } from './extractApi';
 export type { ColumnProfile, TableDescription } from './extractApi';
 export { ingestCsv, ingestJson, ingestXlsx } from './ingest';
+export type { IngestOptions } from './ingest';
 export { computeQueryHash, checkChartStaleness, checkProjectStaleness } from './staleness';
 export type { StalenessStatus, StalenessResult } from './staleness';
 export { buildChartSpecFromTable, suggestChartConfig } from './chartFromTable';

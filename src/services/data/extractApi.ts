@@ -142,3 +142,39 @@ export async function aggregateQuery(
     await conn.close();
   }
 }
+
+// ── aggregateQueryStream ───────────────────────────────────────────────────────
+
+/**
+ * Streaming variant of `aggregateQuery` using `conn.send()`.
+ *
+ * Yields batches of rows as they arrive from DuckDB without materialising
+ * the full Arrow table in memory. Use this instead of `aggregateQuery` when
+ * the result set may exceed ~10k rows to avoid peak memory spikes.
+ *
+ * The caller is responsible for consuming (or breaking out of) the async
+ * generator. The DuckDB connection is closed after the generator is exhausted
+ * or if an error occurs.
+ *
+ * WARNING: sqlFragment is not sanitised. Only call with AI-generated or
+ * internally-constructed fragments — never with raw user input.
+ *
+ * @example
+ * for await (const batch of aggregateQueryStream('sales', 'region, SUM(amount) GROUP BY region')) {
+ *   process(batch);
+ * }
+ */
+export async function* aggregateQueryStream(
+  tableName: string,
+  sqlFragment: string,
+): AsyncGenerator<Record<string, unknown>[]> {
+  const conn = await openConnection();
+  try {
+    const iter = await conn.send(`SELECT ${sqlFragment} FROM "${tableName}"`);
+    for await (const batch of iter) {
+      yield batch.toArray().map((row: { toJSON: () => Record<string, unknown> }) => row.toJSON());
+    }
+  } finally {
+    await conn.close();
+  }
+}

@@ -255,10 +255,10 @@ Do not start the next phase until the current phase test gate is green.
 | M2 | M2-B | ✅ Done | `src/services/data/persistence.ts` Parquet ↔ IndexedDB round-trip |
 | M2 | M2-C | ✅ Done | `extractApi.ts` (describeTable, sampleRows, aggregateQuery) + `ingest.ts` (CSV/JSON/XLSX via SheetJS) |
 | M2 | M2-D | ✅ Done | `duckdb-foundation.test.ts` (15 tests) validates lazy-load isolation; all exports verified |
-| M3 | M3-A | ☐ Pending | |
-| M3 | M3-B | ☐ Pending | |
-| M3 | M3-C | ☐ Pending | |
-| M3 | M3-D | ☐ Pending | |
+| M3 | M3-A | ✅ Done | `types.ts` DataSource/ExtractPlan/DataProvenance + `charts.ts` guardrails; `m3a-schema-prompt.test.ts` (22 tests) |
+| M3 | M3-B | ✅ Done | `chartDataTools.ts` (describeTable, sampleRows, aggregateQuery tools); `m3b-chart-data-tools.test.ts` (14 tests) |
+| M3 | M3-C | ✅ Done | `chartFromTable.ts` + `staleness.ts`; `m3c-chart-from-table.test.ts` (20 tests) |
+| M3 | M3-D | ✅ Done | `m3d-benchmarks.test.ts` (17 tests) + `docs/benchmarks/duckdb-performance.md` |
 
 ## 7) Validation Requirements
 
