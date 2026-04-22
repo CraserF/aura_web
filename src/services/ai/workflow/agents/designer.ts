@@ -273,15 +273,30 @@ function createDesignAgent(
           const blockingIssues = result.violations.filter((v) => v.tier === 'blocking');
           const advisories = result.violations.filter((v) => v.tier === 'advisory');
           const maxListedIssues = 8;
+          const mapBlockingIssue = (v: { rule: string; slide: number; detail: string }) => {
+            if (v.rule === 'palette-compliance' && v.detail.includes('CSS variable')) {
+              return `[${v.rule}] slide ${v.slide}: Use a concrete hex color (e.g., "#${planResult.blueprint.palette.bg.replace('#', '')}") instead of var(--...).`;
+            }
+            if (v.rule === 'no-external-images') {
+              return `[${v.rule}] slide ${v.slide}: Replace external URLs with inline SVG, data URIs, or remove the image entirely.`;
+            }
+            if (v.rule === 'template-content-leak') {
+              return `[${v.rule}] slide ${v.slide}: Replace template placeholder text with content matching the requested topic.`;
+            }
+            return `[${v.rule}] slide ${v.slide}: ${v.detail}`;
+          };
+
+          const formattedBlockingIssues = blockingIssues.slice(0, maxListedIssues).map(mapBlockingIssue);
+
           return {
             passed: result.passed,
             blockingCount: result.blockingCount,
             advisoryCount: result.advisoryCount,
             errorCount: result.blockingCount,
             warningCount: result.advisoryCount,
-            blockingIssues: blockingIssues.slice(0, maxListedIssues).map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
+            blockingIssues: formattedBlockingIssues,
             advisories: advisories.slice(0, maxListedIssues).map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
-            errors: blockingIssues.slice(0, maxListedIssues).map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
+            errors: formattedBlockingIssues,
             warnings: advisories.slice(0, maxListedIssues).map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
             omittedBlocking: Math.max(0, blockingIssues.length - maxListedIssues),
             omittedAdvisories: Math.max(0, advisories.length - maxListedIssues),
@@ -312,7 +327,20 @@ function createDesignAgent(
             return {
               accepted: false,
               errors: blockingViolations.map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
-              guidance: 'Fix the above blocking issues and call submitFinalSlide again.',
+              guidance: `Fix these ${blockingViolations.length} blocking issues:
+${blockingViolations.map((v) => {
+  if (v.rule === 'palette-compliance' && v.detail.includes('CSS variable')) {
+    return `• [${v.rule}] Use a concrete hex color (e.g., "#${planResult.blueprint.palette.bg.replace('#', '')}") instead of var(--...).`;
+  }
+  if (v.rule === 'no-external-images') {
+    return `• [${v.rule}] Replace external URLs with inline SVG, data URIs, or remove the image entirely.`;
+  }
+  if (v.rule === 'template-content-leak') {
+    return `• [${v.rule}] Replace template placeholder text with content matching the requested topic.`;
+  }
+  return `• [${v.rule}] ${v.detail}`;
+}).join('\n')}
+Then call submitFinalSlide again with the corrected HTML.`,
             };
           }
 
@@ -325,7 +353,7 @@ function createDesignAgent(
       }),
     },
     stopWhen: [
-      stepCountIs(6), // generate + validate + fix + validate + submit + accept-response
+      stepCountIs(3), // Restrict to max 3 steps to prevent infinite token-consuming loops
     ],
   });
 }
