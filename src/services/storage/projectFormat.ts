@@ -71,10 +71,13 @@ export async function downloadProjectFile(project: ProjectData): Promise<void> {
     if (doc.type === 'spreadsheet' && doc.workbook) {
       for (const sheet of doc.workbook.sheets) {
         try {
-          const parquet = await exportSheetParquet(sheet.tableName);
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('DuckDB export timeout')), 5000),
+          );
+          const parquet = await Promise.race([exportSheetParquet(sheet.tableName), timeoutPromise]);
           docsFolder.file(`${doc.id}.${sheet.id}.parquet`, parquet);
         } catch {
-          // Keep save resilient if a sheet table is not initialized yet.
+          // Keep save resilient if a sheet table is not initialized or DuckDB is unavailable.
         }
       }
     }

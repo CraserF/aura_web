@@ -103,7 +103,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   addDocument: (doc) =>
     set((s) => ({
-      userLockedDocType: false,
+      userLockedDocType: true,
       project: {
         ...s.project,
         documents: [...s.project.documents, doc],

@@ -5,6 +5,9 @@
  * This module is lazy-loaded via dynamic import() the first time getDB() is
  * called. Subsequent calls return the cached instance instantly.
  *
+ * We bundle the worker and WASM locally via Vite `?url` imports to avoid
+ * cross-origin Worker failures that occur with the CDN bundle approach.
+ *
  * Usage:
  *   const db = await getDB();
  *   const conn = await db.connect();
@@ -13,26 +16,19 @@
  */
 
 import type { AsyncDuckDB, AsyncDuckDBConnection } from '@duckdb/duckdb-wasm';
+import duckdbWorkerUrl from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url';
+import duckdbWasmUrl from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
 
 let dbInstance: AsyncDuckDB | null = null;
 let initPromise: Promise<AsyncDuckDB> | null = null;
 
 async function initDB(): Promise<AsyncDuckDB> {
-  // Dynamic import — ensures DuckDB WASM is never included in the initial bundle.
   const duckdb = await import('@duckdb/duckdb-wasm');
 
-  // Use CDN bundles for zero Vite config. For self-hosted, replace with ?url imports.
-  // jsDelivr bundles are HTTPS-only and safe to use in production.
-  const CDN_BUNDLES = duckdb.getJsDelivrBundles();
-  const bundle = await duckdb.selectBundle(CDN_BUNDLES);
-
-  const workerUrl = bundle.mainWorker;
-  if (!workerUrl) throw new Error('DuckDB: no worker URL in bundle');
-
-  const worker = new Worker(workerUrl);
+  const worker = new Worker(duckdbWorkerUrl);
   const logger = new duckdb.ConsoleLogger(duckdb.LogLevel.WARNING);
   const db = new duckdb.AsyncDuckDB(logger, worker);
-  await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+  await db.instantiate(duckdbWasmUrl);
 
   return db;
 }

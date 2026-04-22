@@ -5,14 +5,17 @@
 
 /**
  * Detect whether a user prompt should trigger the document, presentation, or
- * spreadsheet workflow, based on keyword detection alone.
+ * spreadsheet workflow.
  *
- * The caller is responsible for bypassing this when the user has manually
- * locked to a specific document type — see `userLockedDocType` in projectStore.
+ * If `activeDocType` is provided (i.e. the user has a document open and
+ * `userLockedDocType` is true), it is returned immediately — keyword detection
+ * is skipped. This preserves the user's explicit document-type selection.
  */
 export function detectWorkflowType(
   prompt: string,
+  activeDocType?: 'document' | 'presentation' | 'spreadsheet',
 ): 'document' | 'presentation' | 'spreadsheet' {
+  if (activeDocType) return activeDocType;
   const p = prompt.toLowerCase();
 
   const spreadsheetKeywords = [

@@ -232,11 +232,19 @@ function preserveExistingSlidesForAddIntent(existingHtml: string, candidateHtml:
 }
 
 /**
+ * Remove double-encoded attribute quote wrappers that arise from AI tool call
+ * JSON serialization. Converts x="\"0\"" → x="0".
+ */
+function normalizeAttributeQuotes(html: string): string {
+  return html.replace(/="\\"([^"]*?)\\""/g, '="$1"');
+}
+
+/**
  * Post-process raw LLM output into clean, validated slide HTML.
  */
 function postProcess(raw: string): { html: string; fontLinks: string[] } {
   const { html: rawHtml, fontLinks } = extractHtmlFromResponse(raw);
-  const html = sanitizeSlideHtml(rawHtml);
+  const html = sanitizeSlideHtml(normalizeAttributeQuotes(rawHtml));
   return { html, fontLinks };
 }
 
