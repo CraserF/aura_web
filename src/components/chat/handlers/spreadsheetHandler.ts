@@ -7,6 +7,7 @@
 
 import type { ProjectDocument, WorkbookMeta } from '@/types/project';
 import type { ChatMessage as ChatMessageType, GenerationStatus } from '@/types';
+import { countTextChars, logContextMetrics } from '@/services/ai/debug';
 import { extractChartSpecsFromHtml } from '@/services/charts';
 import { commitVersion } from '@/services/storage/versionHistory';
 import { runSpreadsheetWorkflow } from '@/services/ai/workflow/spreadsheet';
@@ -50,6 +51,14 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
 
   const activeWorkbook = activeDocument?.type === 'spreadsheet' ? activeDocument.workbook ?? null : null;
   const docIsDefaultSheet = isDefaultSheet(activeDocument);
+  const workbookSnapshot = activeWorkbook ? JSON.stringify(activeWorkbook) : '';
+
+  logContextMetrics('spreadsheet-handler', {
+    promptChars: countTextChars(ctx.prompt),
+    promptWithContextChars: countTextChars(promptWithContext),
+    attachmentContextChars: Math.max(0, promptWithContext.length - ctx.prompt.length),
+    artifactContextChars: countTextChars(workbookSnapshot),
+  });
 
   setStatus({ state: 'generating', startedAt: Date.now(), step: 'Working on spreadsheet…', pct: 20 });
   setStreamingContent('');

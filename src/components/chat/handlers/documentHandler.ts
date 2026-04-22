@@ -10,6 +10,11 @@ import type { ChatMessage as ChatMessageType, GenerationStatus, WorkflowStep, Pr
 import type { AIMessage } from '@/services/ai/types';
 import type { LLMConfig } from '@/services/ai/workflow/types';
 import type { WorkflowEvent } from '@/services/ai/workflow';
+import {
+  countConversationChars,
+  countTextChars,
+  logContextMetrics,
+} from '@/services/ai/debug';
 import { commitVersion } from '@/services/storage/versionHistory';
 import { extractChartSpecsFromHtml } from '@/services/charts';
 import { useProjectStore } from '@/stores/projectStore';
@@ -109,6 +114,22 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
       .map((d) => ({ id: d.id, title: d.title, type: d.type as 'document' | 'presentation' }));
 
     const memoryContext = await buildWorkflowMemoryContext(promptWithContext);
+    const projectLinksChars = projectLinks.reduce(
+      (total, link) => total + link.id.length + link.title.length + link.type.length,
+      0,
+    );
+
+    logContextMetrics('document-handler', {
+      promptChars: countTextChars(prompt),
+      promptWithContextChars: countTextChars(promptWithContext),
+      attachmentContextChars: Math.max(0, promptWithContext.length - prompt.length),
+      chatHistoryChars: countConversationChars(chatHistory),
+      memoryContextChars: countTextChars(memoryContext),
+      artifactContextChars:
+        countTextChars(existingDoc) +
+        countTextChars(activeDocument?.type === 'document' ? activeDocument.sourceMarkdown : undefined) +
+        projectLinksChars,
+    });
 
     const result = await runDocumentWorkflow({
       input: {

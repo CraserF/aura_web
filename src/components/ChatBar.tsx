@@ -8,11 +8,15 @@ import type { AIMessage } from '@/services/ai/types';
 import type { LLMConfig } from '@/services/ai/workflow/types';
 import type { ChatMessage as ChatMessageType, FileAttachment, WorkflowStep } from '@/types';
 import { readFileAsAttachment, buildAttachmentContext } from '@/lib/fileAttachment';
-import { detectWorkflowType } from '@/lib/workflowType';
 import { cn } from '@/lib/utils';
 import { handleSpreadsheetWorkflow } from '@/components/chat/handlers/spreadsheetHandler';
 import { handlePresentationWorkflow } from '@/components/chat/handlers/presentationHandler';
 import { handleDocumentWorkflow } from '@/components/chat/handlers/documentHandler';
+import {
+  buildScopedChatHistory,
+  resolveChatWorkflowType,
+  resolveOutgoingMessageScope,
+} from '@/services/chat/routing';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,15 +49,6 @@ function progressWidthClass(pct?: number): string {
   if (pct <= 80) return 'w-[80%]';
   if (pct <= 90) return 'w-[90%]';
   return 'w-[95%]';
-}
-
-function isMessageInScope(
-  message: ChatMessageType,
-  activeDocumentId: string | undefined,
-  showAllMessages: boolean,
-): boolean {
-  if (showAllMessages || !activeDocumentId) return true;
-  return message.scope === 'project' || !message.documentId || message.documentId === activeDocumentId;
 }
 
 export function ChatBar() {
@@ -201,8 +196,10 @@ export function ChatBar() {
     }
 
     const activeArtifactId = activeDocument?.id;
-    const messageScope = applyToAllDocuments || !activeArtifactId ? 'project' : 'document';
-    const scopedDocumentId = messageScope === 'document' ? activeArtifactId : undefined;
+    const { messageScope, scopedDocumentId } = resolveOutgoingMessageScope(
+      activeArtifactId,
+      applyToAllDocuments,
+    );
 
     // Snapshot and clear attachments before async work
     const currentAttachments = attachments;
@@ -233,19 +230,16 @@ export function ChatBar() {
       .filter((a) => a.kind === 'image')
       .map((a) => ({ type: 'image' as const, image: a.content, mimeType: a.mimeType }));
 
-    const chatHistory: AIMessage[] = messages
-      .filter((message) => isMessageInScope(message, activeArtifactId, showAllMessages))
-      .map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
+    const chatHistory: AIMessage[] = buildScopedChatHistory(
+      messages,
+      activeArtifactId,
+      showAllMessages,
+    );
 
     // Route to the correct workflow. If a document is already active, its type
     // is always authoritative — no keyword detection needed. Keywords are only
     // used as a fallback when creating from scratch with no document context.
-    const workflowType = activeDocument
-      ? activeDocument.type
-      : detectWorkflowType(prompt);
+    const workflowType = resolveChatWorkflowType(prompt, activeDocument?.type);
     const isEdit = !!activeDocument?.contentHtml;
 
     if (workflowType === 'spreadsheet') {

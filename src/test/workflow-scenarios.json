@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "description": "Phase 0 baseline workflow scenarios for parity-style regression coverage.",
+  "scenarios": [
+    {
+      "id": "presentation-create-from-prompt",
+      "artifactType": "presentation",
+      "operation": "create",
+      "prompt": "Create a six-slide keynote about grid-scale batteries",
+      "expects": {
+        "route": "presentation",
+        "createsArtifact": true
+      }
+    },
+    {
+      "id": "document-create-from-prompt",
+      "artifactType": "document",
+      "operation": "create",
+      "prompt": "Write a project brief for a fintech onboarding redesign",
+      "expects": {
+        "route": "document",
+        "createsArtifact": true
+      }
+    },
+    {
+      "id": "spreadsheet-create-from-prompt",
+      "artifactType": "spreadsheet",
+      "operation": "create",
+      "prompt": "Create a spreadsheet for monthly burn tracking",
+      "expects": {
+        "route": "spreadsheet",
+        "createsArtifact": true
+      }
+    },
+    {
+      "id": "presentation-refine-active-document",
+      "artifactType": "presentation",
+      "operation": "edit",
+      "activeDocumentType": "presentation",
+      "prompt": "Make the title slide more dramatic",
+      "expects": {
+        "route": "presentation",
+        "usesActiveArtifactType": true
+      }
+    },
+    {
+      "id": "document-refine-active-document",
+      "artifactType": "document",
+      "operation": "edit",
+      "activeDocumentType": "document",
+      "prompt": "Condense this into an executive summary",
+      "expects": {
+        "route": "document",
+        "usesActiveArtifactType": true
+      }
+    },
+    {
+      "id": "spreadsheet-action-flow",
+      "artifactType": "spreadsheet",
+      "operation": "action",
+      "activeDocumentType": "spreadsheet",
+      "prompt": "Sort the table by amount descending",
+      "expects": {
+        "route": "spreadsheet",
+        "requiresActiveWorkbook": true
+      }
+    }
+  ]
+}

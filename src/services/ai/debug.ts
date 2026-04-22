@@ -41,6 +41,20 @@ function estimateTokens(charCount: number): number {
   return Math.max(1, Math.round(charCount / 4));
 }
 
+export function estimateTextTokens(text: string): number {
+  return estimateTokens(text.length);
+}
+
+export function countTextChars(text: string | null | undefined): number {
+  return text?.length ?? 0;
+}
+
+export function countConversationChars(
+  messages: Array<{ content: string }>,
+): number {
+  return messages.reduce((total, message) => total + countTextChars(message.content), 0);
+}
+
 export function logPromptMetrics(
   scope: string,
   messages: ModelMessage[],
@@ -67,6 +81,32 @@ export function logPromptMetrics(
     estTokens: estimateTokens(totalChars),
     perMessage,
     ...extra,
+  });
+}
+
+export function logContextMetrics(
+  scope: string,
+  metrics: {
+    promptChars: number;
+    promptWithContextChars: number;
+    chatHistoryChars?: number;
+    memoryContextChars?: number;
+    artifactContextChars?: number;
+    attachmentContextChars?: number;
+  },
+): void {
+  if (!isAIDebugEnabled()) return;
+
+  const totalChars =
+    metrics.promptWithContextChars +
+    (metrics.chatHistoryChars ?? 0) +
+    (metrics.memoryContextChars ?? 0) +
+    (metrics.artifactContextChars ?? 0);
+
+  aiDebugLog(scope, 'context metrics', {
+    ...metrics,
+    totalChars,
+    estimatedTotalTokens: estimateTokens(totalChars),
   });
 }
 
