@@ -67,14 +67,8 @@ export function extractTitle(html: string): string | undefined {
  * strip it so we only keep well-formed slides.
  */
 function stripIncompleteTrailingSection(html: string): string {
-  // Find the last </section> in the HTML
   const lastClose = html.lastIndexOf('</section>');
-  if (lastClose === -1) return html; // no complete sections at all
-
-  const afterLastClose = html.slice(lastClose + '</section>'.length);
-  // If there's a <section that opens after the last </section>, it's incomplete
-  if (/<section[\s>]/i.test(afterLastClose)) {
-    return html.slice(0, lastClose + '</section>'.length).trim();
-  }
-  return html;
+  if (lastClose === -1) return html;
+  // Always discard anything after the last </section> — nothing meaningful can follow it
+  return html.slice(0, lastClose + '</section>'.length).trim();
 }

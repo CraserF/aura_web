@@ -485,6 +485,12 @@ export async function exportPresentationPdf(
   const container = document.createElement('div');
   container.style.cssText = 'position:fixed;top:-99999px;left:-99999px;';
 
+  // Belt-and-suspenders: override any theme CSS vars that may use oklch with hex equivalents,
+  // since html2canvas does not support the oklch colour space.
+  const hexOverrides = document.createElement('style');
+  hexOverrides.textContent = ':root{--background:#ffffff;--foreground:#171717;--card:#ffffff;--card-foreground:#171717;--popover:#ffffff;--popover-foreground:#171717;--primary:#171717;--primary-foreground:#ffffff;--secondary:#f5f5f5;--secondary-foreground:#171717;--muted:#f5f5f5;--muted-foreground:#737373;--accent:#f5f5f5;--accent-foreground:#171717;--destructive:#dc2626;--destructive-foreground:#dc2626;--border:#e5e5e5;--input:#e5e5e5;--ring:#d9d9d9;}';
+  container.appendChild(hexOverrides);
+
   for (const section of sections) {
     const page = document.createElement('div');
     page.style.cssText =

@@ -97,6 +97,17 @@ export function PresentationCanvas() {
     }
   }, [currentIndex]);
 
+  // Re-layout Reveal.js whenever the frame's rendered size changes
+  useEffect(() => {
+    const frame = containerRef.current?.parentElement;
+    if (!frame) return;
+    const ro = new ResizeObserver(() => {
+      deckRef.current?.reveal.layout();
+    });
+    ro.observe(frame);
+    return () => ro.disconnect();
+  }, [slidesHtml]);
+
   // Handle fullscreen presentation mode
   useEffect(() => {
     const container = containerRef.current;
@@ -172,27 +183,25 @@ export function PresentationCanvas() {
 
   return (
     <section className="aura-canvas-shell aura-presentation-shell">
-      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
-        {slidesHtml ? (
-          <div className="aura-canvas-frame aura-presentation-frame">
-            <div
-              ref={containerRef}
-              className="h-full w-full aura-edit-mode aura-presentation-root"
-            />
-            <SlideNavOverlay
-              currentIndex={currentIndex}
-              goToSlide={goToSlide}
-              onPresent={handlePresent}
-            />
-          </div>
-        ) : (
-          <>
-            {/* Hidden container so reveal can mount once content arrives */}
-            <div ref={containerRef} className="hidden" />
-            <EmptyState />
-          </>
-        )}
-      </div>
+      {slidesHtml ? (
+        <div className="aura-canvas-frame aura-presentation-frame">
+          <div
+            ref={containerRef}
+            className="h-full w-full aura-edit-mode aura-presentation-root"
+          />
+          <SlideNavOverlay
+            currentIndex={currentIndex}
+            goToSlide={goToSlide}
+            onPresent={handlePresent}
+          />
+        </div>
+      ) : (
+        <>
+          {/* Hidden container so reveal can mount once content arrives */}
+          <div ref={containerRef} className="hidden" />
+          <EmptyState />
+        </>
+      )}
     </section>
   );
 }
