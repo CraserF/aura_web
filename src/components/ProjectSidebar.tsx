@@ -357,6 +357,7 @@ export function ProjectSidebar({ open, onClose, onRequestAddDocument }: ProjectS
   const project = useProjectStore((s) => s.project);
   const activeDocumentId = useProjectStore((s) => s.project.activeDocumentId);
   const setActiveDocumentId = useProjectStore((s) => s.setActiveDocumentId);
+  const setUserLockedDocType = useProjectStore((s) => s.setUserLockedDocType);
   const removeDocument = useProjectStore((s) => s.removeDocument);
   const updateDocument = useProjectStore((s) => s.updateDocument);
   const setProjectTitle = useProjectStore((s) => s.setProjectTitle);
@@ -381,6 +382,7 @@ export function ProjectSidebar({ open, onClose, onRequestAddDocument }: ProjectS
 
   const handleSelectDocument = (id: string) => {
     setActiveDocumentId(id);
+    setUserLockedDocType(true);
     if (window.matchMedia('(max-width: 1023px)').matches) {
       onClose?.();
     }

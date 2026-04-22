@@ -79,6 +79,11 @@ function sanitizeElement(el: Element): void {
     const name = attr.name.toLowerCase();
     const value = attr.value;
 
+    // Allow data-aura-* attributes (internal rendering markers, not unsafe)
+    if (name.startsWith('data-aura-')) {
+      continue;
+    }
+
     // Strip event handlers
     if (BLOCKED_ATTR_PREFIXES.some((p) => name.startsWith(p))) {
       attrsToRemove.push(attr.name);

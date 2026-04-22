@@ -19,7 +19,7 @@ import {
 import { useCellValue, usePublisher } from '@mdxeditor/gurx';
 import { $createHeadingNode, $createQuoteNode } from '@lexical/rich-text';
 import { $createParagraphNode } from 'lexical';
-import { Link2, RotateCcw } from 'lucide-react';
+import { Link2, RotateCcw, Table2 } from 'lucide-react';
 import '@mdxeditor/editor/style.css';
 import {
   Dialog,
@@ -121,13 +121,16 @@ export function DocumentTextEditor({
   const markdownTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [markdown, setMarkdown] = useState(normalizeEditorMarkdown(initialMarkdown));
   const [linkPickerOpen, setLinkPickerOpen] = useState(false);
+  const [linkedTablePickerOpen, setLinkedTablePickerOpen] = useState(false);
   const [linkQuery, setLinkQuery] = useState('');
+  const [tableQuery, setTableQuery] = useState('');
   const [editorViewMode, setEditorViewMode] = useState<EditorViewMode>('rich');
   const [editorResetKey, setEditorResetKey] = useState(0);
 
   useEffect(() => {
     if (!open) {
       setLinkPickerOpen(false);
+      setLinkedTablePickerOpen(false);
       return;
     }
 
@@ -135,6 +138,7 @@ export function DocumentTextEditor({
     setMarkdown(normalized);
     setEditorViewMode('rich');
     setLinkQuery('');
+    setTableQuery('');
     setEditorResetKey((current) => current + 1);
 
     const handle = window.requestAnimationFrame(() => {
@@ -173,6 +177,23 @@ export function DocumentTextEditor({
       return haystack.includes(query);
     });
   }, [linkQuery, linkableDocuments]);
+
+  const linkableSheets = useMemo(() => {
+    return availableDocuments
+      .filter((doc) => doc.type === 'spreadsheet' && doc.workbook && doc.id !== currentDocumentId)
+      .flatMap((doc) => (doc.workbook?.sheets ?? []).map((sheet) => ({
+        docId: doc.id,
+        docTitle: doc.title,
+        sheetId: sheet.id,
+        sheetName: sheet.name,
+      })));
+  }, [availableDocuments, currentDocumentId]);
+
+  const filteredSheets = useMemo(() => {
+    const query = tableQuery.trim().toLowerCase();
+    if (!query) return linkableSheets;
+    return linkableSheets.filter((item) => `${item.docTitle} ${item.sheetName}`.toLowerCase().includes(query));
+  }, [linkableSheets, tableQuery]);
 
   const wordCount = useMemo(
     () => markdown.split(/\s+/).filter(Boolean).length,
@@ -250,6 +271,36 @@ export function DocumentTextEditor({
       editorRef.current?.setMarkdown(normalized);
       editorRef.current?.focus();
     }
+  };
+
+  const handleInsertLinkedTable = (selection: { docId: string; sheetId: string; docTitle: string; sheetName: string }) => {
+    const insertion = `\n\n<div data-aura-linked-table="${selection.docId}:${selection.sheetId}" data-aura-table-limit="20"></div>\n`;
+
+    if (editorViewMode === 'rich' && editorRef.current) {
+      editorRef.current.insertMarkdown(insertion);
+      setMarkdown(getLatestMarkdown());
+    } else {
+      const textarea = markdownTextareaRef.current;
+      if (textarea) {
+        const start = textarea.selectionStart ?? markdown.length;
+        const end = textarea.selectionEnd ?? markdown.length;
+        const before = markdown.slice(0, start);
+        const after = markdown.slice(end);
+        const nextMarkdown = `${before}${insertion}${after}`;
+        setMarkdown(nextMarkdown);
+
+        window.requestAnimationFrame(() => {
+          const cursor = (before + insertion).length;
+          textarea.focus();
+          textarea.setSelectionRange(cursor, cursor);
+        });
+      } else {
+        setMarkdown((current) => normalizeEditorMarkdown(`${current}${insertion}`));
+      }
+    }
+
+    setLinkedTablePickerOpen(false);
+    setTableQuery('');
   };
 
   const handleSave = () => {
@@ -351,6 +402,17 @@ export function DocumentTextEditor({
                       <Link2 className="size-3.5" />
                       Link document
                     </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => setLinkedTablePickerOpen(true)}
+                      disabled={linkableSheets.length === 0}
+                    >
+                      <Table2 className="size-3.5" />
+                      Linked table
+                    </Button>
                   </div>
                 </div>
 
@@ -445,6 +507,53 @@ export function DocumentTextEditor({
                   {linkableDocuments.length === 0
                     ? 'Create another document first to add an internal link.'
                     : 'No matching documents found.'}
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={linkedTablePickerOpen} onOpenChange={setLinkedTablePickerOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader className="gap-1 text-left">
+            <DialogTitle>Insert linked table</DialogTitle>
+            <DialogDescription>
+              Insert a live table reference from a spreadsheet sheet in this project.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <Input
+              value={tableQuery}
+              onChange={(event) => setTableQuery(event.target.value)}
+              placeholder="Search spreadsheet sheets…"
+              aria-label="Search spreadsheet sheets"
+            />
+
+            <div className="max-h-72 space-y-2 overflow-auto pr-1">
+              {filteredSheets.length > 0 ? (
+                filteredSheets.map((item) => (
+                  <button
+                    key={`${item.docId}:${item.sheetId}`}
+                    type="button"
+                    className="flex w-full items-start justify-between gap-3 rounded-xl border border-border bg-background px-3 py-3 text-left transition-colors hover:border-primary/35 hover:bg-muted/30"
+                    onClick={() => handleInsertLinkedTable(item)}
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">{item.sheetName}</p>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">{item.docTitle}</p>
+                    </div>
+                    <span className="rounded-full bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
+                      linked table
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+                  {linkableSheets.length === 0
+                    ? 'Create a spreadsheet document first to insert a linked table.'
+                    : 'No matching sheets found.'}
                 </div>
               )}
             </div>

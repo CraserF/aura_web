@@ -3,66 +3,52 @@ import { detectWorkflowType } from '@/lib/workflowType';
 
 describe('detectWorkflowType', () => {
   it('detects presentation from "slide" keyword', () => {
-    expect(detectWorkflowType('create a slide deck for my talk', undefined)).toBe('presentation');
+    expect(detectWorkflowType('create a slide deck for my talk')).toBe('presentation');
   });
 
   it('detects presentation from "presentation" keyword', () => {
-    expect(detectWorkflowType('make a presentation about marketing', undefined)).toBe('presentation');
+    expect(detectWorkflowType('make a presentation about marketing')).toBe('presentation');
   });
 
   it('detects presentation from "deck" keyword', () => {
-    expect(detectWorkflowType('build a pitch deck', undefined)).toBe('presentation');
+    expect(detectWorkflowType('build a pitch deck')).toBe('presentation');
   });
 
   it('detects presentation from "keynote" keyword', () => {
-    expect(detectWorkflowType('create a keynote for the event', undefined)).toBe('presentation');
+    expect(detectWorkflowType('create a keynote for the event')).toBe('presentation');
   });
 
   it('detects document from "document" keyword', () => {
-    expect(detectWorkflowType('write a document about our strategy', undefined)).toBe('document');
+    expect(detectWorkflowType('write a document about our strategy')).toBe('document');
   });
 
   it('detects document from "report" keyword', () => {
-    expect(detectWorkflowType('generate a quarterly report', undefined)).toBe('document');
+    expect(detectWorkflowType('generate a quarterly report')).toBe('document');
   });
 
   it('detects document from "wiki" keyword', () => {
-    expect(detectWorkflowType('create a wiki page for the API', undefined)).toBe('document');
+    expect(detectWorkflowType('create a wiki page for the API')).toBe('document');
   });
 
   it('detects document from "readme" keyword', () => {
-    expect(detectWorkflowType('write a readme for the project', undefined)).toBe('document');
+    expect(detectWorkflowType('write a readme for the project')).toBe('document');
   });
 
   it('detects spreadsheet from "spreadsheet" keyword', () => {
-    expect(detectWorkflowType('create a spreadsheet for revenue tracking', undefined)).toBe('spreadsheet');
+    expect(detectWorkflowType('create a spreadsheet for revenue tracking')).toBe('spreadsheet');
   });
 
   it('detects spreadsheet from file-format keywords', () => {
-    expect(detectWorkflowType('import this csv and summarize it', undefined)).toBe('spreadsheet');
-    expect(detectWorkflowType('open xlsx and show top rows', undefined)).toBe('spreadsheet');
+    expect(detectWorkflowType('import this csv and summarize it')).toBe('spreadsheet');
+    expect(detectWorkflowType('open xlsx and show top rows')).toBe('spreadsheet');
   });
 
-  it('presentation keywords take priority over active doc type', () => {
-    expect(detectWorkflowType('add slides to my deck', 'document')).toBe('presentation');
-  });
-
-  it('document keywords take priority over active doc type', () => {
-    expect(detectWorkflowType('update the report', 'presentation')).toBe('document');
-  });
-
-  it('falls back to activeDocType when no keywords match', () => {
-    expect(detectWorkflowType('make it better', 'document')).toBe('document');
-    expect(detectWorkflowType('make it better', 'presentation')).toBe('presentation');
-    expect(detectWorkflowType('make it better', 'spreadsheet')).toBe('spreadsheet');
-  });
-
-  it('defaults to presentation when no keywords and no active doc', () => {
-    expect(detectWorkflowType('make it more colorful', undefined)).toBe('presentation');
+  it('defaults to presentation when no keywords match', () => {
+    expect(detectWorkflowType('make it more colorful')).toBe('presentation');
   });
 
   it('is case-insensitive', () => {
-    expect(detectWorkflowType('Create a SLIDE deck', undefined)).toBe('presentation');
-    expect(detectWorkflowType('Write a REPORT', undefined)).toBe('document');
+    expect(detectWorkflowType('Create a SLIDE deck')).toBe('presentation');
+    expect(detectWorkflowType('Write a REPORT')).toBe('document');
   });
 });

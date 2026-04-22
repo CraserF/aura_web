@@ -102,6 +102,8 @@ export function ChatBar() {
   const addDocument = useProjectStore((s) => s.addDocument);
   const updateDocument = useProjectStore((s) => s.updateDocument);
   const setProject = useProjectStore((s) => s.setProject);
+  const setActiveDocumentId = useProjectStore((s) => s.setActiveDocumentId);
+  const userLockedDocType = useProjectStore((s) => s.userLockedDocType);
 
   const providerId = useSettingsStore((s) => s.providerId);
   const getActiveProvider = useSettingsStore((s) => s.getActiveProvider);
@@ -254,16 +256,154 @@ export function ChatBar() {
         content: m.content,
       }));
 
-    // Detect workflow type
-    const workflowType = detectWorkflowType(prompt, activeDocument?.type);
+    // Detect workflow type — if the user has manually selected a document,
+    // skip keyword detection and use the active document type directly.
+    const workflowType =
+      userLockedDocType && activeDocument
+        ? activeDocument.type
+        : detectWorkflowType(prompt);
     const isEdit = !!activeDocument?.contentHtml;
 
     if (workflowType === 'spreadsheet') {
-      if (!canCreateSpreadsheetFromPrompt(promptWithContext)) {
+      const CHART_INTENT_RE = /\b(chart|graph|visuali[sz]e|plot|diagram)\b/i;
+      const isChartIntent = CHART_INTENT_RE.test(promptWithContext);
+      const isCreateIntent = canCreateSpreadsheetFromPrompt(promptWithContext);
+      const activeSheetIsPopulated =
+        activeDocument?.type === 'spreadsheet' &&
+        activeDocument.workbook &&
+        !isDefaultSpreadsheetSheet(activeDocument);
+
+      // ─── Chart-from-spreadsheet path ───────────────────────────
+      if (isChartIntent && activeSheetIsPopulated && activeDocument?.workbook) {
+        setStatus({ state: 'generating', startedAt: Date.now(), step: 'Building chart from spreadsheet data…', pct: 30 });
+        setStreamingContent('');
+
+        try {
+          const workbook = activeDocument.workbook;
+          const sheet = workbook.sheets[workbook.activeSheetIndex];
+          if (!sheet) throw new Error('No active sheet found.');
+
+          const { describeTable, buildChartSpecFromTable, suggestChartConfig } = await import('@/services/data');
+          const tableDesc = await describeTable(sheet.tableName);
+
+          if (tableDesc.rowCount === 0) {
+            addMessage({
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              content: 'The sheet has no rows yet. Add some data first, then ask me to create a chart.',
+              timestamp: Date.now(),
+              documentId: scopedDocumentId,
+              scope: messageScope,
+            });
+            setStatus({ state: 'idle' });
+            setStreamingContent('');
+            return;
+          }
+
+          const chartConfig = suggestChartConfig(tableDesc);
+          if (!chartConfig) {
+            addMessage({
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              content: 'I couldn\'t auto-detect chartable columns in this sheet. Ensure you have at least one text column (for labels) and one numeric column (for values).',
+              timestamp: Date.now(),
+              documentId: scopedDocumentId,
+              scope: messageScope,
+            });
+            setStatus({ state: 'idle' });
+            setStreamingContent('');
+            return;
+          }
+          const { spec } = await buildChartSpecFromTable({
+            tableName: sheet.tableName,
+            sqlFragment: chartConfig.sqlFragment,
+            labelColumn: chartConfig.labelColumn,
+            valueColumns: chartConfig.valueColumns,
+            title: `${sheet.name} Chart`,
+            sourceDocumentId: activeDocument.id,
+          });
+
+          const chartHtml = `<script type="application/json" data-aura-chart-spec>${JSON.stringify(spec)}<\/script>\n<div data-aura-chart="${spec.id}" style="width:100%; max-width:720px; aspect-ratio:2; margin:24px auto;"></div>`;
+          const updatedContentHtml = (activeDocument.contentHtml || '') + '\n' + chartHtml;
+          const chartSpecs = extractChartSpecsFromHtml(updatedContentHtml);
+          updateDocument(activeDocument.id, { contentHtml: updatedContentHtml, chartSpecs });
+
+          addMessage({
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content: `Created a ${spec.type} chart from "${sheet.name}" with ${tableDesc.rowCount} rows.`,
+            timestamp: Date.now(),
+            documentId: activeDocument.id,
+            scope: messageScope,
+          });
+
+          const updatedProject = useProjectStore.getState().project;
+          commitVersion(updatedProject, `Created chart from spreadsheet: ${sheet.name}`).catch(
+            (e) => console.warn('[VersionHistory] commit failed:', e),
+          );
+          setStatus({ state: 'idle' });
+          setStreamingContent('');
+          return;
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Chart generation failed';
+          setStatus({ state: 'error', message });
+          setStreamingContent('');
+          addMessage({ id: crypto.randomUUID(), role: 'assistant', content: `Error: ${message}`, timestamp: Date.now(), documentId: scopedDocumentId, scope: messageScope });
+          return;
+        }
+      }
+
+      // ─── Sheet action path (sort / add-col / rename / remove / filter) ──
+      if (activeSheetIsPopulated && activeDocument?.workbook) {
+        const workbook = activeDocument.workbook;
+        const sheet = workbook.sheets[workbook.activeSheetIndex];
+        if (sheet) {
+          const { detectSheetAction, executeSheetAction } = await import('@/services/spreadsheet/actions');
+          const detectedAction = detectSheetAction(promptWithContext, sheet.schema);
+          if (detectedAction) {
+            setStatus({ state: 'generating', startedAt: Date.now(), step: 'Updating sheet…', pct: 50 });
+            try {
+              const result = await executeSheetAction(detectedAction, sheet);
+              const updatedSheets = workbook.sheets.map((s, i) => {
+                if (i !== workbook.activeSheetIndex) return s;
+                return {
+                  ...s,
+                  ...(result.updatedSchema ? { schema: result.updatedSchema } : {}),
+                  ...(Object.prototype.hasOwnProperty.call(result, 'sortState') ? { sortState: result.sortState } : {}),
+                  ...(Object.prototype.hasOwnProperty.call(result, 'filterState') ? { filterState: result.filterState } : {}),
+                };
+              });
+              updateDocument(activeDocument.id, {
+                workbook: { ...workbook, sheets: updatedSheets },
+              });
+              addMessage({
+                id: crypto.randomUUID(),
+                role: 'assistant',
+                content: result.userMessage,
+                timestamp: Date.now(),
+                documentId: activeDocument.id,
+                scope: messageScope,
+              });
+              setStatus({ state: 'idle' });
+              setStreamingContent('');
+              return;
+            } catch (err) {
+              const message = err instanceof Error ? err.message : 'Action failed';
+              setStatus({ state: 'error', message });
+              setStreamingContent('');
+              addMessage({ id: crypto.randomUUID(), role: 'assistant', content: `Error: ${message}`, timestamp: Date.now(), documentId: scopedDocumentId, scope: messageScope });
+              return;
+            }
+          }
+        }
+      }
+
+      // ─── Spreadsheet creation path ─────────────────────────────
+      if (!isCreateIntent) {
         addMessage({
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: 'Spreadsheet prompts currently support creating starter sheets from scratch. Try “create a budget tracker”, “make a sales table with sample data”, or “design a table with columns name, amount, status”.',
+          content: 'I can create new sheets and seed them with data. Try: "create a budget tracker", "make a sales table with sample data", or "design a table with columns name, amount, status". To chart existing data, try "graph this" or "create a chart". Or try editing your active sheet: "sort by Amount", "add a column called Notes", "rename Status to Stage", "remove the Notes column", "filter where country = France".',
           timestamp: Date.now(),
           documentId: scopedDocumentId,
           scope: messageScope,
@@ -272,10 +412,6 @@ export function ChatBar() {
         setStreamingContent('');
         return;
       }
-
-      setStatus({ state: 'generating', startedAt: Date.now(), step: 'Building spreadsheet…', pct: 20 });
-      setStreamingContent('');
-
       try {
         const plan = planSpreadsheetStarter(promptWithContext);
 
@@ -942,6 +1078,17 @@ export function ChatBar() {
             >
               <Paperclip size={12} strokeWidth={2} />
             </button>
+            {activeDocument && !isGenerating && (
+              <button
+                type="button"
+                onClick={() => setActiveDocumentId(activeDocument.id)}
+                className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/50 px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
+                title={`Focus ${activeDocument.title}`}
+              >
+                {activeDocument.type === 'presentation' ? 'Slides' : activeDocument.type === 'spreadsheet' ? 'Sheet' : 'Doc'}:
+                <span className="max-w-[100px] truncate font-medium text-foreground/70">{activeDocument.title}</span>
+              </button>
+            )}
             {showDocumentStyleMenu && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

@@ -22,6 +22,14 @@ function newProject(): ProjectData {
 interface ProjectState {
   project: ProjectData;
 
+  /**
+   * True when the user has explicitly clicked a document in the sidebar.
+   * When true, ChatBar skips keyword-based workflow detection and uses
+   * the active document's type directly.
+   */
+  userLockedDocType: boolean;
+  setUserLockedDocType: (locked: boolean) => void;
+
   // Selectors
   activeDocument: () => ProjectDocument | null;
 
@@ -43,6 +51,9 @@ interface ProjectState {
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   project: newProject(),
+
+  userLockedDocType: false,
+  setUserLockedDocType: (locked) => set({ userLockedDocType: locked }),
 
   activeDocument: () => {
     const { project } = get();
@@ -85,13 +96,14 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       },
     })),
 
-  reset: () => set({ project: newProject() }),
+  reset: () => set({ project: newProject(), userLockedDocType: false }),
 
   setActiveDocumentId: (id) =>
     set((s) => ({ project: { ...s.project, activeDocumentId: id } })),
 
   addDocument: (doc) =>
     set((s) => ({
+      userLockedDocType: false,
       project: {
         ...s.project,
         documents: [...s.project.documents, doc],

@@ -23,7 +23,28 @@ Rules:
 - The script tag must use type="application/json" and data-aura-chart-spec.
 - The id in JSON must exactly match data-aura-chart.
 - Keep 2-30 labels and 1-8 datasets.
-- Set illustrative: true for synthetic/example values.`;
+- Set illustrative: true for synthetic/example values.
+
+## INLINE EXAMPLE DATA — ALWAYS REQUIRED
+
+When the user requests a chart but has NOT provided a data file or table reference:
+- Generate realistic, domain-appropriate inline values in \`datasets[].values\`. NEVER leave the array empty.
+- Use plausible numbers that fit the topic (e.g. for "monthly revenue" use values in the thousands, not 1/2/3).
+- Add 4-12 labels that make sense for the domain (months, quarters, categories, products, regions, etc.).
+- Set \`"illustrative": true\` to signal the data is example/placeholder.
+- ALWAYS produce a chart when one is requested, even without real data.
+
+Example — user says "show a chart of user growth":
+\`\`\`json
+{
+  "id": "user-growth-1",
+  "type": "line",
+  "title": "Monthly Active Users",
+  "labels": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+  "datasets": [{ "label": "MAU", "values": [8200, 9100, 10400, 12300, 14800, 17200] }],
+  "illustrative": true
+}
+\`\`\``;
 }
 
 /**

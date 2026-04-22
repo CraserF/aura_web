@@ -37,6 +37,8 @@ export interface ChartFromTableOptions {
   extractOperation?: ExtractPlan['operation'];
   /** Extra params for the extract plan metadata */
   extractParams?: Record<string, unknown>;
+  /** Optional source document id for cross-document provenance */
+  sourceDocumentId?: string;
 }
 
 export interface ChartFromTableResult {
@@ -66,6 +68,7 @@ export async function buildChartSpecFromTable(
     unit,
     extractOperation = 'groupBy',
     extractParams = {},
+    sourceDocumentId,
   } = opts;
 
   // 1. Describe table for metadata
@@ -87,7 +90,7 @@ export async function buildChartSpecFromTable(
   const query = `SELECT ${sqlFragment} FROM "${tableName}"`;
   const dataSource: DataSource = {
     kind: 'table-ref',
-    refId: tableName,
+    refId: sourceDocumentId ? `${sourceDocumentId}:${tableName}` : tableName,
     query,
   };
 

@@ -12,6 +12,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useProjectStore } from '@/stores/projectStore';
 import { hydrateDocumentCharts } from '@/services/charts';
+import { hydrateLinkedTables } from '@/services/spreadsheet/linkedTable';
 
 interface DocumentCanvasProps {
   html: string;
@@ -409,7 +410,7 @@ export function DocumentCanvas({ html, pagesEnabled = false, onNavigate }: Docum
     const iframe = iframeRef.current;
     if (!iframe) return;
 
-    const hydratedHtml = await hydrateDocumentCharts(bodyHtml);
+    const hydratedHtml = await hydrateLinkedTables(await hydrateDocumentCharts(bodyHtml));
     const fullDoc = buildIframeDocument(hydratedHtml, pagesEnabled);
     const blob = new Blob([fullDoc], { type: 'text/html' });
     const url = URL.createObjectURL(blob);

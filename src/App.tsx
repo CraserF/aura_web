@@ -18,7 +18,7 @@ import {
   autosaveProject,
   getProjectAutosave,
 } from '@/services/storage/projectAutosave';
-import type { ProjectDocument, WorkbookMeta } from '@/types/project';
+import type { LinkedTableRef, ProjectDocument, WorkbookMeta } from '@/types/project';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
@@ -96,6 +96,24 @@ function resolveProjectDocumentReference(documents: ProjectDocument[], value: st
       || (!!normalizedRef && titleSlug === normalizedRef)
       || (!!titleText && titleText === trimmed.toLowerCase());
   });
+}
+
+function extractLinkedTableRefsFromHtml(html: string): LinkedTableRef[] {
+  const refs: LinkedTableRef[] = [];
+  const seen = new Set<string>();
+  const matches = html.matchAll(/data-aura-linked-table\s*=\s*"([^"]+)"/g);
+
+  for (const match of matches) {
+    const raw = (match[1] ?? '').trim();
+    const [spreadsheetDocId, sheetId] = raw.split(':');
+    if (!spreadsheetDocId || !sheetId) continue;
+    const key = `${spreadsheetDocId}:${sheetId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    refs.push({ spreadsheetDocId, sheetId });
+  }
+
+  return refs;
 }
 
 export default function App() {
@@ -344,6 +362,7 @@ export default function App() {
         contentHtml: result.html,
         sourceMarkdown: result.markdown,
         chartSpecs: extractChartSpecsFromHtml(result.html),
+        linkedTableRefs: extractLinkedTableRefsFromHtml(result.html),
       });
       setEditorInitialMarkdown(result.markdown);
       setTextEditorOpen(false);

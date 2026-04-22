@@ -1,5 +1,5 @@
 import { describeTable, ingestCsv, ingestJson, ingestXlsx, openConnection } from '@/services/data';
-import type { ColumnSchema, SheetMeta } from '@/types/project';
+import type { ColumnSchema, FilterState, SheetMeta, SortState } from '@/types/project';
 
 export interface SpreadsheetViewportRow {
   rowid: number;
@@ -126,9 +126,16 @@ export async function ensureSheetTable(sheet: SheetMeta): Promise<ColumnSchema[]
 export async function loadViewport(sheet: SheetMeta, offset: number, limit: number): Promise<SpreadsheetViewport> {
   const conn = await openConnection();
   try {
+    const whereClause = sheet.filterState?.query?.trim()
+      ? ` WHERE ${sheet.filterState.query.trim()}`
+      : '';
+    const orderClause = sheet.sortState
+      ? ` ORDER BY ${quoteIdentifier(sheet.sortState.column)} ${sheet.sortState.direction.toUpperCase()}`
+      : '';
+
     const [countResult, pageResult] = await Promise.all([
-      conn.query(`SELECT COUNT(*) AS n FROM ${quoteIdentifier(sheet.tableName)}`),
-      conn.query(`SELECT rowid AS __rowid__, * FROM ${quoteIdentifier(sheet.tableName)} LIMIT ${limit} OFFSET ${offset}`),
+      conn.query(`SELECT COUNT(*) AS n FROM ${quoteIdentifier(sheet.tableName)}${whereClause}`),
+      conn.query(`SELECT rowid AS __rowid__, * FROM ${quoteIdentifier(sheet.tableName)}${whereClause}${orderClause} LIMIT ${limit} OFFSET ${offset}`),
     ]);
 
     const totalRows = Number((countResult.toArray()[0]?.toJSON() as { n: number } | undefined)?.n ?? 0);
@@ -152,6 +159,20 @@ export async function loadViewport(sheet: SheetMeta, offset: number, limit: numb
   } finally {
     await conn.close();
   }
+}
+
+export function applySortState(sheet: SheetMeta, sort: SortState | undefined): SheetMeta {
+  return {
+    ...sheet,
+    sortState: sort,
+  };
+}
+
+export function applyFilterState(sheet: SheetMeta, filter: FilterState | undefined): SheetMeta {
+  return {
+    ...sheet,
+    filterState: filter,
+  };
 }
 
 export async function updateCellValue(sheet: SheetMeta, rowid: number, columnName: string, value: string): Promise<void> {
@@ -233,6 +254,65 @@ export async function ingestFileToSheet(sheet: SheetMeta, file: File): Promise<C
     type: mapDuckTypeToSchemaType(column.type),
     nullable: true,
   }));
+}
+
+// ── Structural column operations ─────────────────────────────────────────────
+
+export async function addColumn(sheet: SheetMeta, column: ColumnSchema): Promise<void> {
+  const conn = await openConnection();
+  try {
+    await conn.query(
+      `ALTER TABLE ${quoteIdentifier(sheet.tableName)} ADD COLUMN ${quoteIdentifier(column.name)} ${columnSqlType(column.type)}`,
+    );
+  } finally {
+    await conn.close();
+  }
+}
+
+export async function removeColumn(sheet: SheetMeta, columnName: string): Promise<void> {
+  const conn = await openConnection();
+  try {
+    await conn.query(
+      `ALTER TABLE ${quoteIdentifier(sheet.tableName)} DROP COLUMN ${quoteIdentifier(columnName)}`,
+    );
+  } finally {
+    await conn.close();
+  }
+}
+
+export async function renameColumn(sheet: SheetMeta, oldName: string, newName: string): Promise<void> {
+  const conn = await openConnection();
+  try {
+    await conn.query(
+      `ALTER TABLE ${quoteIdentifier(sheet.tableName)} RENAME COLUMN ${quoteIdentifier(oldName)} TO ${quoteIdentifier(newName)}`,
+    );
+  } finally {
+    await conn.close();
+  }
+}
+
+export async function addComputedColumn(
+  sheet: SheetMeta,
+  columnName: string,
+  expression: string,
+): Promise<void> {
+  const conn = await openConnection();
+  try {
+    // Validate expression before mutating schema.
+    await conn.query(
+      `EXPLAIN SELECT ${expression} FROM ${quoteIdentifier(sheet.tableName)} LIMIT 1`,
+    );
+
+    // Add the column first, then populate it
+    await conn.query(
+      `ALTER TABLE ${quoteIdentifier(sheet.tableName)} ADD COLUMN ${quoteIdentifier(columnName)} DOUBLE`,
+    );
+    await conn.query(
+      `UPDATE ${quoteIdentifier(sheet.tableName)} SET ${quoteIdentifier(columnName)} = ${expression}`,
+    );
+  } finally {
+    await conn.close();
+  }
 }
 
 export async function exportSheetParquet(tableName: string): Promise<Uint8Array> {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEventHandler } from 'react';
 import type { ProjectDocument, SheetMeta, WorkbookMeta } from '@/types/project';
-import { Plus, Table2, Upload } from 'lucide-react';
+import { ArrowDown, ArrowUp, BarChart3, Plus, Table2, Upload, X } from 'lucide-react';
 import {
   appendEmptyRow,
   createDefaultSheet,
@@ -11,6 +11,7 @@ import {
   type SpreadsheetViewport,
 } from '@/services/spreadsheet/workbook';
 import { Button } from '@/components/ui/button';
+import { useChatStore } from '@/stores/chatStore';
 
 interface SpreadsheetCanvasProps {
   document: ProjectDocument;
@@ -23,6 +24,7 @@ export function SpreadsheetCanvas({ document, onChange }: SpreadsheetCanvasProps
   const [offset, setOffset] = useState(0);
   const [viewport, setViewport] = useState<SpreadsheetViewport>({ columns: [], rows: [], totalRows: 0 });
   const [editingCell, setEditingCell] = useState<{ rowid: number; column: string; value: string } | null>(null);
+  const setPendingAutoSubmitPrompt = useChatStore((s) => s.setPendingAutoSubmitPrompt);
 
   const workbook = document.workbook;
   const limit = 25;
@@ -117,6 +119,17 @@ export function SpreadsheetCanvas({ document, onChange }: SpreadsheetCanvasProps
     }
   };
 
+  const handleChartFromData = () => {
+    setPendingAutoSubmitPrompt('create a chart from this data');
+  };
+
+  const handleClearFilter = async () => {
+    if (!activeSheet) return;
+    updateActiveSheet({ ...activeSheet, filterState: undefined });
+    setOffset(0);
+    await refreshViewport();
+  };
+
   const handleSaveCell = async () => {
     if (!activeSheet || !editingCell) return;
     setIsLoading(true);
@@ -165,6 +178,9 @@ export function SpreadsheetCanvas({ document, onChange }: SpreadsheetCanvasProps
           <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => void handleAppendRow()}>
             Add row
           </Button>
+          <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs" onClick={handleChartFromData}>
+            <BarChart3 className="size-3.5" /> Chart
+          </Button>
         </div>
       </div>
 
@@ -186,6 +202,30 @@ export function SpreadsheetCanvas({ document, onChange }: SpreadsheetCanvasProps
         ))}
       </div>
 
+      {(activeSheet.sortState || activeSheet.filterState?.query) && (
+        <div className="flex items-center gap-2 border-b border-border/70 bg-muted/25 px-2 py-1 text-[11px] text-muted-foreground">
+          {activeSheet.sortState && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background px-2 py-0.5">
+              Sort: {activeSheet.sortState.column} {activeSheet.sortState.direction === 'asc' ? 'A-Z' : 'Z-A'}
+            </span>
+          )}
+          {activeSheet.filterState?.query && (
+            <span className="inline-flex max-w-[60%] items-center gap-1 truncate rounded-full border border-border/70 bg-background px-2 py-0.5">
+              Filter: {activeSheet.filterState.query}
+            </span>
+          )}
+          {activeSheet.filterState?.query && (
+            <button
+              type="button"
+              onClick={() => void handleClearFilter()}
+              className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-background px-2 py-0.5 hover:text-foreground"
+            >
+              <X className="size-3" /> Clear
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="min-h-0 flex-1 overflow-auto bg-muted/20 p-2">
         {error && <p className="mb-2 text-xs text-destructive">{error}</p>}
         {isLoading && <p className="mb-2 text-xs text-muted-foreground">Loading spreadsheet...</p>}
@@ -196,7 +236,14 @@ export function SpreadsheetCanvas({ document, onChange }: SpreadsheetCanvasProps
                 <th className="border-b border-r border-border px-2 py-1 text-left font-medium text-muted-foreground">#</th>
                 {viewport.columns.map((column) => (
                   <th key={column} className="border-b border-r border-border px-2 py-1 text-left font-medium text-muted-foreground">
-                    {column}
+                    <span className="inline-flex items-center gap-1">
+                      {column}
+                      {activeSheet.sortState?.column === column && (
+                        activeSheet.sortState.direction === 'asc'
+                          ? <ArrowUp className="size-3" />
+                          : <ArrowDown className="size-3" />
+                      )}
+                    </span>
                   </th>
                 ))}
               </tr>

@@ -50,6 +50,18 @@ export interface FilterState {
   query?: string;
 }
 
+/** A reference from a document to a spreadsheet sheet for live table embedding */
+export interface LinkedTableRef {
+  /** The document ID of the spreadsheet document */
+  spreadsheetDocId: string;
+  /** The sheet ID within the workbook */
+  sheetId: string;
+  /** Optional limit on rows to show */
+  limit?: number;
+  /** Optional explicit column list to display */
+  columns?: string[];
+}
+
 /** Visibility level for a project */
 export type ProjectVisibility = 'private' | 'public';
 
@@ -76,6 +88,8 @@ export interface ProjectDocument {
   chartSpecs?: Record<string, ChartSpec>;
   /** Spreadsheet workbook metadata (for spreadsheet docs) */
   workbook?: WorkbookMeta;
+  /** References to spreadsheet sheets embedded as linked tables in this document */
+  linkedTableRefs?: LinkedTableRef[];
   createdAt: number;
   updatedAt: number;
   order: number;
