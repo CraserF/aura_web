@@ -12,6 +12,7 @@ import {
 } from '@/services/spreadsheet/workbook';
 import { Button } from '@/components/ui/button';
 import { useChatStore } from '@/stores/chatStore';
+import { useProjectStore } from '@/stores/projectStore';
 
 interface SpreadsheetCanvasProps {
   document: ProjectDocument;
@@ -25,6 +26,7 @@ export function SpreadsheetCanvas({ document, onChange }: SpreadsheetCanvasProps
   const [viewport, setViewport] = useState<SpreadsheetViewport>({ columns: [], rows: [], totalRows: 0 });
   const [editingCell, setEditingCell] = useState<{ rowid: number; column: string; value: string } | null>(null);
   const setPendingAutoSubmitPrompt = useChatStore((s) => s.setPendingAutoSubmitPrompt);
+  const setUserLockedDocType = useProjectStore((s) => s.setUserLockedDocType);
 
   const workbook = document.workbook;
   const limit = 25;
@@ -120,6 +122,7 @@ export function SpreadsheetCanvas({ document, onChange }: SpreadsheetCanvasProps
   };
 
   const handleChartFromData = () => {
+    setUserLockedDocType(true);
     setPendingAutoSubmitPrompt('create a chart from this data');
   };
 

@@ -189,12 +189,12 @@ Keywords are only for first-creation routing when no document context exists.
 ## Implementation Order
 
 ```
-[ ] 1.  ChatBar: simplify routing to activeDocument?.type ?? detectWorkflowType(prompt)
-[ ] 2a. Create presentationHandler.ts (extract from ChatBar)
-[ ] 2b. Create documentHandler.ts (extract from ChatBar)
-[ ] 2c. Update ChatBar to delegate to all three handlers (pure router)
-[ ] 3a. Create spreadsheet.ts orchestrator (business logic)
-[ ] 3b. Thin down spreadsheetHandler.ts to call orchestrator
-[ ] 4.  designer.ts: raise stepCountIs from 3 to 5
-[ ] 5.  SpreadsheetCanvas: setUserLockedDocType(true) before chart auto-submit
+[x] 1.  ChatBar: simplify routing to activeDocument?.type ?? detectWorkflowType(prompt)
+[x] 2a. Create presentationHandler.ts (extract from ChatBar)
+[x] 2b. Create documentHandler.ts (extract from ChatBar)
+[x] 2c. Update ChatBar to delegate to all three handlers (pure router)
+[x] 3a. Create spreadsheet.ts orchestrator (business logic)
+[x] 3b. Thin down spreadsheetHandler.ts to call orchestrator
+[x] 4.  designer.ts: raise stepCountIs from 3 to 5
+[x] 5.  SpreadsheetCanvas: setUserLockedDocType(true) before chart auto-submit
 ```

@@ -361,7 +361,7 @@ Then call submitFinalSlide again with the corrected HTML.`,
       }),
     },
     stopWhen: [
-      stepCountIs(3), // Restrict to max 3 steps to prevent infinite token-consuming loops
+      stepCountIs(5), // 1 stream + 1 validate + 1-2 fix iterations + 1 final submit
     ],
   });
 }

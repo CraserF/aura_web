@@ -4,17 +4,15 @@ import { useChatStore } from '@/stores/chatStore';
 import { usePresentationStore } from '@/stores/presentationStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useSettingsStore } from '@/stores/settingsStore';
-import type { WorkflowEvent } from '@/services/ai/workflow';
 import type { AIMessage } from '@/services/ai/types';
 import type { LLMConfig } from '@/services/ai/workflow/types';
 import type { ChatMessage as ChatMessageType, FileAttachment, WorkflowStep } from '@/types';
-import type { ProjectDocument } from '@/types/project';
-import { commitVersion } from '@/services/storage/versionHistory';
 import { readFileAsAttachment, buildAttachmentContext } from '@/lib/fileAttachment';
 import { detectWorkflowType } from '@/lib/workflowType';
 import { cn } from '@/lib/utils';
-import { extractChartSpecsFromHtml } from '@/services/charts';
 import { handleSpreadsheetWorkflow } from '@/components/chat/handlers/spreadsheetHandler';
+import { handlePresentationWorkflow } from '@/components/chat/handlers/presentationHandler';
+import { handleDocumentWorkflow } from '@/components/chat/handlers/documentHandler';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -90,7 +88,6 @@ export function ChatBar() {
   const updateDocument = useProjectStore((s) => s.updateDocument);
   const setProject = useProjectStore((s) => s.setProject);
   const setActiveDocumentId = useProjectStore((s) => s.setActiveDocumentId);
-  const userLockedDocType = useProjectStore((s) => s.userLockedDocType);
 
   const providerId = useSettingsStore((s) => s.providerId);
   const getActiveProvider = useSettingsStore((s) => s.getActiveProvider);
@@ -243,12 +240,12 @@ export function ChatBar() {
         content: m.content,
       }));
 
-    // Detect workflow type — if the user has manually selected a document,
-    // skip keyword detection and use the active document type directly.
-    const workflowType =
-      userLockedDocType && activeDocument
-        ? activeDocument.type
-        : detectWorkflowType(prompt);
+    // Route to the correct workflow. If a document is already active, its type
+    // is always authoritative — no keyword detection needed. Keywords are only
+    // used as a fallback when creating from scratch with no document context.
+    const workflowType = activeDocument
+      ? activeDocument.type
+      : detectWorkflowType(prompt);
     const isEdit = !!activeDocument?.contentHtml;
 
     if (workflowType === 'spreadsheet') {
@@ -270,384 +267,66 @@ export function ChatBar() {
     }
 
     if (workflowType === 'presentation') {
-      // ─── Presentation workflow ─────────────────────────────────
-      const isEditFlow = isEdit && activeDocument?.type === 'presentation';
-
-      // Ambiguity check: for new slides with short/vague prompts, ask for layout intent first
-      if (!isEditFlow && !autoPrompt) {
-        const { detectAmbiguity } = await import('@/services/ai/validation');
-        const clarifyOptions = detectAmbiguity(promptWithContext);
-        if (clarifyOptions) {
-          addMessage({
-            id: crypto.randomUUID(),
-            role: 'assistant',
-            content: 'Quick question — which layout style works best for this?',
-            timestamp: Date.now(),
-            documentId: scopedDocumentId,
-            scope: messageScope,
-            clarifyOptions,
-          });
-          return;
-        }
-      }
-
-      workflowStepsRef.current = isEditFlow
-        ? [
-            { id: 'plan', label: 'Plan', status: 'pending' },
-            { id: 'targeted-design', label: 'Design', status: 'pending' },
-            { id: 'evaluate', label: 'Evaluate', status: 'pending' },
-            { id: 'finalize', label: 'Finalize', status: 'pending' },
-          ]
-        : [
-            { id: 'plan', label: 'Plan', status: 'pending' },
-            { id: 'design', label: 'Design', status: 'pending' },
-            { id: 'evaluate', label: 'Evaluate', status: 'pending' },
-            { id: 'finalize', label: 'Finalize', status: 'pending' },
-          ];
-
-      setStatus({
-        state: 'generating',
-        startedAt: Date.now(),
-        step: 'Starting…',
-        pct: 0,
-        steps: workflowStepsRef.current,
+      await handlePresentationWorkflow({
+        prompt,
+        promptWithContext,
+        chatHistory,
+        autoPrompt,
+        activeDocument,
+        project,
+        projectDocumentCount: project.documents.length,
+        scopedDocumentId,
+        messageScope,
+        providerId,
+        workflowStepsRef,
+        abortControllerRef,
+        addMessage,
+        addDocument,
+        updateDocument,
+        setStatus,
+        setStreamingContent,
+        appendStreamingContent,
+        setSlides,
+        setTitle,
+        updateStepStatus,
+        queueMemoryExtraction,
+        buildWorkflowMemoryContext,
+        getActiveProvider,
       });
-      setStreamingContent('');
-
-      const abortController = new AbortController();
-      abortControllerRef.current = abortController;
-
-      try {
-        const config = getActiveProvider();
-        const [{ getProviderEntry }, { runPresentationWorkflow }] = await Promise.all([
-          import('@/services/ai/registry'),
-          import('@/services/ai/workflow/presentation'),
-        ]);
-        const providerEntry = getProviderEntry(providerId);
-
-        const onEvent = (event: WorkflowEvent) => {
-          switch (event.type) {
-            case 'step-start':
-              updateStepStatus(event.stepId, 'active');
-              setStatus({ state: 'generating', startedAt: Date.now(), step: event.label, steps: [...workflowStepsRef.current] });
-              break;
-            case 'step-done':
-              updateStepStatus(event.stepId, 'done');
-              setStatus({ state: 'generating', startedAt: Date.now(), steps: [...workflowStepsRef.current] });
-              break;
-            case 'step-error':
-              updateStepStatus(event.stepId, 'error');
-              break;
-            case 'step-skipped':
-              updateStepStatus(event.stepId, 'skipped');
-              setStatus({ state: 'generating', startedAt: Date.now(), steps: [...workflowStepsRef.current] });
-              break;
-            case 'retry-attempt':
-              workflowStepsRef.current = workflowStepsRef.current.map((s) =>
-                s.id === event.stepId ? { ...s, retryAttempt: event.attempt } : s,
-              );
-              setStatus({ state: 'generating', startedAt: Date.now(), step: `Retrying ${event.stepId}`, steps: [...workflowStepsRef.current] });
-              break;
-            case 'streaming':
-              appendStreamingContent(event.chunk);
-              break;
-            case 'draft-complete':
-              if (event.html) setSlides(event.html);
-              setStatus({ state: 'generating', startedAt: Date.now(), step: 'Running final QA checks…', pct: 72, steps: [...workflowStepsRef.current] });
-              break;
-            case 'batch-slide-complete':
-              // Progressively update canvas as each slide completes
-              setSlides(event.html);
-              setStatus({ state: 'generating', startedAt: Date.now(), step: `Slide ${event.slideIndex} of ${event.totalSlides} complete`, pct: Math.round(20 + (event.slideIndex / event.totalSlides) * 70), steps: [...workflowStepsRef.current] });
-              break;
-            case 'step-update':
-              updateStepStatus(event.stepId, event.status);
-              setStatus({ state: 'generating', startedAt: Date.now(), step: event.label, steps: [...workflowStepsRef.current] });
-              break;
-            case 'progress':
-              setStatus({ state: 'generating', startedAt: Date.now(), step: event.message, pct: event.pct, steps: [...workflowStepsRef.current] });
-              break;
-          }
-        };
-
-        const existingSlides = isEditFlow ? activeDocument?.contentHtml : undefined;
-
-        const memoryContext = await buildWorkflowMemoryContext(promptWithContext);
-
-        const result = await runPresentationWorkflow({
-          input: {
-            prompt: promptWithContext,
-            existingSlidesHtml: existingSlides,
-            chatHistory,
-            memoryContext,
-          },
-          llmConfig: {
-            providerEntry,
-            apiKey: config.apiKey,
-            baseUrl: config.baseUrl ?? '',
-            model: config.model,
-          },
-          onEvent,
-          signal: abortController.signal,
-        });
-
-        const llmConfig: LLMConfig = {
-          providerEntry,
-          apiKey: config.apiKey,
-          baseUrl: config.baseUrl ?? '',
-          model: config.model,
-        };
-
-        const memoryConversation: AIMessage[] = [
-          ...chatHistory,
-          { role: 'user', content: promptWithContext },
-        ];
-
-        let memorySourceRefs = [`project:${project.id}`];
-        let memoryArtifactSummary = result.title
-          ? `Generated presentation \"${result.title}\" with ${result.slideCount} slides.`
-          : `Generated presentation with ${result.slideCount} slides.`;
-
-        if (result.html) {
-          // HTML is already sanitized by runPresentationWorkflow
-          if (activeDocument?.type === 'presentation') {
-            // Update existing presentation document
-            const chartSpecs = extractChartSpecsFromHtml(result.html);
-            updateDocument(activeDocument.id, {
-              contentHtml: result.html,
-              title: result.title || activeDocument.title,
-              slideCount: result.slideCount,
-              chartSpecs,
-            });
-            memorySourceRefs = [...memorySourceRefs, `document:${activeDocument.id}`];
-          } else {
-            // Create a new presentation document
-            const chartSpecs = extractChartSpecsFromHtml(result.html);
-            const newDoc: ProjectDocument = {
-              id: crypto.randomUUID(),
-              title: result.title || 'Presentation',
-              type: 'presentation',
-              contentHtml: result.html,
-              themeCss: '',
-              slideCount: result.slideCount,
-              chartSpecs,
-              order: project.documents.length,
-              createdAt: Date.now(),
-              updatedAt: Date.now(),
-            };
-            addDocument(newDoc);
-            memorySourceRefs = [...memorySourceRefs, `document:${newDoc.id}`];
-          }
-
-          if (result.title) setTitle(result.title);
-          setSlides(result.html);
-          memoryArtifactSummary = result.title
-            ? `Generated presentation \"${result.title}\" with ${result.slideCount} slides and ${extractChartSpecsFromHtml(result.html).length} charts.`
-            : memoryArtifactSummary;
-        }
-
-        const reviewNote = result.reviewPassed ? '' : ' (QA flagged issues)';
-        addMessage({
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: result.html
-            ? `✅ Generated ${result.slideCount} slides${reviewNote}.`
-            : 'Generation completed but no slides were produced.',
-          timestamp: Date.now(),
-          documentId: scopedDocumentId,
-          scope: messageScope,
-        });
-
-        // Auto-commit version after generation
-        const action = isEditFlow ? 'Edited' : 'Created';
-        const slideInfo = result.slideCount > 0 ? ` (${result.slideCount} slide${result.slideCount !== 1 ? 's' : ''})` : '';
-        const commitMsg = `${action} presentation${slideInfo}: ${prompt.slice(0, 50)}`;
-        // Read latest state after addDocument/updateDocument mutation (getState avoids stale closure)
-        const updatedProject = useProjectStore.getState().project;
-        commitVersion(updatedProject, commitMsg).catch((e) => console.warn('[VersionHistory] commit failed:', e));
-        void queueMemoryExtraction(llmConfig, memoryConversation, memoryArtifactSummary, memorySourceRefs);
-
-        setStatus({ state: 'idle' });
-        setStreamingContent('');
-      } catch (err) {
-        if (abortController.signal.aborted) {
-          setStatus({ state: 'idle' });
-          setStreamingContent('');
-          addMessage({ id: crypto.randomUUID(), role: 'assistant', content: 'Generation cancelled.', timestamp: Date.now(), documentId: scopedDocumentId, scope: messageScope });
-          return;
-        }
-        const message = err instanceof Error ? err.message : 'Generation failed';
-        setStatus({ state: 'error', message });
-        setStreamingContent('');
-        addMessage({ id: crypto.randomUUID(), role: 'assistant', content: `Error: ${message}`, timestamp: Date.now(), documentId: scopedDocumentId, scope: messageScope });
-      }
-    } else {
-      // ─── Document workflow ─────────────────────────────────────
-      workflowStepsRef.current = [
-        { id: 'plan', label: 'Plan', status: 'pending' },
-        { id: 'generate', label: isEdit ? 'Update' : 'Write', status: 'pending' },
-        { id: 'qa', label: 'QA', status: 'pending' },
-        { id: 'finalize', label: 'Finalize', status: 'pending' },
-      ];
-
-      setStatus({ state: 'generating', startedAt: Date.now(), step: 'Starting…', pct: 0, steps: workflowStepsRef.current });
-      setStreamingContent('');
-
-      const abortController = new AbortController();
-      abortControllerRef.current = abortController;
-
-      try {
-        const config = getActiveProvider();
-        const [{ getProviderEntry }, { runDocumentWorkflow }] = await Promise.all([
-          import('@/services/ai/registry'),
-          import('@/services/ai/workflow/document'),
-        ]);
-        const providerEntry = getProviderEntry(providerId);
-
-        const onEvent = (event: WorkflowEvent) => {
-          switch (event.type) {
-            case 'step-start':
-              updateStepStatus(event.stepId, 'active');
-              setStatus({ state: 'generating', startedAt: Date.now(), step: event.label, steps: [...workflowStepsRef.current] });
-              break;
-            case 'step-done':
-              updateStepStatus(event.stepId, 'done');
-              setStatus({ state: 'generating', startedAt: Date.now(), steps: [...workflowStepsRef.current] });
-              break;
-            case 'streaming':
-              appendStreamingContent(event.chunk);
-              break;
-            case 'progress':
-              setStatus({ state: 'generating', startedAt: Date.now(), step: event.message, pct: event.pct, steps: [...workflowStepsRef.current] });
-              break;
-            case 'step-error':
-              updateStepStatus(event.stepId, 'error');
-              setStatus({ state: 'generating', startedAt: Date.now(), step: `Issue in ${event.stepId}`, steps: [...workflowStepsRef.current] });
-              break;
-          }
-        };
-
-        const existingDoc = isEdit && activeDocument?.type === 'document'
-          ? activeDocument.contentHtml
-          : undefined;
-
-        // Build project links for cross-document linking
-        const projectLinks: import('@/services/ai/workflow').DocumentProjectLink[] = project.documents
-          .filter((d) => d.id !== activeDocument?.id && d.contentHtml && d.type !== 'spreadsheet')
-          .map((d) => ({ id: d.id, title: d.title, type: d.type as 'document' | 'presentation' }));
-
-        const memoryContext = await buildWorkflowMemoryContext(promptWithContext);
-
-        const result = await runDocumentWorkflow({
-          input: {
-            prompt: promptWithContext,
-            existingHtml: existingDoc,
-            existingMarkdown: activeDocument?.type === 'document' ? activeDocument.sourceMarkdown : undefined,
-            chatHistory,
-            memoryContext,
-            styleHint: documentStylePreset,
-            projectLinks: projectLinks.length > 0 ? projectLinks : undefined,
-            imageParts: imageParts.length > 0 ? imageParts : undefined,
-          },
-          llmConfig: {
-            providerEntry,
-            apiKey: config.apiKey,
-            baseUrl: config.baseUrl ?? '',
-            model: config.model,
-          },
-          onEvent,
-          signal: abortController.signal,
-        });
-
-        const llmConfig: LLMConfig = {
-          providerEntry,
-          apiKey: config.apiKey,
-          baseUrl: config.baseUrl ?? '',
-          model: config.model,
-        };
-
-        const memoryConversation: AIMessage[] = [
-          ...chatHistory,
-          { role: 'user', content: promptWithContext },
-        ];
-
-        let memorySourceRefs = [`project:${project.id}`];
-        let memoryArtifactSummary = result.title
-          ? `Generated document \"${result.title}\".`
-          : 'Generated document.';
-
-        if (result.html) {
-          if (activeDocument?.type === 'document') {
-            const chartSpecs = extractChartSpecsFromHtml(result.html);
-            updateDocument(activeDocument.id, {
-              contentHtml: result.html,
-              sourceMarkdown: result.markdown,
-              title: result.title || activeDocument.title,
-              chartSpecs,
-            });
-            memorySourceRefs = [...memorySourceRefs, `document:${activeDocument.id}`];
-          } else {
-            const chartSpecs = extractChartSpecsFromHtml(result.html);
-            const newDoc: ProjectDocument = {
-              id: crypto.randomUUID(),
-              title: result.title || 'Document',
-              type: 'document',
-              contentHtml: result.html,
-              sourceMarkdown: result.markdown,
-              themeCss: '',
-              slideCount: 0,
-              chartSpecs,
-              order: project.documents.length,
-              createdAt: Date.now(),
-              updatedAt: Date.now(),
-            };
-            addDocument(newDoc);
-            memorySourceRefs = [...memorySourceRefs, `document:${newDoc.id}`];
-          }
-
-          memoryArtifactSummary = result.title
-            ? `Generated document \"${result.title}\" with ${result.markdown.length} markdown characters.`
-            : `Generated document with ${result.markdown.length} markdown characters.`;
-        }
-
-        addMessage({
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: result.html ? `✅ Created document: "${result.title}"` : 'Document created.',
-          timestamp: Date.now(),
-          documentId: scopedDocumentId,
-          scope: messageScope,
-        });
-
-        // Auto-commit version
-        const docAction = existingDoc ? 'Edited' : 'Created';
-        const commitMsg = `${docAction} document: ${prompt.slice(0, 60)}`;
-        // Read latest state after addDocument/updateDocument mutation (getState avoids stale closure)
-        const updatedProject = useProjectStore.getState().project;
-        commitVersion(updatedProject, commitMsg).catch((e) => console.warn('[VersionHistory] commit failed:', e));
-        void queueMemoryExtraction(llmConfig, memoryConversation, memoryArtifactSummary, memorySourceRefs);
-
-        setStatus({ state: 'idle' });
-        setStreamingContent('');
-      } catch (err) {
-        if (abortController.signal.aborted) {
-          setStatus({ state: 'idle' });
-          setStreamingContent('');
-          addMessage({ id: crypto.randomUUID(), role: 'assistant', content: 'Generation cancelled.', timestamp: Date.now(), documentId: scopedDocumentId, scope: messageScope });
-          return;
-        }
-        const message = err instanceof Error ? err.message : 'Generation failed';
-        setStatus({ state: 'error', message });
-        setStreamingContent('');
-        addMessage({ id: crypto.randomUUID(), role: 'assistant', content: `Error: ${message}`, timestamp: Date.now(), documentId: scopedDocumentId, scope: messageScope });
-      }
+      return;
     }
+
+    await handleDocumentWorkflow({
+      prompt,
+      promptWithContext,
+      chatHistory,
+      imageParts,
+      isEdit,
+      activeDocument,
+      project,
+      scopedDocumentId,
+      messageScope,
+      providerId,
+      documentStylePreset,
+      workflowStepsRef,
+      abortControllerRef,
+      addMessage,
+      addDocument,
+      updateDocument,
+      setStatus,
+      setStreamingContent,
+      appendStreamingContent,
+      updateStepStatus,
+      queueMemoryExtraction,
+      buildWorkflowMemoryContext,
+      getActiveProvider,
+    });
   }, [
     input, attachments, isGenerating, hasApiKey, setShowSettings, addMessage, messages,
     slidesHtml, setStatus, setStreamingContent, appendStreamingContent,
     providerId, getActiveProvider, setSlides, setTitle, updateStepStatus,
     activeDocument, addDocument, updateDocument, project, showAllMessages, applyToAllDocuments,
-    userLockedDocType, documentStylePreset, queueMemoryExtraction, buildWorkflowMemoryContext,
+    documentStylePreset, queueMemoryExtraction, buildWorkflowMemoryContext,
   ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
