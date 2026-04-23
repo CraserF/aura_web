@@ -64,6 +64,9 @@ Validation backfill note:
 - Phase 8 code landed on 2026-04-23 with preset services, artifact lifecycle metadata, run-history/policy plumbing, and compact preset/run UI surfaces.
 - Manual Phase 8 validation is still pending before any top-level lifecycle/preset workflow completion call.
 - Phase 8 commit: `5508683`
+- Phase 9 code landed on 2026-04-23 with structured spreadsheet planning, deterministic formula/query-view execution, spreadsheet-aware validation/graph integration, and richer spreadsheet run summaries.
+- Manual Phase 9 validation is still pending before any top-level spreadsheet workflow completion call.
+- Phase 9 commit: `52cca18`
 
 - [x] Add a persisted feature flag to hide the Pages UI without removing page logic
 - [x] Hide the current Pages button behind the feature flag
