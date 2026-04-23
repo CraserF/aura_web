@@ -6,6 +6,7 @@ Use this file as the source of truth for coordination across agents.
 
 ## Phase Documents
 
+- [Backlog Phase B: Mobile-Adaptive Artifact Completion and Validation Sweep](./phases/backlog-phase-b-mobile-adaptive-and-validation-sweep.md)
 - [Phase 10: API, MCP, and Automation Alignment](./phases/phase-10-api-mcp-and-automation-alignment.md)
 - [Phase 9: Spreadsheet Workflow Deepening](./phases/phase-9-spreadsheet-workflow-deepening.md)
 - [Phase 8: Presets, Lifecycle, and Policy](./phases/phase-8-presets-lifecycle-and-policy.md)
@@ -63,6 +64,7 @@ Validation backfill note:
 - Phase 8 does not absorb Backlog Phase A, Workstream F, or Phase 4-7 manual validation debt; keep those tracked separately.
 - Phase 9 does not absorb Backlog Phase A, Workstream F, or Phase 2/4/5/6/7/8 manual validation debt; keep those tracked separately.
 - Phase 10 does not absorb Backlog Phase A, Workstream F, or Phase 2/4/5/6/7/8/9 manual validation debt; keep those tracked separately.
+- Backlog Phase B is the current repo-execution focus for Workstream F F3/F4 and manual-validation backfill; it does not absorb the ESLint 9 migration or silently clear legacy manual checks without logged evidence.
 - Phase 8 code landed on 2026-04-23 with preset services, artifact lifecycle metadata, run-history/policy plumbing, and compact preset/run UI surfaces.
 - Manual Phase 8 validation is still pending before any top-level lifecycle/preset workflow completion call.
 - Phase 8 commit: `5508683`
@@ -106,6 +108,7 @@ Validation backfill note:
 Workstream F progress note:
 
 - Initial shared canvas-frame implementation landed for both document and presentation canvases.
+- Backlog Phase B is the active F3/F4 implementation and validation slice.
 - Automated checks are passing; required manual viewport validation matrix is still pending before checkbox completion.
 
 ## Workstreams

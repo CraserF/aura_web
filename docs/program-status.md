@@ -17,6 +17,7 @@ This document records shipped workflow-upgrade progress across the phased implem
 | Phase 7: Validation Profiles and Publish | `implemented` | `2ae847a`, `07b0a08`, `736db4e` | Shared validation profiles, artifact/project readiness validation, publish gating panels, and clean-environment checks landed; manual publish/readiness validation is still pending. |
 | Phase 8: Presets, Lifecycle, and Policy | `implemented` | `6da7e83`, `5508683` | Preset-aware run requests, lifecycle metadata and persistence, expanded run registry/output buffering, deterministic policy actions, and compact preset/run-history UI landed; manual Phase 8 validation is still pending. |
 | Phase 9: Spreadsheet Workflow Deepening | `implemented` | `824e66a`, `52cca18` | Structured spreadsheet planning/validation, deterministic formula-column and query-view flows, spreadsheet-aware dependency graph edges, and richer spreadsheet run outputs landed; manual spreadsheet workflow validation is still pending. |
+| Phase 10: API, MCP, and Automation Alignment | `implemented` | `b500fe4`, `d415576`, `310e953` | Serializable run specs, dry-run/explain modes, structured output envelopes, and external adapter seams landed; manual explain/dry-run validation is still pending. |
 
 ## Known Blockers
 
@@ -65,7 +66,18 @@ This document records shipped workflow-upgrade progress across the phased implem
   - creating one query-style derived sheet from prompt
   - confirming one spreadsheet change refreshes a linked document or presentation dependency
   - confirming spreadsheet lifecycle and policy state remain inspectable after validation and publish flows
+- Phase 10 manual in-app validation is still pending for:
+  - running one document flow in explain mode and verifying the included context and predicted changes are understandable
+  - running one spreadsheet flow in dry-run mode and verifying no workbook mutation occurs
+  - running one project-wide explain or dry-run and verifying dependency and validation effects are visible
+  - confirming a normal execute run still behaves unchanged afterward
+- Workstream F manual viewport validation is still pending for:
+  - mobile narrow portrait
+  - mobile landscape
+  - tablet portrait
+  - desktop standard
+  - desktop wide
 
 ## Current Focus
 
-- Phase 10 API, MCP, and automation alignment is tracked in [phase-10-api-mcp-and-automation-alignment.md](./phases/phase-10-api-mcp-and-automation-alignment.md).
+- Backlog Phase B mobile-adaptive artifact completion and validation sweep is tracked in [backlog-phase-b-mobile-adaptive-and-validation-sweep.md](./phases/backlog-phase-b-mobile-adaptive-and-validation-sweep.md).
