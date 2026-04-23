@@ -73,6 +73,10 @@ Rules:
 - make each document feel purpose-built, not like a clone of other project docs
 - use strong headings, concise paragraphs, and clear visual rhythm
 - prefer summary bands, KPI rows, comparison cards, process rails, pull quotes, and sidebars over long generic prose
+- default to a strong single-column reading flow for narrative content; only use side-by-side layouts for comparisons, KPI bands, or supporting rails
+- when you use grids or paired modules, make sure they can stack cleanly on narrow screens; avoid dense three-column prose layouts
+- keep media, figures, and charts fluid with max-width: 100%; avoid fixed pixel widths or heights that would clip inside a framed mobile viewport
+- keep hero/header sections concise enough that smaller screens still surface meaningful content without scrolling past a giant intro block
 - for notes, wikis, and reference material: use a clean minimal layout — no decorative elements, just clear hierarchy
 - no JavaScript, remote assets, or external stylesheets
 - when data visualization is needed, emit structured chart placeholders:
@@ -83,7 +87,7 @@ Rules:
 
 const EDIT_DOCUMENT_SYSTEM_PROMPT = `You are a professional document editor.
 Return the complete updated document while preserving the existing layout quality, hierarchy, and visual identity.
-Keep the document focused on the current request, prefer the smallest necessary change, and output only the updated content.`;
+Keep the document focused on the current request, prefer the smallest necessary change, preserve mobile-safe stacking and fluid media behavior, and output only the updated content.`;
 
 function withMemoryContext(prompt: string, memoryContext?: string): string {
   const sections = [prompt];
@@ -392,6 +396,8 @@ function getComponentHints(documentType: ResolvedDocumentType, tier: ArtDirectio
   const hints = [
     'Give this document its own layout identity; do not mirror unrelated project docs unless explicitly asked.',
     'Use accent-bar section headers and consistent section colors: blue=context, green=process, coral=warnings, slate=reference.',
+    'Bias toward one strong reading column for narrative content; reserve side-by-side layouts for comparisons, KPIs, or supporting context.',
+    'Keep media and structured modules wrap-safe on narrow screens; avoid fixed-width visuals and dense three-column prose blocks.',
   ];
 
   if (documentType === 'readme' || documentType === 'wiki') {
@@ -553,6 +559,8 @@ ${summary}
   ? 'This is a reference/notes document: keep it clean and minimal — clear hierarchy, one accent color, no decorative bands or animations. Favour whitespace and readability over visuals.'
   : 'Make the document feel distinct by mixing 2–4 suitable patterns: hero summary, KPI rail, comparison cards, progress rows, timeline, pull quote, sidebar, or metadata grid'}
 - Prefer ${isClean ? 'functional clarity' : 'infographic-style clarity'} over decoration; every visual element should communicate something
+- Treat narrow screens as a first-class reading mode: default to single-column narrative flow, let supporting modules stack cleanly, and avoid dense three-across prose layouts
+- Keep media fluid with max-width: 100% and avoid hard pixel widths/heights that could clip inside the framed document viewport
 - ${isClean ? 'Avoid animations, heavy gradients, and decorative components.' : 'Subtle Aura-only motion is welcome on key containers via classes like aura-rise-in, aura-fade-in, or aura-pulse-soft'}
 - ${isEdit ? 'Preserve the existing structure and make the smallest necessary change.' : 'Prefer polished structure over decorative excess.'}
 - Avoid walls of text, generic headings, and repeated identical component blocks`);

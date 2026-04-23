@@ -272,6 +272,27 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
       });
     }
 
+    const cardLikeCount = (section.match(/class=["'][^"']*(?:card|metric|kpi|panel|tile|stat|browser|frame|window)[^"']*["']/gi) ?? []).length;
+    const hasDenseGridHints = /grid-template-columns\s*:\s*repeat\(\s*[3-9]\s*,|class=["'][^"']*(?:cols-3|cols-4|three-col|four-col)[^"']*["']/i.test(section);
+    if (cardLikeCount >= 6 || (cardLikeCount >= 5 && hasDenseGridHints)) {
+      violations.push({
+        slide: slideNum,
+        rule: 'mobile-stage-density',
+        severity: 'warning',
+        detail: 'Slide packs too many card or metric modules for a fixed 16:9 stage that will be viewed inside smaller framed mobile viewports.',
+      });
+    }
+
+    const hasBrowserFrame = /class=["'][^"']*(?:browser|screenshot|device-frame|window-frame)[^"']*["']/i.test(section);
+    if (hasBrowserFrame && (wordCount > 70 || cardLikeCount > 4)) {
+      violations.push({
+        slide: slideNum,
+        rule: 'mobile-frame-density',
+        severity: 'warning',
+        detail: 'Browser or screenshot frame content looks dense for a scaled-down mobile viewport; simplify adjacent copy or panels.',
+      });
+    }
+
     // Rule: no empty placeholder text
     const placeholderPatterns = [
       /\{\{[A-Z_]+\}\}/,

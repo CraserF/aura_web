@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { validateDocument } from '@/services/ai/workflow/agents/document-qa';
+import {
+  DENSE_DOCUMENT_FIXTURE,
+  LONG_FORM_DOCUMENT_FIXTURE,
+} from '@/test/fixtures/workstream-f';
 
 const MINIMAL_VALID_HTML = `
 <style>
@@ -58,5 +62,28 @@ describe('validateDocument', () => {
     const result = validateDocument(html);
     const wallViolation = result.violations.some((v) => v.rule === 'wall-of-text');
     expect(wallViolation).toBe(true);
+  });
+
+  it('flags dense fixed multi-column grids without a single-column fallback', () => {
+    const result = validateDocument(DENSE_DOCUMENT_FIXTURE);
+    expect(result.violations.some((v) => v.rule === 'mobile-grid-density')).toBe(true);
+  });
+
+  it('does not flag mobile grid density for a wrap-safe long-form layout', () => {
+    const result = validateDocument(LONG_FORM_DOCUMENT_FIXTURE);
+    expect(result.violations.some((v) => v.rule === 'mobile-grid-density')).toBe(false);
+  });
+
+  it('flags fixed-width media that could clip in a framed mobile viewport', () => {
+    const html = `
+      <style>.doc-shell{--doc-primary:#000;--doc-accent:#111;--doc-text:#111;--doc-bg:#fff;--doc-surface:#f5f5f5}</style>
+      <div class="doc-shell">
+        <h1>Document</h1>
+        <h2>Section</h2>
+        <img src="hero.png" width="640" alt="hero" />
+      </div>
+    `;
+    const result = validateDocument(html);
+    expect(result.violations.some((v) => v.rule === 'mobile-media-clipping')).toBe(true);
   });
 });

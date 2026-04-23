@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ProjectDocument } from '@/types/project';
 
 import { validatePresentationAgainstProfile } from '@/services/validation/presentationValidation';
+import { PRESENTATION_MOBILE_FIXTURE } from '@/test/fixtures/workstream-f';
 
 function makePresentation(overrides: Partial<ProjectDocument> = {}): ProjectDocument {
   return {
@@ -40,5 +41,15 @@ describe('presentation validation', () => {
     });
 
     expect(result.blockingIssues.map((issue) => issue.code)).toContain('style-block');
+  });
+
+  it('surfaces dense card layouts that will be hard to read in mobile framed viewports', () => {
+    const result = validatePresentationAgainstProfile({
+      document: makePresentation({
+        contentHtml: PRESENTATION_MOBILE_FIXTURE,
+      }),
+    });
+
+    expect(result.warnings.map((issue) => issue.code)).toContain('mobile-stage-density');
   });
 });

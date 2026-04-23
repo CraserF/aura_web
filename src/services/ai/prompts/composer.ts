@@ -138,6 +138,20 @@ These rules are repeated here because recency matters. Violating any of them pro
   }
 }
 
+function buildMobileStageSection(): string {
+  return `## MOBILE-STAGE READABILITY
+
+These slides keep a fixed 16:9 stage and will often be viewed inside a smaller framed mobile viewport. Design for graceful scale-down, not responsive stretch.
+
+Rules:
+- keep each slide to 1-3 major zones with clear hierarchy; do not pack the stage edge-to-edge with equal-weight panels
+- headlines must stay short and bold enough to read when the full stage is scaled down
+- KPI or metric rows should stay to a small set of strong numbers; avoid sprawling six-card dashboards unless the prompt explicitly demands density
+- browser, screenshot, and device-frame treatments must live inside clear bounded panes with enough breathing room around them
+- multi-panel layouts should privilege comparison clarity over raw card count; if a slide feels crowded, collapse to fewer modules rather than thinner text
+- do not add responsive stretch logic inside slide HTML; preserve the fixed stage model and rely on clean composition instead`;
+}
+
 /**
  * Build the full designer prompt for single-slide generation.
  * This is the primary entry point for creating a new slide.
@@ -177,6 +191,7 @@ Requirements:
 
   return composer
     .addTemplateExamples(templateExamplesSection)
+    .addCustom(buildMobileStageSection())
     .addCustom(projectRulesBlock ?? '')
     .addQuality()
     .addPostRules()
@@ -229,6 +244,7 @@ export function buildEditDesignerPrompt(
     .addSvg()
     .addCharts()
     .addCustom(buildCondensedAntiPatterns())
+    .addCustom(buildMobileStageSection())
     .addCustom(projectRulesBlock ?? '')
     .addCustom(`## YOUR TASK — EDIT MODE
 
@@ -240,6 +256,7 @@ You are modifying existing slide(s) based on a user request.
 - Do NOT add \`font-size\` to wrapper elements (e.g. \`.slide-wrap\`) unless the user explicitly asked to change font size.
 - Do NOT change \`padding\` on the wrapper unless the user explicitly asked to change padding.
 - Keep the exact same CSS architecture, palette, fonts, animation patterns, and variable definitions.
+- Preserve contained-stage readability when the slide is scaled down into smaller framed mobile viewports.
 - If the request is to add slides, treat existing slides as immutable unless the user explicitly requested edits to specific existing slides.
 - For add-slide requests, append new slide sections and keep existing \`<style>\` and \`<section>\` elements unchanged.
 - No external image URLs. Use Bootstrap Icons, emoji, or inline SVG.

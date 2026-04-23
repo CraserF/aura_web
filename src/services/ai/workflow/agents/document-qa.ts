@@ -151,6 +151,41 @@ export function validateDocument(html: string): DocumentQAResult {
     });
   }
 
+  const hasSingleColumnFallback = /@media[\s\S]{0,320}grid-template-columns\s*:\s*1fr/i.test(styleText);
+  const hasRiskyFixedGrid = /grid-template-columns\s*:\s*(?:repeat\(\s*[3-9]\s*,|minmax\([^)]*\)\s+minmax\([^)]*\)\s+minmax\()/i.test(styleText);
+  if (hasRiskyFixedGrid && !hasSingleColumnFallback) {
+    violations.push({
+      rule: 'mobile-grid-density',
+      severity: 'warning',
+      detail: 'Multi-column grid rules do not show a narrow-screen single-column fallback.',
+    });
+  }
+
+  const fixedWidthMediaNodes = Array.from(body.querySelectorAll('img, video, iframe, svg, canvas')).filter((node) => {
+    const widthAttr = Number.parseInt(node.getAttribute('width') ?? '', 10);
+    const styleAttr = node.getAttribute('style') ?? '';
+    return widthAttr >= 420 || /\b(?:width|min-width)\s*:\s*(?:4[2-9]\d|[5-9]\d\d)px/i.test(styleAttr);
+  });
+  const fixedWidthMediaInCss = /(?:img|video|iframe|svg|canvas|\.doc-visual|\.doc-media)[^{]*\{[^}]*\b(?:width|min-width)\s*:\s*(?:4[2-9]\d|[5-9]\d\d)px/si.test(styleText);
+  if (fixedWidthMediaNodes.length > 0 || fixedWidthMediaInCss) {
+    violations.push({
+      rule: 'mobile-media-clipping',
+      severity: 'warning',
+      detail: 'Fixed-width media may clip inside the framed mobile document viewport; prefer fluid media sizing.',
+    });
+  }
+
+  const header = body.querySelector('.doc-header, header');
+  const headerWordCount = (header?.textContent ?? '').split(/\s+/).filter(Boolean).length;
+  const headerModuleCount = header?.querySelectorAll('.doc-kpi, .doc-compare-card, .doc-story-card, .doc-meta-grid > *, .doc-kpi-grid > *').length ?? 0;
+  if (header && (headerWordCount > 90 || headerModuleCount > 6)) {
+    violations.push({
+      rule: 'mobile-hero-density',
+      severity: 'warning',
+      detail: 'The opening hero/header is dense enough that it may dominate smaller framed viewports.',
+    });
+  }
+
   // 7. No empty sections
   const sections = body.querySelectorAll('section');
   for (const section of sections) {
