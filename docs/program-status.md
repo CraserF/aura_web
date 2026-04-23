@@ -35,4 +35,4 @@ This document records shipped workflow-upgrade progress across the phased implem
 
 ## Current Focus
 
-- Phase 4 targeted editing is tracked in [phase-4-unified-targeted-editing.md](./phases/phase-4-unified-targeted-editing.md).
+- Phase 5 template-first bootstrapping is tracked in [phase-5-template-first-bootstrapping.md](./phases/phase-5-template-first-bootstrapping.md).
