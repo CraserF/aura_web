@@ -8,6 +8,8 @@
  */
 
 import type { FileAttachment } from '@/types';
+import type { ProjectData, ProjectMediaAsset } from '@/types/project';
+import { sanitizeFilename } from '@/lib/sanitizeFilename';
 
 /** MIME types treated as plain text for prompt injection */
 const TEXT_MIME_TYPES = new Set([
@@ -41,6 +43,7 @@ export async function readFileAsAttachment(file: File): Promise<FileAttachment |
       mimeType,
       kind: 'image',
       content,
+      channel: 'render',
     };
   }
 
@@ -60,6 +63,7 @@ export async function readFileAsAttachment(file: File): Promise<FileAttachment |
       mimeType: mimeType || 'text/plain',
       kind: 'text',
       content,
+      channel: 'context',
     };
   }
 
@@ -89,7 +93,7 @@ function readAsText(file: File): Promise<string> {
  * the prompt alongside the user's message.
  */
 export function buildAttachmentContext(attachments: FileAttachment[]): string {
-  const textAttachments = attachments.filter((a) => a.kind === 'text');
+  const textAttachments = attachments.filter((a) => a.kind === 'text' && resolveAttachmentChannel(a) === 'context');
   if (textAttachments.length === 0) return '';
 
   const blocks = textAttachments.map((a) => {
@@ -99,4 +103,75 @@ export function buildAttachmentContext(attachments: FileAttachment[]): string {
   });
 
   return `\n\nAttached files:\n${blocks.join('\n\n')}`;
+}
+
+export function resolveAttachmentChannel(attachment: FileAttachment): 'context' | 'render' {
+  return attachment.channel ?? 'context';
+}
+
+function nextRelativePath(filename: string, existingPaths: Set<string>): string {
+  const trimmed = filename.trim() || 'image';
+  const dotIndex = trimmed.lastIndexOf('.');
+  const rawBase = dotIndex > 0 ? trimmed.slice(0, dotIndex) : trimmed;
+  const rawExt = dotIndex > 0 ? trimmed.slice(dotIndex + 1) : '';
+  const base = sanitizeFilename(rawBase || 'image') || 'image';
+  const ext = rawExt ? `.${sanitizeFilename(rawExt) || 'bin'}` : '';
+
+  let suffix = 0;
+  while (true) {
+    const candidate = `media/${base}${suffix > 0 ? `-${suffix}` : ''}${ext}`;
+    if (!existingPaths.has(candidate)) {
+      return candidate;
+    }
+    suffix += 1;
+  }
+}
+
+function attachmentToProjectMediaAsset(
+  attachment: FileAttachment,
+  existingPaths: Set<string>,
+): ProjectMediaAsset {
+  const relativePath = nextRelativePath(attachment.name, existingPaths);
+  existingPaths.add(relativePath);
+
+  return {
+    id: crypto.randomUUID(),
+    filename: attachment.name,
+    mimeType: attachment.mimeType,
+    relativePath,
+    dataUrl: attachment.content,
+  };
+}
+
+export function materializeRenderAttachments(
+  project: ProjectData,
+  attachments: FileAttachment[],
+): { project: ProjectData; addedAssets: ProjectMediaAsset[] } {
+  const renderAttachments = attachments.filter((attachment) =>
+    attachment.kind === 'image' && resolveAttachmentChannel(attachment) === 'render',
+  );
+
+  if (renderAttachments.length === 0) {
+    return { project, addedAssets: [] };
+  }
+
+  const existingMedia = project.media ?? [];
+  const existingDataUrls = new Set(existingMedia.map((asset) => asset.dataUrl));
+  const existingPaths = new Set(existingMedia.map((asset) => asset.relativePath));
+  const addedAssets = renderAttachments
+    .filter((attachment) => !existingDataUrls.has(attachment.content))
+    .map((attachment) => attachmentToProjectMediaAsset(attachment, existingPaths));
+
+  if (addedAssets.length === 0) {
+    return { project, addedAssets: [] };
+  }
+
+  return {
+    project: {
+      ...project,
+      media: [...existingMedia, ...addedAssets],
+      updatedAt: Date.now(),
+    },
+    addedAssets,
+  };
 }

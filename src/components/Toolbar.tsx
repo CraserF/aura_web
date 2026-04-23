@@ -1,6 +1,7 @@
 import {
   Settings,
   Download,
+  FileDown,
   Upload,
   Play,
   FolderPlus,
@@ -21,6 +22,12 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface ToolbarProps {
   chatPanelOpen: boolean;
@@ -29,6 +36,13 @@ interface ToolbarProps {
   onToggleSidebar: () => void;
   historyPanelOpen: boolean;
   onToggleHistoryPanel: () => void;
+  artifactExportActions?: Array<{
+    id: string;
+    label: string;
+    onSelect: () => void;
+    disabled?: boolean;
+  }>;
+  artifactExportBusy?: boolean;
 }
 
 export function Toolbar({
@@ -38,6 +52,8 @@ export function Toolbar({
   onToggleSidebar,
   historyPanelOpen,
   onToggleHistoryPanel,
+  artifactExportActions = [],
+  artifactExportBusy = false,
 }: ToolbarProps) {
   const project = useProjectStore((s) => s.project);
   const activeDocument = useProjectStore((s) => s.activeDocument());
@@ -228,6 +244,36 @@ export function Toolbar({
             <TooltipContent>Save project as .aura</TooltipContent>
           </Tooltip>
 
+          {artifactExportActions.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                  disabled={artifactExportBusy}
+                >
+                  <FileDown className="size-3.5" />
+                  <span className="hidden sm:inline">Export artifact</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {artifactExportActions.map((action) => (
+                  <DropdownMenuItem
+                    key={action.id}
+                    disabled={action.disabled}
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      action.onSelect();
+                    }}
+                  >
+                    {action.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -340,6 +386,35 @@ export function Toolbar({
               </TooltipTrigger>
               <TooltipContent>Save project as .aura</TooltipContent>
             </Tooltip>
+
+            {artifactExportActions.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+                    disabled={artifactExportBusy}
+                  >
+                    <FileDown className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {artifactExportActions.map((action) => (
+                    <DropdownMenuItem
+                      key={action.id}
+                      disabled={action.disabled}
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        action.onSelect();
+                      }}
+                    >
+                      {action.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
 
           <div className="flex items-center gap-0.5">

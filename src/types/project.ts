@@ -102,6 +102,14 @@ export interface WorkflowPresetCollection {
   defaultPresetByArtifact: Partial<Record<DocumentType, string>>;
 }
 
+export interface ProjectMediaAsset {
+  id: string;
+  filename: string;
+  mimeType: string;
+  relativePath: string;
+  dataUrl: string;
+}
+
 /** A single document in a project */
 export interface ProjectDocument {
   id: string;
@@ -154,6 +162,7 @@ export interface ProjectData {
   activeDocumentId: string | null;
   chatHistory: ChatMessage[];
   memoryTree?: MemoryDirectory;
+  media?: ProjectMediaAsset[];
   projectRules?: ProjectRulesDocument;
   contextPolicy?: ContextPolicy;
   workflowPresets?: WorkflowPresetCollection;

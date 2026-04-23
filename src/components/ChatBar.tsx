@@ -9,7 +9,7 @@ import type { LLMConfig } from '@/services/ai/workflow/types';
 import type { ContextBundle } from '@/services/context/types';
 import type { MemoryContextBuildResult, MemoryContextDetailMode } from '@/services/memory';
 import type { FileAttachment, WorkflowStep } from '@/types';
-import { readFileAsAttachment } from '@/lib/fileAttachment';
+import { materializeRenderAttachments, readFileAsAttachment } from '@/lib/fileAttachment';
 import { cn } from '@/lib/utils';
 import { submitPrompt } from '@/services/chat/submitPrompt';
 import { ContextChips } from '@/components/ContextChips';
@@ -221,12 +221,16 @@ export function ChatBar() {
     setAttachments([]);
     setAttachmentError(null);
     setInput('');
+    const { project: nextProject } = materializeRenderAttachments(project, currentAttachments);
+    if (nextProject !== project) {
+      setProject(nextProject);
+    }
 
     await submitPrompt({
       prompt,
       attachments: currentAttachments,
       messages,
-      project,
+      project: nextProject,
       activeDocument,
       showAllMessages,
       applyToAllDocuments,
@@ -254,7 +258,7 @@ export function ChatBar() {
     input, attachments, isGenerating, hasApiKey, setShowSettings, addMessage, messages,
     setStatus, setStreamingContent, appendStreamingContent,
     getActiveProvider, setSlides, setTitle, updateStepStatus,
-    activeDocument, addDocument, updateDocument, project, showAllMessages, applyToAllDocuments,
+    activeDocument, addDocument, updateDocument, project, setProject, showAllMessages, applyToAllDocuments,
     contextSelection, documentStylePreset, queueMemoryExtraction, buildWorkflowMemoryContext,
   ]);
 

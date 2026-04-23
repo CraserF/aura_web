@@ -2,6 +2,7 @@ import type {
   ContextPolicy,
   ContextPolicyOverride,
   ProjectData,
+  ProjectMediaAsset,
   ProjectRulesDocument,
   WorkflowPreset,
   WorkflowPresetCollection,
@@ -24,6 +25,35 @@ function asPositiveNumber(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0
     ? value
     : fallback;
+}
+
+function loadProjectMediaAsset(value: unknown): ProjectMediaAsset | null {
+  if (!isRecord(value)) return null;
+
+  if (
+    typeof value.id !== 'string'
+    || typeof value.filename !== 'string'
+    || typeof value.mimeType !== 'string'
+    || typeof value.relativePath !== 'string'
+    || typeof value.dataUrl !== 'string'
+  ) {
+    return null;
+  }
+
+  return {
+    id: value.id,
+    filename: value.filename,
+    mimeType: value.mimeType,
+    relativePath: value.relativePath,
+    dataUrl: value.dataUrl,
+  };
+}
+
+export function loadProjectMedia(value?: unknown): ProjectMediaAsset[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map(loadProjectMediaAsset)
+    .filter((asset): asset is ProjectMediaAsset => !!asset);
 }
 
 function normalizeContextPolicyOverride(
@@ -160,6 +190,7 @@ export function loadWorkflowPresets(value?: unknown): WorkflowPresetCollection {
 export function normalizeProjectData(project: ProjectData): ProjectData {
   return {
     ...project,
+    media: loadProjectMedia(project.media),
     projectRules: loadProjectRulesDocument(project.projectRules),
     contextPolicy: loadContextPolicy(project.contextPolicy),
     workflowPresets: loadWorkflowPresets(project.workflowPresets),

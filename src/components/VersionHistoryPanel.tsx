@@ -62,6 +62,7 @@ export function VersionHistoryPanel({ open, onClose }: VersionHistoryPanelProps)
       const chatHistory = JSON.parse(snapshot.chatHistory) as ChatMessage[];
       const contextPolicy = JSON.parse(snapshot.contextPolicy) as typeof project.contextPolicy;
       const workflowPresets = JSON.parse(snapshot.workflowPresets) as typeof project.workflowPresets;
+      const media = JSON.parse(snapshot.media) as typeof project.media;
 
       const documents: ProjectDocument[] = Object.values(snapshot.documents).map(
         (raw) => JSON.parse(raw) as ProjectDocument,
@@ -78,6 +79,7 @@ export function VersionHistoryPanel({ open, onClose }: VersionHistoryPanelProps)
         documents,
         activeDocumentId: restoredActiveDocumentId,
         chatHistory,
+        media: media ?? undefined,
         projectRules: {
           markdown: snapshot.projectRules,
           updatedAt: manifest.updatedAt,

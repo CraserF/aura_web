@@ -103,6 +103,10 @@ async function writeProjectFiles(project: ProjectData): Promise<void> {
     `${REPO_DIR}/workflow-presets.json`,
     JSON.stringify(project.workflowPresets ?? {}, null, 2),
   );
+  await fs.promises.writeFile(
+    `${REPO_DIR}/media.json`,
+    JSON.stringify(project.media ?? [], null, 2),
+  );
 }
 
 /** Stage all files and create a commit */
@@ -170,6 +174,7 @@ export async function readVersionSnapshot(hash: string): Promise<{
   projectRules: string;
   contextPolicy: string;
   workflowPresets: string;
+  media: string;
 } | null> {
   try {
     const fs = getFs();
@@ -196,6 +201,7 @@ export async function readVersionSnapshot(hash: string): Promise<{
       projectRules: await readBlob('project-rules.md').catch(() => ''),
       contextPolicy: await readBlob('context-policy.json').catch(() => 'null'),
       workflowPresets: await readBlob('workflow-presets.json').catch(() => 'null'),
+      media: await readBlob('media.json').catch(() => '[]'),
     };
   } catch (err) {
     console.warn('[VersionHistory] readSnapshot failed:', err);

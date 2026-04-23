@@ -153,7 +153,17 @@ export default function App() {
   const [editorInitialMarkdown, setEditorInitialMarkdown] = useState('');
   const [editorContentSource, setEditorContentSource] = useState<'original' | 'derived'>('original');
   const [textEditorMode, setTextEditorMode] = useState<'edit' | 'link'>('edit');
-  const [documentAction, setDocumentAction] = useState<'preview-pdf' | 'export-pdf' | 'export-word' | 'save-text' | 'export-presentation-pdf' | null>(null);
+  const [documentAction, setDocumentAction] = useState<
+    | 'preview-pdf'
+    | 'export-pdf'
+    | 'export-word'
+    | 'save-text'
+    | 'export-presentation-pdf'
+    | 'export-document-html'
+    | 'export-document-email'
+    | 'export-presentation-html'
+    | null
+  >(null);
   const [documentError, setDocumentError] = useState<string | null>(null);
 
   // Restore autosaved project on mount
@@ -453,6 +463,92 @@ export default function App() {
     }
   }, [activeDocument]);
 
+  const handleExportDocumentStandaloneHtml = useCallback(async () => {
+    if (!activeDocument || activeDocument.type !== 'document') return;
+
+    setDocumentError(null);
+    setDocumentAction('export-document-html');
+
+    try {
+      const [{ exportDocumentStandaloneHtml }, { downloadStandaloneArtifact }] = await Promise.all([
+        import('@/services/export/documentHtml'),
+        import('@/services/export/standalone'),
+      ]);
+      const artifact = await exportDocumentStandaloneHtml({
+        project,
+        document: activeDocument,
+      });
+      await downloadStandaloneArtifact(artifact);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to export standalone document HTML.';
+      setDocumentError(message);
+    } finally {
+      setDocumentAction(null);
+    }
+  }, [activeDocument, project]);
+
+  const handleExportDocumentEmailHtml = useCallback(async () => {
+    if (!activeDocument || activeDocument.type !== 'document') return;
+
+    setDocumentError(null);
+    setDocumentAction('export-document-email');
+
+    try {
+      const [{ exportDocumentEmailHtml }, { downloadStandaloneArtifact }] = await Promise.all([
+        import('@/services/export/emailHtml'),
+        import('@/services/export/standalone'),
+      ]);
+      const artifact = await exportDocumentEmailHtml({
+        project,
+        document: activeDocument,
+      });
+      await downloadStandaloneArtifact(artifact);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to export email HTML.';
+      setDocumentError(message);
+    } finally {
+      setDocumentAction(null);
+    }
+  }, [activeDocument, project]);
+
+  const handleExportPresentationStandaloneHtml = useCallback(async () => {
+    if (!activeDocument || activeDocument.type !== 'presentation') return;
+
+    setDocumentError(null);
+    setDocumentAction('export-presentation-html');
+
+    try {
+      const [{ exportPresentationStandaloneHtml }, { downloadStandaloneArtifact }] = await Promise.all([
+        import('@/services/export/presentationHtml'),
+        import('@/services/export/standalone'),
+      ]);
+      const artifact = await exportPresentationStandaloneHtml({
+        project,
+        document: activeDocument,
+      });
+      await downloadStandaloneArtifact(artifact);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to export standalone presentation HTML.';
+      setDocumentError(message);
+    } finally {
+      setDocumentAction(null);
+    }
+  }, [activeDocument, project]);
+
+  const artifactExportActions = activeDocument?.type === 'document'
+    ? [
+        { id: 'document-html', label: 'Standalone HTML', onSelect: () => void handleExportDocumentStandaloneHtml() },
+        { id: 'document-email', label: 'Email HTML', onSelect: () => void handleExportDocumentEmailHtml() },
+        { id: 'document-pdf', label: 'PDF', onSelect: () => void handleExportPdf() },
+        { id: 'document-docx', label: 'DOCX', onSelect: () => void handleExportWord() },
+      ]
+    : activeDocument?.type === 'presentation'
+      ? [
+          { id: 'presentation-html', label: 'Standalone HTML', onSelect: () => void handleExportPresentationStandaloneHtml() },
+          { id: 'presentation-pdf', label: 'PDF', onSelect: () => void handleExportPresentationPdf() },
+        ]
+      : [];
+
   return (
     <div className="flex h-full flex-col bg-background">
       <Toolbar
@@ -462,6 +558,8 @@ export default function App() {
         onToggleSidebar={() => setSidebarOpen((v) => !v)}
         historyPanelOpen={historyPanelOpen}
         onToggleHistoryPanel={() => setHistoryPanelOpen((v) => !v)}
+        artifactExportActions={artifactExportActions}
+        artifactExportBusy={documentAction !== null}
       />
       <div className="flex min-h-0 flex-1">
         <ProjectSidebar
@@ -487,25 +585,38 @@ export default function App() {
             <div className="flex flex-1 flex-col overflow-hidden">
               {activeDocument?.contentHtml && (
                 <div className="hidden shrink-0 items-center gap-1 border-b border-border px-3 py-1.5 sm:flex">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
                         size="sm"
                         className="h-7 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
-                        onClick={() => void handleExportPresentationPdf()}
-                        disabled={documentAction === 'export-presentation-pdf'}
+                        disabled={documentAction === 'export-presentation-pdf' || documentAction === 'export-presentation-html'}
                       >
-                        {documentAction === 'export-presentation-pdf' ? (
+                        {documentAction === 'export-presentation-pdf' || documentAction === 'export-presentation-html' ? (
                           <Loader2 className="size-3.5 animate-spin" />
                         ) : (
                           <FileDown className="size-3.5" />
                         )}
-                        Export PDF
+                        Export
+                        <ChevronDown className="size-3.5" />
                       </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Export slides as PDF (one page per slide)</TooltipContent>
-                  </Tooltip>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem onSelect={(event) => {
+                        event.preventDefault();
+                        void handleExportPresentationStandaloneHtml();
+                      }}>
+                        Standalone HTML
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={(event) => {
+                        event.preventDefault();
+                        void handleExportPresentationPdf();
+                      }}>
+                        PDF
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   {documentError && showPresentation && (
                     <p className="ml-2 truncate text-xs text-destructive">{documentError}</p>
                   )}
@@ -602,7 +713,7 @@ export default function App() {
                           className="h-7 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
                           disabled={isDocumentBusy}
                         >
-                          {documentAction === 'export-pdf' || documentAction === 'export-word' ? (
+                          {documentAction === 'export-pdf' || documentAction === 'export-word' || documentAction === 'export-document-html' || documentAction === 'export-document-email' ? (
                             <Loader2 className="size-3.5 animate-spin" />
                           ) : (
                             <FileDown className="size-3.5" />
@@ -612,6 +723,18 @@ export default function App() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start">
+                        <DropdownMenuItem onSelect={(event) => {
+                          event.preventDefault();
+                          void handleExportDocumentStandaloneHtml();
+                        }}>
+                          Standalone HTML
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={(event) => {
+                          event.preventDefault();
+                          void handleExportDocumentEmailHtml();
+                        }}>
+                          Email HTML
+                        </DropdownMenuItem>
                         <DropdownMenuItem onSelect={(event) => {
                           event.preventDefault();
                           void handlePreviewPdf();
@@ -701,7 +824,7 @@ export default function App() {
                       className="h-7 shrink-0 gap-1.5 rounded-md px-2 text-xs"
                       disabled={isDocumentBusy}
                     >
-                      {documentAction === 'preview-pdf' || documentAction === 'export-pdf' || documentAction === 'export-word' ? (
+                      {documentAction === 'preview-pdf' || documentAction === 'export-pdf' || documentAction === 'export-word' || documentAction === 'export-document-html' || documentAction === 'export-document-email' ? (
                         <Loader2 className="size-3.5 animate-spin" />
                       ) : (
                         <FileDown className="size-3.5" />
@@ -711,6 +834,18 @@ export default function App() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start">
+                    <DropdownMenuItem onSelect={(event) => {
+                      event.preventDefault();
+                      void handleExportDocumentStandaloneHtml();
+                    }}>
+                      Standalone HTML
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={(event) => {
+                      event.preventDefault();
+                      void handleExportDocumentEmailHtml();
+                    }}>
+                      Email HTML
+                    </DropdownMenuItem>
                     <DropdownMenuItem onSelect={(event) => {
                       event.preventDefault();
                       void handlePreviewPdf();

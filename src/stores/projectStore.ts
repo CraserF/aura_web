@@ -19,6 +19,7 @@ function newProject(): ProjectData {
     activeDocumentId: null,
     chatHistory: [],
     memoryTree: createInitialMemoryTree(),
+    media: [],
     projectRules: defaultProjectRules(),
     contextPolicy: defaultContextPolicy(),
     workflowPresets: defaultWorkflowPresets(),
