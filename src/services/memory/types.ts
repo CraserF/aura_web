@@ -250,6 +250,9 @@ export interface MemoryRetrievalResult {
 
   /** Why this memory was retrieved */
   reason: string;
+
+  /** Directory path used to surface this memory */
+  directoryPath?: string;
 }
 
 /**

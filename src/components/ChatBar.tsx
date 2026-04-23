@@ -6,10 +6,14 @@ import { useProjectStore } from '@/stores/projectStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { AIMessage } from '@/services/ai/types';
 import type { LLMConfig } from '@/services/ai/workflow/types';
+import type { ContextBundle } from '@/services/context/types';
+import type { MemoryContextBuildResult, MemoryContextDetailMode } from '@/services/memory';
 import type { FileAttachment, WorkflowStep } from '@/types';
 import { readFileAsAttachment } from '@/lib/fileAttachment';
 import { cn } from '@/lib/utils';
 import { submitPrompt } from '@/services/chat/submitPrompt';
+import { ContextChips } from '@/components/ContextChips';
+import { ContextPanel } from '@/components/ContextPanel';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,6 +53,8 @@ export function ChatBar() {
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [contextPanelOpen, setContextPanelOpen] = useState(false);
+  const [lastContext, setLastContext] = useState<ContextBundle | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -64,6 +70,15 @@ export function ChatBar() {
   const setPendingRetryPrompt = useChatStore((s) => s.setPendingRetryPrompt);
   const pendingAutoSubmitPrompt = useChatStore((s) => s.pendingAutoSubmitPrompt);
   const setPendingAutoSubmitPrompt = useChatStore((s) => s.setPendingAutoSubmitPrompt);
+  const contextSelection = useChatStore((s) => s.contextSelection);
+  const setContextScopeMode = useChatStore((s) => s.setContextScopeMode);
+  const setCompactionMode = useChatStore((s) => s.setCompactionMode);
+  const setRecentMessageCount = useChatStore((s) => s.setRecentMessageCount);
+  const togglePinnedDocumentId = useChatStore((s) => s.togglePinnedDocumentId);
+  const togglePinnedMemoryPath = useChatStore((s) => s.togglePinnedMemoryPath);
+  const togglePinnedSheetRef = useChatStore((s) => s.togglePinnedSheetRef);
+  const toggleExcludedSourceId = useChatStore((s) => s.toggleExcludedSourceId);
+  const resetContextSelection = useChatStore((s) => s.resetContextSelection);
 
   const setSlides = usePresentationStore((s) => s.setSlides);
   const setTitle = usePresentationStore((s) => s.setTitle);
@@ -157,18 +172,33 @@ export function ChatBar() {
     }
   }, [project.id, setProject]);
 
-  const buildWorkflowMemoryContext = useCallback(async (prompt: string): Promise<string> => {
+  const buildWorkflowMemoryContext = useCallback(async (
+    prompt: string,
+    options?: {
+      detailMode?: MemoryContextDetailMode;
+      pinnedPaths?: string[];
+      maxTokens?: number;
+    },
+  ): Promise<MemoryContextBuildResult> => {
     const currentProject = useProjectStore.getState().project;
     if (!currentProject.memoryTree) {
-      return '';
+      return {
+        text: '',
+        tokenCount: 0,
+        budgetExceeded: false,
+        trimmedMemories: [],
+        items: [],
+      };
     }
 
-    const { buildMemoryContext } = await import('@/services/memory');
-    return buildMemoryContext(currentProject.memoryTree, prompt, {
+    const { buildMemoryContextResult } = await import('@/services/memory');
+    return buildMemoryContextResult(currentProject.memoryTree, prompt, {
       scope: `project:${currentProject.id}`,
       topK: 5,
       maxDirectories: 3,
-      maxTokens: 1200,
+      maxTokens: options?.maxTokens ?? 1200,
+      detailMode: options?.detailMode ?? 'overview',
+      pinnedPaths: options?.pinnedPaths ?? [],
     });
   }, []);
 
@@ -200,6 +230,7 @@ export function ChatBar() {
       activeDocument,
       showAllMessages,
       applyToAllDocuments,
+      selectionState: contextSelection,
       providerConfig: getActiveProvider(),
       documentStylePreset,
       allowClarification: !autoPrompt,
@@ -217,13 +248,14 @@ export function ChatBar() {
       updateStepStatus,
       queueMemoryExtraction,
       buildWorkflowMemoryContext,
+      onRunRequestBuilt: (runRequest) => setLastContext(runRequest.context),
     });
   }, [
     input, attachments, isGenerating, hasApiKey, setShowSettings, addMessage, messages,
     setStatus, setStreamingContent, appendStreamingContent,
     getActiveProvider, setSlides, setTitle, updateStepStatus,
     activeDocument, addDocument, updateDocument, project, showAllMessages, applyToAllDocuments,
-    documentStylePreset, queueMemoryExtraction, buildWorkflowMemoryContext,
+    contextSelection, documentStylePreset, queueMemoryExtraction, buildWorkflowMemoryContext,
   ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -363,6 +395,14 @@ export function ChatBar() {
             )}
           </div>
         )}
+
+        <div className="mb-2">
+          <ContextChips
+            selectionState={contextSelection}
+            lastContext={lastContext}
+            onOpen={() => setContextPanelOpen(true)}
+          />
+        </div>
 
         {/* Attachment previews */}
         {attachments.length > 0 && (
@@ -504,6 +544,24 @@ export function ChatBar() {
       {status.state === 'error' && (
         <p className="mt-2 text-center text-xs text-destructive">{status.message}</p>
       )}
+
+      <ContextPanel
+        open={contextPanelOpen}
+        onOpenChange={setContextPanelOpen}
+        selectionState={contextSelection}
+        activeDocument={activeDocument}
+        projectDocuments={project.documents}
+        memoryTree={project.memoryTree}
+        lastContext={lastContext}
+        onSetScopeMode={setContextScopeMode}
+        onSetCompactionMode={setCompactionMode}
+        onSetRecentMessageCount={setRecentMessageCount}
+        onTogglePinnedDocumentId={togglePinnedDocumentId}
+        onTogglePinnedMemoryPath={togglePinnedMemoryPath}
+        onTogglePinnedSheetRef={togglePinnedSheetRef}
+        onToggleExcludedSourceId={toggleExcludedSourceId}
+        onReset={resetContextSelection}
+      />
     </div>
   );
 }

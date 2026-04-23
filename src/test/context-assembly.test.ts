@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { assembleContext } from '@/services/context/assemble';
+import { createDefaultContextSelectionState } from '@/services/context/types';
 import { defaultContextPolicy } from '@/services/projectRules/defaults';
 import type { ChatMessage, FileAttachment } from '@/types';
 import type { ProjectData, ProjectDocument } from '@/types/project';
@@ -65,6 +66,7 @@ describe('assembleContext', () => {
       applyToAllDocuments: false,
       memoryContext: 'Remember the quarterly launch cadence.',
       contextPolicy: defaultContextPolicy(),
+      selectionState: createDefaultContextSelectionState(),
     });
 
     expect(assembled.messageScope).toBe('document');
@@ -117,6 +119,7 @@ describe('assembleContext', () => {
         maxAttachmentChars: 40,
         includeRelatedDocuments: false,
       },
+      selectionState: createDefaultContextSelectionState(),
     });
 
     expect(assembled.context.conversation.chatHistory).toHaveLength(2);

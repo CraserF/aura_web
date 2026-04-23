@@ -11,6 +11,7 @@ import type { AIMessage } from '@/services/ai/types';
 import type { LLMConfig } from '@/services/ai/workflow/types';
 import type { WorkflowEvent } from '@/services/ai/workflow';
 import { logContextMetrics } from '@/services/ai/debug';
+import { getCompressionBudget } from '@/services/context/compressionBudget';
 import { commitVersion } from '@/services/storage/versionHistory';
 import { extractChartSpecsFromHtml } from '@/services/charts';
 import { useProjectStore } from '@/stores/projectStore';
@@ -54,6 +55,21 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
     code: diagnostic.code,
     message: diagnostic.message,
   }));
+  const contextWarnings = [
+    ...(context.compaction.compactedSourceIds.length > 0
+      ? [{
+          code: 'context-compacted',
+          message: `Context compaction summarized ${context.compaction.compactedSourceIds.length} source(s) before generation.`,
+        }]
+      : []),
+    ...((context.compaction.afterTokens > getCompressionBudget())
+      && context.sources.some((source) => source.kind === 'memory' && source.pinned)
+      ? [{
+          code: 'pinned-context-over-budget',
+          message: 'Pinned memory exceeded the target context budget and was kept in the run.',
+        }]
+      : []),
+  ];
   const isEdit = intent.operation === 'edit' && activeDocument?.type === 'document';
 
   workflowStepsRef.current = [
@@ -201,7 +217,7 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
         passed: true,
         summary: 'Document workflow completed and passed document QA.',
       },
-      warnings: configWarnings,
+      warnings: [...configWarnings, ...contextWarnings],
       changedTargets: [{
         documentId: changedDocumentId,
         action: changeAction,
@@ -227,7 +243,7 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
           passed: false,
           summary: 'Run cancelled by user.',
         },
-        warnings: configWarnings,
+        warnings: [...configWarnings, ...contextWarnings],
         changedTargets: [],
         structuredStatus: {
           title: 'Generation cancelled',
@@ -248,7 +264,7 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
         passed: false,
         summary: 'Document workflow failed.',
       },
-      warnings: configWarnings,
+      warnings: [...configWarnings, ...contextWarnings],
       changedTargets: [],
       structuredStatus: {
         title: 'Document workflow failed',

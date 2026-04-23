@@ -1,5 +1,5 @@
-// TODO(phase-3): Centralize compaction thresholds and before/after token budget
-// calculations so UI and run contracts read from the same numbers.
+export const DEFAULT_CONTEXT_TOKEN_BUDGET = 2800;
+
 export function getCompressionBudget(): number {
-  return 0;
+  return DEFAULT_CONTEXT_TOKEN_BUDGET;
 }

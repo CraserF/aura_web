@@ -9,6 +9,7 @@ import type { ProjectDocument, WorkbookMeta } from '@/types/project';
 import type { GenerationStatus } from '@/types';
 import { logContextMetrics } from '@/services/ai/debug';
 import { extractChartSpecsFromHtml } from '@/services/charts';
+import { getCompressionBudget } from '@/services/context/compressionBudget';
 import { commitVersion } from '@/services/storage/versionHistory';
 import { runSpreadsheetWorkflow } from '@/services/ai/workflow/spreadsheet';
 import { useProjectStore } from '@/stores/projectStore';
@@ -51,6 +52,21 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
     code: diagnostic.code,
     message: diagnostic.message,
   }));
+  const contextWarnings = [
+    ...(context.compaction.compactedSourceIds.length > 0
+      ? [{
+          code: 'context-compacted',
+          message: `Context compaction summarized ${context.compaction.compactedSourceIds.length} source(s) before generation.`,
+        }]
+      : []),
+    ...((context.compaction.afterTokens > getCompressionBudget())
+      && context.sources.some((source) => source.kind === 'memory' && source.pinned)
+      ? [{
+          code: 'pinned-context-over-budget',
+          message: 'Pinned memory exceeded the target context budget and was kept in the run.',
+        }]
+      : []),
+  ];
 
   const activeWorkbook = activeDocument?.type === 'spreadsheet' ? activeDocument.workbook ?? null : null;
   const docIsDefaultSheet = isDefaultSheet(activeDocument);
@@ -84,7 +100,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
           passed: true,
           summary: 'Spreadsheet workflow exited without applying changes.',
         },
-        warnings: configWarnings,
+        warnings: [...configWarnings, ...contextWarnings],
         changedTargets: [{
           documentId: activeDocument?.id,
           action: 'none',
@@ -121,7 +137,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
           passed: true,
           summary: 'Spreadsheet chart created successfully.',
         },
-        warnings: configWarnings,
+        warnings: [...configWarnings, ...contextWarnings],
         changedTargets: [{
           documentId: activeDocument!.id,
           action: 'updated',
@@ -152,7 +168,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
           passed: true,
           summary: 'Spreadsheet action executed successfully.',
         },
-        warnings: configWarnings,
+        warnings: [...configWarnings, ...contextWarnings],
         changedTargets: [{
           documentId: activeDocument!.id,
           action: 'updated',
@@ -219,7 +235,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
         passed: true,
         summary: 'Spreadsheet created successfully.',
       },
-      warnings: configWarnings,
+      warnings: [...configWarnings, ...contextWarnings],
       changedTargets: [{
         documentId: targetDocument.id,
         action: activeDocument?.type === 'spreadsheet' ? 'updated' : 'created',

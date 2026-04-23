@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildRunRequest } from '@/services/chat/buildRunRequest';
+import { createDefaultContextSelectionState } from '@/services/context/types';
 import type { ProjectData, ProjectDocument } from '@/types/project';
 
 function makeDocument(overrides: Partial<ProjectDocument> = {}): ProjectDocument {
@@ -52,7 +53,14 @@ describe('buildRunRequest', () => {
         baseUrl: 'https://api.openai.com/v1',
         model: 'gpt-4o',
       },
-      buildMemoryContext: async () => 'Relevant launch notes',
+      selectionState: createDefaultContextSelectionState(),
+      buildMemoryContext: async () => ({
+        text: 'Relevant launch notes',
+        tokenCount: 4,
+        budgetExceeded: false,
+        trimmedMemories: [],
+        items: [],
+      }),
     });
 
     expect(result.messageScope).toBe('document');

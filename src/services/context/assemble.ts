@@ -1,30 +1,13 @@
-import { buildAttachmentContext } from '@/lib/fileAttachment';
-import { resolveOutgoingMessageScope } from '@/services/chat/routing';
 import {
   countConversationChars,
   countTextChars,
 } from '@/services/ai/debug';
-import type { FileAttachment } from '@/types';
-import type { AIImagePart } from '@/services/ai/types';
-import type { ChatMessage } from '@/types';
-import type { ContextPolicy, ProjectData, ProjectDocument } from '@/types/project';
-
-import { estimateContextTokens } from '@/services/context/budgets';
-import { getActiveWorkbook, getExistingArtifactText, getRelatedDocuments } from '@/services/context/selectors';
+import { compactContextSources } from '@/services/context/compact';
+import { selectContextSources, type AssembleContextInput } from '@/services/context/select';
 import { summarizeContextValue } from '@/services/context/summarize';
-import type { ContextBundle, ContextSource } from '@/services/context/types';
+import type { ContextBundle } from '@/services/context/types';
 
-export interface AssembleContextInput {
-  prompt: string;
-  attachments: FileAttachment[];
-  messages: ProjectData['chatHistory'];
-  activeDocument: ProjectDocument | null;
-  project: ProjectData;
-  showAllMessages: boolean;
-  applyToAllDocuments: boolean;
-  memoryContext: string;
-  contextPolicy: ContextPolicy;
-}
+export type { AssembleContextInput } from '@/services/context/select';
 
 export interface AssembledChatContext {
   context: ContextBundle;
@@ -33,140 +16,81 @@ export interface AssembledChatContext {
 }
 
 export function assembleContext(input: AssembleContextInput): AssembledChatContext {
-  const {
-    prompt,
-    attachments,
-    messages,
-    activeDocument,
-    project,
-    showAllMessages,
-    applyToAllDocuments,
-    memoryContext,
-    contextPolicy,
-  } = input;
+  const selection = selectContextSources(input);
+  const compacted = compactContextSources(selection, input.selectionState);
 
-  const { messageScope, scopedDocumentId } = resolveOutgoingMessageScope(
-    activeDocument?.id,
-    applyToAllDocuments,
-  );
-  const maxChatMessages = contextPolicy.maxChatMessages ?? 0;
-  const maxAttachmentChars = contextPolicy.maxAttachmentChars ?? 0;
-  const maxRelatedDocuments = contextPolicy.maxRelatedDocuments ?? 0;
-  const maxMemoryTokens = contextPolicy.maxMemoryTokens ?? 0;
-  const selectedMessages = selectContextMessages(messages, activeDocument?.id, showAllMessages, contextPolicy);
-  const limitedMessages = maxChatMessages > 0
-    ? selectedMessages.slice(-maxChatMessages)
-    : [];
-  const attachmentTextContext = contextPolicy.includeAttachments
-    ? clampContextText(buildAttachmentContext(attachments), maxAttachmentChars)
-    : '';
-  const promptWithContext = (attachmentTextContext ? `${prompt}${attachmentTextContext}` : prompt).trim();
-  const chatHistory = limitedMessages.map((message) => ({
-    role: message.role,
-    content: message.content,
-  }));
-  const imageParts: AIImagePart[] = (contextPolicy.includeAttachments ? attachments : [])
-    .filter((attachment) => attachment.kind === 'image')
-    .map((attachment) => ({
-      type: 'image',
-      image: attachment.content,
-      mimeType: attachment.mimeType,
-    }));
-  const activeWorkbook = getActiveWorkbook(activeDocument);
-  const { existingContentHtml, existingMarkdown } = getExistingArtifactText(activeDocument);
-  const relatedDocuments = contextPolicy.includeRelatedDocuments
-    ? getRelatedDocuments(project, activeDocument, maxRelatedDocuments)
-    : [];
-  const normalizedMemoryContext = contextPolicy.includeMemory
-    ? clampContextText(memoryContext, maxMemoryTokens * 4)
-    : '';
+  const attachmentTextContext = compacted.entries
+    .filter((entry) => entry.source.id === 'attachments:text')
+    .map((entry) => entry.text)
+    .join('\n\n');
+  const supplementalPromptContext = compacted.entries
+    .filter((entry) =>
+      entry.source.id === 'conversation:summary'
+      || entry.source.id.startsWith('artifact:related:')
+      || entry.source.id.startsWith('data:sheet:'),
+    )
+    .map((entry) => `${entry.source.label}:\n${entry.text}`)
+    .join('\n\n');
+  const promptWithContext = [
+    input.prompt,
+    attachmentTextContext,
+    supplementalPromptContext ? `Additional context:\n${supplementalPromptContext}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+    .trim();
 
-  const sources: ContextSource[] = [
-    { kind: 'conversation' as const, label: 'prompt', charCount: countTextChars(prompt) },
-    { kind: 'conversation' as const, label: 'chat-history', charCount: countConversationChars(chatHistory) },
-    { kind: 'attachments' as const, label: 'attachment-text', charCount: countTextChars(attachmentTextContext) },
-    { kind: 'artifact' as const, label: 'artifact-html', charCount: countTextChars(existingContentHtml) },
-    { kind: 'artifact' as const, label: 'artifact-markdown', charCount: countTextChars(existingMarkdown) },
-    { kind: 'memory' as const, label: 'memory-context', charCount: countTextChars(memoryContext) },
-  ].filter((source) => source.charCount > 0);
+  const chatHistory = compacted.entries
+    .filter((entry) => entry.channel === 'conversation' && entry.message)
+    .map((entry) => entry.message!);
+  const memoryText = compacted.entries
+    .filter((entry) => entry.channel === 'memory')
+    .map((entry) => entry.text)
+    .join('\n\n');
+  const relatedDocuments = compacted.entries
+    .filter((entry) => entry.relatedDocument)
+    .map((entry) => entry.relatedDocument!);
 
   const context: ContextBundle = {
     conversation: {
-      prompt,
+      prompt: input.prompt,
       promptWithContext,
       chatHistory,
     },
     attachments: {
-      files: attachments,
+      files: compacted.attachments.files,
       textContext: summarizeContextValue(attachmentTextContext),
-      imageParts,
+      imageParts: compacted.attachments.imageParts,
     },
     artifact: {
-      activeDocument,
-      activeWorkbook,
-      existingContentHtml,
-      existingMarkdown,
+      activeDocument: compacted.artifact.activeDocument,
+      activeWorkbook: compacted.artifact.activeWorkbook,
+      existingContentHtml: compacted.artifact.existingContentHtml,
+      existingMarkdown: compacted.artifact.existingMarkdown,
       relatedDocuments,
     },
     memory: {
-      text: summarizeContextValue(normalizedMemoryContext),
+      text: summarizeContextValue(memoryText),
     },
-    data: {
-      projectId: project.id,
-      projectDocumentCount: project.documents.length,
-    },
+    data: compacted.data,
     metrics: {
-      promptChars: countTextChars(prompt),
+      promptChars: countTextChars(input.prompt),
       promptWithContextChars: countTextChars(promptWithContext),
       chatHistoryChars: countConversationChars(chatHistory),
-      memoryContextChars: countTextChars(normalizedMemoryContext),
-      artifactContextChars:
-        countTextChars(existingContentHtml) +
-        countTextChars(existingMarkdown) +
-        countTextChars(activeWorkbook ? JSON.stringify(activeWorkbook) : ''),
+      memoryContextChars: countTextChars(memoryText),
+      artifactContextChars: compacted.entries
+        .filter((entry) => entry.channel === 'artifact')
+        .reduce((total, entry) => total + entry.source.charCount, 0),
       attachmentContextChars: countTextChars(attachmentTextContext),
-      estimatedTotalTokens: estimateContextTokens([
-        promptWithContext,
-        normalizedMemoryContext,
-        existingContentHtml,
-        existingMarkdown,
-        activeWorkbook ? JSON.stringify(activeWorkbook) : '',
-        ...chatHistory.map((message) => message.content),
-      ]),
+      estimatedTotalTokens: compacted.entries.reduce((total, entry) => total + entry.source.tokenEstimate, 0),
     },
-    sources,
+    sources: compacted.entries.map((entry) => entry.source),
+    compaction: compacted.compaction,
   };
 
   return {
     context,
-    messageScope,
-    scopedDocumentId,
+    messageScope: compacted.messageScope,
+    scopedDocumentId: compacted.scopedDocumentId,
   };
-}
-
-function clampContextText(value: string, maxChars: number): string {
-  if (maxChars <= 0) return '';
-  return value.length <= maxChars ? value : value.slice(0, maxChars);
-}
-
-function selectContextMessages(
-  messages: ChatMessage[],
-  activeDocumentId: string | null | undefined,
-  showAllMessages: boolean,
-  contextPolicy: ContextPolicy,
-): ChatMessage[] {
-  const inScope = messages.filter((message) => {
-    if (showAllMessages || !activeDocumentId) return true;
-    return message.scope === 'project' || !message.documentId || message.documentId === activeDocumentId;
-  });
-
-  if (contextPolicy.includeProjectChat) {
-    return inScope;
-  }
-
-  if (!activeDocumentId) {
-    return [];
-  }
-
-  return inScope.filter((message) => message.documentId === activeDocumentId);
 }

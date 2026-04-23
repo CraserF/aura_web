@@ -15,6 +15,7 @@ import type { AIMessage } from '@/services/ai/types';
 import type { LLMConfig } from '@/services/ai/workflow/types';
 import type { WorkflowEvent } from '@/services/ai/workflow';
 import { logContextMetrics } from '@/services/ai/debug';
+import { getCompressionBudget } from '@/services/context/compressionBudget';
 import { commitVersion } from '@/services/storage/versionHistory';
 import { extractChartSpecsFromHtml } from '@/services/charts';
 import { useProjectStore } from '@/stores/projectStore';
@@ -57,6 +58,21 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
     code: diagnostic.code,
     message: diagnostic.message,
   }));
+  const contextWarnings = [
+    ...(context.compaction.compactedSourceIds.length > 0
+      ? [{
+          code: 'context-compacted',
+          message: `Context compaction summarized ${context.compaction.compactedSourceIds.length} source(s) before generation.`,
+        }]
+      : []),
+    ...((context.compaction.afterTokens > getCompressionBudget())
+      && context.sources.some((source) => source.kind === 'memory' && source.pinned)
+      ? [{
+          code: 'pinned-context-over-budget',
+          message: 'Pinned memory exceeded the target context budget and was kept in the run.',
+        }]
+      : []),
+  ];
 
   const isEditFlow = !!activeDocument?.contentHtml && activeDocument.type === 'presentation';
 
@@ -235,7 +251,7 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
           ? 'Presentation QA passed.'
           : 'Presentation QA completed with advisories.',
       },
-      warnings: [...configWarnings, ...reviewWarning],
+      warnings: [...configWarnings, ...contextWarnings, ...reviewWarning],
       changedTargets: [{
         documentId: changedDocumentId,
         action: changeAction,
@@ -261,7 +277,7 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
           passed: false,
           summary: 'Run cancelled by user.',
         },
-        warnings: configWarnings,
+        warnings: [...configWarnings, ...contextWarnings],
         changedTargets: [],
         structuredStatus: {
           title: 'Generation cancelled',
@@ -282,7 +298,7 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         passed: false,
         summary: 'Presentation workflow failed.',
       },
-      warnings: configWarnings,
+      warnings: [...configWarnings, ...contextWarnings],
       changedTargets: [],
       structuredStatus: {
         title: 'Presentation workflow failed',

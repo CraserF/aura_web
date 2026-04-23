@@ -1,5 +1,12 @@
 import { create } from 'zustand';
 import type { ChatMessage, GenerationStatus } from '@/types';
+import {
+  createDefaultContextSelectionState,
+  type ContextCompactionMode,
+  type ContextScopeMode,
+  type ContextSelectionState,
+  type PinnedSheetRef,
+} from '@/services/context/types';
 
 function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
@@ -24,6 +31,7 @@ interface ChatState {
    * Cleared immediately after ChatBar reads it.
    */
   pendingAutoSubmitPrompt: string | null;
+  contextSelection: ContextSelectionState;
 
   addMessage: (message: ChatMessage) => void;
   setStatus: (status: GenerationStatus) => void;
@@ -38,6 +46,15 @@ interface ChatState {
   isContextLong: () => boolean;
   setPendingRetryPrompt: (prompt: string | null) => void;
   setPendingAutoSubmitPrompt: (prompt: string | null) => void;
+  setContextScopeMode: (scopeMode: ContextScopeMode) => void;
+  setCompactionMode: (compactionMode: ContextCompactionMode) => void;
+  setRecentMessageCount: (recentMessageCount: number) => void;
+  togglePinnedDocumentId: (documentId: string) => void;
+  togglePinnedMemoryPath: (path: string) => void;
+  togglePinnedSheetRef: (sheetRef: PinnedSheetRef) => void;
+  toggleExcludedSourceId: (sourceId: string) => void;
+  clearExcludedSourceId: (sourceId: string) => void;
+  resetContextSelection: () => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -49,6 +66,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   estimatedTokens: 0,
   pendingRetryPrompt: null,
   pendingAutoSubmitPrompt: null,
+  contextSelection: createDefaultContextSelectionState(),
 
   addMessage: (message) =>
     set((state) => ({
@@ -80,4 +98,110 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setPendingRetryPrompt: (prompt) => set({ pendingRetryPrompt: prompt }),
 
   setPendingAutoSubmitPrompt: (prompt) => set({ pendingAutoSubmitPrompt: prompt }),
+
+  setContextScopeMode: (scopeMode) =>
+    set((state) => ({
+      contextSelection: { ...state.contextSelection, scopeMode },
+    })),
+
+  setCompactionMode: (compactionMode) =>
+    set((state) => ({
+      contextSelection: { ...state.contextSelection, compactionMode },
+    })),
+
+  setRecentMessageCount: (recentMessageCount) =>
+    set((state) => ({
+      contextSelection: {
+        ...state.contextSelection,
+        recentMessageCount: Math.max(1, recentMessageCount),
+      },
+    })),
+
+  togglePinnedDocumentId: (documentId) =>
+    set((state) => {
+      const pinnedDocumentIds = state.contextSelection.pinnedDocumentIds.includes(documentId)
+        ? state.contextSelection.pinnedDocumentIds.filter((id) => id !== documentId)
+        : [...state.contextSelection.pinnedDocumentIds, documentId];
+      return {
+        contextSelection: {
+          ...state.contextSelection,
+          pinnedDocumentIds,
+          excludedSourceIds: state.contextSelection.excludedSourceIds.filter(
+            (id) => id !== `artifact:related:${documentId}`,
+          ),
+        },
+      };
+    }),
+
+  togglePinnedMemoryPath: (path) =>
+    set((state) => {
+      const pinnedMemoryPaths = state.contextSelection.pinnedMemoryPaths.includes(path)
+        ? state.contextSelection.pinnedMemoryPaths.filter((value) => value !== path)
+        : [...state.contextSelection.pinnedMemoryPaths, path];
+      return {
+        contextSelection: {
+          ...state.contextSelection,
+          pinnedMemoryPaths,
+          excludedSourceIds: state.contextSelection.excludedSourceIds.filter(
+            (id) => id !== `memory:dir:${path}`,
+          ),
+        },
+      };
+    }),
+
+  togglePinnedSheetRef: (sheetRef) =>
+    set((state) => {
+      const key = `${sheetRef.documentId}:${sheetRef.sheetId}`;
+      const pinnedSheetRefs = state.contextSelection.pinnedSheetRefs.some(
+        (value) => `${value.documentId}:${value.sheetId}` === key,
+      )
+        ? state.contextSelection.pinnedSheetRefs.filter(
+            (value) => `${value.documentId}:${value.sheetId}` !== key,
+          )
+        : [...state.contextSelection.pinnedSheetRefs, sheetRef];
+      return {
+        contextSelection: {
+          ...state.contextSelection,
+          pinnedSheetRefs,
+          excludedSourceIds: state.contextSelection.excludedSourceIds.filter(
+            (id) => id !== `data:sheet:${sheetRef.documentId}:${sheetRef.sheetId}`,
+          ),
+        },
+      };
+    }),
+
+  toggleExcludedSourceId: (sourceId) =>
+    set((state) => ({
+      contextSelection: {
+        ...state.contextSelection,
+        excludedSourceIds: state.contextSelection.excludedSourceIds.includes(sourceId)
+          ? state.contextSelection.excludedSourceIds.filter((id) => id !== sourceId)
+          : [...state.contextSelection.excludedSourceIds, sourceId],
+        pinnedDocumentIds: sourceId.startsWith('artifact:related:')
+          ? state.contextSelection.pinnedDocumentIds.filter(
+              (id) => id !== sourceId.replace('artifact:related:', ''),
+            )
+          : state.contextSelection.pinnedDocumentIds,
+        pinnedMemoryPaths: sourceId.startsWith('memory:dir:')
+          ? state.contextSelection.pinnedMemoryPaths.filter(
+              (path) => path !== sourceId.replace('memory:dir:', ''),
+            )
+          : state.contextSelection.pinnedMemoryPaths,
+        pinnedSheetRefs: sourceId.startsWith('data:sheet:')
+          ? state.contextSelection.pinnedSheetRefs.filter(
+              (value) => `data:sheet:${value.documentId}:${value.sheetId}` !== sourceId,
+            )
+          : state.contextSelection.pinnedSheetRefs,
+      },
+    })),
+
+  clearExcludedSourceId: (sourceId) =>
+    set((state) => ({
+      contextSelection: {
+        ...state.contextSelection,
+        excludedSourceIds: state.contextSelection.excludedSourceIds.filter((id) => id !== sourceId),
+      },
+    })),
+
+  resetContextSelection: () => set({ contextSelection: createDefaultContextSelectionState() }),
 }));

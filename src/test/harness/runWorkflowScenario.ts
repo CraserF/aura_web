@@ -1,6 +1,7 @@
 import type { ProjectData, ProjectDocument } from '@/types/project';
 
 import { buildRunRequest } from '@/services/chat/buildRunRequest';
+import { createDefaultContextSelectionState } from '@/services/context/types';
 import { mockBuildMemoryContext, mockProviderConfig } from '@/test/harness/mockProvider';
 
 export interface WorkflowScenario {
@@ -70,6 +71,7 @@ export async function runWorkflowScenario(scenario: WorkflowScenario) {
     showAllMessages: false,
     applyToAllDocuments: false,
     providerConfig: mockProviderConfig,
+    selectionState: createDefaultContextSelectionState(),
     buildMemoryContext: mockBuildMemoryContext,
   });
 

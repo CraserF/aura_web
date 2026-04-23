@@ -3,7 +3,9 @@ import type { AIMessage } from '@/services/ai/types';
 import type { ChatMessage as ChatMessageType, FileAttachment } from '@/types';
 import type { ProjectData, ProjectDocument } from '@/types/project';
 import type { RunResult } from '@/services/contracts/runResult';
+import type { ContextSelectionState } from '@/services/context/types';
 import type { LLMConfig } from '@/services/ai/workflow/types';
+import type { MemoryContextBuildResult, MemoryContextDetailMode } from '@/services/memory';
 import type { ProviderConfig } from '@/types';
 
 import { buildRunRequest } from '@/services/chat/buildRunRequest';
@@ -24,6 +26,7 @@ export interface SubmitPromptInput {
   activeDocument: ProjectDocument | null;
   showAllMessages: boolean;
   applyToAllDocuments: boolean;
+  selectionState: ContextSelectionState;
   providerConfig: ProviderConfig;
   documentStylePreset: string;
   allowClarification: boolean;
@@ -47,7 +50,15 @@ export interface SubmitPromptServices {
     artifactSummary: string,
     sourceRefs: string[],
   ) => Promise<void>;
-  buildWorkflowMemoryContext: (prompt: string) => Promise<string>;
+  buildWorkflowMemoryContext: (
+    prompt: string,
+    options?: {
+      detailMode?: MemoryContextDetailMode;
+      pinnedPaths?: string[];
+      maxTokens?: number;
+    },
+  ) => Promise<MemoryContextBuildResult>;
+  onRunRequestBuilt?: (runRequest: Awaited<ReturnType<typeof buildRunRequest>>['runRequest']) => void;
 }
 
 export interface SubmitPromptHandlers {
@@ -122,6 +133,7 @@ export async function submitPrompt(
     activeDocument,
     showAllMessages,
     applyToAllDocuments,
+    selectionState,
     providerConfig,
     documentStylePreset,
     allowClarification,
@@ -140,6 +152,7 @@ export async function submitPrompt(
     updateStepStatus,
     queueMemoryExtraction,
     buildWorkflowMemoryContext,
+    onRunRequestBuilt,
   } = services;
 
   const { runRequest, messageScope, scopedDocumentId } = await buildRunRequest({
@@ -150,10 +163,12 @@ export async function submitPrompt(
     activeDocument,
     showAllMessages,
     applyToAllDocuments,
+    selectionState,
     providerConfig,
     buildMemoryContext: buildWorkflowMemoryContext,
     allowClarification,
   });
+  onRunRequestBuilt?.(runRequest);
 
   addMessage({
     id: crypto.randomUUID(),

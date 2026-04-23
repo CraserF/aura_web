@@ -1,12 +1,14 @@
 import type { ProviderConfig } from '@/types';
 import type { FileAttachment } from '@/types';
 import type { ProjectData, ProjectDocument } from '@/types/project';
+import type { MemoryContextBuildResult, MemoryContextDetailMode } from '@/services/memory';
 
 import { resolveIntent } from '@/services/ai/intent/resolveIntent';
 import { assembleContext } from '@/services/context/assemble';
 import { loadContextPolicy } from '@/services/projectRules/load';
 import { resolveProjectRulesSnapshot } from '@/services/projectRules/resolve';
 import type { RunRequest } from '@/services/runs/types';
+import type { ContextSelectionState } from '@/services/context/types';
 
 export interface BuildRunRequestInput {
   prompt: string;
@@ -17,7 +19,15 @@ export interface BuildRunRequestInput {
   showAllMessages: boolean;
   applyToAllDocuments: boolean;
   providerConfig: ProviderConfig;
-  buildMemoryContext: (prompt: string) => Promise<string>;
+  selectionState: ContextSelectionState;
+  buildMemoryContext: (
+    prompt: string,
+    options?: {
+      detailMode?: MemoryContextDetailMode;
+      pinnedPaths?: string[];
+      maxTokens?: number;
+    },
+  ) => Promise<MemoryContextBuildResult>;
   allowClarification?: boolean;
 }
 
@@ -37,6 +47,7 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
     showAllMessages,
     applyToAllDocuments,
     providerConfig,
+    selectionState,
     buildMemoryContext,
     allowClarification = true,
   } = input;
@@ -50,10 +61,16 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
     showAllMessages,
     applyToAllDocuments,
     memoryContext: '',
+    memoryContextResult: undefined,
     contextPolicy: loadContextPolicy(project.contextPolicy),
+    selectionState,
   });
 
-  const memoryContext = await buildMemoryContext(initialAssembly.context.conversation.promptWithContext);
+  const initialMemoryContext = await buildMemoryContext(initialAssembly.context.conversation.promptWithContext, {
+    detailMode: selectionState.pinnedMemoryPaths.length > 0 ? 'full' : 'overview',
+    pinnedPaths: selectionState.pinnedMemoryPaths,
+    maxTokens: loadContextPolicy(project.contextPolicy).maxMemoryTokens ?? 1200,
+  });
   const assembled = assembleContext({
     prompt,
     attachments,
@@ -62,8 +79,10 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
     project,
     showAllMessages,
     applyToAllDocuments,
-    memoryContext,
+    memoryContext: initialMemoryContext.text,
+    memoryContextResult: initialMemoryContext,
     contextPolicy: loadContextPolicy(project.contextPolicy),
+    selectionState,
   });
   const intent = resolveIntent({
     prompt: assembled.context.conversation.promptWithContext,
@@ -81,8 +100,10 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
     project,
     showAllMessages,
     applyToAllDocuments,
-    memoryContext,
+    memoryContext: initialMemoryContext.text,
+    memoryContextResult: initialMemoryContext,
     contextPolicy: projectRulesSnapshot.contextPolicy,
+    selectionState,
   });
 
   return {

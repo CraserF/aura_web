@@ -6,6 +6,28 @@ import type {
   MemoryRetrievalResult,
   MemoryScope,
 } from './types';
+import { findDirectory } from './directory';
+
+export type MemoryContextDetailMode = 'full' | 'overview' | 'compact';
+
+export interface MemoryContextItem {
+  id: string;
+  directoryPath: string;
+  label: string;
+  text: string;
+  detailLevel: MemoryContextDetailMode;
+  pinned: boolean;
+  tokenEstimate: number;
+  reasonIncluded: string;
+}
+
+export interface MemoryContextBuildResult {
+  text: string;
+  tokenCount: number;
+  budgetExceeded: boolean;
+  trimmedMemories: string[];
+  items: MemoryContextItem[];
+}
 
 interface ScoredDocument {
   dirPath: string;
@@ -252,6 +274,7 @@ function toRetrievalResult(document: ScoredDocument): MemoryRetrievalResult {
     relevanceScore: document.score,
     detailLevel: document.detailLevel,
     reason: `Matched ${document.dirPath} at ${document.detailLevel}`,
+    directoryPath: document.dirPath,
   };
 }
 
@@ -318,11 +341,161 @@ export function buildMemoryContext(
   query: string,
   options: BuildMemoryContextOptions = {},
 ): string {
+  return buildMemoryContextResult(tree, query, options).text;
+}
+
+export interface BuildStructuredMemoryContextOptions extends BuildMemoryContextOptions {
+  detailMode?: MemoryContextDetailMode;
+  pinnedPaths?: string[];
+}
+
+export function buildMemoryContextResult(
+  tree: MemoryDirectory,
+  query: string,
+  options: BuildStructuredMemoryContextOptions = {},
+): MemoryContextBuildResult {
   const results = retrieveMemories(tree, query, options);
-  if (results.length === 0) {
-    return '';
+  const pinnedItems = (options.pinnedPaths ?? [])
+    .map((path) => buildPinnedMemoryItem(tree, path, options.detailMode ?? 'full'))
+    .filter((item): item is MemoryContextItem => !!item);
+  const resultItems = results
+    .map((result) => toMemoryContextItem(result, options.detailMode ?? 'overview'))
+    .filter((item) => !pinnedItems.some((pinned) => pinned.id === item.id));
+  const items = [...pinnedItems, ...resultItems];
+
+  if (items.length === 0) {
+    return {
+      text: '',
+      tokenCount: 0,
+      budgetExceeded: false,
+      trimmedMemories: [],
+      items: [],
+    };
   }
 
-  const assembly = assembleMemoryContext(results, options.maxTokens ?? 2000);
-  return formatMemoryContext(assembly);
+  const assembly = assembleMemoryContextFromItems(items, options.maxTokens ?? 2000);
+  return {
+    text: formatStructuredMemoryContext(assembly.items),
+    tokenCount: assembly.tokenCount,
+    budgetExceeded: assembly.budgetExceeded,
+    trimmedMemories: assembly.trimmedMemories,
+    items: assembly.items,
+  };
+}
+
+function assembleMemoryContextFromItems(
+  items: MemoryContextItem[],
+  maxTokens = 2000,
+): {
+  items: MemoryContextItem[];
+  tokenCount: number;
+  budgetExceeded: boolean;
+  trimmedMemories: string[];
+} {
+  const keptItems: MemoryContextItem[] = [];
+  const trimmedMemories: string[] = [];
+  let tokenCount = 0;
+
+  for (const item of items) {
+    if (!item.pinned && tokenCount + item.tokenEstimate > maxTokens) {
+      trimmedMemories.push(item.id);
+      continue;
+    }
+
+    keptItems.push(item);
+    tokenCount += item.tokenEstimate;
+  }
+
+  return {
+    items: keptItems,
+    tokenCount,
+    budgetExceeded: trimmedMemories.length > 0,
+    trimmedMemories,
+  };
+}
+
+function formatStructuredMemoryContext(items: MemoryContextItem[]): string {
+  return items
+    .map((item, index) => {
+      return [
+        `Memory ${index + 1}: ${item.label}`,
+        item.text,
+      ]
+        .filter(Boolean)
+        .join('\n');
+    })
+    .join('\n\n');
+}
+
+function toMemoryContextItem(
+  result: MemoryRetrievalResult,
+  detailMode: MemoryContextDetailMode,
+): MemoryContextItem {
+  const text = formatMemoryText(result.memory, detailMode);
+  return {
+    id: `memory:retrieved:${result.memory.frontmatter.memoryId}`,
+    directoryPath: result.directoryPath ?? 'memory',
+    label: result.directoryPath
+      ? `${result.directoryPath} (${detailMode})`
+      : `retrieved memory (${detailMode})`,
+    text,
+    detailLevel: detailMode,
+    pinned: false,
+    tokenEstimate: estimateTokenCount(text),
+    reasonIncluded: result.reason,
+  };
+}
+
+function buildPinnedMemoryItem(
+  tree: MemoryDirectory,
+  path: string,
+  detailMode: MemoryContextDetailMode,
+): MemoryContextItem | null {
+  const dir = findDirectory(tree, path);
+  if (!dir) return null;
+
+  const memory = dir.overviewSummary ?? dir.abstractSummary ?? dir.files[0];
+  if (!memory) return null;
+
+  const text = formatMemoryText(memory, detailMode);
+  return {
+    id: `memory:dir:${path}`,
+    directoryPath: path,
+    label: `${path} (${detailMode})`,
+    text,
+    detailLevel: detailMode,
+    pinned: true,
+    tokenEstimate: estimateTokenCount(text),
+    reasonIncluded: `Pinned memory directory ${path}`,
+  };
+}
+
+function formatMemoryText(memory: MemoryFile, detailMode: MemoryContextDetailMode): string {
+  if (detailMode === 'compact') {
+    return [
+      `Summary: ${memory.content.summary}`,
+      memory.frontmatter.tags.length > 0 ? `Tags: ${memory.frontmatter.tags.join(', ')}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  if (detailMode === 'overview') {
+    return [
+      `Summary: ${memory.content.summary}`,
+      memory.content.actionableUse ? `Use: ${memory.content.actionableUse}` : '',
+      memory.frontmatter.tags.length > 0 ? `Tags: ${memory.frontmatter.tags.join(', ')}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  return [
+    `Summary: ${memory.content.summary}`,
+    memory.content.details ? `Details: ${memory.content.details}` : '',
+    memory.content.actionableUse ? `Use: ${memory.content.actionableUse}` : '',
+    memory.frontmatter.tags.length > 0 ? `Tags: ${memory.frontmatter.tags.join(', ')}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
