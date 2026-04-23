@@ -40,6 +40,7 @@ export interface ContextBundle {
     text: string;
   };
   data: {
+    projectId: string;
     projectDocumentCount: number;
   };
   metrics: ContextMetricSet;

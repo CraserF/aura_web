@@ -6,35 +6,23 @@
  */
 
 import type { ProjectDocument } from '@/types/project';
-import type { ChatMessage as ChatMessageType, GenerationStatus, WorkflowStep, ProviderId, ProviderConfig } from '@/types';
+import type { GenerationStatus, WorkflowStep } from '@/types';
 import type { AIMessage } from '@/services/ai/types';
 import type { LLMConfig } from '@/services/ai/workflow/types';
 import type { WorkflowEvent } from '@/services/ai/workflow';
-import {
-  countConversationChars,
-  countTextChars,
-  logContextMetrics,
-} from '@/services/ai/debug';
+import { logContextMetrics } from '@/services/ai/debug';
 import { commitVersion } from '@/services/storage/versionHistory';
 import { extractChartSpecsFromHtml } from '@/services/charts';
 import { useProjectStore } from '@/stores/projectStore';
+import type { RunResult } from '@/services/contracts/runResult';
+import type { RunRequest } from '@/services/runs/types';
 
 export interface DocumentHandlerContext {
-  prompt: string;
-  promptWithContext: string;
-  chatHistory: AIMessage[];
-  imageParts: { type: 'image'; image: string; mimeType: string }[];
-  isEdit: boolean;
-  activeDocument: ProjectDocument | null;
-  project: { id: string; documents: ProjectDocument[] };
-  scopedDocumentId: string | undefined;
-  messageScope: 'project' | 'document';
-  providerId: ProviderId;
+  runRequest: RunRequest;
   documentStylePreset: string;
-  workflowStepsRef: React.MutableRefObject<WorkflowStep[]>;
-  abortControllerRef: React.MutableRefObject<AbortController | null>;
+  workflowStepsRef: { current: WorkflowStep[] };
+  abortControllerRef: { current: AbortController | null };
   // Store callbacks
-  addMessage: (msg: ChatMessageType) => void;
   addDocument: (doc: ProjectDocument) => void;
   updateDocument: (id: string, updates: Partial<ProjectDocument>) => void;
   setStatus: (s: GenerationStatus) => void;
@@ -47,18 +35,22 @@ export interface DocumentHandlerContext {
     artifactSummary: string,
     sourceRefs: string[],
   ) => Promise<void>;
-  buildWorkflowMemoryContext: (prompt: string) => Promise<string>;
-  getActiveProvider: () => ProviderConfig;
 }
 
-export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promise<void> {
+export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promise<RunResult> {
   const {
-    prompt, promptWithContext, chatHistory, imageParts, isEdit, activeDocument,
-    project, scopedDocumentId, messageScope, providerId, documentStylePreset,
+    runRequest, documentStylePreset,
     workflowStepsRef, abortControllerRef,
-    addMessage, addDocument, updateDocument, setStatus, setStreamingContent, appendStreamingContent,
-    updateStepStatus, queueMemoryExtraction, buildWorkflowMemoryContext, getActiveProvider,
+    addDocument, updateDocument, setStatus, setStreamingContent, appendStreamingContent,
+    updateStepStatus, queueMemoryExtraction,
   } = ctx;
+  const { context, activeArtifacts, providerConfig, intent, runId } = runRequest;
+  const prompt = context.conversation.prompt;
+  const promptWithContext = context.conversation.promptWithContext;
+  const chatHistory = context.conversation.chatHistory;
+  const imageParts = context.attachments.imageParts;
+  const activeDocument = activeArtifacts.activeDocument;
+  const isEdit = intent.operation === 'edit' && activeDocument?.type === 'document';
 
   workflowStepsRef.current = [
     { id: 'plan', label: 'Plan', status: 'pending' },
@@ -74,12 +66,11 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
   abortControllerRef.current = abortController;
 
   try {
-    const config = getActiveProvider();
     const [{ getProviderEntry }, { runDocumentWorkflow }] = await Promise.all([
       import('@/services/ai/registry'),
       import('@/services/ai/workflow/document'),
     ]);
-    const providerEntry = getProviderEntry(providerId);
+    const providerEntry = getProviderEntry(providerConfig.id);
 
     const onEvent = (event: WorkflowEvent) => {
       switch (event.type) {
@@ -109,27 +100,12 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
       : undefined;
 
     // Build project links for cross-document linking
-    const projectLinks: import('@/services/ai/workflow').DocumentProjectLink[] = project.documents
-      .filter((d) => d.id !== activeDocument?.id && d.contentHtml && d.type !== 'spreadsheet')
+    const projectLinks: import('@/services/ai/workflow').DocumentProjectLink[] = context.artifact.relatedDocuments
+      .filter((d) => d.id !== activeDocument?.id && d.type !== 'spreadsheet')
       .map((d) => ({ id: d.id, title: d.title, type: d.type as 'document' | 'presentation' }));
+    const memoryContext = context.memory.text;
 
-    const memoryContext = await buildWorkflowMemoryContext(promptWithContext);
-    const projectLinksChars = projectLinks.reduce(
-      (total, link) => total + link.id.length + link.title.length + link.type.length,
-      0,
-    );
-
-    logContextMetrics('document-handler', {
-      promptChars: countTextChars(prompt),
-      promptWithContextChars: countTextChars(promptWithContext),
-      attachmentContextChars: Math.max(0, promptWithContext.length - prompt.length),
-      chatHistoryChars: countConversationChars(chatHistory),
-      memoryContextChars: countTextChars(memoryContext),
-      artifactContextChars:
-        countTextChars(existingDoc) +
-        countTextChars(activeDocument?.type === 'document' ? activeDocument.sourceMarkdown : undefined) +
-        projectLinksChars,
-    });
+    logContextMetrics('document-handler', context.metrics);
 
     const result = await runDocumentWorkflow({
       input: {
@@ -144,20 +120,22 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
       },
       llmConfig: {
         providerEntry,
-        apiKey: config.apiKey,
-        baseUrl: config.baseUrl ?? '',
-        model: config.model ?? '',
+        apiKey: providerConfig.apiKey,
+        baseUrl: providerConfig.baseUrl ?? '',
+        model: providerConfig.model ?? '',
       },
       onEvent,
       signal: abortController.signal,
     });
 
-    const llmConfig: LLMConfig = { providerEntry, apiKey: config.apiKey, baseUrl: config.baseUrl ?? '', model: config.model ?? '' };
+    const llmConfig: LLMConfig = { providerEntry, apiKey: providerConfig.apiKey, baseUrl: providerConfig.baseUrl ?? '', model: providerConfig.model ?? '' };
     const memoryConversation: AIMessage[] = [...chatHistory, { role: 'user', content: promptWithContext }];
-    let memorySourceRefs = [`project:${project.id}`];
+    let memorySourceRefs = [`project:${context.data.projectId}`];
     let memoryArtifactSummary = result.title
       ? `Generated document "${result.title}".`
       : 'Generated document.';
+    let changedDocumentId = activeDocument?.id;
+    let changeAction: 'created' | 'updated' = activeDocument?.type === 'document' ? 'updated' : 'created';
 
     if (result.html) {
       if (activeDocument?.type === 'document') {
@@ -180,12 +158,13 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
           themeCss: '',
           slideCount: 0,
           chartSpecs,
-          order: project.documents.length,
+          order: context.data.projectDocumentCount,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };
         addDocument(newDoc);
         memorySourceRefs = [...memorySourceRefs, `document:${newDoc.id}`];
+        changedDocumentId = newDoc.id;
       }
 
       memoryArtifactSummary = result.title
@@ -193,33 +172,83 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
         : `Generated document with ${result.markdown.length} markdown characters.`;
     }
 
-    addMessage({
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: result.html ? `✅ Created document: "${result.title}"` : 'Document created.',
-      timestamp: Date.now(),
-      documentId: scopedDocumentId,
-      scope: messageScope,
-    });
-
     const docAction = existingDoc ? 'Edited' : 'Created';
     const commitMsg = `${docAction} document: ${prompt.slice(0, 60)}`;
     const updatedProject = useProjectStore.getState().project;
     commitVersion(updatedProject, commitMsg).catch((e) => console.warn('[VersionHistory] commit failed:', e));
     void queueMemoryExtraction(llmConfig, memoryConversation, memoryArtifactSummary, memorySourceRefs);
 
-    setStatus({ state: 'idle' });
-    setStreamingContent('');
+    return {
+      runId,
+      status: 'completed',
+      intent,
+      outputs: {
+        html: result.html,
+        markdown: result.markdown,
+        title: result.title,
+      },
+      assistantMessage: {
+        content: result.html
+          ? `${isEdit ? 'Updated' : 'Created'} document: "${result.title}"`
+          : 'Document created.',
+      },
+      validation: {
+        passed: true,
+        summary: 'Document workflow completed and passed document QA.',
+      },
+      warnings: [],
+      changedTargets: [{
+        documentId: changedDocumentId,
+        action: changeAction,
+      }],
+      structuredStatus: {
+        title: isEdit ? 'Document updated' : 'Document created',
+        detail: result.title
+          ? `Document "${result.title}" completed successfully.`
+          : 'Document workflow completed successfully.',
+      },
+    };
   } catch (err) {
     if (abortControllerRef.current?.signal.aborted) {
-      setStatus({ state: 'idle' });
-      setStreamingContent('');
-      addMessage({ id: crypto.randomUUID(), role: 'assistant', content: 'Generation cancelled.', timestamp: Date.now(), documentId: scopedDocumentId, scope: messageScope });
-      return;
+      return {
+        runId,
+        status: 'cancelled',
+        intent,
+        outputs: {},
+        assistantMessage: {
+          content: 'Generation cancelled.',
+        },
+        validation: {
+          passed: false,
+          summary: 'Run cancelled by user.',
+        },
+        warnings: [],
+        changedTargets: [],
+        structuredStatus: {
+          title: 'Generation cancelled',
+          detail: 'Generation was cancelled before completion.',
+        },
+      };
     }
     const message = err instanceof Error ? err.message : 'Generation failed';
-    setStatus({ state: 'error', message });
-    setStreamingContent('');
-    addMessage({ id: crypto.randomUUID(), role: 'assistant', content: `Error: ${message}`, timestamp: Date.now(), documentId: scopedDocumentId, scope: messageScope });
+    return {
+      runId,
+      status: 'failed',
+      intent,
+      outputs: {},
+      assistantMessage: {
+        content: `Error: ${message}`,
+      },
+      validation: {
+        passed: false,
+        summary: 'Document workflow failed.',
+      },
+      warnings: [],
+      changedTargets: [],
+      structuredStatus: {
+        title: 'Document workflow failed',
+        detail: message,
+      },
+    };
   }
 }

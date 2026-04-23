@@ -2,22 +2,10 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const handlerMocks = vi.hoisted(() => ({
-  document: vi.fn(),
-  presentation: vi.fn(),
-  spreadsheet: vi.fn(),
-}));
+const submitPromptMock = vi.hoisted(() => vi.fn());
 
-vi.mock('@/components/chat/handlers/documentHandler', () => ({
-  handleDocumentWorkflow: handlerMocks.document,
-}));
-
-vi.mock('@/components/chat/handlers/presentationHandler', () => ({
-  handlePresentationWorkflow: handlerMocks.presentation,
-}));
-
-vi.mock('@/components/chat/handlers/spreadsheetHandler', () => ({
-  handleSpreadsheetWorkflow: handlerMocks.spreadsheet,
+vi.mock('@/services/chat/submitPrompt', () => ({
+  submitPrompt: submitPromptMock,
 }));
 
 import { ChatBar } from '@/components/ChatBar';
@@ -138,9 +126,7 @@ function seedActiveDocument(overrides: Partial<ProjectDocument> = {}): ProjectDo
 describe('ChatBar submission paths', () => {
   beforeEach(() => {
     resetStores();
-    handlerMocks.document.mockReset();
-    handlerMocks.presentation.mockReset();
-    handlerMocks.spreadsheet.mockReset();
+    submitPromptMock.mockReset();
   });
 
   afterEach(() => {
@@ -157,14 +143,43 @@ describe('ChatBar submission paths', () => {
 
     expect(getTextarea(view.container).value).toBe('Try a sharper executive summary');
     expect(useChatStore.getState().pendingRetryPrompt).toBeNull();
-    expect(handlerMocks.document).not.toHaveBeenCalled();
+    expect(submitPromptMock).not.toHaveBeenCalled();
 
     view.unmount();
   });
 
   it('auto-submits a pending clarification prompt against the active document scope', async () => {
     const activeDocument = seedActiveDocument();
-    handlerMocks.document.mockResolvedValue(undefined);
+    submitPromptMock.mockImplementation(async (input, services) => {
+      services.addMessage({
+        id: 'user-1',
+        role: 'user',
+        content: input.prompt,
+        timestamp: 1,
+        documentId: input.activeDocument?.id,
+        scope: 'document',
+      });
+
+      return {
+        runId: 'run-1',
+        status: 'completed',
+        intent: {
+          artifactType: 'document',
+          operation: 'edit',
+          scope: 'document',
+          targetDocumentId: activeDocument.id,
+          confidence: 0.99,
+          needsClarification: false,
+          reason: 'active document type is authoritative',
+        },
+        outputs: {},
+        assistantMessage: { content: 'Updated document.' },
+        validation: { passed: true, summary: 'ok' },
+        warnings: [],
+        changedTargets: [{ documentId: activeDocument.id, action: 'updated' }],
+        structuredStatus: { title: 'Done', detail: 'Done' },
+      };
+    });
 
     const view = renderChatBar();
 
@@ -174,16 +189,13 @@ describe('ChatBar submission paths', () => {
     await flushEffects();
 
     expect(useChatStore.getState().pendingAutoSubmitPrompt).toBeNull();
-    expect(handlerMocks.document).toHaveBeenCalledTimes(1);
-    expect(handlerMocks.presentation).not.toHaveBeenCalled();
-    expect(handlerMocks.spreadsheet).not.toHaveBeenCalled();
-    const firstCall = handlerMocks.document.mock.calls[0]?.[0];
+    expect(submitPromptMock).toHaveBeenCalledTimes(1);
+    const firstCall = submitPromptMock.mock.calls[0]?.[0];
     expect(firstCall).toBeDefined();
     expect(firstCall).toMatchObject({
       prompt: 'Tighten this document into a one-page brief',
       activeDocument,
-      scopedDocumentId: activeDocument.id,
-      messageScope: 'document',
+      allowClarification: false,
     });
     expect(useChatStore.getState().messages[0]).toMatchObject({
       role: 'user',
@@ -198,12 +210,12 @@ describe('ChatBar submission paths', () => {
   it('aborts the active generation when cancel is clicked', async () => {
     const abort = vi.fn();
     seedActiveDocument();
-    handlerMocks.document.mockImplementation(async (ctx) => {
-      ctx.abortControllerRef.current = {
+    submitPromptMock.mockImplementation(async (_input, services) => {
+      services.abortControllerRef.current = {
         abort,
         signal: new AbortController().signal,
       } as AbortController;
-      ctx.setStatus({ state: 'generating', startedAt: Date.now(), step: 'Working…' });
+      services.setStatus({ state: 'generating', startedAt: Date.now(), step: 'Working…' });
 
       await new Promise<void>(() => {});
     });

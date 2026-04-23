@@ -6,17 +6,10 @@ import { useProjectStore } from '@/stores/projectStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { AIMessage } from '@/services/ai/types';
 import type { LLMConfig } from '@/services/ai/workflow/types';
-import type { ChatMessage as ChatMessageType, FileAttachment, WorkflowStep } from '@/types';
-import { readFileAsAttachment, buildAttachmentContext } from '@/lib/fileAttachment';
+import type { FileAttachment, WorkflowStep } from '@/types';
+import { readFileAsAttachment } from '@/lib/fileAttachment';
 import { cn } from '@/lib/utils';
-import { handleSpreadsheetWorkflow } from '@/components/chat/handlers/spreadsheetHandler';
-import { handlePresentationWorkflow } from '@/components/chat/handlers/presentationHandler';
-import { handleDocumentWorkflow } from '@/components/chat/handlers/documentHandler';
-import {
-  buildScopedChatHistory,
-  resolveChatWorkflowType,
-  resolveOutgoingMessageScope,
-} from '@/services/chat/routing';
+import { submitPrompt } from '@/services/chat/submitPrompt';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -72,7 +65,6 @@ export function ChatBar() {
   const pendingAutoSubmitPrompt = useChatStore((s) => s.pendingAutoSubmitPrompt);
   const setPendingAutoSubmitPrompt = useChatStore((s) => s.setPendingAutoSubmitPrompt);
 
-  const slidesHtml = usePresentationStore((s) => s.slidesHtml);
   const setSlides = usePresentationStore((s) => s.setSlides);
   const setTitle = usePresentationStore((s) => s.setTitle);
 
@@ -84,7 +76,6 @@ export function ChatBar() {
   const setProject = useProjectStore((s) => s.setProject);
   const setActiveDocumentId = useProjectStore((s) => s.setActiveDocumentId);
 
-  const providerId = useSettingsStore((s) => s.providerId);
   const getActiveProvider = useSettingsStore((s) => s.getActiveProvider);
   const hasApiKey = useSettingsStore((s) => s.hasApiKey);
   const setShowSettings = useSettingsStore((s) => s.setShowSettings);
@@ -195,113 +186,24 @@ export function ChatBar() {
       return;
     }
 
-    const activeArtifactId = activeDocument?.id;
-    const { messageScope, scopedDocumentId } = resolveOutgoingMessageScope(
-      activeArtifactId,
-      applyToAllDocuments,
-    );
-
     // Snapshot and clear attachments before async work
     const currentAttachments = attachments;
     setAttachments([]);
     setAttachmentError(null);
-
-    const userMsg: ChatMessageType = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: prompt,
-      timestamp: Date.now(),
-      documentId: scopedDocumentId,
-      scope: messageScope,
-      attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
-    };
-    addMessage(userMsg);
     setInput('');
 
-    // Build text context from text-kind attachments
-    const attachmentContext = buildAttachmentContext(currentAttachments);
-    const promptWithContext = (attachmentContext
-      ? `${prompt}${attachmentContext}`
-      : prompt
-    ).trim();
-
-    // Build image parts for multi-modal messages
-    const imageParts = currentAttachments
-      .filter((a) => a.kind === 'image')
-      .map((a) => ({ type: 'image' as const, image: a.content, mimeType: a.mimeType }));
-
-    const chatHistory: AIMessage[] = buildScopedChatHistory(
-      messages,
-      activeArtifactId,
-      showAllMessages,
-    );
-
-    // Route to the correct workflow. If a document is already active, its type
-    // is always authoritative — no keyword detection needed. Keywords are only
-    // used as a fallback when creating from scratch with no document context.
-    const workflowType = resolveChatWorkflowType(prompt, activeDocument?.type);
-    const isEdit = !!activeDocument?.contentHtml;
-
-    if (workflowType === 'spreadsheet') {
-      await handleSpreadsheetWorkflow({
-        prompt,
-        promptWithContext,
-        activeDocument,
-        projectDocumentCount: project.documents.length,
-        projectId: project.id,
-        scopedDocumentId,
-        messageScope,
-        addMessage,
-        addDocument,
-        updateDocument,
-        setStatus,
-        setStreamingContent,
-      });
-      return;
-    }
-
-    if (workflowType === 'presentation') {
-      await handlePresentationWorkflow({
-        prompt,
-        promptWithContext,
-        chatHistory,
-        autoPrompt,
-        activeDocument,
-        project,
-        projectDocumentCount: project.documents.length,
-        scopedDocumentId,
-        messageScope,
-        providerId,
-        workflowStepsRef,
-        abortControllerRef,
-        addMessage,
-        addDocument,
-        updateDocument,
-        setStatus,
-        setStreamingContent,
-        appendStreamingContent,
-        setSlides,
-        setTitle,
-        updateStepStatus,
-        queueMemoryExtraction,
-        buildWorkflowMemoryContext,
-        getActiveProvider,
-      });
-      return;
-    }
-
-    await handleDocumentWorkflow({
+    await submitPrompt({
       prompt,
-      promptWithContext,
-      chatHistory,
-      imageParts,
-      isEdit,
-      activeDocument,
+      attachments: currentAttachments,
+      messages,
       project,
-      scopedDocumentId,
-      messageScope,
-      providerId,
+      activeDocument,
+      showAllMessages,
+      applyToAllDocuments,
+      providerConfig: getActiveProvider(),
       documentStylePreset,
+      allowClarification: !autoPrompt,
+    }, {
       workflowStepsRef,
       abortControllerRef,
       addMessage,
@@ -310,15 +212,16 @@ export function ChatBar() {
       setStatus,
       setStreamingContent,
       appendStreamingContent,
+      setSlides,
+      setTitle,
       updateStepStatus,
       queueMemoryExtraction,
       buildWorkflowMemoryContext,
-      getActiveProvider,
     });
   }, [
     input, attachments, isGenerating, hasApiKey, setShowSettings, addMessage, messages,
-    slidesHtml, setStatus, setStreamingContent, appendStreamingContent,
-    providerId, getActiveProvider, setSlides, setTitle, updateStepStatus,
+    setStatus, setStreamingContent, appendStreamingContent,
+    getActiveProvider, setSlides, setTitle, updateStepStatus,
     activeDocument, addDocument, updateDocument, project, showAllMessages, applyToAllDocuments,
     documentStylePreset, queueMemoryExtraction, buildWorkflowMemoryContext,
   ]);

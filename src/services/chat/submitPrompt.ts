@@ -1,0 +1,219 @@
+import type { GenerationStatus, WorkflowStep } from '@/types';
+import type { AIMessage } from '@/services/ai/types';
+import type { ChatMessage as ChatMessageType, FileAttachment } from '@/types';
+import type { ProjectData, ProjectDocument } from '@/types/project';
+import type { RunResult } from '@/services/contracts/runResult';
+import type { LLMConfig } from '@/services/ai/workflow/types';
+import type { ProviderConfig } from '@/types';
+
+import { buildRunRequest } from '@/services/chat/buildRunRequest';
+import { renderRunResult } from '@/services/chat/renderRunResult';
+import { createRunRecord, updateRunRecordStatus } from '@/services/runs/registry';
+import { handleSpreadsheetWorkflow, type SpreadsheetHandlerContext } from '@/components/chat/handlers/spreadsheetHandler';
+import { handlePresentationWorkflow, type PresentationHandlerContext } from '@/components/chat/handlers/presentationHandler';
+import { handleDocumentWorkflow, type DocumentHandlerContext } from '@/components/chat/handlers/documentHandler';
+
+type WorkflowStepsRef = { current: WorkflowStep[] };
+type AbortControllerRef = { current: AbortController | null };
+
+export interface SubmitPromptInput {
+  prompt: string;
+  attachments: FileAttachment[];
+  messages: ProjectData['chatHistory'];
+  project: ProjectData;
+  activeDocument: ProjectDocument | null;
+  showAllMessages: boolean;
+  applyToAllDocuments: boolean;
+  providerConfig: ProviderConfig;
+  documentStylePreset: string;
+  allowClarification: boolean;
+}
+
+export interface SubmitPromptServices {
+  workflowStepsRef: WorkflowStepsRef;
+  abortControllerRef: AbortControllerRef;
+  addMessage: (message: ChatMessageType) => void;
+  addDocument: (document: ProjectDocument) => void;
+  updateDocument: (id: string, updates: Partial<ProjectDocument>) => void;
+  setStatus: (status: GenerationStatus) => void;
+  setStreamingContent: (content: string) => void;
+  appendStreamingContent: (chunk: string) => void;
+  setSlides: (html: string) => void;
+  setTitle: (title: string) => void;
+  updateStepStatus: (stepId: string, stepStatus: WorkflowStep['status']) => void;
+  queueMemoryExtraction: (
+    llmConfig: LLMConfig,
+    conversation: AIMessage[],
+    artifactSummary: string,
+    sourceRefs: string[],
+  ) => Promise<void>;
+  buildWorkflowMemoryContext: (prompt: string) => Promise<string>;
+}
+
+export interface SubmitPromptHandlers {
+  document: (context: DocumentHandlerContext) => Promise<RunResult>;
+  presentation: (context: PresentationHandlerContext) => Promise<RunResult>;
+  spreadsheet: (context: SpreadsheetHandlerContext) => Promise<RunResult>;
+}
+
+const defaultHandlers: SubmitPromptHandlers = {
+  document: handleDocumentWorkflow,
+  presentation: handlePresentationWorkflow,
+  spreadsheet: handleSpreadsheetWorkflow,
+};
+
+function buildBlockedRunResult(runId: string, runRequest: Awaited<ReturnType<typeof buildRunRequest>>['runRequest']): RunResult {
+  const question = runRequest.intent.clarification?.question ?? 'More detail is required before generating.';
+
+  return {
+    runId,
+    status: 'blocked',
+    intent: runRequest.intent,
+    outputs: {},
+    assistantMessage: {
+      content: question,
+      clarifyOptions: runRequest.intent.clarification?.options,
+    },
+    validation: {
+      passed: true,
+      summary: 'Clarification required before generation.',
+    },
+    warnings: [],
+    changedTargets: [{
+      documentId: runRequest.intent.targetDocumentId,
+      sheetId: runRequest.intent.targetSheetId,
+      action: 'none',
+    }],
+    structuredStatus: {
+      title: 'Clarification required',
+      detail: question,
+    },
+  };
+}
+
+function buildAssistantChatMessage(
+  result: RunResult,
+  scopedDocumentId: string | undefined,
+  messageScope: 'document' | 'project',
+): ChatMessageType {
+  const rendered = renderRunResult(result);
+
+  return {
+    id: crypto.randomUUID(),
+    role: 'assistant',
+    content: rendered.content,
+    timestamp: Date.now(),
+    documentId: scopedDocumentId,
+    scope: messageScope,
+    ...(rendered.clarifyOptions ? { clarifyOptions: rendered.clarifyOptions } : {}),
+  };
+}
+
+export async function submitPrompt(
+  input: SubmitPromptInput,
+  services: SubmitPromptServices,
+  handlers: SubmitPromptHandlers = defaultHandlers,
+): Promise<RunResult> {
+  const {
+    prompt,
+    attachments,
+    messages,
+    project,
+    activeDocument,
+    showAllMessages,
+    applyToAllDocuments,
+    providerConfig,
+    documentStylePreset,
+    allowClarification,
+  } = input;
+  const {
+    workflowStepsRef,
+    abortControllerRef,
+    addMessage,
+    addDocument,
+    updateDocument,
+    setStatus,
+    setStreamingContent,
+    appendStreamingContent,
+    setSlides,
+    setTitle,
+    updateStepStatus,
+    queueMemoryExtraction,
+    buildWorkflowMemoryContext,
+  } = services;
+
+  const { runRequest, messageScope, scopedDocumentId } = await buildRunRequest({
+    prompt,
+    attachments,
+    messages,
+    project,
+    activeDocument,
+    showAllMessages,
+    applyToAllDocuments,
+    providerConfig,
+    buildMemoryContext: buildWorkflowMemoryContext,
+    allowClarification,
+  });
+
+  addMessage({
+    id: crypto.randomUUID(),
+    role: 'user',
+    content: prompt,
+    timestamp: Date.now(),
+    documentId: scopedDocumentId,
+    scope: messageScope,
+    attachments: attachments.length > 0 ? attachments : undefined,
+  });
+
+  createRunRecord(runRequest.runId, runRequest.intent);
+
+  if (runRequest.intent.needsClarification) {
+    const blockedResult = buildBlockedRunResult(runRequest.runId, runRequest);
+    updateRunRecordStatus(runRequest.runId, blockedResult.status);
+    addMessage(buildAssistantChatMessage(blockedResult, scopedDocumentId, messageScope));
+    setStatus({ state: 'idle' });
+    setStreamingContent('');
+    return blockedResult;
+  }
+
+  updateRunRecordStatus(runRequest.runId, 'running');
+
+  const handlerContextBase = {
+    runRequest,
+    workflowStepsRef,
+    abortControllerRef,
+    addDocument,
+    updateDocument,
+    setStatus,
+    setStreamingContent,
+    appendStreamingContent,
+    setSlides,
+    setTitle,
+    updateStepStatus,
+    queueMemoryExtraction,
+  };
+
+  const result = await (
+    runRequest.intent.artifactType === 'spreadsheet'
+      ? handlers.spreadsheet(handlerContextBase)
+      : runRequest.intent.artifactType === 'presentation'
+        ? handlers.presentation(handlerContextBase)
+        : handlers.document({
+            ...handlerContextBase,
+            documentStylePreset,
+          })
+  );
+
+  updateRunRecordStatus(runRequest.runId, result.status);
+  addMessage(buildAssistantChatMessage(result, scopedDocumentId, messageScope));
+
+  if (result.status === 'failed') {
+    const rendered = renderRunResult(result);
+    setStatus({ state: 'error', message: rendered.statusMessage });
+  } else {
+    setStatus({ state: 'idle' });
+  }
+
+  setStreamingContent('');
+  return result;
+}

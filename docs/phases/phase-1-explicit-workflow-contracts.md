@@ -10,11 +10,11 @@ Move workflow inference, context assembly, and result shaping out of `ChatBar` a
 
 | Stream | Owner | Write Set | Depends On | Status | Validation | Commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| Bootstrap | Codex | `docs/phases/phase-1-explicit-workflow-contracts.md`, `docs/implementation-plan-multi-agent.md`, contract type files, `src/services/runs/*` | None | `validated` | `npm test` passed; `npm run build` passed | Pending |
-| Stream A: Intent | Codex | `src/services/ai/intent/*`, intent tests | Bootstrap | `planned` | Pending | Pending |
-| Stream B: Context + Run Request | Codex | `src/services/context/*`, `src/services/chat/buildRunRequest.ts`, request tests | Bootstrap | `planned` | Pending | Pending |
-| Stream C: Run Result + Registry | Codex | `src/services/contracts/runResult.ts`, `src/services/chat/renderRunResult.ts`, `src/services/runs/*`, result tests | Bootstrap | `planned` | Pending | Pending |
-| Stream D: Integration + Parity Harness | Codex | `src/services/chat/submitPrompt.ts`, `src/components/ChatBar.tsx`, handlers, harness tests | Streams A+B+C | `planned` | Pending | Pending |
+| Bootstrap | Codex | `docs/phases/phase-1-explicit-workflow-contracts.md`, `docs/implementation-plan-multi-agent.md`, contract type files, `src/services/runs/*` | None | `committed` | `npm test` passed; `npm run build` passed | `6fa8083` |
+| Stream A: Intent | Codex | `src/services/ai/intent/*`, intent tests | Bootstrap | `validated` | `npm test` passed; `npm run build` passed | Pending final implementation commit |
+| Stream B: Context + Run Request | Codex | `src/services/context/*`, `src/services/chat/buildRunRequest.ts`, request tests | Bootstrap | `validated` | `npm test` passed; `npm run build` passed | Pending final implementation commit |
+| Stream C: Run Result + Registry | Codex | `src/services/contracts/runResult.ts`, `src/services/chat/renderRunResult.ts`, `src/services/runs/*`, result tests | Bootstrap | `validated` | `npm test` passed; `npm run build` passed | Pending final implementation commit |
+| Stream D: Integration + Parity Harness | Codex | `src/services/chat/submitPrompt.ts`, `src/components/ChatBar.tsx`, handlers, harness tests | Streams A+B+C | `validated` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by repo ESLint config gap | Pending final implementation commit |
 
 ## Status Values
 
@@ -34,4 +34,14 @@ Move workflow inference, context assembly, and result shaping out of `ChatBar` a
 - Build (`npm run build`): Passed
 - Tests (`npm test`): Passed
 - Lint (`npm run lint`): Deferred until final phase validation; existing repo-level ESLint 9 config blocker still applies
-- Result: Ready for bootstrap commit
+- Result: Committed in `6fa8083`
+
+### Streams A-D
+
+- Date: 2026-04-23
+- Agent: Codex
+- Scope: Intent resolver, context assembly, run request/result contracts, submit boundary, handler adapters, parity harness
+- Build (`npm run build`): Passed
+- Tests (`npm test`): Passed
+- Lint (`npm run lint`): Blocked by existing repo-level ESLint 9 configuration gap (`eslint.config.*` missing)
+- Result: Ready for final Phase 1 implementation commit

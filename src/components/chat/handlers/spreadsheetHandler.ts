@@ -6,13 +6,15 @@
  */
 
 import type { ProjectDocument, WorkbookMeta } from '@/types/project';
-import type { ChatMessage as ChatMessageType, GenerationStatus } from '@/types';
-import { countTextChars, logContextMetrics } from '@/services/ai/debug';
+import type { GenerationStatus } from '@/types';
+import { logContextMetrics } from '@/services/ai/debug';
 import { extractChartSpecsFromHtml } from '@/services/charts';
 import { commitVersion } from '@/services/storage/versionHistory';
 import { runSpreadsheetWorkflow } from '@/services/ai/workflow/spreadsheet';
 import { useProjectStore } from '@/stores/projectStore';
 import { createDefaultSheet } from '@/services/spreadsheet/workbook';
+import type { RunRequest } from '@/services/runs/types';
+import type { RunResult } from '@/services/contracts/runResult';
 
 function isDefaultSheet(doc: ProjectDocument | null): boolean {
   const sheet = doc?.workbook?.sheets[doc.workbook?.activeSheetIndex ?? 0];
@@ -28,37 +30,28 @@ function isDefaultSheet(doc: ProjectDocument | null): boolean {
 }
 
 export interface SpreadsheetHandlerContext {
-  prompt: string;
-  promptWithContext: string;
-  activeDocument: ProjectDocument | null;
-  projectDocumentCount: number;
-  projectId: string;
-  scopedDocumentId: string | undefined;
-  messageScope: 'project' | 'document';
+  runRequest: RunRequest;
   // Store mutations
-  addMessage: (msg: ChatMessageType) => void;
   addDocument: (doc: ProjectDocument) => void;
   updateDocument: (id: string, updates: Partial<ProjectDocument>) => void;
   setStatus: (s: GenerationStatus) => void;
   setStreamingContent: (content: string) => void;
 }
 
-export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext): Promise<void> {
+export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext): Promise<RunResult> {
   const {
-    promptWithContext, activeDocument, projectDocumentCount, scopedDocumentId, messageScope,
-    addMessage, addDocument, updateDocument, setStatus, setStreamingContent,
+    runRequest,
+    addDocument, updateDocument, setStatus, setStreamingContent,
   } = ctx;
+  const { context, activeArtifacts, intent, runId } = runRequest;
+  const prompt = context.conversation.prompt;
+  const promptWithContext = context.conversation.promptWithContext;
+  const activeDocument = activeArtifacts.activeDocument;
 
   const activeWorkbook = activeDocument?.type === 'spreadsheet' ? activeDocument.workbook ?? null : null;
   const docIsDefaultSheet = isDefaultSheet(activeDocument);
-  const workbookSnapshot = activeWorkbook ? JSON.stringify(activeWorkbook) : '';
 
-  logContextMetrics('spreadsheet-handler', {
-    promptChars: countTextChars(ctx.prompt),
-    promptWithContextChars: countTextChars(promptWithContext),
-    attachmentContextChars: Math.max(0, promptWithContext.length - ctx.prompt.length),
-    artifactContextChars: countTextChars(workbookSnapshot),
-  });
+  logContextMetrics('spreadsheet-handler', context.metrics);
 
   setStatus({ state: 'generating', startedAt: Date.now(), step: 'Working on spreadsheet…', pct: 20 });
   setStreamingContent('');
@@ -68,51 +61,103 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
       prompt: promptWithContext,
       activeWorkbook,
       activeDocumentId: activeDocument?.id ?? null,
-      projectDocumentCount,
+      projectDocumentCount: context.data.projectDocumentCount,
       isDefaultSheet: docIsDefaultSheet,
     });
 
     if (result.kind === 'no-intent') {
-      addMessage({
-        id: crypto.randomUUID(), role: 'assistant',
-        content: result.message,
-        timestamp: Date.now(), documentId: scopedDocumentId, scope: messageScope,
-      });
-      setStatus({ state: 'idle' });
-      setStreamingContent('');
-      return;
+      return {
+        runId,
+        status: 'blocked',
+        intent,
+        outputs: {
+          kind: result.kind,
+        },
+        assistantMessage: {
+          content: result.message,
+        },
+        validation: {
+          passed: true,
+          summary: 'Spreadsheet workflow exited without applying changes.',
+        },
+        warnings: [],
+        changedTargets: [{
+          documentId: activeDocument?.id,
+          action: 'none',
+        }],
+        structuredStatus: {
+          title: 'No spreadsheet action taken',
+          detail: result.message,
+        },
+      };
     }
 
     if (result.kind === 'chart-created') {
       const updatedContentHtml = (activeDocument!.contentHtml || '') + '\n' + result.chartHtml;
       const chartSpecs = extractChartSpecsFromHtml(updatedContentHtml);
       updateDocument(activeDocument!.id, { contentHtml: updatedContentHtml, chartSpecs });
-      addMessage({
-        id: crypto.randomUUID(), role: 'assistant',
-        content: result.message,
-        timestamp: Date.now(), documentId: activeDocument!.id, scope: messageScope,
-      });
       const updatedProject = useProjectStore.getState().project;
       commitVersion(updatedProject, `Created chart from spreadsheet`).catch(
         (e) => console.warn('[VersionHistory] commit failed:', e),
       );
-      setStatus({ state: 'idle' });
-      setStreamingContent('');
-      return;
+      return {
+        runId,
+        status: 'completed',
+        intent,
+        outputs: {
+          kind: result.kind,
+          chartHtml: result.chartHtml,
+          chartType: result.chartType,
+          rowCount: result.rowCount,
+        },
+        assistantMessage: {
+          content: result.message,
+        },
+        validation: {
+          passed: true,
+          summary: 'Spreadsheet chart created successfully.',
+        },
+        warnings: [],
+        changedTargets: [{
+          documentId: activeDocument!.id,
+          action: 'updated',
+        }],
+        structuredStatus: {
+          title: 'Spreadsheet chart created',
+          detail: result.message,
+        },
+      };
     }
 
     if (result.kind === 'action-executed') {
       updateDocument(activeDocument!.id, {
         workbook: { ...activeWorkbook!, sheets: result.updatedSheets },
       });
-      addMessage({
-        id: crypto.randomUUID(), role: 'assistant',
-        content: result.message,
-        timestamp: Date.now(), documentId: activeDocument!.id, scope: messageScope,
-      });
-      setStatus({ state: 'idle' });
-      setStreamingContent('');
-      return;
+      return {
+        runId,
+        status: 'completed',
+        intent,
+        outputs: {
+          kind: result.kind,
+          updatedSheets: result.updatedSheets,
+        },
+        assistantMessage: {
+          content: result.message,
+        },
+        validation: {
+          passed: true,
+          summary: 'Spreadsheet action executed successfully.',
+        },
+        warnings: [],
+        changedTargets: [{
+          documentId: activeDocument!.id,
+          action: 'updated',
+        }],
+        structuredStatus: {
+          title: 'Spreadsheet updated',
+          detail: result.message,
+        },
+      };
     }
 
     // kind === 'spreadsheet-created'
@@ -129,7 +174,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
         slideCount: 0,
         chartSpecs: {},
         workbook: { sheets: [newSheet], activeSheetIndex: 0 },
-        order: projectDocumentCount,
+        order: context.data.projectDocumentCount,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -149,22 +194,57 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
       workbook: nextWorkbook,
     });
 
-    addMessage({
-      id: crypto.randomUUID(), role: 'assistant',
-      content: result.summary,
-      timestamp: Date.now(), documentId: targetDocument.id, scope: messageScope,
-    });
-
     const updatedProject = useProjectStore.getState().project;
-    commitVersion(updatedProject, `Created spreadsheet: ${ctx.prompt.slice(0, 60)}`).catch(
+    commitVersion(updatedProject, `Created spreadsheet: ${prompt.slice(0, 60)}`).catch(
       (e) => console.warn('[VersionHistory] commit failed:', e),
     );
-    setStatus({ state: 'idle' });
-    setStreamingContent('');
+    return {
+      runId,
+      status: 'completed',
+      intent,
+      outputs: {
+        kind: result.kind,
+        workbookTitle: result.workbookTitle,
+        sheetName: result.sheetName,
+        updatedSheets: result.updatedSheets,
+      },
+      assistantMessage: {
+        content: result.summary,
+      },
+      validation: {
+        passed: true,
+        summary: 'Spreadsheet created successfully.',
+      },
+      warnings: [],
+      changedTargets: [{
+        documentId: targetDocument.id,
+        action: activeDocument?.type === 'spreadsheet' ? 'updated' : 'created',
+      }],
+      structuredStatus: {
+        title: activeDocument?.type === 'spreadsheet' ? 'Spreadsheet updated' : 'Spreadsheet created',
+        detail: result.summary,
+      },
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Spreadsheet generation failed';
-    setStatus({ state: 'error', message });
-    setStreamingContent('');
-    addMessage({ id: crypto.randomUUID(), role: 'assistant', content: `Error: ${message}`, timestamp: Date.now(), documentId: scopedDocumentId, scope: messageScope });
+    return {
+      runId,
+      status: 'failed',
+      intent,
+      outputs: {},
+      assistantMessage: {
+        content: `Error: ${message}`,
+      },
+      validation: {
+        passed: false,
+        summary: 'Spreadsheet workflow failed.',
+      },
+      warnings: [],
+      changedTargets: [],
+      structuredStatus: {
+        title: 'Spreadsheet workflow failed',
+        detail: message,
+      },
+    };
   }
 }
