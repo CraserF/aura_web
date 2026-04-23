@@ -7,6 +7,7 @@ Use this file as the source of truth for coordination across agents.
 ## Phase Documents
 
 - [Phase 1: Explicit Workflow Contracts](./phases/phase-1-explicit-workflow-contracts.md)
+- [Phase 2: Runtime Project Rules and Diagnostics](./phases/phase-2-runtime-project-rules-and-diagnostics.md)
 
 ## Mandatory Validation Gate
 
