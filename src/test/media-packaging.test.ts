@@ -69,6 +69,12 @@ describe('media packaging', () => {
         title: 'Doc',
         type: 'document',
         contentHtml: '<p><img src="data:image/png;base64,abc" alt="Hero"></p>',
+        starterRef: {
+          artifactKey: 'brief',
+          starterId: 'executive-brief',
+          starterType: 'document',
+          starterKitId: 'executive-briefing',
+        },
         sourceMarkdown: '# Doc',
         themeCss: '',
         slideCount: 0,
@@ -107,7 +113,7 @@ describe('media packaging', () => {
         const files: Record<string, { async: (type: string) => Promise<unknown> }> = {
           'manifest.json': {
             async: async () => JSON.stringify({
-              version: '2.3',
+              version: '2.4',
               schemaType: 'project',
               id: 'project-1',
               title: 'Media Project',
@@ -137,6 +143,12 @@ describe('media packaging', () => {
               id: 'doc-1',
               title: 'Doc',
               type: 'document',
+              starterRef: {
+                artifactKey: 'brief',
+                starterId: 'executive-brief',
+                starterType: 'document',
+                starterKitId: 'executive-briefing',
+              },
               contentHtml: '',
               themeCss: '',
               slideCount: 0,
@@ -165,5 +177,6 @@ describe('media packaging', () => {
     expect(project.media?.[0]?.relativePath).toBe('media/hero.png');
     expect(project.media?.[0]?.dataUrl).toContain('data:image/png;base64,');
     expect(project.documents[0]?.contentHtml).toContain('data:image/png;base64,');
+    expect(project.documents[0]?.starterRef?.artifactKey).toBe('brief');
   });
 });

@@ -110,6 +110,13 @@ export interface ProjectMediaAsset {
   dataUrl: string;
 }
 
+export interface ProjectDocumentStarterRef {
+  artifactKey: string;
+  starterId: string;
+  starterType: DocumentType;
+  starterKitId?: string;
+}
+
 /** A single document in a project */
 export interface ProjectDocument {
   id: string;
@@ -125,6 +132,8 @@ export interface ProjectDocument {
   slideCount: number;
   /** Short description shown in sidebar */
   description?: string;
+  /** Starter metadata used to re-run deterministic bootstrap without duplicating artifacts */
+  starterRef?: ProjectDocumentStarterRef;
   /** Parent document ID for nesting */
   parentId?: string;
   /** Whether paginated A4-style view is enabled (documents only) */

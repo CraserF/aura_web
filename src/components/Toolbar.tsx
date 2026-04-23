@@ -15,6 +15,12 @@ import { usePresentationStore } from '@/stores/presentationStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useChatStore } from '@/stores/chatStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { createBlankProject } from '@/services/bootstrap/projectStarter';
+import { initProject } from '@/services/bootstrap/initProject';
+import { listDocumentStarters } from '@/services/bootstrap/documentStarters';
+import { listProjectStarterKits } from '@/services/bootstrap/starterKits';
+import { listSpreadsheetStarters } from '@/services/bootstrap/spreadsheetStarters';
+import { listPresentationStarters } from '@/services/bootstrap/projectStarter';
 import { downloadProjectFile } from '@/services/storage/projectFormat';
 import { openProjectFile } from '@/services/storage/projectFormat';
 import { useRef, useState } from 'react';
@@ -22,6 +28,8 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { NewProjectDialog, type NewProjectSelection } from '@/components/NewProjectDialog';
+import { ProjectInitReportDialog } from '@/components/ProjectInitReportDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -75,23 +83,67 @@ export function Toolbar({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const starterKits = listProjectStarterKits();
+  const documentStarters = listDocumentStarters();
+  const presentationStarters = listPresentationStarters();
+  const spreadsheetStarters = listSpreadsheetStarters();
+
+  const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [confirmNew, setConfirmNew] = useState(false);
   const [confirmImport, setConfirmImport] = useState(false);
-  const [importError, setImportError] = useState<string | null>(null);
+  const [toolbarError, setToolbarError] = useState<string | null>(null);
+  const [pendingNewSelection, setPendingNewSelection] = useState<NewProjectSelection | null>(null);
+  const [initReportOpen, setInitReportOpen] = useState(false);
+  const [initReport, setInitReport] = useState<Awaited<ReturnType<typeof initProject>>['report'] | null>(null);
 
   const hasContent = project.documents.length > 0;
 
   const handleNew = () => {
+    setToolbarError(null);
+    setNewProjectOpen(true);
+  };
+
+  const runNewSelection = async (selection: NewProjectSelection) => {
+    setToolbarError(null);
+
+    if (selection.mode === 'blank') {
+      resetProject();
+      clearMessages();
+      setInitReport(null);
+      return;
+    }
+
+    try {
+      const baseProject = createBlankProject();
+      const initResult = selection.mode === 'starter-kit'
+        ? await initProject(baseProject, { starterKitId: selection.kitId })
+        : await initProject(baseProject, {
+            artifacts: [{
+              key: 'primary',
+              type: selection.artifactType,
+              starterId: selection.starterId,
+            }],
+          });
+
+      resetProject();
+      setProject(initResult.project);
+      clearMessages();
+      setInitReport(initResult.report);
+      setInitReportOpen(true);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error creating project';
+      setToolbarError(`Failed to create project: ${message}`);
+    }
+  };
+
+  const handleNewSelection = (selection: NewProjectSelection) => {
+    setNewProjectOpen(false);
     if (hasContent) {
+      setPendingNewSelection(selection);
       setConfirmNew(true);
       return;
     }
-    doNew();
-  };
-
-  const doNew = () => {
-    resetProject();
-    clearMessages();
+    void runNewSelection(selection);
   };
 
   const handleSave = async () => {
@@ -117,14 +169,14 @@ export function Toolbar({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setImportError(null);
+    setToolbarError(null);
     try {
       const loadedProject = await openProjectFile(file);
       setProject(loadedProject);
       setMessages(loadedProject.chatHistory);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error reading file';
-      setImportError(message);
+      setToolbarError(`Failed to open file: ${message}`);
       console.error('Failed to open .aura file:', err);
     }
 
@@ -208,6 +260,7 @@ export function Toolbar({
                 size="icon"
                 className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
                 onClick={handleNew}
+                aria-label="New project"
               >
                 <FolderPlus className="size-4" />
               </Button>
@@ -347,13 +400,14 @@ export function Toolbar({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
-                  onClick={handleNew}
-                >
-                  <FolderPlus className="size-4" />
-                </Button>
+                variant="ghost"
+                size="icon"
+                className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+                onClick={handleNew}
+                aria-label="New project"
+              >
+                <FolderPlus className="size-4" />
+              </Button>
               </TooltipTrigger>
               <TooltipContent>New project</TooltipContent>
             </Tooltip>
@@ -480,13 +534,13 @@ export function Toolbar({
         />
       </header>
 
-      {importError && (
+      {toolbarError && (
         <div className="flex items-center gap-2 border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-xs text-destructive">
           <AlertTriangle className="size-3.5 shrink-0" />
-          <span className="min-w-0 truncate">Failed to open file: {importError}</span>
+          <span className="min-w-0 truncate">{toolbarError}</span>
           <button
             className="ml-auto shrink-0 text-destructive/70 hover:text-destructive"
-            onClick={() => setImportError(null)}
+            onClick={() => setToolbarError(null)}
           >
             Dismiss
           </button>
@@ -499,7 +553,12 @@ export function Toolbar({
         title="Start a new project?"
         description="Your current project and chat history will be lost. Make sure you've saved your work first."
         confirmLabel="Discard & start new"
-        onConfirm={doNew}
+        onConfirm={() => {
+          if (pendingNewSelection) {
+            void runNewSelection(pendingNewSelection);
+            setPendingNewSelection(null);
+          }
+        }}
       />
 
       <ConfirmDialog
@@ -509,6 +568,22 @@ export function Toolbar({
         description="Opening a file will replace your current project. Make sure you've saved your work first."
         confirmLabel="Continue import"
         onConfirm={doOpen}
+      />
+
+      <NewProjectDialog
+        open={newProjectOpen}
+        onOpenChange={setNewProjectOpen}
+        starterKits={starterKits}
+        documentStarters={documentStarters}
+        presentationStarters={presentationStarters}
+        spreadsheetStarters={spreadsheetStarters}
+        onSubmit={handleNewSelection}
+      />
+
+      <ProjectInitReportDialog
+        open={initReportOpen}
+        onOpenChange={setInitReportOpen}
+        report={initReport}
       />
     </>
   );

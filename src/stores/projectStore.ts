@@ -1,33 +1,8 @@
 import { create } from 'zustand';
 import type { ProjectData, ProjectDocument } from '@/types/project';
 import type { ChatMessage } from '@/types';
-import { createInitialMemoryTree } from '@/services/memory';
-import {
-  defaultContextPolicy,
-  defaultProjectRules,
-  defaultWorkflowPresets,
-} from '@/services/projectRules/defaults';
+import { createBlankProject } from '@/services/bootstrap/projectStarter';
 import { normalizeProjectData } from '@/services/projectRules/load';
-
-function newProject(): ProjectData {
-  return {
-    id: crypto.randomUUID(),
-    title: 'Untitled Project',
-    description: '',
-    visibility: 'private',
-    documents: [],
-    activeDocumentId: null,
-    chatHistory: [],
-    memoryTree: createInitialMemoryTree(),
-    media: [],
-    projectRules: defaultProjectRules(),
-    contextPolicy: defaultContextPolicy(),
-    workflowPresets: defaultWorkflowPresets(),
-    sections: { drafts: [], main: [], suggestions: [], issues: [] },
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  };
-}
 
 interface ProjectState {
   project: ProjectData;
@@ -60,7 +35,7 @@ interface ProjectState {
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
-  project: newProject(),
+  project: createBlankProject(),
 
   userLockedDocType: false,
   setUserLockedDocType: (locked) => set({ userLockedDocType: locked }),
@@ -107,7 +82,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       },
     })),
 
-  reset: () => set({ project: newProject(), userLockedDocType: false }),
+  reset: () => set({ project: createBlankProject(), userLockedDocType: false }),
 
   setActiveDocumentId: (id) =>
     set((s) => ({ project: { ...s.project, activeDocumentId: id } })),

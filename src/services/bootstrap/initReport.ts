@@ -1,13 +1,12 @@
-import type { InitReport } from './types';
+import type { InitReport, InitReportItem } from './types';
 
-// TODO(phase-5): Add report builder helpers.
-export function createEmptyInitReport(projectId: string): InitReport {
+export function createInitReport(projectId: string, items: InitReportItem[]): InitReport {
   return {
     ranAt: Date.now(),
     projectId,
-    items: [],
-    createdCount: 0,
-    updatedCount: 0,
-    skippedCount: 0,
+    items,
+    createdCount: items.filter((item) => item.status === 'created').length,
+    updatedCount: items.filter((item) => item.status === 'updated').length,
+    skippedCount: items.filter((item) => item.status === 'skipped').length,
   };
 }

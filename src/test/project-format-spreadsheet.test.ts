@@ -5,7 +5,7 @@ const importSheetParquetMock = vi.fn(async () => {});
 const zipFiles: Record<string, { async: (type: string) => Promise<unknown> }> = {
   'manifest.json': {
     async: async () => JSON.stringify({
-      version: '2.1',
+      version: '2.4',
       schemaType: 'project',
       id: 'project-1',
       title: 'Spreadsheet Project',
@@ -24,6 +24,12 @@ const zipFiles: Record<string, { async: (type: string) => Promise<unknown> }> = 
       id: 'doc-1',
       title: 'Finance Sheet',
       type: 'spreadsheet',
+      starterRef: {
+        artifactKey: 'tracker',
+        starterId: 'project-tracker',
+        starterType: 'spreadsheet',
+        starterKitId: 'launch-plan',
+      },
       contentHtml: '',
       themeCss: '',
       slideCount: 0,
@@ -130,6 +136,7 @@ describe('projectFormat spreadsheet persistence', () => {
 
     expect(project.documents).toHaveLength(1);
     expect(project.documents[0]?.type).toBe('spreadsheet');
+    expect(project.documents[0]?.starterRef?.starterId).toBe('project-tracker');
     expect(importSheetParquetMock).toHaveBeenCalledWith('sheet_table_1', expect.any(Uint8Array));
     expect(project.memoryTree).toBeDefined();
     expect(project.memoryTree?.subdirs.find((dir) => dir.path === 'context')?.files).toHaveLength(1);

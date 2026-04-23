@@ -21,7 +21,7 @@ import { exportMemoryTree, hasArchivedMemory, importMemoryTree } from '@/service
 import { normalizeProjectData } from '@/services/projectRules/load';
 import { exportSheetParquet, importSheetParquet } from '@/services/spreadsheet/workbook';
 
-const FORMAT_VERSION = '2.3';
+const FORMAT_VERSION = '2.4';
 
 function parseOptionalJson<T>(value: string | null | undefined): T | null {
   if (!value) return null;
@@ -82,10 +82,13 @@ export async function downloadProjectFile(project: ProjectData): Promise<void> {
       slideCount: doc.slideCount,
       order: doc.order,
       description: doc.description,
+      starterRef: doc.starterRef,
+      parentId: doc.parentId,
       sourceMarkdown: doc.sourceMarkdown,
       pagesEnabled: doc.pagesEnabled,
       chartSpecs: doc.chartSpecs,
       workbook: doc.workbook,
+      linkedTableRefs: doc.linkedTableRefs,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     };
