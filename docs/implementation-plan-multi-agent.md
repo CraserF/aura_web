@@ -236,7 +236,10 @@ Status:
 - Backlog Phase A remains implemented but not checklist-complete because manual validation is still pending.
 - Phase 4 code landed on 2026-04-23 with bounded target selectors, strategy hints, and editing telemetry.
 - Manual targeted-edit validation is still pending before top-level checklist completion.
-- Commit: `a66f0b0`
+- Phase 5 code landed on 2026-04-23 with starter registries, idempotent init, and the new project dialog flow.
+- Manual Phase 5 bootstrap validation is still pending before any top-level starter-kit completion call.
+- Phase 4 commit: `a66f0b0`
+- Phase 5 commit: `acf61d6`
 
 ## Workstream F: Mobile-Adaptive Artifact Design System
 
