@@ -21,6 +21,12 @@ This document records shipped workflow-upgrade progress across the phased implem
   - Project Rules panel persistence across reload
   - Doctor panel healthy/broken provider checks
   - visible project-rule influence on one document and one presentation generation
+- Backlog Phase A manual in-app validation is still pending for:
+  - standalone document HTML offline-open check
+  - standalone presentation HTML offline-open check
+  - email HTML browser/mail-preview check
+  - packaged media save/reopen check
+  - artifact export menu behavior on desktop and mobile
 
 ## Current Focus
 

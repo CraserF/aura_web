@@ -163,6 +163,11 @@ Blocking dependency:
 Validation requirement:
 - Must include artifact-open checks (offline/read-only) and sanitization safety checks.
 
+Status:
+- Implementation landed in Backlog Phase A on 2026-04-23.
+- Manual offline/open validation is still pending before top-level checklist completion.
+- Commit: `4215266`
+
 Workstream C regression checklist (required when touching document export rendering):
 - [ ] Run `example/pdf_preview_spike.html` and compare Current vs Candidate panes for all three corpus docs.
 - [ ] Validate desktop and mobile viewport modes in the harness.
@@ -194,6 +199,11 @@ Blocking dependency:
 
 Validation requirement:
 - Must include round-trip Aura import/export checks with media files.
+
+Status:
+- Implementation landed in Backlog Phase A on 2026-04-23.
+- Manual packaged-media round-trip validation is still pending before top-level checklist completion.
+- Commit: `4215266`
 
 ## Workstream E: Low-Token Edit Routing
 
