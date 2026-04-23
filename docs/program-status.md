@@ -43,4 +43,4 @@ This document records shipped workflow-upgrade progress across the phased implem
 
 ## Current Focus
 
-- Phase 5 template-first bootstrapping is tracked in [phase-5-template-first-bootstrapping.md](./phases/phase-5-template-first-bootstrapping.md).
+- Phase 6 project-level augmentation is tracked in [phase-6-project-augmentation-and-events.md](./phases/phase-6-project-augmentation-and-events.md).
