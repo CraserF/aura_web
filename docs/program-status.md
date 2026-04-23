@@ -49,4 +49,4 @@ This document records shipped workflow-upgrade progress across the phased implem
 
 ## Current Focus
 
-- Phase 6 project-level augmentation is tracked in [phase-6-project-augmentation-and-events.md](./phases/phase-6-project-augmentation-and-events.md).
+- Phase 7 validation/publish work is tracked in [phase-7-validation-profiles-and-publish.md](./phases/phase-7-validation-profiles-and-publish.md).
