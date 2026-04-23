@@ -8,6 +8,11 @@ Use this file as the source of truth for coordination across agents.
 
 - [Phase 1: Explicit Workflow Contracts](./phases/phase-1-explicit-workflow-contracts.md)
 - [Phase 2: Runtime Project Rules and Diagnostics](./phases/phase-2-runtime-project-rules-and-diagnostics.md)
+- [Phase 3: Explicit Context Control and Context Compaction](./phases/phase-3-explicit-context-control-and-compaction.md)
+
+## Program Tracking
+
+- [Program Status](./program-status.md)
 
 ## Mandatory Validation Gate
 
