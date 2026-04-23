@@ -1,14 +1,16 @@
 import type { RunRecord } from '@/services/runs/types';
 import type { ResolvedIntent } from '@/services/ai/intent/types';
 import type { RunEvent } from '@/services/events/types';
+import type { ExecutionMode } from '@/services/runs/types';
 
 const registry = new Map<string, RunRecord>();
 
-export function createRunRecord(runId: string, intent: ResolvedIntent): RunRecord {
+export function createRunRecord(runId: string, intent: ResolvedIntent, mode: ExecutionMode = 'execute'): RunRecord {
   const now = Date.now();
   const record: RunRecord = {
     runId,
     status: 'pending',
+    mode,
     intent,
     touchedDocumentIds: [],
     dependencyWarnings: [],
@@ -133,6 +135,24 @@ export function setRunOutputSummary(
   return updated;
 }
 
+export function setRunSpecMetadata(
+  runId: string,
+  serializableSpecId?: string,
+  explainSummary?: string,
+): RunRecord | null {
+  const record = registry.get(runId);
+  if (!record) return null;
+
+  const updated: RunRecord = {
+    ...record,
+    serializableSpecId,
+    explainSummary,
+    updatedAt: Date.now(),
+  };
+
+  registry.set(runId, updated);
+  return updated;
+}
 export function setRunRetryInfo(
   runId: string,
   retryChainRootId: string,
@@ -187,6 +207,3 @@ export function listRunRecords(): RunRecord[] {
 export function clearRunRegistry(): void {
   registry.clear();
 }
-
-// TODO(phase-1): Add richer metadata and derived selectors once the submit
-// pipeline starts updating the registry through the shared run contract.

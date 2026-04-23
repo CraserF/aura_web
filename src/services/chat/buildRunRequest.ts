@@ -5,9 +5,10 @@ import type { MemoryContextBuildResult, MemoryContextDetailMode } from '@/servic
 
 import { resolveIntent } from '@/services/ai/intent/resolveIntent';
 import { assembleContext } from '@/services/context/assemble';
+import { buildSerializableRunSpec } from '@/services/executionSpec/build';
 import { loadContextPolicy } from '@/services/projectRules/load';
 import { resolveProjectRulesSnapshot } from '@/services/projectRules/resolve';
-import type { RunRequest } from '@/services/runs/types';
+import type { ExecutionMode, RunRequest } from '@/services/runs/types';
 import type { ContextSelectionState } from '@/services/context/types';
 
 export interface BuildRunRequestInput {
@@ -30,6 +31,7 @@ export interface BuildRunRequestInput {
   ) => Promise<MemoryContextBuildResult>;
   selectedPresetId?: string;
   allowClarification?: boolean;
+  mode?: ExecutionMode;
 }
 
 export interface BuildRunRequestResult {
@@ -74,6 +76,7 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
     buildMemoryContext,
     selectedPresetId,
     allowClarification = true,
+    mode = 'execute',
   } = input;
 
   const initialAssembly = assembleContext({
@@ -130,9 +133,10 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
     selectionState,
   });
 
-  return {
-    runRequest: {
-      runId: crypto.randomUUID(),
+  const runId = crypto.randomUUID();
+
+  const runRequest: RunRequest = {
+      runId,
       intent,
       context: assembledWithPolicy.context,
       providerConfig,
@@ -143,8 +147,19 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
       selectedPresetId,
       appliedPreset: projectRulesSnapshot.appliedPreset,
       projectSnapshot: buildProjectSnapshot(project),
+      mode,
       createdAt: Date.now(),
-    },
+    };
+
+  runRequest.serializableSpec = buildSerializableRunSpec({
+    runRequest,
+    messageScope: intent.projectOperation ? 'project' : assembledWithPolicy.messageScope,
+    scopedDocumentId: intent.projectOperation ? undefined : assembledWithPolicy.scopedDocumentId,
+    mode,
+  });
+
+  return {
+    runRequest,
     messageScope: intent.projectOperation ? 'project' : assembledWithPolicy.messageScope,
     scopedDocumentId: intent.projectOperation ? undefined : assembledWithPolicy.scopedDocumentId,
   };

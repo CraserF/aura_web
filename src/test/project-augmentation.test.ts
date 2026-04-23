@@ -124,6 +124,7 @@ function makeRunRequest(
         { document: 0, presentation: 0, spreadsheet: 0 },
       ),
     },
+    mode: overrides.mode ?? 'execute',
     createdAt: overrides.createdAt ?? 1,
   };
 }

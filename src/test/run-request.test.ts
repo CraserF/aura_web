@@ -61,6 +61,7 @@ describe('buildRunRequest', () => {
         trimmedMemories: [],
         items: [],
       }),
+      mode: 'dry-run',
     });
 
     expect(result.messageScope).toBe('document');
@@ -79,5 +80,11 @@ describe('buildRunRequest', () => {
     expect(result.runRequest.projectSnapshot.activeDocumentId).toBe('doc-1');
     expect(result.runRequest.projectSnapshot.linkedReferenceCount).toBe(0);
     expect(result.runRequest.projectSnapshot.artifactCountsByType.document).toBe(1);
+    expect(result.runRequest.mode).toBe('dry-run');
+    expect(result.runRequest.serializableSpec?.mode).toBe('dry-run');
+    expect(result.runRequest.serializableSpec?.providerRef.hasApiKey).toBe(true);
+    expect(result.runRequest.serializableSpec?.providerRef).not.toHaveProperty('apiKey');
+    expect(result.runRequest.serializableSpec?.targeting.targetDocumentId).toBe('doc-1');
+    expect(result.runRequest.serializableSpec?.contextSnapshot.sources.length).toBeGreaterThan(0);
   });
 });

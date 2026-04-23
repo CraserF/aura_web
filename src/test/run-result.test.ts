@@ -23,7 +23,20 @@ describe('run result rendering and registry', () => {
       runId: 'run-1',
       status: 'completed',
       intent: baseIntent,
-      outputs: { title: 'Quarterly Brief' },
+      outputs: {
+        envelope: {
+          artifactType: 'document',
+          mode: 'execute',
+          targetSummary: ['Best matching document block'],
+          changedTargets: [{ documentId: 'doc-1', action: 'updated' }],
+          validation: { passed: true, summary: 'QA passed' },
+          document: {
+            artifactType: 'document',
+            title: 'Quarterly Brief',
+          },
+        },
+        title: 'Quarterly Brief',
+      },
       assistantMessage: {
         content: 'Created document "Quarterly Brief".',
       },
@@ -50,7 +63,7 @@ describe('run result rendering and registry', () => {
     clearRunRegistry();
     clearRunEvents();
 
-    const created = createRunRecord('run-1', baseIntent);
+    const created = createRunRecord('run-1', baseIntent, 'execute');
     const running = updateRunRecordStatus('run-1', 'running');
     const event = publishRunEvent({
       type: 'run.generating',

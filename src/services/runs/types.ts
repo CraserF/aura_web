@@ -3,10 +3,13 @@ import type { ProjectDocument } from '@/types/project';
 
 import type { ResolvedIntent } from '@/services/ai/intent/types';
 import type { ContextBundle } from '@/services/context/types';
+import type { SerializableRunSpec } from '@/services/executionSpec/types';
 import type { AppliedWorkflowPreset } from '@/services/presets/types';
 import type { ResolvedProjectRulesSnapshot } from '@/services/projectRules/types';
 import type { RunStatus } from '@/services/runs/status';
 import type { RunEventType } from '@/services/events/types';
+
+export type ExecutionMode = 'execute' | 'dry-run' | 'explain';
 
 export interface RunProjectSnapshot {
   documentIds: string[];
@@ -27,12 +30,15 @@ export interface RunRequest {
   selectedPresetId?: string;
   appliedPreset?: AppliedWorkflowPreset;
   projectSnapshot: RunProjectSnapshot;
+  mode: ExecutionMode;
+  serializableSpec?: SerializableRunSpec;
   createdAt: number;
 }
 
 export interface RunRecord {
   runId: string;
   status: RunStatus;
+  mode: ExecutionMode;
   intent: ResolvedIntent;
   latestEventId?: string;
   latestEventType?: RunEventType;
@@ -44,9 +50,8 @@ export interface RunRecord {
   policyActions: string[];
   finalOutputSummary?: string;
   outputBufferId?: string;
+  serializableSpecId?: string;
+  explainSummary?: string;
   createdAt: number;
   updatedAt: number;
 }
-
-// TODO(phase-1): Extend RunRequest with stable run metadata once the submit
-// pipeline and parity harness are both reading from the same contract.

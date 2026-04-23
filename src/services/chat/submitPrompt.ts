@@ -7,9 +7,11 @@ import type { ContextSelectionState } from '@/services/context/types';
 import type { LLMConfig } from '@/services/ai/workflow/types';
 import type { MemoryContextBuildResult, MemoryContextDetailMode } from '@/services/memory';
 import type { ProviderConfig } from '@/types';
+import type { ExecutionMode } from '@/services/runs/types';
 
 import { buildRunRequest } from '@/services/chat/buildRunRequest';
 import { renderRunResult } from '@/services/chat/renderRunResult';
+import { buildNonMutatingRunResult } from '@/services/executionSpec/explain';
 import {
   createRunRecord,
   appendRunPolicyActions,
@@ -20,6 +22,7 @@ import {
   setRunDependencyWarnings,
   setRunOutputSummary,
   setRunRetryInfo,
+  setRunSpecMetadata,
   updateRunRecordStatus,
 } from '@/services/runs/registry';
 import { writeRunOutputBuffer } from '@/services/runs/outputBuffer';
@@ -49,6 +52,7 @@ export interface SubmitPromptInput {
   documentStylePreset: string;
   selectedPresetId?: string;
   allowClarification: boolean;
+  mode?: ExecutionMode;
 }
 
 export interface SubmitPromptServices {
@@ -96,26 +100,43 @@ const defaultHandlers: SubmitPromptHandlers = {
 
 function buildBlockedRunResult(runId: string, runRequest: Awaited<ReturnType<typeof buildRunRequest>>['runRequest']): RunResult {
   const question = runRequest.intent.clarification?.question ?? 'More detail is required before generating.';
+  const changedTargets = [{
+    documentId: runRequest.intent.targetDocumentId,
+    sheetId: runRequest.intent.targetSheetId,
+    action: 'none' as const,
+  }];
+  const validation = {
+    passed: true,
+    summary: 'Clarification required before generation.',
+  };
 
   return {
     runId,
     status: 'blocked',
     intent: runRequest.intent,
-    outputs: {},
+    outputs: {
+      envelope: {
+        artifactType: runRequest.intent.projectOperation ? 'project' : runRequest.intent.artifactType,
+        mode: runRequest.mode,
+        targetSummary: runRequest.intent.targetSelectors.map((selector) => selector.label ?? selector.type),
+        changedTargets,
+        validation,
+        ...(runRequest.intent.projectOperation
+          ? {
+              project: {
+                artifactType: 'project',
+              },
+            }
+          : {}),
+      },
+    },
     assistantMessage: {
       content: question,
       clarifyOptions: runRequest.intent.clarification?.options,
     },
-    validation: {
-      passed: true,
-      summary: 'Clarification required before generation.',
-    },
+    validation,
     warnings: [],
-    changedTargets: [{
-      documentId: runRequest.intent.targetDocumentId,
-      sheetId: runRequest.intent.targetSheetId,
-      action: 'none',
-    }],
+    changedTargets,
     structuredStatus: {
       title: 'Clarification required',
       detail: question,
@@ -192,6 +213,7 @@ export async function submitPrompt(
     documentStylePreset,
     selectedPresetId,
     allowClarification,
+    mode = 'execute',
   } = input;
   const {
     workflowStepsRef,
@@ -224,6 +246,7 @@ export async function submitPrompt(
     selectedPresetId,
     buildMemoryContext: buildWorkflowMemoryContext,
     allowClarification,
+    mode,
   });
   onRunRequestBuilt?.(runRequest);
 
@@ -237,8 +260,12 @@ export async function submitPrompt(
     attachments: attachments.length > 0 ? attachments : undefined,
   });
 
-  createRunRecord(runRequest.runId, runRequest.intent);
+  createRunRecord(runRequest.runId, runRequest.intent, runRequest.mode);
   setRunRetryInfo(runRequest.runId, runRequest.runId, 0);
+  setRunSpecMetadata(
+    runRequest.runId,
+    runRequest.serializableSpec ? `spec:${runRequest.serializableSpec.runId}` : undefined,
+  );
   const startedEvent = publishRunEvent({
     type: 'run.started',
     runId: runRequest.runId,
@@ -260,6 +287,17 @@ export async function submitPrompt(
     },
   });
   recordRunEvent(runRequest.runId, contextEvent);
+  const specBuiltEvent = publishRunEvent({
+    type: 'run.spec-built',
+    runId: runRequest.runId,
+    source: eventSource,
+    payload: {
+      mode: runRequest.mode,
+      hasSerializableSpec: Boolean(runRequest.serializableSpec),
+      selectedPresetId: runRequest.selectedPresetId,
+    },
+  });
+  recordRunEvent(runRequest.runId, specBuiltEvent);
   const intentEvent = publishRunEvent({
     type: 'run.intent-resolved',
     runId: runRequest.runId,
@@ -290,7 +328,7 @@ export async function submitPrompt(
       : [],
   );
 
-  if (runRequest.intent.needsClarification) {
+  if (runRequest.intent.needsClarification && runRequest.mode === 'execute') {
     const blockedResult = buildBlockedRunResult(runRequest.runId, runRequest);
     updateRunRecordStatus(runRequest.runId, blockedResult.status);
     setRunBlockedReason(runRequest.runId, blockedResult.structuredStatus.detail);
@@ -307,6 +345,59 @@ export async function submitPrompt(
     setStatus({ state: 'idle' });
     setStreamingContent('');
     return blockedResult;
+  }
+
+  if (runRequest.mode !== 'execute') {
+    const result = await buildNonMutatingRunResult({
+      runRequest,
+      project,
+    });
+    updateRunRecordStatus(runRequest.runId, result.status);
+    setRunBlockedReason(
+      runRequest.runId,
+      result.status === 'blocked' ? result.structuredStatus.detail : undefined,
+    );
+    markRunTouchedDocuments(
+      runRequest.runId,
+      Array.from(new Set(result.changedTargets.map((target) => target.documentId).filter(Boolean) as string[])),
+    );
+    setRunDependencyWarnings(runRequest.runId, result.warnings.map((warning) => warning.message));
+    publishPolicyEvaluation(
+      runRequest.runId,
+      eventSource,
+      'after-validation',
+      [
+        ...(!result.validation.passed ? ['validation-blocked' as const] : []),
+        ...((result.outputs.publish?.exportBlocked ?? false) ? ['export-unavailable' as const] : []),
+      ],
+    );
+    const explainEvent = publishRunEvent({
+      type: 'run.explained',
+      runId: runRequest.runId,
+      source: eventSource,
+      payload: {
+        mode: runRequest.mode,
+        blocked: result.status === 'blocked',
+        changedTargetCount: result.changedTargets.length,
+      },
+    });
+    recordRunEvent(runRequest.runId, explainEvent);
+    setRunOutputSummary(runRequest.runId, result.structuredStatus.detail);
+    setRunSpecMetadata(runRequest.runId, runRequest.serializableSpec ? `spec:${runRequest.serializableSpec.runId}` : undefined, result.structuredStatus.detail);
+    const finalEvent = publishRunEvent({
+      type: result.status === 'blocked' ? 'run.blocked' : 'run.completed',
+      runId: runRequest.runId,
+      source: eventSource,
+      payload: {
+        status: result.status,
+        mode: runRequest.mode,
+      },
+    });
+    recordRunEvent(runRequest.runId, finalEvent);
+    addMessage(buildAssistantChatMessage(result, scopedDocumentId, messageScope));
+    setStatus({ state: 'idle' });
+    setStreamingContent('');
+    return result;
   }
 
   updateRunRecordStatus(runRequest.runId, 'running');
@@ -403,6 +494,7 @@ export async function submitPrompt(
     outputs: result.outputs,
   });
   setRunOutputSummary(runRequest.runId, rendered.statusMessage, outputBufferId);
+  setRunSpecMetadata(runRequest.runId, runRequest.serializableSpec ? `spec:${runRequest.serializableSpec.runId}` : undefined, result.structuredStatus.detail);
   markSupersededRuns(
     runRequest.runId,
     Array.from(

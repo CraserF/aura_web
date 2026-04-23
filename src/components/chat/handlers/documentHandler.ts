@@ -241,45 +241,64 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
           message: issue.message,
         }))
       : [];
+    const validation = artifactValidation
+      ? {
+          passed: artifactValidation.passed,
+          summary: summarizeValidationResult(artifactValidation),
+          profileId: artifactValidation.profileId,
+          score: artifactValidation.score,
+          blockingIssues: artifactValidation.blockingIssues,
+          warnings: artifactValidation.warnings,
+        }
+      : {
+          passed: true,
+          summary: 'Document workflow completed and passed document QA.',
+        };
+    const changedTargets = [{
+      documentId: changedDocumentId,
+      action: changeAction,
+    }] as const;
+    const publish = artifactValidation
+      ? {
+          profileId: artifactValidation.profileId,
+          artifactValidation,
+          exportBlocked: !artifactValidation.passed,
+          overrideRequired: !artifactValidation.passed,
+        }
+      : undefined;
 
     return {
       runId,
       status: 'completed',
       intent,
       outputs: {
+        envelope: {
+          artifactType: 'document',
+          mode: runRequest.mode,
+          targetSummary,
+          changedTargets: [...changedTargets],
+          validation,
+          document: {
+            artifactType: 'document',
+            title: result.title,
+            html: result.html,
+            markdown: result.markdown,
+            ...(result.editing ? { editing: result.editing } : {}),
+            ...(publish ? { publish } : {}),
+          },
+        },
         html: result.html,
         markdown: result.markdown,
         title: result.title,
         ...(result.editing ? { editing: result.editing } : {}),
-        ...(artifactValidation
-          ? {
-              publish: {
-                profileId: artifactValidation.profileId,
-                artifactValidation,
-                exportBlocked: !artifactValidation.passed,
-                overrideRequired: !artifactValidation.passed,
-              },
-            }
-          : {}),
+        ...(publish ? { publish } : {}),
       },
       assistantMessage: {
         content: result.html
           ? `${isEdit ? 'Updated' : 'Created'} document: "${result.title}"`
           : 'Document created.',
       },
-      validation: artifactValidation
-        ? {
-            passed: artifactValidation.passed,
-            summary: summarizeValidationResult(artifactValidation),
-            profileId: artifactValidation.profileId,
-            score: artifactValidation.score,
-            blockingIssues: artifactValidation.blockingIssues,
-            warnings: artifactValidation.warnings,
-          }
-        : {
-            passed: true,
-            summary: 'Document workflow completed and passed document QA.',
-          },
+      validation,
       warnings: [
         ...configWarnings,
         ...contextWarnings,
@@ -291,10 +310,7 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
             }]
           : []),
       ],
-      changedTargets: [{
-        documentId: changedDocumentId,
-        action: changeAction,
-      }],
+      changedTargets: [...changedTargets],
       structuredStatus: {
         title: isEdit ? 'Document updated' : 'Document created',
         detail: result.title
@@ -308,7 +324,21 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
         runId,
         status: 'cancelled',
         intent,
-        outputs: {},
+        outputs: {
+          envelope: {
+            artifactType: 'document',
+            mode: runRequest.mode,
+            targetSummary,
+            changedTargets: [],
+            validation: {
+              passed: false,
+              summary: 'Run cancelled by user.',
+            },
+            document: {
+              artifactType: 'document',
+            },
+          },
+        },
         assistantMessage: {
           content: 'Generation cancelled.',
         },
@@ -329,7 +359,21 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
       runId,
       status: 'failed',
       intent,
-      outputs: {},
+      outputs: {
+        envelope: {
+          artifactType: 'document',
+          mode: runRequest.mode,
+          targetSummary,
+          changedTargets: [],
+          validation: {
+            passed: false,
+            summary: 'Document workflow failed.',
+          },
+          document: {
+            artifactType: 'document',
+          },
+        },
+      },
       assistantMessage: {
         content: `Error: ${message}`,
       },

@@ -346,6 +346,36 @@ export async function handleProjectWorkflow(ctx: ProjectWorkflowContext): Promis
     status: 'completed',
     intent: runRequest.intent,
     outputs: {
+      envelope: {
+        artifactType: 'project',
+        mode: runRequest.mode,
+        targetSummary: [operation],
+        changedTargets,
+        validation: {
+          passed: projectValidation.passed,
+          summary: summarizeValidationResult(projectValidation),
+          profileId: projectValidation.profileId,
+          score: projectValidation.score,
+          blockingIssues: projectValidation.blockingIssues,
+          warnings: projectValidation.warnings,
+        },
+        project: {
+          artifactType: 'project',
+          project: buildProjectOutputs(
+            operation,
+            Array.from(updatedDocumentIds),
+            dependencyChanges,
+            reviewSummary,
+            linkSummary,
+          ),
+          publish: {
+            profileId: projectValidation.profileId,
+            projectValidation,
+            exportBlocked: !projectValidation.passed,
+            overrideRequired: !projectValidation.passed,
+          },
+        },
+      },
       project: buildProjectOutputs(
         operation,
         Array.from(updatedDocumentIds),

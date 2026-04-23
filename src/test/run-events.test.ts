@@ -127,6 +127,21 @@ describe('run events', () => {
           status: 'completed',
           intent: runRequest.intent,
           outputs: {
+            envelope: {
+              artifactType: 'project',
+              mode: runRequest.mode,
+              targetSummary: ['summarize-project'],
+              changedTargets: [{ documentId: 'doc-1', action: 'updated' }],
+              validation: { passed: true, summary: 'ok' },
+              project: {
+                artifactType: 'project',
+                project: {
+                  operation: 'summarize-project',
+                  updatedDocumentIds: ['doc-1'],
+                  dependencyChanges: [],
+                },
+              },
+            },
             project: {
               operation: 'summarize-project',
               updatedDocumentIds: ['doc-1'],
@@ -146,6 +161,7 @@ describe('run events', () => {
     expect(listRunEvents(result.runId).map((event) => event.type)).toEqual([
       'run.started',
       'run.context-assembled',
+      'run.spec-built',
       'run.intent-resolved',
       'run.generating',
       'run.completed',

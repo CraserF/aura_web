@@ -1,6 +1,7 @@
 import type { ClarifyOption } from '@/types';
 
 import type { ResolvedIntent } from '@/services/ai/intent/types';
+import type { RunOutputsEnvelope } from '@/services/contracts/outputEnvelope';
 import type { EditingTelemetry } from '@/services/editing/types';
 import type { RunStatus } from '@/services/runs/status';
 import type { SpreadsheetExecutionSummary, SpreadsheetIntentKind } from '@/services/spreadsheet/plans';
@@ -62,6 +63,7 @@ export interface RunResultSpreadsheetOutputs {
 }
 
 export interface RunResultOutputs extends Record<string, unknown> {
+  envelope: RunOutputsEnvelope;
   editing?: EditingTelemetry;
   project?: RunResultProjectOutputs;
   publish?: PublishReadinessResult;
@@ -79,6 +81,3 @@ export interface RunResult {
   changedTargets: RunResultChangedTarget[];
   structuredStatus: RunResultStructuredStatus;
 }
-
-// TODO(phase-1): Replace generic outputs with artifact-specific typed payloads
-// once the handler adapters are all emitting the same result surface.
