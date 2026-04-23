@@ -56,6 +56,7 @@ Validation backfill note:
 - Phase 5 does not absorb Backlog Phase A manual validation debt, Phase 4 manual validation debt, or Workstream F delivery; keep those tracked separately.
 - Phase 6 does not absorb Backlog Phase A, Phase 4, or Phase 5 manual validation debt; keep those tracked separately.
 - Phase 7 does not absorb Backlog Phase A, Phase 4, Phase 5, or Phase 6 manual validation debt; keep those tracked separately.
+- Phase 7 does not absorb Backlog Phase A, Phase 4, Phase 5, or Phase 6 manual validation debt; keep those tracked separately.
 
 - [x] Add a persisted feature flag to hide the Pages UI without removing page logic
 - [x] Hide the current Pages button behind the feature flag
@@ -244,9 +245,12 @@ Status:
 - Manual Phase 5 bootstrap validation is still pending before any top-level starter-kit completion call.
 - Phase 6 code landed on 2026-04-23 with project-wide routing, dependency graph refresh/validation, project augmentation workflow, and typed run events.
 - Manual Phase 6 project-workflow validation is still pending before any top-level project-augmentation completion call.
+- Phase 7 code landed on 2026-04-23 with shared validation profiles, readiness panels, export gating, and clean-environment checks.
+- Manual Phase 7 publish/readiness validation is still pending before any top-level publish-workflow completion call.
 - Phase 4 commit: `a66f0b0`
 - Phase 5 commit: `acf61d6`
 - Phase 6 commit: `0301a74`
+- Phase 7 commit: `07b0a08`
 
 ## Workstream F: Mobile-Adaptive Artifact Design System
 
