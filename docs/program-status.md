@@ -61,4 +61,4 @@ This document records shipped workflow-upgrade progress across the phased implem
 
 ## Current Focus
 
-- Phase 8 preset/lifecycle/policy work is tracked in [phase-8-presets-lifecycle-and-policy.md](./phases/phase-8-presets-lifecycle-and-policy.md).
+- Phase 9 spreadsheet workflow deepening is tracked in [phase-9-spreadsheet-workflow-deepening.md](./phases/phase-9-spreadsheet-workflow-deepening.md).
