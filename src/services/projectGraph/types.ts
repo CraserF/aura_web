@@ -1,6 +1,6 @@
 export type ProjectGraphNodeKind = 'document' | 'sheet' | 'chart';
 
-export type ProjectGraphEdgeKind = 'linked-table' | 'chart-source' | 'derived-summary';
+export type ProjectGraphEdgeKind = 'linked-table' | 'chart-source' | 'derived-summary' | 'query-view';
 
 export type ProjectGraphEdgeStatus = 'valid' | 'broken' | 'stale';
 

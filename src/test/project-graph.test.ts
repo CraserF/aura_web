@@ -44,16 +44,36 @@ describe('project graph', () => {
       type: 'spreadsheet',
       workbook: {
         activeSheetIndex: 0,
-        sheets: [{
-          id: 'sheet-1',
-          name: 'Budget',
-          tableName: 'budget_table',
-          schema: [{ name: 'Amount', type: 'number', nullable: false }],
-          frozenRows: 0,
-          frozenCols: 0,
-          columnWidths: {},
-          formulas: [],
-        }],
+        sheets: [
+          {
+            id: 'sheet-1',
+            name: 'Budget',
+            tableName: 'budget_table',
+            schema: [{ name: 'Amount', type: 'number', nullable: false }],
+            frozenRows: 0,
+            frozenCols: 0,
+            columnWidths: {},
+            formulas: [],
+          },
+          {
+            id: 'sheet-2',
+            name: 'Budget Summary',
+            tableName: 'budget_summary',
+            schema: [{ name: 'Amount', type: 'number', nullable: false }],
+            frozenRows: 0,
+            frozenCols: 0,
+            columnWidths: {},
+            formulas: [],
+            queryView: {
+              sourceSheetId: 'sheet-1',
+              sourceSheetName: 'Budget',
+              outputSheetName: 'Budget Summary',
+              selectColumns: ['Amount'],
+              filters: [],
+              generatedAt: 5,
+            },
+          },
+        ],
       },
     });
     const linkedDocument = makeDocument({
@@ -80,6 +100,7 @@ describe('project graph', () => {
     expect(graph.nodes.map((node) => node.id)).toContain('sheet:sheet-doc:sheet-1');
     expect(graph.nodes.map((node) => node.id)).toContain('chart:doc-linked:revenue');
     expect(graph.edges.find((edge) => edge.kind === 'linked-table')?.status).toBe('valid');
+    expect(graph.edges.find((edge) => edge.kind === 'query-view')?.status).toBe('valid');
     expect(graph.edges.find((edge) => edge.kind === 'derived-summary')?.status).toBe('stale');
   });
 

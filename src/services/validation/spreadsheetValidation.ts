@@ -92,6 +92,98 @@ export function validateSpreadsheetAgainstProfile(input: SpreadsheetValidationIn
           },
         ));
       }
+
+      for (const formula of sheet.formulas) {
+        if (!sheet.schema.some((column) => column.name === formula.column)) {
+          issues.push(createValidationIssue(
+            'warning',
+            'missing-formula-output-column',
+            `Formula "${formula.column}" does not have a matching output column in sheet "${sheet.name}".`,
+            {
+              targetDocumentId: document.id,
+              targetSheetId: sheet.id,
+              source: 'spreadsheet-validation',
+            },
+          ));
+        }
+
+        for (const dependency of formula.dependsOn) {
+          if (!sheet.schema.some((column) => column.name === dependency)) {
+            issues.push(createValidationIssue(
+              'blocking',
+              'missing-formula-dependency',
+              `Formula "${formula.column}" depends on missing column "${dependency}" in sheet "${sheet.name}".`,
+              {
+                targetDocumentId: document.id,
+                targetSheetId: sheet.id,
+                source: 'spreadsheet-validation',
+              },
+            ));
+          }
+        }
+      }
+
+      if (sheet.queryView) {
+        const sourceSheet = document.workbook.sheets.find((candidate) => candidate.id === sheet.queryView!.sourceSheetId);
+        if (!sourceSheet) {
+          issues.push(createValidationIssue(
+            'blocking',
+            'missing-query-source-sheet',
+            `Query view "${sheet.name}" points to missing source sheet "${sheet.queryView.sourceSheetName}".`,
+            {
+              targetDocumentId: document.id,
+              targetSheetId: sheet.id,
+              source: 'spreadsheet-validation',
+            },
+          ));
+          continue;
+        }
+
+        for (const column of sheet.queryView.selectColumns) {
+          if (!sourceSheet.schema.some((entry) => entry.name === column)) {
+            issues.push(createValidationIssue(
+              'blocking',
+              'missing-query-select-column',
+              `Query view "${sheet.name}" selects missing source column "${column}".`,
+              {
+                targetDocumentId: document.id,
+                targetSheetId: sheet.id,
+                source: 'spreadsheet-validation',
+              },
+            ));
+          }
+        }
+
+        for (const filter of sheet.queryView.filters) {
+          if (!sourceSheet.schema.some((entry) => entry.name === filter.column)) {
+            issues.push(createValidationIssue(
+              'blocking',
+              'missing-query-filter-column',
+              `Query view "${sheet.name}" filters on missing source column "${filter.column}".`,
+              {
+                targetDocumentId: document.id,
+                targetSheetId: sheet.id,
+                source: 'spreadsheet-validation',
+              },
+            ));
+          }
+        }
+
+        for (const aggregate of sheet.queryView.aggregates ?? []) {
+          if (aggregate.column && !sourceSheet.schema.some((entry) => entry.name === aggregate.column)) {
+            issues.push(createValidationIssue(
+              'blocking',
+              'missing-query-aggregate-column',
+              `Query view "${sheet.name}" aggregates missing source column "${aggregate.column}".`,
+              {
+                targetDocumentId: document.id,
+                targetSheetId: sheet.id,
+                source: 'spreadsheet-validation',
+              },
+            ));
+          }
+        }
+      }
     }
   }
 

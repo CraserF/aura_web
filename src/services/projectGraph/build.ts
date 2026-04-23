@@ -63,6 +63,21 @@ export function buildProjectGraph(project: ProjectData): ProjectGraph {
           documentId: document.id,
           sheetId: sheet.id,
         });
+        if (sheet.queryView) {
+          const sourceSheet = document.workbook.sheets.find((candidate) => candidate.id === sheet.queryView!.sourceSheetId);
+          const status = !sourceSheet
+            ? 'broken'
+            : document.updatedAt > sheet.queryView.generatedAt
+              ? 'stale'
+              : 'valid';
+          edges.push({
+            id: `edge:${document.id}:query-view:${sheet.id}:${sheet.queryView.sourceSheetId}`,
+            from: sheetNodeId(document.id, sheet.id),
+            to: sheetNodeId(document.id, sheet.queryView.sourceSheetId),
+            kind: 'query-view',
+            status,
+          });
+        }
       }
     }
 

@@ -1,7 +1,7 @@
-import type { ProjectGraph, ProjectGraphIssue } from './types';
+import type { ProjectGraph, ProjectGraphEdge, ProjectGraphIssue } from './types';
 
 export function validateProjectGraph(graph: ProjectGraph): ProjectGraphIssue[] {
-  return graph.edges.flatMap((edge) => {
+  return graph.edges.flatMap((edge: ProjectGraphEdge): ProjectGraphIssue[] => {
     if (edge.status === 'valid') {
       return [];
     }
@@ -23,6 +23,19 @@ export function validateProjectGraph(graph: ProjectGraph): ProjectGraphIssue[] {
         message: 'The managed project summary is older than one or more source artifacts.',
         edgeId: edge.id,
         documentId: edge.from.replace(/^document:/, ''),
+        status: edge.status,
+      }];
+    }
+
+    if (edge.kind === 'query-view') {
+      return [{
+        code: edge.status === 'broken' ? 'broken-query-view' : 'stale-query-view',
+        message: edge.status === 'broken'
+          ? 'A derived spreadsheet query view points to a missing source sheet.'
+          : 'A derived spreadsheet query view is older than its workbook document.',
+        edgeId: edge.id,
+        documentId: edge.from.split(':')[1] || undefined,
+        sheetId: edge.from.split(':').slice(2).join(':') || undefined,
         status: edge.status,
       }];
     }

@@ -18,6 +18,8 @@ describe('workflow parity harness skeleton', () => {
     'presentation-create-from-prompt',
     'document-refine-active-document',
     'spreadsheet-action-flow',
+    'spreadsheet-formula-flow',
+    'spreadsheet-query-view-flow',
     'presentation-title-slide-tweak',
     'document-explicit-full-rewrite',
     'project-summary-routing',

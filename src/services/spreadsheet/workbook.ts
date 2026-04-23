@@ -1,5 +1,11 @@
 import { describeTable, ingestCsv, ingestJson, ingestXlsx, openConnection } from '@/services/data';
-import type { ColumnSchema, FilterState, SheetMeta, SortState } from '@/types/project';
+import type {
+  ColumnSchema,
+  FilterState,
+  QueryViewDefinition,
+  SheetMeta,
+  SortState,
+} from '@/types/project';
 
 export interface SpreadsheetViewportRow {
   rowid: number;
@@ -59,6 +65,16 @@ function sqlValue(value: unknown, type: ColumnSchema['type']): string {
   }
 
   return sqlLiteral(String(value));
+}
+
+function sqlUnknownValue(value: string | number | boolean): string {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? String(value) : 'NULL';
+  }
+  if (typeof value === 'boolean') {
+    return value ? 'TRUE' : 'FALSE';
+  }
+  return sqlLiteral(value);
 }
 
 function columnSqlType(type: ColumnSchema['type']): string {
@@ -313,6 +329,101 @@ export async function addComputedColumn(
   } finally {
     await conn.close();
   }
+}
+
+function buildQueryViewSql(queryView: QueryViewDefinition, sourceSheet: SheetMeta): string {
+  const selectParts = (() => {
+    if (queryView.aggregates?.length) {
+      const baseColumns = (queryView.groupBy ?? []).map((column) => quoteIdentifier(column));
+      const aggregateColumns = queryView.aggregates.map((aggregate) => {
+        if (aggregate.operation === 'count' && !aggregate.column) {
+          return `COUNT(*) AS ${quoteIdentifier(aggregate.alias)}`;
+        }
+        return `${aggregate.operation.toUpperCase()}(${quoteIdentifier(aggregate.column ?? '')}) AS ${quoteIdentifier(aggregate.alias)}`;
+      });
+      return [...baseColumns, ...aggregateColumns];
+    }
+
+    return queryView.selectColumns.map((column) => quoteIdentifier(column));
+  })();
+
+  const whereClause = queryView.filters.length > 0
+    ? ` WHERE ${queryView.filters.map((filter) => {
+        if (filter.operator === 'contains') {
+          return `${quoteIdentifier(filter.column)} ILIKE '%' || ${sqlUnknownValue(filter.value)} || '%'`;
+        }
+        return `${quoteIdentifier(filter.column)} ${filter.operator} ${sqlUnknownValue(filter.value)}`;
+      }).join(' AND ')}`
+    : '';
+  const groupByClause = queryView.groupBy?.length
+    ? ` GROUP BY ${queryView.groupBy.map((column) => quoteIdentifier(column)).join(', ')}`
+    : '';
+  const orderByClause = queryView.sort
+    ? ` ORDER BY ${quoteIdentifier(queryView.sort.column)} ${queryView.sort.direction.toUpperCase()}`
+    : '';
+
+  return `SELECT ${selectParts.join(', ')} FROM ${quoteIdentifier(sourceSheet.tableName)}${whereClause}${groupByClause}${orderByClause}`;
+}
+
+export async function materializeQueryViewSheet(
+  sourceSheet: SheetMeta,
+  targetSheet: SheetMeta,
+  queryView: QueryViewDefinition,
+): Promise<ColumnSchema[]> {
+  const conn = await openConnection();
+
+  try {
+    const sql = buildQueryViewSql(queryView, sourceSheet);
+    await conn.query(`CREATE OR REPLACE TABLE ${quoteIdentifier(targetSheet.tableName)} AS ${sql}`);
+    const description = await describeTable(targetSheet.tableName);
+    return description.columns.map((column) => ({
+      name: column.name,
+      type: mapDuckTypeToSchemaType(column.type),
+      nullable: true,
+    }));
+  } finally {
+    await conn.close();
+  }
+}
+
+export async function refreshQueryViewSheets(
+  sheets: SheetMeta[],
+  changedSheetIds: string[],
+): Promise<{ sheets: SheetMeta[]; refreshedSheetIds: string[] }> {
+  const refreshedSheetIds: string[] = [];
+  const nextSheets = [...sheets];
+
+  for (let index = 0; index < nextSheets.length; index += 1) {
+    const sheet = nextSheets[index];
+    if (!sheet) {
+      continue;
+    }
+    const queryView = sheet.queryView;
+    if (!queryView || !changedSheetIds.includes(queryView.sourceSheetId)) {
+      continue;
+    }
+    const sourceSheet = nextSheets.find((candidate) => candidate.id === queryView.sourceSheetId);
+    if (!sourceSheet) {
+      continue;
+    }
+    const updatedQueryView: QueryViewDefinition = {
+      ...queryView,
+      generatedAt: Date.now(),
+    };
+    const schema = await materializeQueryViewSheet(sourceSheet, sheet, updatedQueryView);
+    nextSheets[index] = {
+      ...sheet,
+      name: updatedQueryView.outputSheetName,
+      schema,
+      queryView: updatedQueryView,
+    };
+    refreshedSheetIds.push(sheet.id);
+  }
+
+  return {
+    sheets: nextSheets,
+    refreshedSheetIds,
+  };
 }
 
 export async function exportSheetParquet(tableName: string): Promise<Uint8Array> {

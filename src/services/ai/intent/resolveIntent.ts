@@ -10,7 +10,7 @@ import { resolveTargets } from '@/services/editing/resolveTargets';
 
 const CHART_INTENT_RE = /\b(chart|graph|visuali[sz]e|plot|diagram)\b/i;
 const SPREADSHEET_ACTION_HINT_RE =
-  /\b(sort|filter|rename|remove|delete|drop|add\s+(?:a\s+)?column|append|insert|summari[sz]e|analy[sz]e)\b/i;
+  /\b(sort|filter|rename|remove|delete|drop|add\s+(?:a\s+)?column|append|insert|summari[sz]e|analy[sz]e|formula|computed\s+column|query\s+view|derived\s+sheet)\b/i;
 const FULL_REGENERATE_RE = /\b(rewrite|rebuild|regenerate|redo|start over|from scratch|replace everything)\b/i;
 const STYLE_ONLY_RE = /\b(style|theme|color|palette|font|typography|spacing|layout|visual|design|look)\b/i;
 const PROJECT_WIDE_RE = /\b(project|workspace|all artifacts|all documents|across the project|whole project|entire project|cross-artifact)\b/i;

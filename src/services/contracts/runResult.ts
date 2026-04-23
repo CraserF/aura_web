@@ -3,6 +3,7 @@ import type { ClarifyOption } from '@/types';
 import type { ResolvedIntent } from '@/services/ai/intent/types';
 import type { EditingTelemetry } from '@/services/editing/types';
 import type { RunStatus } from '@/services/runs/status';
+import type { SpreadsheetExecutionSummary, SpreadsheetIntentKind } from '@/services/spreadsheet/plans';
 import type { PublishReadinessResult, ValidationIssue, ValidationProfileId } from '@/services/validation/types';
 
 export interface RunResultAssistantMessage {
@@ -53,10 +54,18 @@ export interface RunResultProjectOutputs {
   linkSummary?: string;
 }
 
+export interface RunResultSpreadsheetOutputs {
+  planKind: SpreadsheetIntentKind;
+  targetSummary: string[];
+  downstreamAugmentationImpact: string[];
+  refreshedSheetIds?: string[];
+}
+
 export interface RunResultOutputs extends Record<string, unknown> {
   editing?: EditingTelemetry;
   project?: RunResultProjectOutputs;
   publish?: PublishReadinessResult;
+  spreadsheet?: SpreadsheetExecutionSummary | RunResultSpreadsheetOutputs;
 }
 
 export interface RunResult {

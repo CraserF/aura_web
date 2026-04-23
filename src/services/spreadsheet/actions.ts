@@ -39,10 +39,10 @@ export interface SheetActionResult {
 // ── Detection regexes ─────────────────────────────────────────────────────────
 
 const SORT_RE =
-  /\bsort(?:ed)?\s+(?:by\s+)?["']?([A-Za-z0-9_ ]+?)["']?\s+(?:in\s+)?(asc(?:ending)?|desc(?:ending)?|a[\s-]z|z[\s-]a|low(?:est)?[\s-]first|high(?:est)?[\s-]first)?\b/i;
+  /\bsort(?:ed)?(?:\s+the\s+table)?\s+(?:by\s+)?["']?([A-Za-z0-9_ ]+?)["']?\s+(?:in\s+)?(asc(?:ending)?|desc(?:ending)?|a[\s-]z|z[\s-]a|low(?:est)?[\s-]first|high(?:est)?[\s-]first)?\b/i;
 
 const SORT_COL_RE =
-  /\bsort(?:ed)?\s+(?:by\s+)?["']?([A-Za-z0-9_ ]+?)["']?\s*$/i;
+  /\bsort(?:ed)?(?:\s+the\s+table)?\s+(?:by\s+)?["']?([A-Za-z0-9_ ]+?)["']?\s*$/i;
 
 const ADD_COL_RE =
   /\badd\s+(?:a\s+)?(?:new\s+)?(?:(text|number|numeric|date|boolean|bool)\s+)?column\s+(?:called\s+|named\s+)?["']?([A-Za-z0-9_ ]+?)["']?\s*(?:$|to\s+the\s+sheet)/i;
@@ -79,7 +79,7 @@ function descDirection(raw: string): 'asc' | 'desc' {
 // ── Column name matching ──────────────────────────────────────────────────────
 
 /** Case-insensitive fuzzy match of a name fragment against column names. */
-function matchColumn(schema: ColumnSchema[], fragment: string): string | null {
+export function matchColumn(schema: ColumnSchema[], fragment: string): string | null {
   const target = fragment.trim().toLowerCase();
   const exact = schema.find((c) => c.name.toLowerCase() === target);
   if (exact) return exact.name;

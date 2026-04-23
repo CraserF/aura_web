@@ -70,6 +70,31 @@
       }
     },
     {
+      "id": "spreadsheet-formula-flow",
+      "artifactType": "spreadsheet",
+      "operation": "action",
+      "activeDocumentType": "spreadsheet",
+      "prompt": "Update formula column Margin to use Revenue minus Cost",
+      "expects": {
+        "route": "spreadsheet",
+        "requiresActiveWorkbook": true,
+        "targetSelectorType": "formula-column",
+        "editStrategyHint": "sheet-action"
+      }
+    },
+    {
+      "id": "spreadsheet-query-view-flow",
+      "artifactType": "spreadsheet",
+      "operation": "action",
+      "activeDocumentType": "spreadsheet",
+      "prompt": "Create a query view by region from this sheet",
+      "expects": {
+        "route": "spreadsheet",
+        "requiresActiveWorkbook": true,
+        "editStrategyHint": "sheet-action"
+      }
+    },
+    {
       "id": "presentation-title-slide-tweak",
       "artifactType": "presentation",
       "operation": "edit",

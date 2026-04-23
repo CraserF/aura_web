@@ -26,6 +26,7 @@ export interface SheetMeta {
   formulas: FormulaEntry[];
   sortState?: SortState;
   filterState?: FilterState;
+  queryView?: QueryViewDefinition;
 }
 
 export interface ColumnSchema {
@@ -40,6 +41,30 @@ export interface FormulaEntry {
   column: string;
   expression: string;
   dependsOn: string[];
+}
+
+export interface QueryViewFilter {
+  column: string;
+  operator: '=' | '!=' | '>' | '>=' | '<' | '<=' | 'contains';
+  value: string | number | boolean;
+}
+
+export interface QueryViewAggregate {
+  operation: 'sum' | 'avg' | 'count' | 'min' | 'max';
+  column?: string;
+  alias: string;
+}
+
+export interface QueryViewDefinition {
+  sourceSheetId: string;
+  sourceSheetName: string;
+  outputSheetName: string;
+  selectColumns: string[];
+  filters: QueryViewFilter[];
+  groupBy?: string[];
+  aggregates?: QueryViewAggregate[];
+  sort?: SortState;
+  generatedAt: number;
 }
 
 export interface SortState {

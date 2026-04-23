@@ -12,6 +12,7 @@ import { extractChartSpecsFromHtml } from '@/services/charts';
 import { getCompressionBudget } from '@/services/context/compressionBudget';
 import { commitVersion } from '@/services/storage/versionHistory';
 import { runSpreadsheetWorkflow } from '@/services/ai/workflow/spreadsheet';
+import { summarizeSpreadsheetAugmentationImpact } from '@/services/ai/workflow/agents/spreadsheet-augmenter';
 import { useProjectStore } from '@/stores/projectStore';
 import { createDefaultSheet } from '@/services/spreadsheet/workbook';
 import type { RunRequest } from '@/services/runs/types';
@@ -128,6 +129,70 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
       isDefaultSheet: docIsDefaultSheet,
     });
 
+    if (result.kind === 'clarification-needed') {
+      return {
+        runId,
+        status: 'blocked',
+        intent,
+        outputs: {
+          kind: result.kind,
+          ...(result.planSummary ? { spreadsheet: result.planSummary } : {}),
+          ...(editing ? { editing } : {}),
+        },
+        assistantMessage: {
+          content: result.message,
+        },
+        validation: {
+          passed: false,
+          summary: result.message,
+        },
+        warnings: [...configWarnings, ...contextWarnings, ...(result.planValidation?.issues ?? []).map((issue) => ({
+          code: issue.code,
+          message: issue.message,
+        }))],
+        changedTargets: [{
+          documentId: activeDocument?.id,
+          action: 'none',
+        }],
+        structuredStatus: {
+          title: 'Spreadsheet clarification needed',
+          detail: result.message,
+        },
+      };
+    }
+
+    if (result.kind === 'blocked') {
+      return {
+        runId,
+        status: 'blocked',
+        intent,
+        outputs: {
+          kind: result.kind,
+          ...(result.planSummary ? { spreadsheet: result.planSummary } : {}),
+          ...(editing ? { editing } : {}),
+        },
+        assistantMessage: {
+          content: result.message,
+        },
+        validation: {
+          passed: false,
+          summary: result.message,
+        },
+        warnings: [...configWarnings, ...contextWarnings, ...(result.planValidation?.issues ?? []).map((issue) => ({
+          code: issue.code,
+          message: issue.message,
+        }))],
+        changedTargets: [{
+          documentId: activeDocument?.id,
+          action: 'none',
+        }],
+        structuredStatus: {
+          title: 'Spreadsheet request blocked',
+          detail: result.message,
+        },
+      };
+    }
+
     if (result.kind === 'no-intent') {
       return {
         runId,
@@ -135,6 +200,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
         intent,
         outputs: {
           kind: result.kind,
+          ...(result.planSummary ? { spreadsheet: result.planSummary } : {}),
           ...(editing ? { editing } : {}),
         },
         assistantMessage: {
@@ -174,6 +240,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
           chartHtml: result.chartHtml,
           chartType: result.chartType,
           rowCount: result.rowCount,
+          ...(result.planSummary ? { spreadsheet: result.planSummary } : {}),
           ...(editing ? { editing } : {}),
           ...(artifactValidation
             ? {
@@ -218,6 +285,14 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
       updateDocument(activeDocument!.id, {
         workbook: { ...activeWorkbook!, sheets: result.updatedSheets },
       });
+      const spreadsheetSummary = summarizeSpreadsheetAugmentationImpact({
+        project: useProjectStore.getState().project,
+        spreadsheetDocumentId: activeDocument!.id,
+        affectedSheetIds: [activeWorkbook!.sheets[activeWorkbook!.activeSheetIndex]!.id],
+        affectedTableNames: [activeWorkbook!.sheets[activeWorkbook!.activeSheetIndex]!.tableName],
+        refreshedSheetIds: result.refreshedSheetIds,
+        plan: result.plan!,
+      });
       const { artifactValidation, validationWarnings } = buildValidationState(activeDocument!.id);
       return {
         runId,
@@ -226,6 +301,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
         outputs: {
           kind: result.kind,
           updatedSheets: result.updatedSheets,
+          spreadsheet: spreadsheetSummary,
           ...(editing ? { editing } : {}),
           ...(artifactValidation
             ? {
@@ -261,6 +337,101 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
         }],
         structuredStatus: {
           title: 'Spreadsheet updated',
+          detail: result.message,
+        },
+      };
+    }
+
+    if (result.kind === 'formula-column-created' || result.kind === 'query-view-created') {
+      updateDocument(activeDocument!.id, {
+        workbook: { ...activeWorkbook!, sheets: result.updatedSheets },
+      });
+      const spreadsheetSummary = summarizeSpreadsheetAugmentationImpact({
+        project: useProjectStore.getState().project,
+        spreadsheetDocumentId: activeDocument!.id,
+        affectedSheetIds: result.kind === 'query-view-created'
+          ? [result.targetSheetId]
+          : [activeWorkbook!.sheets[activeWorkbook!.activeSheetIndex]!.id],
+        affectedTableNames: result.kind === 'query-view-created'
+          ? result.updatedSheets.filter((sheet) => sheet.id === result.targetSheetId).map((sheet) => sheet.tableName)
+          : [activeWorkbook!.sheets[activeWorkbook!.activeSheetIndex]!.tableName],
+        refreshedSheetIds: result.kind === 'formula-column-created' ? result.refreshedSheetIds : undefined,
+        plan: result.plan!,
+      });
+      const { artifactValidation, validationWarnings } = buildValidationState(activeDocument!.id);
+      return {
+        runId,
+        status: 'completed',
+        intent,
+        outputs: {
+          kind: result.kind,
+          updatedSheets: result.updatedSheets,
+          spreadsheet: spreadsheetSummary,
+          ...(editing ? { editing } : {}),
+          ...(artifactValidation
+            ? {
+                publish: {
+                  profileId: artifactValidation.profileId,
+                  artifactValidation,
+                  exportBlocked: !artifactValidation.passed,
+                  overrideRequired: !artifactValidation.passed,
+                },
+              }
+            : {}),
+        },
+        assistantMessage: {
+          content: result.message,
+        },
+        validation: artifactValidation
+          ? {
+              passed: artifactValidation.passed,
+              summary: summarizeValidationResult(artifactValidation),
+              profileId: artifactValidation.profileId,
+              score: artifactValidation.score,
+              blockingIssues: artifactValidation.blockingIssues,
+              warnings: artifactValidation.warnings,
+            }
+          : {
+              passed: true,
+              summary: 'Spreadsheet operation executed successfully.',
+            },
+        warnings: [...configWarnings, ...contextWarnings, ...validationWarnings],
+        changedTargets: [{
+          documentId: activeDocument!.id,
+          sheetId: result.kind === 'query-view-created' ? result.targetSheetId : activeWorkbook!.sheets[activeWorkbook!.activeSheetIndex]!.id,
+          action: 'updated',
+        }],
+        structuredStatus: {
+          title: result.kind === 'query-view-created' ? 'Spreadsheet query view created' : 'Spreadsheet formula applied',
+          detail: result.message,
+        },
+      };
+    }
+
+    if (result.kind === 'sheet-summarized') {
+      return {
+        runId,
+        status: 'completed',
+        intent,
+        outputs: {
+          kind: result.kind,
+          ...(result.planSummary ? { spreadsheet: result.planSummary } : {}),
+          ...(editing ? { editing } : {}),
+        },
+        assistantMessage: {
+          content: result.message,
+        },
+        validation: {
+          passed: true,
+          summary: 'Spreadsheet summary generated successfully.',
+        },
+        warnings: [...configWarnings, ...contextWarnings],
+        changedTargets: [{
+          documentId: activeDocument?.id,
+          action: 'none',
+        }],
+        structuredStatus: {
+          title: 'Spreadsheet summary generated',
           detail: result.message,
         },
       };
@@ -310,6 +481,13 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
       (e) => console.warn('[VersionHistory] commit failed:', e),
     );
     const { artifactValidation, validationWarnings } = buildValidationState(targetDocument.id);
+    const spreadsheetSummary = summarizeSpreadsheetAugmentationImpact({
+      project: useProjectStore.getState().project,
+      spreadsheetDocumentId: targetDocument.id,
+      affectedSheetIds: [result.updatedSheets[result.newActiveSheetIndex]?.id].filter(Boolean) as string[],
+      affectedTableNames: [result.updatedSheets[result.newActiveSheetIndex]?.tableName].filter(Boolean) as string[],
+      plan: result.plan!,
+    });
     return {
       runId,
       status: 'completed',
@@ -319,6 +497,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
           workbookTitle: result.workbookTitle,
           sheetName: result.sheetName,
           updatedSheets: result.updatedSheets,
+          spreadsheet: spreadsheetSummary,
           ...(editing ? { editing } : {}),
           ...(artifactValidation
             ? {

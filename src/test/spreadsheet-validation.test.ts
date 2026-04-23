@@ -57,4 +57,52 @@ describe('spreadsheet validation', () => {
 
     expect(result.blockingIssues.map((issue) => issue.code)).toContain('empty-workbook');
   });
+
+  it('reports broken formula and query dependencies deterministically', () => {
+    const result = validateSpreadsheetAgainstProfile({
+      document: makeSpreadsheet({
+        workbook: {
+          activeSheetIndex: 0,
+          sheets: [
+            {
+              id: 'source',
+              name: 'Source',
+              tableName: 'source_table',
+              schema: [{ name: 'Revenue', type: 'number', nullable: false }],
+              frozenRows: 0,
+              frozenCols: 0,
+              columnWidths: {},
+              formulas: [{
+                id: 'formula-1',
+                column: 'Margin',
+                expression: '"Revenue" - "Cost"',
+                dependsOn: ['Revenue', 'Cost'],
+              }],
+            },
+            {
+              id: 'derived',
+              name: 'Derived',
+              tableName: 'derived_table',
+              schema: [{ name: 'Revenue', type: 'number', nullable: false }],
+              frozenRows: 0,
+              frozenCols: 0,
+              columnWidths: {},
+              formulas: [],
+              queryView: {
+                sourceSheetId: 'missing-sheet',
+                sourceSheetName: 'Missing',
+                outputSheetName: 'Derived',
+                selectColumns: ['Revenue'],
+                filters: [],
+                generatedAt: 1,
+              },
+            },
+          ],
+        },
+      }),
+    });
+
+    expect(result.blockingIssues.map((issue) => issue.code)).toContain('missing-formula-dependency');
+    expect(result.blockingIssues.map((issue) => issue.code)).toContain('missing-query-source-sheet');
+  });
 });
