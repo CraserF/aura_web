@@ -28,6 +28,7 @@ export interface BuildRunRequestInput {
       maxTokens?: number;
     },
   ) => Promise<MemoryContextBuildResult>;
+  selectedPresetId?: string;
   allowClarification?: boolean;
 }
 
@@ -71,6 +72,7 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
     providerConfig,
     selectionState,
     buildMemoryContext,
+    selectedPresetId,
     allowClarification = true,
   } = input;
 
@@ -113,7 +115,7 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
     scope: assembled.messageScope,
     allowClarification,
   });
-  const projectRulesSnapshot = resolveProjectRulesSnapshot(project, intent.artifactType);
+  const projectRulesSnapshot = resolveProjectRulesSnapshot(project, intent.artifactType, selectedPresetId);
   const assembledWithPolicy = assembleContext({
     prompt,
     attachments,
@@ -138,6 +140,8 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
         activeDocument,
       },
       projectRulesSnapshot,
+      selectedPresetId,
+      appliedPreset: projectRulesSnapshot.appliedPreset,
       projectSnapshot: buildProjectSnapshot(project),
       createdAt: Date.now(),
     },

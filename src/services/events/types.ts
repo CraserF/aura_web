@@ -4,6 +4,7 @@ export type RunEventType =
   | 'run.intent-resolved'
   | 'run.blocked'
   | 'run.generating'
+  | 'run.policy-applied'
   | 'run.completed'
   | 'run.failed'
   | 'artifact.updated'

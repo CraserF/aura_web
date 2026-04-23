@@ -1,4 +1,4 @@
-import type { DocumentType, ProjectData, WorkflowPreset } from '@/types/project';
+import type { DocumentType, ProjectData } from '@/types/project';
 import { validateContextPolicy } from '@/services/configValidate/contextPolicy';
 import { validateProjectRules } from '@/services/configValidate/projectRules';
 import { validateWorkflowPresets } from '@/services/configValidate/presets';
@@ -6,37 +6,39 @@ import { loadContextPolicy, loadProjectRulesDocument, loadWorkflowPresets } from
 import { mergeContextPolicy } from '@/services/projectRules/merge';
 import { buildProjectRulesPromptBlock } from '@/services/projectRules/promptContext';
 import type { ResolvedProjectRulesSnapshot } from '@/services/projectRules/types';
-
-function resolveActivePreset(
-  artifactType: DocumentType,
-  presets: ProjectData['workflowPresets'],
-): WorkflowPreset | undefined {
-  const defaultPresetId = presets?.defaultPresetByArtifact?.[artifactType];
-  if (!defaultPresetId) return undefined;
-
-  const preset = presets?.presets.find((entry) => entry.id === defaultPresetId && entry.enabled);
-  return preset && (!preset.artifactType || preset.artifactType === artifactType) ? preset : undefined;
-}
+import {
+  buildPresetRulesAppendix,
+  mergePresetContextPolicy,
+  resolveWorkflowPresetState,
+} from '@/services/presets/apply';
 
 export function resolveProjectRulesSnapshot(
   project: ProjectData,
   artifactType: DocumentType,
+  selectedPresetId?: string,
 ): ResolvedProjectRulesSnapshot {
   const projectRules = loadProjectRulesDocument(project.projectRules);
   const baseContextPolicy = loadContextPolicy(project.contextPolicy);
   const workflowPresets = loadWorkflowPresets(project.workflowPresets);
-  const activePreset = resolveActivePreset(artifactType, workflowPresets);
+  const presetState = resolveWorkflowPresetState(workflowPresets, artifactType, selectedPresetId);
   const artifactOverride = baseContextPolicy.artifactOverrides?.[artifactType];
-  const contextPolicy = mergeContextPolicy(
+  const contextPolicy = mergePresetContextPolicy(
     mergeContextPolicy(baseContextPolicy, artifactOverride),
-    activePreset?.contextPolicyOverrides,
+    presetState.defaultPreset,
+    presetState.selectedPreset,
+  );
+  const presetRulesAppendix = buildPresetRulesAppendix(
+    presetState.defaultPreset,
+    presetState.selectedPreset,
   );
 
   return {
     markdown: projectRules.markdown,
-    promptBlock: buildProjectRulesPromptBlock(projectRules.markdown, activePreset?.rulesAppendix),
+    promptBlock: buildProjectRulesPromptBlock(projectRules.markdown, presetRulesAppendix),
     contextPolicy,
-    activePresetId: activePreset?.id,
+    activePresetId: presetState.appliedPreset?.id,
+    activePresetName: presetState.appliedPreset?.name,
+    appliedPreset: presetState.appliedPreset,
     diagnostics: [
       ...validateProjectRules(project.projectRules),
       ...validateContextPolicy(project.contextPolicy),

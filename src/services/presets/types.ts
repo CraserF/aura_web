@@ -1,10 +1,17 @@
-import type { DocumentType, WorkflowPreset, WorkflowPresetCollection } from '@/types/project';
+import type {
+  ContextPolicyOverride,
+  DocumentType,
+  WorkflowPreset,
+  WorkflowPresetCollection,
+} from '@/types/project';
 
 export interface AppliedWorkflowPreset {
   id: string;
   name: string;
   artifactType?: DocumentType;
   rulesAppendix?: string;
+  documentStylePreset?: string;
+  contextPolicyOverrides?: ContextPolicyOverride;
 }
 
 export interface ResolvedWorkflowPresetState {

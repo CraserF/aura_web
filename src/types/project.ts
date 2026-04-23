@@ -8,6 +8,7 @@ import type { MemoryDirectory } from '@/services/memory';
 
 /** Document type within a project */
 export type DocumentType = 'document' | 'presentation' | 'spreadsheet';
+export type ArtifactLifecycleState = 'draft' | 'reviewing' | 'approved' | 'published' | 'stale';
 
 export interface WorkbookMeta {
   sheets: SheetMeta[];
@@ -144,6 +145,10 @@ export interface ProjectDocument {
   workbook?: WorkbookMeta;
   /** References to spreadsheet sheets embedded as linked tables in this document */
   linkedTableRefs?: LinkedTableRef[];
+  lifecycleState?: ArtifactLifecycleState;
+  lastValidationProfileId?: string;
+  lastSuccessfulPresetId?: string;
+  staleReason?: string;
   createdAt: number;
   updatedAt: number;
   order: number;

@@ -89,6 +89,10 @@ export async function downloadProjectFile(project: ProjectData): Promise<void> {
       chartSpecs: doc.chartSpecs,
       workbook: doc.workbook,
       linkedTableRefs: doc.linkedTableRefs,
+      lifecycleState: doc.lifecycleState,
+      lastValidationProfileId: doc.lastValidationProfileId,
+      lastSuccessfulPresetId: doc.lastSuccessfulPresetId,
+      staleReason: doc.staleReason,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     };

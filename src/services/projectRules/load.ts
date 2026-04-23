@@ -12,6 +12,7 @@ import {
   defaultProjectRules,
   defaultWorkflowPresets,
 } from '@/services/projectRules/defaults';
+import { normalizeDocumentLifecycle } from '@/services/lifecycle/state';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -190,6 +191,7 @@ export function loadWorkflowPresets(value?: unknown): WorkflowPresetCollection {
 export function normalizeProjectData(project: ProjectData): ProjectData {
   return {
     ...project,
+    documents: project.documents.map((document) => normalizeDocumentLifecycle(document)),
     media: loadProjectMedia(project.media),
     projectRules: loadProjectRulesDocument(project.projectRules),
     contextPolicy: loadContextPolicy(project.contextPolicy),

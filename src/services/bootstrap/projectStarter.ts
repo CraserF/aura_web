@@ -243,6 +243,7 @@ export function createProjectDocumentFromStarter(
     starterRef: result.starterRef,
     chartSpecs: extractChartSpecsFromHtml(result.contentHtml),
     workbook: result.workbook,
+    lifecycleState: 'draft',
     order,
     createdAt: now,
     updatedAt: now,

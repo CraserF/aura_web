@@ -19,6 +19,7 @@ import type { RunResult } from '@/services/contracts/runResult';
 import { resolveTargets } from '@/services/editing/resolveTargets';
 import { validateArtifactAgainstProfile } from '@/services/validation';
 import { summarizeValidationResult } from '@/services/validation/profiles';
+import { deriveLifecycleFromValidation } from '@/services/lifecycle/state';
 
 function isDefaultSheet(doc: ProjectDocument | null): boolean {
   const sheet = doc?.workbook?.sheets[doc.workbook?.activeSheetIndex ?? 0];
@@ -103,6 +104,12 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
     const artifactValidation = persistedDocument
       ? validateArtifactAgainstProfile(persistedDocument)
       : undefined;
+    if (persistedDocument && artifactValidation) {
+      updateDocument(persistedDocument.id, {
+        ...deriveLifecycleFromValidation(artifactValidation),
+        ...(artifactValidation.passed ? { lastSuccessfulPresetId: runRequest.appliedPreset?.id } : {}),
+      });
+    }
     const validationWarnings = artifactValidation
       ? [...artifactValidation.blockingIssues, ...artifactValidation.warnings].map((issue) => ({
           code: issue.code,
@@ -273,11 +280,16 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
         slideCount: 0,
         chartSpecs: {},
         workbook: { sheets: [newSheet], activeSheetIndex: 0 },
+        lifecycleState: 'draft',
         order: context.data.projectDocumentCount,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
       addDocument(targetDocument);
+    }
+
+    if (!targetDocument) {
+      throw new Error('Spreadsheet target document was not created.');
     }
 
     const existingWorkbook = targetDocument.workbook as WorkbookMeta;

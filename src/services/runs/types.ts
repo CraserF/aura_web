@@ -3,6 +3,7 @@ import type { ProjectDocument } from '@/types/project';
 
 import type { ResolvedIntent } from '@/services/ai/intent/types';
 import type { ContextBundle } from '@/services/context/types';
+import type { AppliedWorkflowPreset } from '@/services/presets/types';
 import type { ResolvedProjectRulesSnapshot } from '@/services/projectRules/types';
 import type { RunStatus } from '@/services/runs/status';
 import type { RunEventType } from '@/services/events/types';
@@ -23,6 +24,8 @@ export interface RunRequest {
     activeDocument: ProjectDocument | null;
   };
   projectRulesSnapshot: ResolvedProjectRulesSnapshot;
+  selectedPresetId?: string;
+  appliedPreset?: AppliedWorkflowPreset;
   projectSnapshot: RunProjectSnapshot;
   createdAt: number;
 }
@@ -35,6 +38,12 @@ export interface RunRecord {
   latestEventType?: RunEventType;
   touchedDocumentIds: string[];
   dependencyWarnings: string[];
+  blockedReason?: string;
+  retryChainRootId?: string;
+  retryCount: number;
+  policyActions: string[];
+  finalOutputSummary?: string;
+  outputBufferId?: string;
   createdAt: number;
   updatedAt: number;
 }

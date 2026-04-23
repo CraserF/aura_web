@@ -12,17 +12,26 @@ import { buildRunRequest } from '@/services/chat/buildRunRequest';
 import { renderRunResult } from '@/services/chat/renderRunResult';
 import {
   createRunRecord,
+  appendRunPolicyActions,
   markRunTouchedDocuments,
+  markSupersededRuns,
   recordRunEvent,
+  setRunBlockedReason,
   setRunDependencyWarnings,
+  setRunOutputSummary,
+  setRunRetryInfo,
   updateRunRecordStatus,
 } from '@/services/runs/registry';
+import { writeRunOutputBuffer } from '@/services/runs/outputBuffer';
+import { evaluatePolicy } from '@/services/policy/engine';
 import { publishRunEvent } from '@/services/events/eventBus';
 import { createRunEventSource } from '@/services/events/provenance';
 import { handleSpreadsheetWorkflow, type SpreadsheetHandlerContext } from '@/components/chat/handlers/spreadsheetHandler';
 import { handlePresentationWorkflow, type PresentationHandlerContext } from '@/components/chat/handlers/presentationHandler';
 import { handleDocumentWorkflow, type DocumentHandlerContext } from '@/components/chat/handlers/documentHandler';
 import { handleProjectWorkflow, type ProjectWorkflowContext } from '@/services/ai/workflow/project';
+import { getCompressionBudget } from '@/services/context/compressionBudget';
+import { markDocumentStale } from '@/services/lifecycle/state';
 
 type WorkflowStepsRef = { current: WorkflowStep[] };
 type AbortControllerRef = { current: AbortController | null };
@@ -38,6 +47,7 @@ export interface SubmitPromptInput {
   selectionState: ContextSelectionState;
   providerConfig: ProviderConfig;
   documentStylePreset: string;
+  selectedPresetId?: string;
   allowClarification: boolean;
 }
 
@@ -131,6 +141,39 @@ function buildAssistantChatMessage(
   };
 }
 
+function publishPolicyEvaluation(
+  runId: string,
+  source: string,
+  checkpoint: 'before-run' | 'after-context-assembly' | 'after-validation' | 'after-lifecycle-refresh',
+  conditions: Array<
+    | 'context-budget-exceeded'
+    | 'validation-blocked'
+    | 'artifact-stale'
+    | 'dependency-broken'
+    | 'retry-limit-exceeded'
+    | 'export-unavailable'
+    | 'preset-mismatch'
+  >,
+): void {
+  const evaluation = evaluatePolicy({ checkpoint, conditions });
+  if (evaluation.actions.length === 0 && evaluation.conditions.length === 0) {
+    return;
+  }
+
+  appendRunPolicyActions(runId, evaluation.actions);
+  const event = publishRunEvent({
+    type: 'run.policy-applied',
+    runId,
+    source,
+    payload: {
+      checkpoint,
+      conditions: evaluation.conditions,
+      actions: evaluation.actions,
+    },
+  });
+  recordRunEvent(runId, event);
+}
+
 export async function submitPrompt(
   input: SubmitPromptInput,
   services: SubmitPromptServices,
@@ -147,6 +190,7 @@ export async function submitPrompt(
     selectionState,
     providerConfig,
     documentStylePreset,
+    selectedPresetId,
     allowClarification,
   } = input;
   const {
@@ -177,6 +221,7 @@ export async function submitPrompt(
     applyToAllDocuments,
     selectionState,
     providerConfig,
+    selectedPresetId,
     buildMemoryContext: buildWorkflowMemoryContext,
     allowClarification,
   });
@@ -193,6 +238,7 @@ export async function submitPrompt(
   });
 
   createRunRecord(runRequest.runId, runRequest.intent);
+  setRunRetryInfo(runRequest.runId, runRequest.runId, 0);
   const startedEvent = publishRunEvent({
     type: 'run.started',
     runId: runRequest.runId,
@@ -226,10 +272,28 @@ export async function submitPrompt(
     },
   });
   recordRunEvent(runRequest.runId, intentEvent);
+  publishPolicyEvaluation(
+    runRequest.runId,
+    eventSource,
+    'before-run',
+    [
+      ...(runRequest.activeArtifacts.activeDocument?.lifecycleState === 'stale' ? ['artifact-stale' as const] : []),
+      ...(runRequest.selectedPresetId && !runRequest.appliedPreset ? ['preset-mismatch' as const] : []),
+    ],
+  );
+  publishPolicyEvaluation(
+    runRequest.runId,
+    eventSource,
+    'after-context-assembly',
+    runRequest.context.compaction.afterTokens > getCompressionBudget()
+      ? ['context-budget-exceeded']
+      : [],
+  );
 
   if (runRequest.intent.needsClarification) {
     const blockedResult = buildBlockedRunResult(runRequest.runId, runRequest);
     updateRunRecordStatus(runRequest.runId, blockedResult.status);
+    setRunBlockedReason(runRequest.runId, blockedResult.structuredStatus.detail);
     const blockedEvent = publishRunEvent({
       type: 'run.blocked',
       runId: runRequest.runId,
@@ -287,6 +351,10 @@ export async function submitPrompt(
   );
 
   updateRunRecordStatus(runRequest.runId, result.status);
+  setRunBlockedReason(
+    runRequest.runId,
+    result.status === 'blocked' ? result.structuredStatus.detail : undefined,
+  );
   markRunTouchedDocuments(
     runRequest.runId,
     Array.from(
@@ -299,6 +367,50 @@ export async function submitPrompt(
   setRunDependencyWarnings(
     runRequest.runId,
     result.warnings.map((warning) => warning.message),
+  );
+  publishPolicyEvaluation(
+    runRequest.runId,
+    eventSource,
+    'after-validation',
+    [
+      ...(!result.validation.passed ? ['validation-blocked' as const] : []),
+      ...((result.outputs.publish?.exportBlocked ?? false) ? ['export-unavailable' as const] : []),
+    ],
+  );
+  publishPolicyEvaluation(
+    runRequest.runId,
+    eventSource,
+    'after-lifecycle-refresh',
+    result.outputs.project?.dependencyChanges.some((change) => change.status !== 'valid')
+      ? ['dependency-broken']
+      : [],
+  );
+  const dependencyChangeTargets = result.outputs.project?.dependencyChanges
+    .filter((change) => change.status !== 'valid')
+    .map((change) => ({
+      documentId: change.sourceDocumentId ?? change.targetDocumentId,
+      message: change.message,
+    })) ?? [];
+  for (const target of dependencyChangeTargets) {
+    if (target.documentId) {
+      updateDocument(target.documentId, markDocumentStale(target.message));
+    }
+  }
+  const outputBufferId = `output-${runRequest.runId}`;
+  const rendered = renderRunResult(result);
+  writeRunOutputBuffer(outputBufferId, rendered.statusMessage, {
+    structuredStatus: result.structuredStatus,
+    outputs: result.outputs,
+  });
+  setRunOutputSummary(runRequest.runId, rendered.statusMessage, outputBufferId);
+  markSupersededRuns(
+    runRequest.runId,
+    Array.from(
+      new Set([
+        ...result.changedTargets.map((target) => target.documentId).filter(Boolean) as string[],
+        ...(result.outputs.project?.updatedDocumentIds ?? []),
+      ]),
+    ),
   );
   const finalEvent = publishRunEvent({
     type: result.status === 'failed' ? 'run.failed' : 'run.completed',
@@ -313,7 +425,6 @@ export async function submitPrompt(
   addMessage(buildAssistantChatMessage(result, scopedDocumentId, messageScope));
 
   if (result.status === 'failed') {
-    const rendered = renderRunResult(result);
     setStatus({ state: 'error', message: rendered.statusMessage });
   } else {
     setStatus({ state: 'idle' });

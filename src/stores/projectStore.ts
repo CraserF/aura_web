@@ -3,6 +3,7 @@ import type { ProjectData, ProjectDocument } from '@/types/project';
 import type { ChatMessage } from '@/types';
 import { createBlankProject } from '@/services/bootstrap/projectStarter';
 import { normalizeProjectData } from '@/services/projectRules/load';
+import { applyDraftLifecycleOnContentUpdate } from '@/services/lifecycle/state';
 
 interface ProjectState {
   project: ProjectData;
@@ -103,7 +104,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       project: {
         ...s.project,
         documents: s.project.documents.map((d) =>
-          d.id === id ? { ...d, ...updates, updatedAt: Date.now() } : d,
+          d.id === id
+            ? { ...d, ...applyDraftLifecycleOnContentUpdate(d, updates), updatedAt: Date.now() }
+            : d,
         ),
         updatedAt: Date.now(),
       },

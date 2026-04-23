@@ -31,6 +31,7 @@ interface ChatState {
    * Cleared immediately after ChatBar reads it.
    */
   pendingAutoSubmitPrompt: string | null;
+  selectedPresetId: string | null;
   contextSelection: ContextSelectionState;
 
   addMessage: (message: ChatMessage) => void;
@@ -46,6 +47,7 @@ interface ChatState {
   isContextLong: () => boolean;
   setPendingRetryPrompt: (prompt: string | null) => void;
   setPendingAutoSubmitPrompt: (prompt: string | null) => void;
+  setSelectedPresetId: (presetId: string | null) => void;
   setContextScopeMode: (scopeMode: ContextScopeMode) => void;
   setCompactionMode: (compactionMode: ContextCompactionMode) => void;
   setRecentMessageCount: (recentMessageCount: number) => void;
@@ -66,6 +68,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   estimatedTokens: 0,
   pendingRetryPrompt: null,
   pendingAutoSubmitPrompt: null,
+  selectedPresetId: null,
   contextSelection: createDefaultContextSelectionState(),
 
   addMessage: (message) =>
@@ -98,6 +101,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setPendingRetryPrompt: (prompt) => set({ pendingRetryPrompt: prompt }),
 
   setPendingAutoSubmitPrompt: (prompt) => set({ pendingAutoSubmitPrompt: prompt }),
+
+  setSelectedPresetId: (selectedPresetId) => set({ selectedPresetId }),
 
   setContextScopeMode: (scopeMode) =>
     set((state) => ({

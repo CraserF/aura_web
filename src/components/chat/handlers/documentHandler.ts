@@ -20,6 +20,7 @@ import type { RunRequest } from '@/services/runs/types';
 import { resolveTargets } from '@/services/editing/resolveTargets';
 import { validateArtifactAgainstProfile } from '@/services/validation';
 import { summarizeValidationResult } from '@/services/validation/profiles';
+import { deriveLifecycleFromValidation } from '@/services/lifecycle/state';
 
 export interface DocumentHandlerContext {
   runRequest: RunRequest;
@@ -187,6 +188,7 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
           sourceMarkdown: result.markdown,
           title: result.title || activeDocument.title,
           chartSpecs,
+          lastSuccessfulPresetId: runRequest.appliedPreset?.id,
         });
         memorySourceRefs = [...memorySourceRefs, `document:${activeDocument.id}`];
       } else {
@@ -200,6 +202,8 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
           themeCss: '',
           slideCount: 0,
           chartSpecs,
+          lifecycleState: 'draft',
+          lastSuccessfulPresetId: runRequest.appliedPreset?.id,
           order: context.data.projectDocumentCount,
           createdAt: Date.now(),
           updatedAt: Date.now(),
@@ -225,6 +229,12 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
     const artifactValidation = persistedDocument
       ? validateArtifactAgainstProfile(persistedDocument)
       : undefined;
+    if (persistedDocument && artifactValidation) {
+      updateDocument(persistedDocument.id, {
+        ...deriveLifecycleFromValidation(artifactValidation),
+        ...(artifactValidation.passed ? { lastSuccessfulPresetId: runRequest.appliedPreset?.id } : {}),
+      });
+    }
     const validationWarnings = artifactValidation
       ? [...artifactValidation.blockingIssues, ...artifactValidation.warnings].map((issue) => ({
           code: issue.code,

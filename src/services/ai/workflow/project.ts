@@ -14,6 +14,8 @@ import { useProjectStore } from '@/stores/projectStore';
 import { commitVersion } from '@/services/storage/versionHistory';
 import { summarizeValidationResult } from '@/services/validation/profiles';
 import { validateProjectAgainstProfile } from '@/services/validation/projectValidation';
+import { validateArtifactAgainstProfile } from '@/services/validation';
+import { deriveLifecycleFromValidation, markDocumentStale } from '@/services/lifecycle/state';
 
 const PROJECT_SUMMARY_REF = {
   artifactKey: 'project-summary',
@@ -163,6 +165,7 @@ function upsertProjectSummaryDocument(
         ...PROJECT_SUMMARY_REF,
         starterKitId: existingSummary.starterRef?.starterKitId,
       },
+      lastSuccessfulPresetId: undefined,
     });
     return {
       documentId: existingSummary.id,
@@ -180,6 +183,7 @@ function upsertProjectSummaryDocument(
     slideCount: 0,
     chartSpecs,
     starterRef: PROJECT_SUMMARY_REF,
+    lifecycleState: 'draft',
     order: project.documents.length,
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -297,10 +301,18 @@ export async function handleProjectWorkflow(ctx: ProjectWorkflowContext): Promis
 
   const latestProject = useProjectStore.getState().project;
   const dependencyChanges = summarizeDependencyChanges(validateProjectGraph(buildProjectGraph(latestProject)));
+  for (const change of dependencyChanges) {
+    if (change.status !== 'valid' && change.sourceDocumentId) {
+      updateDocument(change.sourceDocumentId, markDocumentStale(change.message));
+    }
+  }
   const projectValidation = await validateProjectAgainstProfile({
     project: latestProject,
     profileId: 'publish-ready',
   });
+  for (const document of latestProject.documents) {
+    updateDocument(document.id, deriveLifecycleFromValidation(validateArtifactAgainstProfile(document)));
+  }
 
   if (operation === 'refresh-dependencies') {
     for (const documentId of updatedDocumentIds) {

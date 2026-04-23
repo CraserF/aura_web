@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { ArrowUp, Paperclip, Sparkles, Square, X } from 'lucide-react';
+import { ArrowUp, History, Paperclip, Sparkles, Square, X } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
 import { usePresentationStore } from '@/stores/presentationStore';
 import { useProjectStore } from '@/stores/projectStore';
@@ -14,6 +14,12 @@ import { cn } from '@/lib/utils';
 import { submitPrompt } from '@/services/chat/submitPrompt';
 import { ContextChips } from '@/components/ContextChips';
 import { ContextPanel } from '@/components/ContextPanel';
+import { RunHistoryPanel } from '@/components/RunHistoryPanel';
+import { resolveWorkflowPresetState, diffContextPolicyOverride } from '@/services/presets/apply';
+import { loadPresetCollection } from '@/services/presets/storage';
+import { resolveProjectRulesSnapshot } from '@/services/projectRules/resolve';
+import { loadContextPolicy } from '@/services/projectRules/load';
+import { mergeContextPolicy } from '@/services/projectRules/merge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +37,10 @@ const DOCUMENT_STYLE_OPTIONS = [
   { value: 'research', label: 'Research' },
   { value: 'proposal', label: 'Proposal' },
 ] as const;
+
+function capitalizeArtifactType(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
 
 function progressWidthClass(pct?: number): string {
   if (!pct || pct <= 0) return 'w-0';
@@ -54,6 +64,7 @@ export function ChatBar() {
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [contextPanelOpen, setContextPanelOpen] = useState(false);
+  const [runHistoryOpen, setRunHistoryOpen] = useState(false);
   const [lastContext, setLastContext] = useState<ContextBundle | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -70,6 +81,8 @@ export function ChatBar() {
   const setPendingRetryPrompt = useChatStore((s) => s.setPendingRetryPrompt);
   const pendingAutoSubmitPrompt = useChatStore((s) => s.pendingAutoSubmitPrompt);
   const setPendingAutoSubmitPrompt = useChatStore((s) => s.setPendingAutoSubmitPrompt);
+  const selectedPresetId = useChatStore((s) => s.selectedPresetId);
+  const setSelectedPresetId = useChatStore((s) => s.setSelectedPresetId);
   const contextSelection = useChatStore((s) => s.contextSelection);
   const setContextScopeMode = useChatStore((s) => s.setContextScopeMode);
   const setCompactionMode = useChatStore((s) => s.setCompactionMode);
@@ -98,6 +111,13 @@ export function ChatBar() {
   const setDocumentStylePreset = useSettingsStore((s) => s.setDocumentStylePreset);
 
   const isGenerating = status.state === 'generating';
+  const workflowArtifactType = activeDocument?.type ?? 'document';
+  const presetState = resolveWorkflowPresetState(
+    project.workflowPresets,
+    workflowArtifactType,
+    selectedPresetId ?? undefined,
+  );
+  const presetLabel = presetState.appliedPreset?.name ?? 'Project default';
 
   const workflowStepsRef = useRef<WorkflowStep[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -237,6 +257,7 @@ export function ChatBar() {
       selectionState: contextSelection,
       providerConfig: getActiveProvider(),
       documentStylePreset,
+      selectedPresetId: selectedPresetId ?? undefined,
       allowClarification: !autoPrompt,
     }, {
       workflowStepsRef,
@@ -260,7 +281,92 @@ export function ChatBar() {
     getActiveProvider, setSlides, setTitle, updateStepStatus,
     activeDocument, addDocument, updateDocument, project, setProject, showAllMessages, applyToAllDocuments,
     contextSelection, documentStylePreset, queueMemoryExtraction, buildWorkflowMemoryContext,
+    selectedPresetId,
   ]);
+
+  const persistWorkflowPresets = useCallback((workflowPresets: typeof project.workflowPresets) => {
+    setProject({
+      ...project,
+      workflowPresets,
+      updatedAt: Date.now(),
+    });
+  }, [project, setProject]);
+
+  const buildPresetPayload = useCallback((existingPresetName?: string) => {
+    const snapshot = resolveProjectRulesSnapshot(project, workflowArtifactType, selectedPresetId ?? undefined);
+    const baseContextPolicy = loadContextPolicy(project.contextPolicy);
+    const artifactContextPolicy = mergeContextPolicy(
+      baseContextPolicy,
+      baseContextPolicy.artifactOverrides?.[workflowArtifactType],
+    );
+
+    return {
+      artifactType: workflowArtifactType,
+      name: existingPresetName ?? `${capitalizeArtifactType(workflowArtifactType)} preset`,
+      rulesAppendix: snapshot.appliedPreset?.rulesAppendix ?? '',
+      contextPolicyOverrides: diffContextPolicyOverride(artifactContextPolicy, snapshot.contextPolicy),
+      documentStylePreset: workflowArtifactType === 'document' ? documentStylePreset : undefined,
+      enabled: true,
+    };
+  }, [documentStylePreset, project, selectedPresetId, workflowArtifactType]);
+
+  const handleSavePreset = useCallback(() => {
+    const collection = loadPresetCollection(project.workflowPresets);
+    const selectedPreset = selectedPresetId
+      ? collection.presets.find((preset) => preset.id === selectedPresetId)
+      : undefined;
+
+    if (selectedPreset) {
+      persistWorkflowPresets({
+        ...collection,
+        presets: collection.presets.map((preset) => (
+          preset.id === selectedPreset.id
+            ? { ...preset, ...buildPresetPayload(selectedPreset.name) }
+            : preset
+        )),
+      });
+      return;
+    }
+
+    const nextPresetId = `preset-${crypto.randomUUID().slice(0, 8)}`;
+    persistWorkflowPresets({
+      ...collection,
+      presets: [
+        ...collection.presets,
+        {
+          id: nextPresetId,
+          ...buildPresetPayload(
+            `${capitalizeArtifactType(workflowArtifactType)} preset ${collection.presets.length + 1}`,
+          ),
+        },
+      ],
+    });
+    setSelectedPresetId(nextPresetId);
+  }, [buildPresetPayload, persistWorkflowPresets, project.workflowPresets, selectedPresetId, setSelectedPresetId, workflowArtifactType]);
+
+  const handleDuplicatePreset = useCallback(() => {
+    const collection = loadPresetCollection(project.workflowPresets);
+    const sourcePreset = (selectedPresetId
+      ? collection.presets.find((preset) => preset.id === selectedPresetId)
+      : undefined)
+      ?? presetState.selectedPreset
+      ?? presetState.defaultPreset;
+    if (!sourcePreset) return;
+
+    const duplicateId = `preset-${crypto.randomUUID().slice(0, 8)}`;
+    persistWorkflowPresets({
+      ...collection,
+      presets: [
+        ...collection.presets,
+        {
+          ...sourcePreset,
+          id: duplicateId,
+          name: `${sourcePreset.name} Copy`,
+        },
+      ],
+    });
+    setSelectedPresetId(duplicateId);
+  }, [persistWorkflowPresets, presetState.defaultPreset, presetState.selectedPreset, project.workflowPresets, selectedPresetId, setSelectedPresetId]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -498,6 +604,49 @@ export function ChatBar() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border/70 bg-background/80 px-2 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label="Choose workflow preset"
+                >
+                  <Sparkles size={12} strokeWidth={2} />
+                  <span className="max-w-[120px] truncate">{presetLabel}</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="top">
+                <DropdownMenuItem onSelect={() => setSelectedPresetId(null)}>
+                  {selectedPresetId === null ? '✓ ' : ''}Project default
+                </DropdownMenuItem>
+                {presetState.presets.presets
+                  .filter((preset) => !preset.artifactType || preset.artifactType === workflowArtifactType)
+                  .map((preset) => (
+                    <DropdownMenuItem key={preset.id} onSelect={() => setSelectedPresetId(preset.id)}>
+                      {selectedPresetId === preset.id ? '✓ ' : ''}{preset.name}
+                    </DropdownMenuItem>
+                  ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={handleSavePreset}>
+                  {selectedPresetId ? 'Update selected preset' : 'Save current as preset'}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={handleDuplicatePreset}
+                  disabled={!presetState.appliedPreset}
+                >
+                  Duplicate preset
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <button
+              type="button"
+              onClick={() => setRunHistoryOpen(true)}
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border/70 bg-background/80 px-2 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Open recent runs"
+            >
+              <History size={12} strokeWidth={2} />
+              <span>Runs</span>
+            </button>
             <span className="truncate text-[11px] text-muted-foreground/50">
               {isGenerating ? 'Generating\u2026' : 'Enter to send · Shift+Enter for new line'}
             </span>
@@ -565,6 +714,10 @@ export function ChatBar() {
         onTogglePinnedSheetRef={togglePinnedSheetRef}
         onToggleExcludedSourceId={toggleExcludedSourceId}
         onReset={resetContextSelection}
+      />
+      <RunHistoryPanel
+        open={runHistoryOpen}
+        onOpenChange={setRunHistoryOpen}
       />
     </div>
   );

@@ -40,6 +40,22 @@ function getDocColor(index: number): string {
   return color ?? DOC_COLORS[0]!;
 }
 
+function getLifecycleBadgeClass(state: ProjectDocument['lifecycleState']): string {
+  switch (state) {
+    case 'published':
+      return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
+    case 'approved':
+      return 'border-blue-500/30 bg-blue-500/10 text-blue-300';
+    case 'reviewing':
+      return 'border-amber-500/30 bg-amber-500/10 text-amber-300';
+    case 'stale':
+      return 'border-destructive/30 bg-destructive/10 text-destructive';
+    case 'draft':
+    default:
+      return 'border-border/60 bg-muted/40 text-muted-foreground';
+  }
+}
+
 interface NewDocMenuProps {
   onAdd: (type: 'document' | 'presentation' | 'spreadsheet') => void;
 }
@@ -204,9 +220,17 @@ function DocItem({
             <p className="truncate text-xs font-medium leading-tight">
               {doc.title || 'Untitled'}
             </p>
-            <p className="truncate text-[10px] capitalize text-muted-foreground/70">
-              {doc.type}
-            </p>
+            <div className="flex items-center gap-1.5">
+              <p className="truncate text-[10px] capitalize text-muted-foreground/70">
+                {doc.type}
+              </p>
+              <span className={cn(
+                'rounded-full border px-1.5 py-0.5 text-[9px] font-medium capitalize',
+                getLifecycleBadgeClass(doc.lifecycleState),
+              )}>
+                {doc.lifecycleState}
+              </span>
+            </div>
           </>
         )}
       </div>

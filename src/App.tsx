@@ -39,6 +39,7 @@ import { sanitizeFilename } from '@/lib/sanitizeFilename';
 import { extractChartSpecsFromHtml } from '@/services/charts';
 import { validateArtifactAgainstProfile } from '@/services/validation';
 import { validateProjectAgainstProfile } from '@/services/validation/projectValidation';
+import { deriveLifecycleFromValidation, markDocumentPublished } from '@/services/lifecycle/state';
 import { BookOpen, ChevronDown, Eye, FileDown, Link2, Loader2, PenSquare, Printer } from 'lucide-react';
 
 function createEmptyWorkbook(): WorkbookMeta {
@@ -268,6 +269,7 @@ export default function App() {
         slideCount: 0,
         chartSpecs: {},
         workbook: type === 'spreadsheet' ? createEmptyWorkbook() : undefined,
+        lifecycleState: 'draft',
         order: project.documents.length,
         parentId,
         createdAt: Date.now(),
@@ -302,12 +304,15 @@ export default function App() {
 
     setArtifactValidationResult(artifactValidation);
     setProjectValidationResult(projectValidation);
+    if (document && artifactValidation) {
+      updateDocument(document.id, deriveLifecycleFromValidation(artifactValidation));
+    }
 
     return {
       artifactValidation,
       projectValidation,
     };
-  }, [project]);
+  }, [project, updateDocument]);
 
   const handleOpenValidationPanel = useCallback(async () => {
     setValidationRunning(true);
@@ -371,6 +376,10 @@ export default function App() {
         html: activeDocument.contentHtml,
         title: activeDocument.title,
       });
+      updateDocument(
+        activeDocument.id,
+        markDocumentPublished(artifactValidationResult?.profileId ?? 'publish-ready', activeDocument.lastSuccessfulPresetId),
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to export PDF.';
       setDocumentError(message);
@@ -378,7 +387,7 @@ export default function App() {
     } finally {
       setDocumentAction(null);
     }
-  }, [activeDocument]);
+  }, [activeDocument, artifactValidationResult?.profileId, updateDocument]);
 
   const handleExportWord = useCallback(async () => {
     if (!activeDocument || activeDocument.type !== 'document') return;
@@ -393,13 +402,17 @@ export default function App() {
         markdown: activeDocument.sourceMarkdown,
         html: activeDocument.contentHtml,
       });
+      updateDocument(
+        activeDocument.id,
+        markDocumentPublished(artifactValidationResult?.profileId ?? 'publish-ready', activeDocument.lastSuccessfulPresetId),
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to export Word document.';
       setDocumentError(message);
     } finally {
       setDocumentAction(null);
     }
-  }, [activeDocument]);
+  }, [activeDocument, artifactValidationResult?.profileId, updateDocument]);
 
   const handleOpenTextEditor = useCallback(async (mode: 'edit' | 'link' = 'edit') => {
     if (!activeDocument || activeDocument.type !== 'document') return;
@@ -505,13 +518,17 @@ export default function App() {
     try {
       const { exportPresentationPdf } = await import('@/services/export/pdf');
       await exportPresentationPdf(activeDocument.contentHtml, activeDocument.title);
+      updateDocument(
+        activeDocument.id,
+        markDocumentPublished(artifactValidationResult?.profileId ?? 'publish-ready', activeDocument.lastSuccessfulPresetId),
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to export presentation PDF.';
       setDocumentError(message);
     } finally {
       setDocumentAction(null);
     }
-  }, [activeDocument]);
+  }, [activeDocument, artifactValidationResult?.profileId, updateDocument]);
 
   const handleExportDocumentStandaloneHtml = useCallback(async () => {
     if (!activeDocument || activeDocument.type !== 'document') return;
@@ -529,13 +546,17 @@ export default function App() {
         document: activeDocument,
       });
       await downloadStandaloneArtifact(artifact);
+      updateDocument(
+        activeDocument.id,
+        markDocumentPublished(artifactValidationResult?.profileId ?? 'publish-ready', activeDocument.lastSuccessfulPresetId),
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to export standalone document HTML.';
       setDocumentError(message);
     } finally {
       setDocumentAction(null);
     }
-  }, [activeDocument, project]);
+  }, [activeDocument, artifactValidationResult?.profileId, project, updateDocument]);
 
   const handleExportDocumentEmailHtml = useCallback(async () => {
     if (!activeDocument || activeDocument.type !== 'document') return;
@@ -553,13 +574,17 @@ export default function App() {
         document: activeDocument,
       });
       await downloadStandaloneArtifact(artifact);
+      updateDocument(
+        activeDocument.id,
+        markDocumentPublished(artifactValidationResult?.profileId ?? 'publish-ready', activeDocument.lastSuccessfulPresetId),
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to export email HTML.';
       setDocumentError(message);
     } finally {
       setDocumentAction(null);
     }
-  }, [activeDocument, project]);
+  }, [activeDocument, artifactValidationResult?.profileId, project, updateDocument]);
 
   const handleExportPresentationStandaloneHtml = useCallback(async () => {
     if (!activeDocument || activeDocument.type !== 'presentation') return;
@@ -577,13 +602,17 @@ export default function App() {
         document: activeDocument,
       });
       await downloadStandaloneArtifact(artifact);
+      updateDocument(
+        activeDocument.id,
+        markDocumentPublished(artifactValidationResult?.profileId ?? 'publish-ready', activeDocument.lastSuccessfulPresetId),
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to export standalone presentation HTML.';
       setDocumentError(message);
     } finally {
       setDocumentAction(null);
     }
-  }, [activeDocument, project]);
+  }, [activeDocument, artifactValidationResult?.profileId, project, updateDocument]);
 
   const executePublishAction = useCallback(async (action: PendingPublishAction) => {
     switch (action) {
