@@ -75,5 +75,9 @@ describe('buildRunRequest', () => {
     expect(result.runRequest.intent.editStrategyHint).toBe('block-replace');
     expect(result.runRequest.intent.allowFullRegeneration).toBe(false);
     expect(result.runRequest.projectRulesSnapshot.activePresetId).toBeUndefined();
+    expect(result.runRequest.projectSnapshot.documentIds).toEqual(['doc-1']);
+    expect(result.runRequest.projectSnapshot.activeDocumentId).toBe('doc-1');
+    expect(result.runRequest.projectSnapshot.linkedReferenceCount).toBe(0);
+    expect(result.runRequest.projectSnapshot.artifactCountsByType.document).toBe(1);
   });
 });

@@ -3,7 +3,7 @@ import type { ProjectData, ProjectDocument } from '@/types/project';
 import { detectSheetAction } from '@/services/spreadsheet/actions';
 
 import { buildIntentClarification } from '@/services/ai/intent/clarify';
-import type { IntentScope, ResolvedIntent } from '@/services/ai/intent/types';
+import type { IntentScope, ProjectOperation, ResolvedIntent } from '@/services/ai/intent/types';
 import type { ClarifyOption } from '@/types';
 import type { EditStrategy, TargetSelector } from '@/services/editing/types';
 import { resolveTargets } from '@/services/editing/resolveTargets';
@@ -13,6 +13,39 @@ const SPREADSHEET_ACTION_HINT_RE =
   /\b(sort|filter|rename|remove|delete|drop|add\s+(?:a\s+)?column|append|insert|summari[sz]e|analy[sz]e)\b/i;
 const FULL_REGENERATE_RE = /\b(rewrite|rebuild|regenerate|redo|start over|from scratch|replace everything)\b/i;
 const STYLE_ONLY_RE = /\b(style|theme|color|palette|font|typography|spacing|layout|visual|design|look)\b/i;
+const PROJECT_WIDE_RE = /\b(project|workspace|all artifacts|all documents|across the project|whole project|entire project|cross-artifact)\b/i;
+const SUMMARIZE_PROJECT_RE = /\b(?:summari[sz]e|overview|brief)\b.*\b(project|workspace|all artifacts|all documents)\b|\b(?:project|workspace)\b.*\b(summary|overview|brief)\b/i;
+const REVIEW_PROJECT_RE = /\b(?:review|audit|assess|critique|evaluate)\b.*\b(project|workspace|all artifacts|all documents)\b/i;
+const LINK_PROJECT_RE = /\b(?:link|cross[- ]link|connect)\b.*\b(project|artifacts?|documents?|spreadsheet|deck|presentation)\b/i;
+const REFRESH_DEPENDENCIES_RE = /\b(?:refresh|revalidate|sync|repair)\b.*\b(?:dependencies|references|links|linked tables?)\b/i;
+const AUGMENT_PROJECT_RE = /\b(?:augment|improve|strengthen|upgrade)\b.*\b(project|workspace)\b/i;
+
+function detectProjectOperation(prompt: string, project: ProjectData): ProjectOperation | undefined {
+  const hasProjectWidePhrasing = PROJECT_WIDE_RE.test(prompt);
+  const hasMultiArtifactProject = project.documents.length > 1;
+
+  if (REFRESH_DEPENDENCIES_RE.test(prompt)) {
+    return 'refresh-dependencies';
+  }
+
+  if (LINK_PROJECT_RE.test(prompt) && (hasProjectWidePhrasing || hasMultiArtifactProject)) {
+    return 'link-project';
+  }
+
+  if (REVIEW_PROJECT_RE.test(prompt) && (hasProjectWidePhrasing || hasMultiArtifactProject)) {
+    return 'review-project';
+  }
+
+  if (SUMMARIZE_PROJECT_RE.test(prompt) && (hasProjectWidePhrasing || hasMultiArtifactProject)) {
+    return 'summarize-project';
+  }
+
+  if (AUGMENT_PROJECT_RE.test(prompt) && (hasProjectWidePhrasing || hasMultiArtifactProject)) {
+    return 'augment';
+  }
+
+  return undefined;
+}
 
 function extractQuotedTarget(prompt: string): string | undefined {
   return prompt.match(/["“]([^"”]+)["”]/)?.[1]?.trim();
@@ -134,6 +167,33 @@ export interface ResolveIntentInput {
 
 export function resolveIntent(input: ResolveIntentInput): ResolvedIntent {
   const { prompt, activeDocument, scope, allowClarification = true } = input;
+  const projectOperation = detectProjectOperation(prompt, input.project);
+  const summaryDocument = input.project.documents.find((document) => document.starterRef?.artifactKey === 'project-summary');
+  const projectTargetDocumentIds = input.project.documents.map((document) => document.id);
+
+  if (projectOperation) {
+    return {
+      artifactType: activeDocument?.type ?? 'document',
+      operation:
+        projectOperation === 'summarize-project'
+          ? (summaryDocument ? 'edit' : 'create')
+          : 'action',
+      scope: 'project',
+      projectOperation,
+      targetDocumentId: activeDocument?.id,
+      targetDocumentIds: projectTargetDocumentIds,
+      targetSheetId:
+        activeDocument?.type === 'spreadsheet'
+          ? activeDocument.workbook?.sheets[activeDocument.workbook.activeSheetIndex]?.id
+          : undefined,
+      targetSelectors: [],
+      allowFullRegeneration: false,
+      confidence: 0.96,
+      needsClarification: false,
+      reason: 'explicit project-wide phrasing selected the project workflow',
+    };
+  }
+
   const artifactType = activeDocument?.type ?? detectWorkflowType(prompt);
   const targetSelectors = buildTargetSelectors(prompt, activeDocument);
   const editStrategyHint = chooseEditStrategy(prompt, activeDocument);
@@ -164,7 +224,9 @@ export function resolveIntent(input: ResolveIntentInput): ResolvedIntent {
       artifactType,
       operation,
       scope,
+      projectOperation,
       targetDocumentId: activeDocument?.id,
+      targetDocumentIds: projectTargetDocumentIds,
       targetSheetId,
       targetSelectors,
       editStrategyHint,
@@ -181,6 +243,7 @@ export function resolveIntent(input: ResolveIntentInput): ResolvedIntent {
     operation,
     scope,
     targetDocumentId: activeDocument?.id,
+    targetDocumentIds: projectTargetDocumentIds,
     targetSelectors,
     editStrategyHint,
     allowFullRegeneration,

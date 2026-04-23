@@ -10,16 +10,13 @@ export interface WorkflowScenario {
   operation: 'create' | 'edit' | 'action';
   prompt: string;
   activeDocumentType?: 'document' | 'presentation' | 'spreadsheet';
+  projectDocumentTypes?: Array<'document' | 'presentation' | 'spreadsheet'>;
   expects: Record<string, unknown>;
 }
 
-function makeActiveDocument(type: WorkflowScenario['activeDocumentType']): ProjectDocument | null {
-  if (!type) {
-    return null;
-  }
-
+function makeDocument(type: 'document' | 'presentation' | 'spreadsheet', suffix = '1'): ProjectDocument {
   return {
-    id: `${type}-1`,
+    id: `${type}-${suffix}`,
     title: `${type} artifact`,
     type,
     contentHtml: type === 'presentation' ? '<section>Deck</section>' : '<p>Document</p>',
@@ -48,13 +45,25 @@ function makeActiveDocument(type: WorkflowScenario['activeDocumentType']): Proje
   };
 }
 
+function makeActiveDocument(type: WorkflowScenario['activeDocumentType']): ProjectDocument | null {
+  if (!type) {
+    return null;
+  }
+
+  return makeDocument(type, 'active');
+}
+
 export async function runWorkflowScenario(scenario: WorkflowScenario) {
   const activeDocument = makeActiveDocument(scenario.activeDocumentType);
+  const seededDocuments = scenario.projectDocumentTypes?.map((type, index) => makeDocument(type, String(index + 1))) ?? [];
+  const documents = activeDocument
+    ? [activeDocument, ...seededDocuments.filter((document) => document.type !== activeDocument.type || document.id !== activeDocument.id)]
+    : seededDocuments;
   const project: ProjectData = {
     id: 'project-1',
     title: 'Scenario Project',
     visibility: 'private',
-    documents: activeDocument ? [activeDocument] : [],
+    documents,
     activeDocumentId: activeDocument?.id ?? null,
     chatHistory: [],
     sections: { drafts: [], main: [], suggestions: [], issues: [] },

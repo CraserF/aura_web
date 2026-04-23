@@ -37,6 +37,28 @@ export interface BuildRunRequestResult {
   scopedDocumentId: string | undefined;
 }
 
+function buildProjectSnapshot(project: ProjectData): RunRequest['projectSnapshot'] {
+  return {
+    documentIds: project.documents.map((document) => document.id),
+    activeDocumentId: project.activeDocumentId,
+    linkedReferenceCount: project.documents.reduce(
+      (total, document) => total + (document.linkedTableRefs?.length ?? 0),
+      0,
+    ),
+    artifactCountsByType: project.documents.reduce(
+      (counts, document) => ({
+        ...counts,
+        [document.type]: counts[document.type] + 1,
+      }),
+      {
+        document: 0,
+        presentation: 0,
+        spreadsheet: 0,
+      },
+    ),
+  };
+}
+
 export async function buildRunRequest(input: BuildRunRequestInput): Promise<BuildRunRequestResult> {
   const {
     prompt,
@@ -116,9 +138,10 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
         activeDocument,
       },
       projectRulesSnapshot,
+      projectSnapshot: buildProjectSnapshot(project),
       createdAt: Date.now(),
     },
-    messageScope: assembledWithPolicy.messageScope,
-    scopedDocumentId: assembledWithPolicy.scopedDocumentId,
+    messageScope: intent.projectOperation ? 'project' : assembledWithPolicy.messageScope,
+    scopedDocumentId: intent.projectOperation ? undefined : assembledWithPolicy.scopedDocumentId,
   };
 }

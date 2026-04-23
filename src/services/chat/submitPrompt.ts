@@ -10,10 +10,19 @@ import type { ProviderConfig } from '@/types';
 
 import { buildRunRequest } from '@/services/chat/buildRunRequest';
 import { renderRunResult } from '@/services/chat/renderRunResult';
-import { createRunRecord, updateRunRecordStatus } from '@/services/runs/registry';
+import {
+  createRunRecord,
+  markRunTouchedDocuments,
+  recordRunEvent,
+  setRunDependencyWarnings,
+  updateRunRecordStatus,
+} from '@/services/runs/registry';
+import { publishRunEvent } from '@/services/events/eventBus';
+import { createRunEventSource } from '@/services/events/provenance';
 import { handleSpreadsheetWorkflow, type SpreadsheetHandlerContext } from '@/components/chat/handlers/spreadsheetHandler';
 import { handlePresentationWorkflow, type PresentationHandlerContext } from '@/components/chat/handlers/presentationHandler';
 import { handleDocumentWorkflow, type DocumentHandlerContext } from '@/components/chat/handlers/documentHandler';
+import { handleProjectWorkflow, type ProjectWorkflowContext } from '@/services/ai/workflow/project';
 
 type WorkflowStepsRef = { current: WorkflowStep[] };
 type AbortControllerRef = { current: AbortController | null };
@@ -65,12 +74,14 @@ export interface SubmitPromptHandlers {
   document: (context: DocumentHandlerContext) => Promise<RunResult>;
   presentation: (context: PresentationHandlerContext) => Promise<RunResult>;
   spreadsheet: (context: SpreadsheetHandlerContext) => Promise<RunResult>;
+  project: (context: ProjectWorkflowContext) => Promise<RunResult>;
 }
 
 const defaultHandlers: SubmitPromptHandlers = {
   document: handleDocumentWorkflow,
   presentation: handlePresentationWorkflow,
   spreadsheet: handleSpreadsheetWorkflow,
+  project: handleProjectWorkflow,
 };
 
 function buildBlockedRunResult(runId: string, runRequest: Awaited<ReturnType<typeof buildRunRequest>>['runRequest']): RunResult {
@@ -154,6 +165,7 @@ export async function submitPrompt(
     buildWorkflowMemoryContext,
     onRunRequestBuilt,
   } = services;
+  const eventSource = createRunEventSource('submitPrompt');
 
   const { runRequest, messageScope, scopedDocumentId } = await buildRunRequest({
     prompt,
@@ -181,10 +193,52 @@ export async function submitPrompt(
   });
 
   createRunRecord(runRequest.runId, runRequest.intent);
+  const startedEvent = publishRunEvent({
+    type: 'run.started',
+    runId: runRequest.runId,
+    source: eventSource,
+    payload: {
+      artifactType: runRequest.intent.artifactType,
+      projectOperation: runRequest.intent.projectOperation,
+    },
+  });
+  recordRunEvent(runRequest.runId, startedEvent);
+  const contextEvent = publishRunEvent({
+    type: 'run.context-assembled',
+    runId: runRequest.runId,
+    source: eventSource,
+    payload: {
+      sourceCount: runRequest.context.sources.length,
+      promptChars: runRequest.context.metrics.promptChars,
+      promptWithContextChars: runRequest.context.metrics.promptWithContextChars,
+    },
+  });
+  recordRunEvent(runRequest.runId, contextEvent);
+  const intentEvent = publishRunEvent({
+    type: 'run.intent-resolved',
+    runId: runRequest.runId,
+    source: eventSource,
+    payload: {
+      artifactType: runRequest.intent.artifactType,
+      operation: runRequest.intent.operation,
+      projectOperation: runRequest.intent.projectOperation,
+      targetDocumentIds: runRequest.intent.targetDocumentIds ?? [],
+    },
+  });
+  recordRunEvent(runRequest.runId, intentEvent);
 
   if (runRequest.intent.needsClarification) {
     const blockedResult = buildBlockedRunResult(runRequest.runId, runRequest);
     updateRunRecordStatus(runRequest.runId, blockedResult.status);
+    const blockedEvent = publishRunEvent({
+      type: 'run.blocked',
+      runId: runRequest.runId,
+      source: eventSource,
+      payload: {
+        reason: blockedResult.structuredStatus.detail,
+      },
+    });
+    recordRunEvent(runRequest.runId, blockedEvent);
     addMessage(buildAssistantChatMessage(blockedResult, scopedDocumentId, messageScope));
     setStatus({ state: 'idle' });
     setStreamingContent('');
@@ -192,9 +246,20 @@ export async function submitPrompt(
   }
 
   updateRunRecordStatus(runRequest.runId, 'running');
+  const generatingEvent = publishRunEvent({
+    type: 'run.generating',
+    runId: runRequest.runId,
+    source: eventSource,
+    payload: {
+      artifactType: runRequest.intent.artifactType,
+      projectOperation: runRequest.intent.projectOperation,
+    },
+  });
+  recordRunEvent(runRequest.runId, generatingEvent);
 
   const handlerContextBase = {
     runRequest,
+    project,
     workflowStepsRef,
     abortControllerRef,
     addDocument,
@@ -209,7 +274,9 @@ export async function submitPrompt(
   };
 
   const result = await (
-    runRequest.intent.artifactType === 'spreadsheet'
+    runRequest.intent.projectOperation
+      ? handlers.project(handlerContextBase)
+      : runRequest.intent.artifactType === 'spreadsheet'
       ? handlers.spreadsheet(handlerContextBase)
       : runRequest.intent.artifactType === 'presentation'
         ? handlers.presentation(handlerContextBase)
@@ -220,6 +287,29 @@ export async function submitPrompt(
   );
 
   updateRunRecordStatus(runRequest.runId, result.status);
+  markRunTouchedDocuments(
+    runRequest.runId,
+    Array.from(
+      new Set([
+        ...result.changedTargets.map((target) => target.documentId).filter(Boolean) as string[],
+        ...(result.outputs.project?.updatedDocumentIds ?? []),
+      ]),
+    ),
+  );
+  setRunDependencyWarnings(
+    runRequest.runId,
+    result.warnings.map((warning) => warning.message),
+  );
+  const finalEvent = publishRunEvent({
+    type: result.status === 'failed' ? 'run.failed' : 'run.completed',
+    runId: runRequest.runId,
+    source: eventSource,
+    payload: {
+      status: result.status,
+      updatedDocumentIds: result.outputs.project?.updatedDocumentIds ?? [],
+    },
+  });
+  recordRunEvent(runRequest.runId, finalEvent);
   addMessage(buildAssistantChatMessage(result, scopedDocumentId, messageScope));
 
   if (result.status === 'failed') {

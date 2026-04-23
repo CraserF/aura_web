@@ -4,6 +4,12 @@ import type { EditStrategy, TargetSelector } from '@/services/editing/types';
 
 export type IntentOperation = 'create' | 'edit' | 'action';
 export type IntentScope = 'document' | 'project';
+export type ProjectOperation =
+  | 'augment'
+  | 'review-project'
+  | 'link-project'
+  | 'summarize-project'
+  | 'refresh-dependencies';
 
 export interface IntentClarification {
   required: boolean;
@@ -15,7 +21,9 @@ export interface ResolvedIntent {
   artifactType: DocumentType;
   operation: IntentOperation;
   scope: IntentScope;
+  projectOperation?: ProjectOperation;
   targetDocumentId?: string;
+  targetDocumentIds?: string[];
   targetSheetId?: string;
   targetSelectors: TargetSelector[];
   editStrategyHint?: EditStrategy;

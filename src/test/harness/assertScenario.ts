@@ -28,5 +28,13 @@ export function assertScenario(
     expect(result.runRequest.intent.allowFullRegeneration).toBe(scenario.expects.allowFullRegeneration);
   }
 
+  if (scenario.expects.projectOperation) {
+    expect(result.runRequest.intent.projectOperation).toBe(scenario.expects.projectOperation);
+  }
+
+  if (scenario.expects.messageScope) {
+    expect(result.messageScope).toBe(scenario.expects.messageScope);
+  }
+
   expect(result.runRequest.intent.operation).toBe(scenario.operation);
 }

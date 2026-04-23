@@ -144,4 +144,40 @@ describe('resolveIntent', () => {
     expect(result.clarification?.question).toContain('which target');
     expect(result.clarification?.options.length).toBeGreaterThan(1);
   });
+
+  it('routes explicit project-wide prompts to the project workflow', () => {
+    const documents = [
+      makeDocument({ id: 'doc-1', type: 'document' }),
+      makeDocument({ id: 'doc-2', type: 'presentation', contentHtml: '<section>Deck</section>', slideCount: 1 }),
+      makeDocument({
+        id: 'doc-3',
+        type: 'spreadsheet',
+        workbook: {
+          activeSheetIndex: 0,
+          sheets: [{
+            id: 'sheet-1',
+            name: 'Data',
+            tableName: 'table_1',
+            schema: [{ name: 'Amount', type: 'number', nullable: false }],
+            frozenRows: 0,
+            frozenCols: 0,
+            columnWidths: {},
+            formulas: [],
+          }],
+        },
+      }),
+    ];
+
+    const result = resolveIntent({
+      prompt: 'Summarize the project into one overview',
+      activeDocument: null,
+      project: makeProject(documents),
+      scope: 'project',
+    });
+
+    expect(result.projectOperation).toBe('summarize-project');
+    expect(result.scope).toBe('project');
+    expect(result.targetDocumentIds).toEqual(['doc-1', 'doc-2', 'doc-3']);
+    expect(result.targetSelectors).toEqual([]);
+  });
 });

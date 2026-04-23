@@ -93,6 +93,30 @@
         "usesActiveArtifactType": true,
         "allowFullRegeneration": true
       }
+    },
+    {
+      "id": "project-summary-routing",
+      "artifactType": "document",
+      "operation": "create",
+      "projectDocumentTypes": ["document", "presentation", "spreadsheet"],
+      "prompt": "Summarize the project into one overview",
+      "expects": {
+        "route": "document",
+        "projectOperation": "summarize-project",
+        "messageScope": "project"
+      }
+    },
+    {
+      "id": "project-refresh-dependencies-routing",
+      "artifactType": "document",
+      "operation": "action",
+      "projectDocumentTypes": ["document", "spreadsheet"],
+      "prompt": "Refresh project dependencies and linked tables",
+      "expects": {
+        "route": "document",
+        "projectOperation": "refresh-dependencies",
+        "messageScope": "project"
+      }
     }
   ]
 }

@@ -30,8 +30,27 @@ export interface RunResultStructuredStatus {
   detail: string;
 }
 
+export interface RunResultDependencyChange {
+  edgeId: string;
+  kind: string;
+  status: 'valid' | 'broken' | 'stale';
+  sourceDocumentId?: string;
+  targetDocumentId?: string;
+  sheetId?: string;
+  message: string;
+}
+
+export interface RunResultProjectOutputs {
+  operation: string;
+  updatedDocumentIds: string[];
+  dependencyChanges: RunResultDependencyChange[];
+  reviewSummary?: string;
+  linkSummary?: string;
+}
+
 export interface RunResultOutputs extends Record<string, unknown> {
   editing?: EditingTelemetry;
+  project?: RunResultProjectOutputs;
 }
 
 export interface RunResult {

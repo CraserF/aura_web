@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { renderRunResult } from '@/services/chat/renderRunResult';
-import { clearRunRegistry, createRunRecord, getRunRecord, updateRunRecordStatus } from '@/services/runs/registry';
+import { clearRunRegistry, createRunRecord, getRunRecord, markRunTouchedDocuments, recordRunEvent, setRunDependencyWarnings, updateRunRecordStatus } from '@/services/runs/registry';
+import { clearRunEvents, publishRunEvent } from '@/services/events/eventBus';
 import type { RunResult } from '@/services/contracts/runResult';
 
 const baseIntent = {
@@ -47,14 +48,27 @@ describe('run result rendering and registry', () => {
 
   it('tracks run lifecycle status in the registry skeleton', () => {
     clearRunRegistry();
+    clearRunEvents();
 
     const created = createRunRecord('run-1', baseIntent);
     const running = updateRunRecordStatus('run-1', 'running');
+    const event = publishRunEvent({
+      type: 'run.generating',
+      runId: 'run-1',
+      source: 'test',
+      payload: { step: 'working' },
+    });
+    recordRunEvent('run-1', event);
+    markRunTouchedDocuments('run-1', ['doc-1']);
+    setRunDependencyWarnings('run-1', ['Broken link']);
     const completed = updateRunRecordStatus('run-1', 'completed');
 
     expect(created.status).toBe('pending');
     expect(running?.status).toBe('running');
     expect(completed?.status).toBe('completed');
     expect(getRunRecord('run-1')?.status).toBe('completed');
+    expect(getRunRecord('run-1')?.latestEventType).toBe('run.generating');
+    expect(getRunRecord('run-1')?.touchedDocumentIds).toEqual(['doc-1']);
+    expect(getRunRecord('run-1')?.dependencyWarnings).toEqual(['Broken link']);
   });
 });
