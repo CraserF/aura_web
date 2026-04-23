@@ -66,7 +66,7 @@ Validation backfill note:
 - Phase 10 does not absorb Backlog Phase A, Workstream F, or Phase 2/4/5/6/7/8/9 manual validation debt; keep those tracked separately.
 - Backlog Phase B is the current repo-execution focus for Workstream F F3/F4 and manual-validation backfill; it does not absorb the ESLint 9 migration or silently clear legacy manual checks without logged evidence.
 - Backlog Phase B code landed on 2026-04-23 with mobile-safe document/presentation generation guidance, lightweight mobile-hostile QA rules, and representative Workstream F fixtures.
-- Manual Backlog Phase B viewport review and legacy validation sweep evidence are still pending before any top-level Workstream F or older-phase completion claims.
+- Manual Backlog Phase B viewport review is now partially logged for the seeded presentation shell, but the broader legacy validation sweep remains blocked by a reproducible document-creation stall in the current interactive session.
 - Backlog Phase B commit: `26fee79`
 - Phase 8 code landed on 2026-04-23 with preset services, artifact lifecycle metadata, run-history/policy plumbing, and compact preset/run UI surfaces.
 - Manual Phase 8 validation is still pending before any top-level lifecycle/preset workflow completion call.
@@ -112,7 +112,7 @@ Workstream F progress note:
 
 - Initial shared canvas-frame implementation landed for both document and presentation canvases.
 - Backlog Phase B delivered the F3 generation-guidance slice plus F4 review fixtures and lightweight QA coverage.
-- Automated checks are passing; required manual viewport validation matrix is still pending before checkbox completion.
+- Automated checks are passing; partial presentation-shell viewport evidence is logged, but the full matrix is still pending before checkbox completion.
 
 ## Workstreams
 

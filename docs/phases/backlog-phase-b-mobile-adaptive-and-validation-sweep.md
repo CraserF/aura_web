@@ -13,7 +13,7 @@ Finish Workstream F Phase F3/F4 without inventing a new canonical phase, and use
 | Bootstrap | Codex | `docs/phases/backlog-phase-b-mobile-adaptive-and-validation-sweep.md`, `docs/implementation-plan-multi-agent.md`, `docs/program-status.md`, `docs/workstream-f-mobile-adaptive-artifacts.md` | None | `committed` | Tracked in repo; later branch validation passed via `npm test` and `npm run build`; `npm run lint` blocked by missing `eslint.config.*` | `0ceb26b` |
 | Stream A: Workstream F F3 generation guidance | Codex | `src/services/ai/prompts/composer.ts`, `src/services/ai/workflow/document.ts`, `src/services/ai/templates/document-blueprints.ts`, mobile-hostile QA hooks | Bootstrap | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `26fee79` |
 | Stream B: F4 hardening + fixture set | Codex | `src/test/fixtures/workstream-f.ts`, focused QA tests, viewport checklist docs, any frame-shell follow-up fixes required by validation | Stream A | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `26fee79` |
-| Stream C: Validation sweep | Codex | `docs/program-status.md`, relevant phase docs, `docs/implementation-plan-multi-agent.md` evidence updates | Streams A-B | `in_progress` | Legacy manual checks remain pending; no tracked phase was promoted without evidence | — |
+| Stream C: Validation sweep | Codex | `docs/program-status.md`, relevant phase docs, `docs/implementation-plan-multi-agent.md` evidence updates | Streams A-B | `in_progress` | Partial presentation-shell viewport evidence is logged; document-side sweep is blocked in the current session by a document-creation stall | — |
 | Stream D: Wrap-up | Codex | final tracker updates, build/test evidence, blocker notes | Streams A-C | `planned` | Pending metadata update | — |
 
 ## Validation Log
@@ -37,6 +37,21 @@ Finish Workstream F Phase F3/F4 without inventing a new canonical phase, and use
 - Manual validation: Pending Workstream F viewport matrix and broader legacy manual sweep
 - Commit: `26fee79`
 - Result: Committed
+
+- Date: 2026-04-23
+- Agent: Codex
+- Scope: Backlog Phase B continuation manual sweep kickoff, Workstream F viewport checks, and legacy validation evidence backfill
+- Build (`npm run build`): Passed
+- Tests (`npm test`): Passed
+- Lint (`npm run lint`): Blocked by pre-existing ESLint 9 config gap (`eslint.config.*` missing)
+- Manual validation:
+  - Existing `Strategy & Execution` presentation shell remained visibly framed and readable in desktop standard mode.
+  - Safari Responsive Design Mode spot-check passed for the same presentation shell at `390x844` (mobile narrow portrait) and `844x390` (mobile landscape); frame bounds remained visible and controls remained reachable after closing the sidebar.
+  - Tablet portrait and desktop wide viewport checks are still pending.
+  - Document-side fixture validation is currently blocked in this session: a request to create `Operating Model Review` stalled at `Applying changes…` around 30% both before and after enabling `Multi-doc`, and only exited after manual cancellation.
+  - Because no document artifact was created, the Backlog Phase A document export checks and later document-heavy manual sweeps remain unvalidated.
+- Commit: Pending
+- Result: Blocked
 
 ## Workstream F Review Checklist
 

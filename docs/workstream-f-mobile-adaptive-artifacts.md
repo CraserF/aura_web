@@ -37,7 +37,7 @@ Status snapshot (2026-04-23):
 - Phase F1: initial implementation landed (shared presentation frame + 16:9 fit/contain behavior).
 - Phase F2: initial implementation landed (document canvas frame/boundary consistency in app shell).
 - Phase F3: implemented via mobile-safe generation guidance in document/presentation prompt surfaces plus lightweight QA guards.
-- Phase F4: partially implemented via representative fixtures and checklist hardening; full manual viewport matrix still pending.
+- Phase F4: partially implemented via representative fixtures and checklist hardening; presentation shell spot-checks are logged for desktop standard, mobile narrow portrait, and mobile landscape, while tablet portrait, desktop wide, and document-side validation remain pending.
 
 ## Phase F0: UX and Architecture Baseline
 
@@ -169,6 +169,15 @@ Evidence log template:
 - Test result
 - Manual findings
 - Regressions and actions
+
+Evidence note (2026-04-23):
+- Agent: Codex
+- Artifact type: seeded presentation shell (`Strategy & Execution`)
+- Viewports tested: desktop standard, mobile narrow portrait (`390x844`), mobile landscape (`844x390`)
+- Build result: pass
+- Test result: pass
+- Manual findings: frame boundary remained visible, the contained stage stayed legible, and controls stayed reachable after closing the sidebar in Responsive Design Mode
+- Regressions and actions: document-side viewport validation is blocked in the same session because creating a new long-form document stalled at `Applying changes…` around 30% until manually cancelled
 
 Viewport review checklist:
 - document frame remains visibly bounded with readable gutters
