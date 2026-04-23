@@ -22,6 +22,8 @@ import { useProjectStore } from '@/stores/projectStore';
 import type { RunRequest } from '@/services/runs/types';
 import type { RunResult } from '@/services/contracts/runResult';
 import { resolveTargets } from '@/services/editing/resolveTargets';
+import { validateArtifactAgainstProfile } from '@/services/validation';
+import { summarizeValidationResult } from '@/services/validation/profiles';
 
 export interface PresentationHandlerContext {
   runRequest: RunRequest;
@@ -246,6 +248,18 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
     const updatedProject = useProjectStore.getState().project;
     commitVersion(updatedProject, commitMsg).catch((e) => console.warn('[VersionHistory] commit failed:', e));
     void queueMemoryExtraction(llmConfig, memoryConversation, memoryArtifactSummary, memorySourceRefs);
+    const persistedDocument = changedDocumentId
+      ? useProjectStore.getState().project.documents.find((document) => document.id === changedDocumentId)
+      : undefined;
+    const artifactValidation = persistedDocument
+      ? validateArtifactAgainstProfile(persistedDocument)
+      : undefined;
+    const validationWarnings = artifactValidation
+      ? [...artifactValidation.blockingIssues, ...artifactValidation.warnings].map((issue) => ({
+          code: issue.code,
+          message: issue.message,
+        }))
+      : [];
 
     const reviewWarning = result.reviewPassed ? [] : [{ code: 'qa-warning', message: 'QA flagged issues on the final presentation output.' }];
 
@@ -259,22 +273,42 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         slideCount: result.slideCount,
         reviewPassed: result.reviewPassed,
         ...(result.editing ? { editing: result.editing } : {}),
+        ...(artifactValidation
+          ? {
+              publish: {
+                profileId: artifactValidation.profileId,
+                artifactValidation,
+                exportBlocked: !artifactValidation.passed,
+                overrideRequired: !artifactValidation.passed,
+              },
+            }
+          : {}),
       },
       assistantMessage: {
         content: result.html
           ? `Generated ${result.slideCount} slides${result.reviewPassed ? '.' : ' (QA flagged issues).' }`
           : 'Generation completed but no slides were produced.',
       },
-      validation: {
-        passed: result.reviewPassed,
-        summary: result.reviewPassed
-          ? 'Presentation QA passed.'
-          : 'Presentation QA completed with advisories.',
-      },
+      validation: artifactValidation
+        ? {
+            passed: artifactValidation.passed,
+            summary: summarizeValidationResult(artifactValidation),
+            profileId: artifactValidation.profileId,
+            score: artifactValidation.score,
+            blockingIssues: artifactValidation.blockingIssues,
+            warnings: artifactValidation.warnings,
+          }
+        : {
+            passed: result.reviewPassed,
+            summary: result.reviewPassed
+              ? 'Presentation QA passed.'
+              : 'Presentation QA completed with advisories.',
+          },
       warnings: [
         ...configWarnings,
         ...contextWarnings,
         ...reviewWarning,
+        ...validationWarnings,
         ...(result.editing?.dryRunFailures.length
           ? [{
               code: 'editing-dry-run-fallback',

@@ -17,6 +17,8 @@ import { createDefaultSheet } from '@/services/spreadsheet/workbook';
 import type { RunRequest } from '@/services/runs/types';
 import type { RunResult } from '@/services/contracts/runResult';
 import { resolveTargets } from '@/services/editing/resolveTargets';
+import { validateArtifactAgainstProfile } from '@/services/validation';
+import { summarizeValidationResult } from '@/services/validation/profiles';
 
 function isDefaultSheet(doc: ProjectDocument | null): boolean {
   const sheet = doc?.workbook?.sheets[doc.workbook?.activeSheetIndex ?? 0];
@@ -94,6 +96,22 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
   setStatus({ state: 'generating', startedAt: Date.now(), step: 'Working on spreadsheet…', pct: 20 });
   setStreamingContent('');
 
+  const buildValidationState = (documentId?: string) => {
+    const persistedDocument = documentId
+      ? useProjectStore.getState().project.documents.find((document) => document.id === documentId)
+      : undefined;
+    const artifactValidation = persistedDocument
+      ? validateArtifactAgainstProfile(persistedDocument)
+      : undefined;
+    const validationWarnings = artifactValidation
+      ? [...artifactValidation.blockingIssues, ...artifactValidation.warnings].map((issue) => ({
+          code: issue.code,
+          message: issue.message,
+        }))
+      : [];
+    return { artifactValidation, validationWarnings };
+  };
+
   try {
     const result = await runSpreadsheetWorkflow({
       prompt: promptWithContext,
@@ -139,6 +157,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
       commitVersion(updatedProject, `Created chart from spreadsheet`).catch(
         (e) => console.warn('[VersionHistory] commit failed:', e),
       );
+      const { artifactValidation, validationWarnings } = buildValidationState(activeDocument!.id);
       return {
         runId,
         status: 'completed',
@@ -149,15 +168,34 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
           chartType: result.chartType,
           rowCount: result.rowCount,
           ...(editing ? { editing } : {}),
+          ...(artifactValidation
+            ? {
+                publish: {
+                  profileId: artifactValidation.profileId,
+                  artifactValidation,
+                  exportBlocked: !artifactValidation.passed,
+                  overrideRequired: !artifactValidation.passed,
+                },
+              }
+            : {}),
         },
         assistantMessage: {
           content: result.message,
         },
-        validation: {
-          passed: true,
-          summary: 'Spreadsheet chart created successfully.',
-        },
-        warnings: [...configWarnings, ...contextWarnings],
+        validation: artifactValidation
+          ? {
+              passed: artifactValidation.passed,
+              summary: summarizeValidationResult(artifactValidation),
+              profileId: artifactValidation.profileId,
+              score: artifactValidation.score,
+              blockingIssues: artifactValidation.blockingIssues,
+              warnings: artifactValidation.warnings,
+            }
+          : {
+              passed: true,
+              summary: 'Spreadsheet chart created successfully.',
+            },
+        warnings: [...configWarnings, ...contextWarnings, ...validationWarnings],
         changedTargets: [{
           documentId: activeDocument!.id,
           action: 'updated',
@@ -173,6 +211,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
       updateDocument(activeDocument!.id, {
         workbook: { ...activeWorkbook!, sheets: result.updatedSheets },
       });
+      const { artifactValidation, validationWarnings } = buildValidationState(activeDocument!.id);
       return {
         runId,
         status: 'completed',
@@ -181,15 +220,34 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
           kind: result.kind,
           updatedSheets: result.updatedSheets,
           ...(editing ? { editing } : {}),
+          ...(artifactValidation
+            ? {
+                publish: {
+                  profileId: artifactValidation.profileId,
+                  artifactValidation,
+                  exportBlocked: !artifactValidation.passed,
+                  overrideRequired: !artifactValidation.passed,
+                },
+              }
+            : {}),
         },
         assistantMessage: {
           content: result.message,
         },
-        validation: {
-          passed: true,
-          summary: 'Spreadsheet action executed successfully.',
-        },
-        warnings: [...configWarnings, ...contextWarnings],
+        validation: artifactValidation
+          ? {
+              passed: artifactValidation.passed,
+              summary: summarizeValidationResult(artifactValidation),
+              profileId: artifactValidation.profileId,
+              score: artifactValidation.score,
+              blockingIssues: artifactValidation.blockingIssues,
+              warnings: artifactValidation.warnings,
+            }
+          : {
+              passed: true,
+              summary: 'Spreadsheet action executed successfully.',
+            },
+        warnings: [...configWarnings, ...contextWarnings, ...validationWarnings],
         changedTargets: [{
           documentId: activeDocument!.id,
           action: 'updated',
@@ -239,6 +297,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
     commitVersion(updatedProject, `Created spreadsheet: ${prompt.slice(0, 60)}`).catch(
       (e) => console.warn('[VersionHistory] commit failed:', e),
     );
+    const { artifactValidation, validationWarnings } = buildValidationState(targetDocument.id);
     return {
       runId,
       status: 'completed',
@@ -249,15 +308,34 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
           sheetName: result.sheetName,
           updatedSheets: result.updatedSheets,
           ...(editing ? { editing } : {}),
+          ...(artifactValidation
+            ? {
+                publish: {
+                  profileId: artifactValidation.profileId,
+                  artifactValidation,
+                  exportBlocked: !artifactValidation.passed,
+                  overrideRequired: !artifactValidation.passed,
+                },
+              }
+            : {}),
         },
       assistantMessage: {
         content: result.summary,
       },
-      validation: {
-        passed: true,
-        summary: 'Spreadsheet created successfully.',
-      },
-      warnings: [...configWarnings, ...contextWarnings],
+      validation: artifactValidation
+        ? {
+            passed: artifactValidation.passed,
+            summary: summarizeValidationResult(artifactValidation),
+            profileId: artifactValidation.profileId,
+            score: artifactValidation.score,
+            blockingIssues: artifactValidation.blockingIssues,
+            warnings: artifactValidation.warnings,
+          }
+        : {
+            passed: true,
+            summary: 'Spreadsheet created successfully.',
+          },
+      warnings: [...configWarnings, ...contextWarnings, ...validationWarnings],
       changedTargets: [{
         documentId: targetDocument.id,
         action: activeDocument?.type === 'spreadsheet' ? 'updated' : 'created',

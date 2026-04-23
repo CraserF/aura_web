@@ -34,5 +34,10 @@ export interface ValidationResult {
   artifactTargets: ArtifactValidationTarget[];
 }
 
-// TODO(phase-7): Add publish-readiness metadata once artifact and project
-// validators are all emitting the shared contract.
+export interface PublishReadinessResult {
+  profileId: ValidationProfileId;
+  artifactValidation?: ValidationResult;
+  projectValidation?: ValidationResult;
+  exportBlocked: boolean;
+  overrideRequired: boolean;
+}

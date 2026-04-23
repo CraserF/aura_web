@@ -50,6 +50,11 @@ interface ToolbarProps {
     onSelect: () => void;
     disabled?: boolean;
   }>;
+  artifactValidationAction?: {
+    label: string;
+    onSelect: () => void;
+    disabled?: boolean;
+  } | null;
   artifactExportBusy?: boolean;
 }
 
@@ -61,6 +66,7 @@ export function Toolbar({
   historyPanelOpen,
   onToggleHistoryPanel,
   artifactExportActions = [],
+  artifactValidationAction = null,
   artifactExportBusy = false,
 }: ToolbarProps) {
   const project = useProjectStore((s) => s.project);
@@ -327,6 +333,24 @@ export function Toolbar({
             </DropdownMenu>
           )}
 
+          {artifactValidationAction && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                  disabled={artifactValidationAction.disabled}
+                  onClick={artifactValidationAction.onSelect}
+                >
+                  <AlertTriangle className="size-3.5" />
+                  <span className="hidden sm:inline">{artifactValidationAction.label}</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{artifactValidationAction.label}</TooltipContent>
+            </Tooltip>
+          )}
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -468,6 +492,23 @@ export function Toolbar({
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
+            )}
+
+            {artifactValidationAction && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+                    disabled={artifactValidationAction.disabled}
+                    onClick={artifactValidationAction.onSelect}
+                  >
+                    <AlertTriangle className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{artifactValidationAction.label}</TooltipContent>
+              </Tooltip>
             )}
           </div>
 

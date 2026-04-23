@@ -12,6 +12,8 @@ import { publishRunEvent } from '@/services/events/eventBus';
 import { createRunEventSource } from '@/services/events/provenance';
 import { useProjectStore } from '@/stores/projectStore';
 import { commitVersion } from '@/services/storage/versionHistory';
+import { summarizeValidationResult } from '@/services/validation/profiles';
+import { validateProjectAgainstProfile } from '@/services/validation/projectValidation';
 
 const PROJECT_SUMMARY_REF = {
   artifactKey: 'project-summary',
@@ -295,6 +297,10 @@ export async function handleProjectWorkflow(ctx: ProjectWorkflowContext): Promis
 
   const latestProject = useProjectStore.getState().project;
   const dependencyChanges = summarizeDependencyChanges(validateProjectGraph(buildProjectGraph(latestProject)));
+  const projectValidation = await validateProjectAgainstProfile({
+    project: latestProject,
+    profileId: 'publish-ready',
+  });
 
   if (operation === 'refresh-dependencies') {
     for (const documentId of updatedDocumentIds) {
@@ -316,7 +322,12 @@ export async function handleProjectWorkflow(ctx: ProjectWorkflowContext): Promis
   const warnings = dependencyChanges.map((change) => ({
     code: change.kind,
     message: change.message,
-  }));
+  })).concat(
+    [...projectValidation.blockingIssues, ...projectValidation.warnings].map((issue) => ({
+      code: issue.code,
+      message: issue.message,
+    })),
+  );
 
   return {
     runId: runRequest.runId,
@@ -330,6 +341,12 @@ export async function handleProjectWorkflow(ctx: ProjectWorkflowContext): Promis
         reviewSummary,
         linkSummary,
       ),
+      publish: {
+        profileId: projectValidation.profileId,
+        projectValidation,
+        exportBlocked: !projectValidation.passed,
+        overrideRequired: !projectValidation.passed,
+      },
     },
     assistantMessage: {
       content: [
@@ -339,10 +356,12 @@ export async function handleProjectWorkflow(ctx: ProjectWorkflowContext): Promis
       ].filter(Boolean).join('\n\n'),
     },
     validation: {
-      passed: dependencyChanges.every((change) => change.status !== 'broken'),
-      summary: dependencyChanges.length > 0
-        ? `Project workflow completed with ${dependencyChanges.length} dependency warning(s).`
-        : 'Project workflow completed successfully.',
+      passed: projectValidation.passed,
+      summary: summarizeValidationResult(projectValidation),
+      profileId: projectValidation.profileId,
+      score: projectValidation.score,
+      blockingIssues: projectValidation.blockingIssues,
+      warnings: projectValidation.warnings,
     },
     warnings,
     changedTargets,

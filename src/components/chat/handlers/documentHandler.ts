@@ -18,6 +18,8 @@ import { useProjectStore } from '@/stores/projectStore';
 import type { RunResult } from '@/services/contracts/runResult';
 import type { RunRequest } from '@/services/runs/types';
 import { resolveTargets } from '@/services/editing/resolveTargets';
+import { validateArtifactAgainstProfile } from '@/services/validation';
+import { summarizeValidationResult } from '@/services/validation/profiles';
 
 export interface DocumentHandlerContext {
   runRequest: RunRequest;
@@ -217,6 +219,18 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
     const updatedProject = useProjectStore.getState().project;
     commitVersion(updatedProject, commitMsg).catch((e) => console.warn('[VersionHistory] commit failed:', e));
     void queueMemoryExtraction(llmConfig, memoryConversation, memoryArtifactSummary, memorySourceRefs);
+    const persistedDocument = changedDocumentId
+      ? useProjectStore.getState().project.documents.find((document) => document.id === changedDocumentId)
+      : undefined;
+    const artifactValidation = persistedDocument
+      ? validateArtifactAgainstProfile(persistedDocument)
+      : undefined;
+    const validationWarnings = artifactValidation
+      ? [...artifactValidation.blockingIssues, ...artifactValidation.warnings].map((issue) => ({
+          code: issue.code,
+          message: issue.message,
+        }))
+      : [];
 
     return {
       runId,
@@ -227,19 +241,39 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
         markdown: result.markdown,
         title: result.title,
         ...(result.editing ? { editing: result.editing } : {}),
+        ...(artifactValidation
+          ? {
+              publish: {
+                profileId: artifactValidation.profileId,
+                artifactValidation,
+                exportBlocked: !artifactValidation.passed,
+                overrideRequired: !artifactValidation.passed,
+              },
+            }
+          : {}),
       },
       assistantMessage: {
         content: result.html
           ? `${isEdit ? 'Updated' : 'Created'} document: "${result.title}"`
           : 'Document created.',
       },
-      validation: {
-        passed: true,
-        summary: 'Document workflow completed and passed document QA.',
-      },
+      validation: artifactValidation
+        ? {
+            passed: artifactValidation.passed,
+            summary: summarizeValidationResult(artifactValidation),
+            profileId: artifactValidation.profileId,
+            score: artifactValidation.score,
+            blockingIssues: artifactValidation.blockingIssues,
+            warnings: artifactValidation.warnings,
+          }
+        : {
+            passed: true,
+            summary: 'Document workflow completed and passed document QA.',
+          },
       warnings: [
         ...configWarnings,
         ...contextWarnings,
+        ...validationWarnings,
         ...(result.editing?.dryRunFailures.length
           ? [{
               code: 'editing-dry-run-fallback',
