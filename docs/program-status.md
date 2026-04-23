@@ -22,7 +22,6 @@ This document records shipped workflow-upgrade progress across the phased implem
 ## Known Blockers
 
 - `npm run lint` is still blocked by the repo-level ESLint 9 migration gap because `eslint.config.*` is missing.
-- The current Backlog Phase B manual sweep can reproduce a document-creation stall in the interactive app session: asking the seeded presentation-only project to create a new long-form document stayed at `Applying changes…` around 30% until manually cancelled, both with default scope and with `Multi-doc` enabled.
 
 ## Validation Debt
 
@@ -36,7 +35,7 @@ This document records shipped workflow-upgrade progress across the phased implem
   - email HTML browser/mail-preview check
   - packaged media save/reopen check
   - artifact export menu behavior on desktop and mobile
-  - Current blocker note: the latest manual sweep could not proceed with document-side export checks because no document artifact could be created from the seeded presentation-only project.
+  - Latest evidence note (2026-04-23): a fresh-server rerun from a seeded presentation-only project now creates a document successfully, so document-side export checks are no longer blocked by the earlier creation stall.
 - Phase 4 manual in-app validation is still pending for:
   - document section edit without unrelated layout drift
   - presentation title/card tweak with untouched slides preserved
@@ -78,7 +77,7 @@ This document records shipped workflow-upgrade progress across the phased implem
   - desktop wide
   - Manual evidence logged on 2026-04-23:
     - presentation shell spot-check passed for desktop standard, mobile narrow portrait (`390x844`), and mobile landscape (`844x390`)
-    - document-side viewport validation is still blocked by the document-creation stall noted above
+    - fresh-server scoped document creation from a seeded presentation-only project now succeeds, so document-side viewport checks can resume in the next validation slice
 
 ## Current Focus
 

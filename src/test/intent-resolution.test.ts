@@ -35,11 +35,11 @@ function makeDocument(overrides: Partial<ProjectDocument> = {}): ProjectDocument
 }
 
 describe('resolveIntent', () => {
-  it('uses the active artifact type as the authoritative route', () => {
+  it('uses the active artifact type as the authoritative route for edit-style prompts', () => {
     const activeDocument = makeDocument({ type: 'presentation' });
 
     const result = resolveIntent({
-      prompt: 'Create a spreadsheet for revenue',
+      prompt: 'Make this presentation more concise',
       activeDocument,
       project: makeProject([activeDocument]),
       scope: 'document',
@@ -50,6 +50,23 @@ describe('resolveIntent', () => {
     expect(result.reason).toContain('authoritative');
     expect(result.targetSelectors[0]?.type).toBe('current-slide');
     expect(result.allowFullRegeneration).toBe(false);
+  });
+
+  it('lets explicit cross-artifact create prompts escape the active artifact route', () => {
+    const activeDocument = makeDocument({ type: 'presentation' });
+
+    const result = resolveIntent({
+      prompt: 'Create a long-form document called Operating Model Review',
+      activeDocument,
+      project: makeProject([activeDocument]),
+      scope: 'document',
+    });
+
+    expect(result.artifactType).toBe('document');
+    expect(result.operation).toBe('create');
+    expect(result.targetDocumentId).toBeUndefined();
+    expect(result.targetSelectors).toEqual([]);
+    expect(result.reason).toContain('explicit create prompt');
   });
 
   it('falls back to prompt-based workflow detection when no artifact is active', () => {

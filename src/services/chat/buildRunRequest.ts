@@ -112,7 +112,7 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
     selectionState,
   });
   const intent = resolveIntent({
-    prompt: assembled.context.conversation.promptWithContext,
+    prompt,
     activeDocument,
     project,
     scope: assembled.messageScope,

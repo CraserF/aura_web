@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { buildRunRequest } from '@/services/chat/buildRunRequest';
 import { createDefaultContextSelectionState } from '@/services/context/types';
+import { resolveIntent } from '@/services/ai/intent/resolveIntent';
 import type { ProjectData, ProjectDocument } from '@/types/project';
 
 function makeDocument(overrides: Partial<ProjectDocument> = {}): ProjectDocument {
@@ -86,5 +87,52 @@ describe('buildRunRequest', () => {
     expect(result.runRequest.serializableSpec?.providerRef).not.toHaveProperty('apiKey');
     expect(result.runRequest.serializableSpec?.targeting.targetDocumentId).toBe('doc-1');
     expect(result.runRequest.serializableSpec?.contextSnapshot.sources.length).toBeGreaterThan(0);
+  });
+
+  it('routes explicit cross-artifact create prompts away from the active presentation', async () => {
+    const activeDocument = makeDocument({
+      id: 'deck-1',
+      type: 'presentation',
+      contentHtml: '<section>Deck</section>',
+      slideCount: 1,
+    });
+    const prompt = 'Create a long-form document called Operating Model Review in this project with a visible framed layout';
+    const directIntent = resolveIntent({
+      prompt,
+      activeDocument,
+      project: makeProject([activeDocument]),
+      scope: 'document',
+    });
+
+    const result = await buildRunRequest({
+      prompt,
+      attachments: [],
+      messages: [],
+      project: makeProject([activeDocument]),
+      activeDocument,
+      showAllMessages: false,
+      applyToAllDocuments: false,
+      providerConfig: {
+        id: 'openai',
+        name: 'OpenAI',
+        apiKey: 'test-key',
+        baseUrl: 'https://api.openai.com/v1',
+        model: 'gpt-4o',
+      },
+      selectionState: createDefaultContextSelectionState(),
+      buildMemoryContext: async () => ({
+        text: '',
+        tokenCount: 0,
+        budgetExceeded: false,
+        trimmedMemories: [],
+        items: [],
+      }),
+    });
+
+    expect(directIntent.artifactType).toBe('document');
+    expect(result.runRequest.intent.artifactType).toBe('document');
+    expect(result.runRequest.intent.operation).toBe('create');
+    expect(result.runRequest.intent.targetDocumentId).toBeUndefined();
+    expect(result.runRequest.intent.targetSelectors).toEqual([]);
   });
 });

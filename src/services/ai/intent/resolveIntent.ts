@@ -19,6 +19,10 @@ const REVIEW_PROJECT_RE = /\b(?:review|audit|assess|critique|evaluate)\b.*\b(pro
 const LINK_PROJECT_RE = /\b(?:link|cross[- ]link|connect)\b.*\b(project|artifacts?|documents?|spreadsheet|deck|presentation)\b/i;
 const REFRESH_DEPENDENCIES_RE = /\b(?:refresh|revalidate|sync|repair)\b.*\b(?:dependencies|references|links|linked tables?)\b/i;
 const AUGMENT_PROJECT_RE = /\b(?:augment|improve|strengthen|upgrade)\b.*\b(project|workspace)\b/i;
+const EXPLICIT_CREATE_RE = /\b(create|make|build|generate|draft|write|start)\b/i;
+const EXPLICIT_DOCUMENT_CREATE_RE = /\b(create|make|build|generate|draft|write|start)\b[\s\S]*\b(document|article|report|essay|note|wiki|readme|page|blog)\b/i;
+const EXPLICIT_PRESENTATION_CREATE_RE = /\b(create|make|build|generate|draft|write|start)\b[\s\S]*\b(slide|presentation|deck|slideshow|pitch|keynote|powerpoint)\b/i;
+const EXPLICIT_SPREADSHEET_CREATE_RE = /\b(create|make|build|generate|draft|write|start)\b[\s\S]*\b(spreadsheet|sheet|table|csv|xlsx|excel)\b/i;
 
 function detectProjectOperation(prompt: string, project: ProjectData): ProjectOperation | undefined {
   const hasProjectWidePhrasing = PROJECT_WIDE_RE.test(prompt);
@@ -150,6 +154,55 @@ function chooseEditStrategy(prompt: string, activeDocument: ProjectDocument | nu
   return 'block-replace';
 }
 
+function detectExplicitArtifactCreateType(prompt: string): ProjectDocument['type'] | undefined {
+  if (EXPLICIT_SPREADSHEET_CREATE_RE.test(prompt)) {
+    return 'spreadsheet';
+  }
+  if (EXPLICIT_PRESENTATION_CREATE_RE.test(prompt)) {
+    return 'presentation';
+  }
+  if (EXPLICIT_DOCUMENT_CREATE_RE.test(prompt)) {
+    return 'document';
+  }
+  return undefined;
+}
+
+function resolveArtifactRoute(prompt: string, activeDocument: ProjectDocument | null): {
+  artifactType: ProjectDocument['type'];
+  operation: 'create' | 'edit' | 'action';
+  reason: string;
+} {
+  const explicitCreateArtifactType = detectExplicitArtifactCreateType(prompt);
+  const detectedArtifactType = explicitCreateArtifactType ?? detectWorkflowType(prompt);
+  const wantsExplicitCreate = EXPLICIT_CREATE_RE.test(prompt);
+
+  if (
+    activeDocument
+    && wantsExplicitCreate
+    && detectedArtifactType !== activeDocument.type
+  ) {
+    return {
+      artifactType: detectedArtifactType,
+      operation: 'create',
+      reason: 'explicit create prompt requested a different artifact type than the active document',
+    };
+  }
+
+  if (activeDocument) {
+    return {
+      artifactType: activeDocument.type,
+      operation: 'edit',
+      reason: 'active document type is authoritative',
+    };
+  }
+
+  return {
+    artifactType: detectedArtifactType,
+    operation: 'create',
+    reason: 'workflow keyword fallback selected artifact type',
+  };
+}
+
 function buildTargetClarificationOptions(targetLabels: string[]): ClarifyOption[] {
   return targetLabels.slice(0, 3).map((label) => ({
     label,
@@ -167,7 +220,10 @@ export interface ResolveIntentInput {
 
 export function resolveIntent(input: ResolveIntentInput): ResolvedIntent {
   const { prompt, activeDocument, scope, allowClarification = true } = input;
-  const projectOperation = detectProjectOperation(prompt, input.project);
+  const explicitCreateArtifactType = detectExplicitArtifactCreateType(prompt);
+  const projectOperation = explicitCreateArtifactType
+    ? undefined
+    : detectProjectOperation(prompt, input.project);
   const summaryDocument = input.project.documents.find((document) => document.starterRef?.artifactKey === 'project-summary');
   const projectTargetDocumentIds = input.project.documents.map((document) => document.id);
 
@@ -194,31 +250,39 @@ export function resolveIntent(input: ResolveIntentInput): ResolvedIntent {
     };
   }
 
-  const artifactType = activeDocument?.type ?? detectWorkflowType(prompt);
-  const targetSelectors = buildTargetSelectors(prompt, activeDocument);
-  const editStrategyHint = chooseEditStrategy(prompt, activeDocument);
+  const artifactRoute = resolveArtifactRoute(prompt, activeDocument);
+  const artifactType = artifactRoute.artifactType;
+  const shouldTargetActiveDocument = artifactRoute.operation !== 'create' && activeDocument?.type === artifactType;
+  const targetSelectors = shouldTargetActiveDocument
+    ? buildTargetSelectors(prompt, activeDocument)
+    : [];
+  const editStrategyHint = shouldTargetActiveDocument
+    ? chooseEditStrategy(prompt, activeDocument)
+    : undefined;
   const allowFullRegeneration = editStrategyHint === 'full-regenerate';
   const targetSheetId =
-    activeDocument?.type === 'spreadsheet'
+    shouldTargetActiveDocument && activeDocument?.type === 'spreadsheet'
       ? activeDocument.workbook?.sheets[activeDocument.workbook.activeSheetIndex]?.id
       : undefined;
 
   if (artifactType === 'spreadsheet') {
     const activeSheet =
-      activeDocument?.type === 'spreadsheet'
+      shouldTargetActiveDocument && activeDocument?.type === 'spreadsheet'
         ? activeDocument.workbook?.sheets[activeDocument.workbook.activeSheetIndex]
         : undefined;
     const isActionPrompt = (!!activeSheet && !!detectSheetAction(prompt, activeSheet.schema))
       || SPREADSHEET_ACTION_HINT_RE.test(prompt);
     const isChartPrompt = CHART_INTENT_RE.test(prompt);
-    const operation = (activeDocument && (isActionPrompt || isChartPrompt)) ? 'action' : activeDocument ? 'edit' : 'create';
-    const reason = activeDocument
+    const operation = shouldTargetActiveDocument && (isActionPrompt || isChartPrompt)
+      ? 'action'
+      : artifactRoute.operation;
+    const reason = shouldTargetActiveDocument
       ? isActionPrompt
         ? 'active spreadsheet with deterministic sheet action'
         : isChartPrompt
           ? 'active spreadsheet with chart request'
           : 'active spreadsheet is authoritative'
-      : 'workflow keyword fallback selected spreadsheet';
+      : artifactRoute.reason;
 
     return {
       artifactType,
@@ -237,27 +301,25 @@ export function resolveIntent(input: ResolveIntentInput): ResolvedIntent {
     };
   }
 
-  const operation = activeDocument ? 'edit' : 'create';
+  const operation = artifactRoute.operation;
   const baseIntent: ResolvedIntent = {
     artifactType,
     operation,
     scope,
-    targetDocumentId: activeDocument?.id,
+    targetDocumentId: shouldTargetActiveDocument ? activeDocument?.id : undefined,
     targetDocumentIds: projectTargetDocumentIds,
     targetSelectors,
     editStrategyHint,
     allowFullRegeneration,
     confidence: activeDocument ? 0.99 : 0.8,
     needsClarification: false,
-    reason: activeDocument
-      ? 'active document type is authoritative'
-      : 'workflow keyword fallback selected artifact type',
+    reason: artifactRoute.reason,
   };
   const clarification =
     artifactType === 'presentation' && operation === 'create' && allowClarification
       ? buildIntentClarification(prompt)
       : null;
-  const targetMatches = activeDocument && operation === 'edit'
+  const targetMatches = shouldTargetActiveDocument && operation === 'edit'
     ? resolveTargets({
         prompt,
         intent: baseIntent,
@@ -266,7 +328,7 @@ export function resolveIntent(input: ResolveIntentInput): ResolvedIntent {
     : [];
   const editClarification =
     allowClarification
-    && activeDocument
+    && shouldTargetActiveDocument
     && operation === 'edit'
     && !allowFullRegeneration
     && targetSelectors.length > 0
