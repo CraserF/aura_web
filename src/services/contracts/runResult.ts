@@ -1,0 +1,45 @@
+import type { ClarifyOption } from '@/types';
+
+import type { ResolvedIntent } from '@/services/ai/intent/types';
+import type { RunStatus } from '@/services/runs/status';
+
+export interface RunResultAssistantMessage {
+  content: string;
+  clarifyOptions?: ClarifyOption[];
+}
+
+export interface RunResultValidationSummary {
+  passed: boolean;
+  summary: string;
+}
+
+export interface RunResultWarning {
+  code: string;
+  message: string;
+}
+
+export interface RunResultChangedTarget {
+  documentId?: string;
+  sheetId?: string;
+  action: 'created' | 'updated' | 'none';
+}
+
+export interface RunResultStructuredStatus {
+  title: string;
+  detail: string;
+}
+
+export interface RunResult {
+  runId: string;
+  status: RunStatus;
+  intent: ResolvedIntent;
+  outputs: Record<string, unknown>;
+  assistantMessage: RunResultAssistantMessage;
+  validation: RunResultValidationSummary;
+  warnings: RunResultWarning[];
+  changedTargets: RunResultChangedTarget[];
+  structuredStatus: RunResultStructuredStatus;
+}
+
+// TODO(phase-1): Replace generic outputs with artifact-specific typed payloads
+// once the handler adapters are all emitting the same result surface.

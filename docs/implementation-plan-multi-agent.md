@@ -4,6 +4,10 @@ This plan tracks the active execution scope for mobile UX, export/read-only arti
 
 Use this file as the source of truth for coordination across agents.
 
+## Phase Documents
+
+- [Phase 1: Explicit Workflow Contracts](./phases/phase-1-explicit-workflow-contracts.md)
+
 ## Mandatory Validation Gate
 
 No item, phase, or workstream may be marked complete without validation evidence captured in this document or the related phase doc.
