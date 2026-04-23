@@ -13,7 +13,7 @@ Finish Workstream F Phase F3/F4 without inventing a new canonical phase, and use
 | Bootstrap | Codex | `docs/phases/backlog-phase-b-mobile-adaptive-and-validation-sweep.md`, `docs/implementation-plan-multi-agent.md`, `docs/program-status.md`, `docs/workstream-f-mobile-adaptive-artifacts.md` | None | `committed` | Tracked in repo; later branch validation passed via `npm test` and `npm run build`; `npm run lint` blocked by missing `eslint.config.*` | `0ceb26b` |
 | Stream A: Workstream F F3 generation guidance | Codex | `src/services/ai/prompts/composer.ts`, `src/services/ai/workflow/document.ts`, `src/services/ai/templates/document-blueprints.ts`, mobile-hostile QA hooks | Bootstrap | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `26fee79` |
 | Stream B: F4 hardening + fixture set | Codex | `src/test/fixtures/workstream-f.ts`, focused QA tests, viewport checklist docs, any frame-shell follow-up fixes required by validation | Stream A | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `26fee79` |
-| Stream C: Validation sweep | Codex | `docs/program-status.md`, relevant phase docs, `docs/implementation-plan-multi-agent.md` evidence updates | Streams A-B | `in_progress` | Partial presentation-shell viewport evidence is logged; the fresh-server scoped document-creation blocker is cleared, but the broader sweep remains incomplete | — |
+| Stream C: Validation sweep | Codex | `docs/program-status.md`, relevant phase docs, `docs/implementation-plan-multi-agent.md` evidence updates, validation protocol docs, case registry coverage tests | Streams A-B | `in_progress` | Partial presentation-shell viewport evidence is logged; the fresh-server scoped document-creation blocker is cleared, and the major-change validation protocol now defines the remaining case families; the broader sweep remains incomplete | — |
 | Stream D: Wrap-up | Codex | final tracker updates, build/test evidence, blocker notes | Streams A-C | `planned` | Pending metadata update | — |
 
 ## Validation Log
@@ -69,6 +69,21 @@ Finish Workstream F Phase F3/F4 without inventing a new canonical phase, and use
 - Commit: Pending
 - Result: Validated
 
+- Date: 2026-04-23
+- Agent: Codex
+- Scope: Backlog Phase B extension, major workflow change validation protocol, case matrix, scorecard template, and case-registry integrity coverage
+- Build (`npm run build`): Passed
+- Tests (`npm test`): Passed; targeted protocol integrity test also passed (`src/test/major-change-protocol.test.ts`)
+- Lint (`npm run lint`): Blocked by pre-existing ESLint 9 config gap (`eslint.config.*` missing)
+- Manual validation:
+  - Added a canonical workflow-change validation protocol in `docs/validation/major-change-protocol.md`.
+  - Added a full artifact case matrix in `docs/validation/artifact-case-matrix.md` covering numerous document, presentation, and spreadsheet case families.
+  - Added a reusable scorecard in `docs/validation/scorecard-template.md`.
+  - Added a case registry in `src/test/fixtures/major-change-cases.ts` and integrity coverage to stop the matrix from collapsing back into smoke-test-only checks.
+  - Existing Backlog Phase A and Phase 4-10 validation debt remains pending and must now be backfilled through this protocol rather than ad hoc notes.
+- Commit: Pending
+- Result: Committed
+
 ## Workstream F Review Checklist
 
 Use this same checklist in both Workstream F validation and the broader backlog sweep.
@@ -116,3 +131,4 @@ Use this same checklist in both Workstream F validation and the broader backlog 
 - Workstream F completion and validation debt reduction are the priorities here; ESLint 9 migration remains out of scope.
 - Earlier implemented phases may only move from `implemented` to `shipped` when the tracked manual checks are actually completed and logged.
 - Representative Workstream F fixtures currently live in `src/test/fixtures/workstream-f.ts`.
+- The major workflow change validation protocol now lives in `docs/validation/major-change-protocol.md`, with case definitions in `src/test/fixtures/major-change-cases.ts`.

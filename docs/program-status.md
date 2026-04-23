@@ -22,6 +22,7 @@ This document records shipped workflow-upgrade progress across the phased implem
 ## Known Blockers
 
 - `npm run lint` is still blocked by the repo-level ESLint 9 migration gap because `eslint.config.*` is missing.
+- Manual workflow validation should now use the protocol in `docs/validation/major-change-protocol.md` and the registry in `src/test/fixtures/major-change-cases.ts`; older ad hoc notes should be treated as partial evidence until backfilled through that protocol.
 
 ## Validation Debt
 
@@ -82,3 +83,4 @@ This document records shipped workflow-upgrade progress across the phased implem
 ## Current Focus
 
 - Backlog Phase B mobile-adaptive artifact completion and validation sweep is tracked in [backlog-phase-b-mobile-adaptive-and-validation-sweep.md](./phases/backlog-phase-b-mobile-adaptive-and-validation-sweep.md).
+- Major workflow changes should be validated through [major-change-protocol.md](./validation/major-change-protocol.md) and the companion [artifact-case-matrix.md](./validation/artifact-case-matrix.md).

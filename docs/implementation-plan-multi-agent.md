@@ -23,6 +23,12 @@ Use this file as the source of truth for coordination across agents.
 
 - [Program Status](./program-status.md)
 
+## Validation Protocol
+
+- [Major Workflow Change Validation Protocol](./validation/major-change-protocol.md)
+- [Artifact Case Matrix](./validation/artifact-case-matrix.md)
+- [Major Change Validation Scorecard Template](./validation/scorecard-template.md)
+
 ## Mandatory Validation Gate
 
 No item, phase, or workstream may be marked complete without validation evidence captured in this document or the related phase doc.
@@ -32,6 +38,8 @@ Required checks for any behavior change:
 - `npm run build`
 - `npm test`
 - Targeted manual checks for the changed UX path (desktop and mobile if UI changed)
+
+For workflow-affecting changes, manual validation must use the major workflow change protocol and the artifact case matrix instead of ad hoc spot-checks.
 
 Rules:
 
@@ -66,6 +74,7 @@ Validation backfill note:
 - Phase 10 does not absorb Backlog Phase A, Workstream F, or Phase 2/4/5/6/7/8/9 manual validation debt; keep those tracked separately.
 - Backlog Phase B is the current repo-execution focus for Workstream F F3/F4 and manual-validation backfill; it does not absorb the ESLint 9 migration or silently clear legacy manual checks without logged evidence.
 - Backlog Phase B code landed on 2026-04-23 with mobile-safe document/presentation generation guidance, lightweight mobile-hostile QA rules, and representative Workstream F fixtures.
+- Backlog Phase B now also carries the major workflow change validation protocol, scorecard template, and case registry used to gate workflow-affecting changes.
 - Manual Backlog Phase B viewport review is now partially logged for the seeded presentation shell, and a fresh-server rerun confirms the original presentation-scoped document-creation blocker is fixed; the broader legacy validation sweep still remains incomplete.
 - Backlog Phase B commit: `26fee79`
 - Phase 8 code landed on 2026-04-23 with preset services, artifact lifecycle metadata, run-history/policy plumbing, and compact preset/run UI surfaces.

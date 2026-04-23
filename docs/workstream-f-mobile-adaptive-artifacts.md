@@ -160,6 +160,11 @@ Automated checks:
 - npm run build
 - npm test
 
+Workflow-change validation protocol:
+- Use `docs/validation/major-change-protocol.md` for the full gate.
+- Use `docs/validation/artifact-case-matrix.md` for the broader document/presentation/spreadsheet regression families.
+- Use `docs/validation/scorecard-template.md` when recording viewport and quality evidence.
+
 Evidence log template:
 - Date
 - Agent
