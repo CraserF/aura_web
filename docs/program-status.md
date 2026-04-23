@@ -68,4 +68,4 @@ This document records shipped workflow-upgrade progress across the phased implem
 
 ## Current Focus
 
-- Phase 9 spreadsheet workflow deepening is tracked in [phase-9-spreadsheet-workflow-deepening.md](./phases/phase-9-spreadsheet-workflow-deepening.md).
+- Phase 10 API, MCP, and automation alignment is tracked in [phase-10-api-mcp-and-automation-alignment.md](./phases/phase-10-api-mcp-and-automation-alignment.md).

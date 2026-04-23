@@ -6,6 +6,7 @@ Use this file as the source of truth for coordination across agents.
 
 ## Phase Documents
 
+- [Phase 10: API, MCP, and Automation Alignment](./phases/phase-10-api-mcp-and-automation-alignment.md)
 - [Phase 9: Spreadsheet Workflow Deepening](./phases/phase-9-spreadsheet-workflow-deepening.md)
 - [Phase 8: Presets, Lifecycle, and Policy](./phases/phase-8-presets-lifecycle-and-policy.md)
 - [Phase 7: Validation Profiles and Publish](./phases/phase-7-validation-profiles-and-publish.md)
@@ -61,6 +62,7 @@ Validation backfill note:
 - Phase 7 does not absorb Backlog Phase A, Phase 4, Phase 5, or Phase 6 manual validation debt; keep those tracked separately.
 - Phase 8 does not absorb Backlog Phase A, Workstream F, or Phase 4-7 manual validation debt; keep those tracked separately.
 - Phase 9 does not absorb Backlog Phase A, Workstream F, or Phase 2/4/5/6/7/8 manual validation debt; keep those tracked separately.
+- Phase 10 does not absorb Backlog Phase A, Workstream F, or Phase 2/4/5/6/7/8/9 manual validation debt; keep those tracked separately.
 - Phase 8 code landed on 2026-04-23 with preset services, artifact lifecycle metadata, run-history/policy plumbing, and compact preset/run UI surfaces.
 - Manual Phase 8 validation is still pending before any top-level lifecycle/preset workflow completion call.
 - Phase 8 commit: `5508683`
