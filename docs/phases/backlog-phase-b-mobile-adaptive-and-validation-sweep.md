@@ -10,22 +10,33 @@ Finish Workstream F Phase F3/F4 without inventing a new canonical phase, and use
 
 | Stream | Owner | Write Set | Depends On | Status | Validation | Commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| Bootstrap | Codex | `docs/phases/backlog-phase-b-mobile-adaptive-and-validation-sweep.md`, `docs/implementation-plan-multi-agent.md`, `docs/program-status.md`, `docs/workstream-f-mobile-adaptive-artifacts.md` | None | `planned` | Pending | — |
-| Stream A: Workstream F F3 generation guidance | Codex | `src/services/ai/prompts/composer.ts`, `src/services/ai/workflow/document.ts`, `src/services/ai/templates/document-blueprints.ts`, mobile-hostile QA hooks | Bootstrap | `planned` | Pending | — |
-| Stream B: F4 hardening + fixture set | Codex | representative Workstream F fixtures, viewport checklist docs, any frame-shell follow-up fixes required by validation | Stream A | `planned` | Pending | — |
-| Stream C: Validation sweep | Codex | `docs/program-status.md`, relevant phase docs, `docs/implementation-plan-multi-agent.md` evidence updates | Streams A-B | `planned` | Pending | — |
-| Stream D: Wrap-up | Codex | final tracker updates, build/test evidence, blocker notes | Streams A-C | `planned` | Pending | — |
+| Bootstrap | Codex | `docs/phases/backlog-phase-b-mobile-adaptive-and-validation-sweep.md`, `docs/implementation-plan-multi-agent.md`, `docs/program-status.md`, `docs/workstream-f-mobile-adaptive-artifacts.md` | None | `committed` | Tracked in repo; later branch validation passed via `npm test` and `npm run build`; `npm run lint` blocked by missing `eslint.config.*` | `0ceb26b` |
+| Stream A: Workstream F F3 generation guidance | Codex | `src/services/ai/prompts/composer.ts`, `src/services/ai/workflow/document.ts`, `src/services/ai/templates/document-blueprints.ts`, mobile-hostile QA hooks | Bootstrap | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `26fee79` |
+| Stream B: F4 hardening + fixture set | Codex | `src/test/fixtures/workstream-f.ts`, focused QA tests, viewport checklist docs, any frame-shell follow-up fixes required by validation | Stream A | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `26fee79` |
+| Stream C: Validation sweep | Codex | `docs/program-status.md`, relevant phase docs, `docs/implementation-plan-multi-agent.md` evidence updates | Streams A-B | `in_progress` | Legacy manual checks remain pending; no tracked phase was promoted without evidence | — |
+| Stream D: Wrap-up | Codex | final tracker updates, build/test evidence, blocker notes | Streams A-C | `planned` | Pending metadata update | — |
 
 ## Validation Log
 
-- Date: Pending
+- Date: 2026-04-23
 - Agent: Codex
-- Scope: Backlog Phase B bootstrap, mobile-adaptive generation guidance, fixture hardening, validation sweep, and wrap-up
-- Build (`npm run build`): Pending
-- Tests (`npm test`): Pending
-- Lint (`npm run lint`): Non-gating; currently blocked by missing `eslint.config.*`
+- Scope: Backlog Phase B bootstrap docs and tracker wiring
+- Build (`npm run build`): Passed later on the branch after implementation landed
+- Tests (`npm test`): Passed later on the branch after implementation landed
+- Lint (`npm run lint`): Blocked by pre-existing ESLint 9 config gap (`eslint.config.*` missing)
 - Manual validation: Pending viewport matrix and legacy validation sweep
-- Result: In progress
+- Commit: `0ceb26b`
+- Result: Committed
+
+- Date: 2026-04-23
+- Agent: Codex
+- Scope: Mobile-safe document/presentation generation guidance, lightweight mobile-hostile QA checks, representative Workstream F fixtures, and regression coverage
+- Build (`npm run build`): Passed
+- Tests (`npm test`): Passed
+- Lint (`npm run lint`): Blocked by pre-existing ESLint 9 config gap (`eslint.config.*` missing)
+- Manual validation: Pending Workstream F viewport matrix and broader legacy manual sweep
+- Commit: `26fee79`
+- Result: Committed
 
 ## Workstream F Review Checklist
 
@@ -73,3 +84,4 @@ Use this same checklist in both Workstream F validation and the broader backlog 
 - Backlog Phase B is intentionally a backlog phase, not a new canonical Phase 11.
 - Workstream F completion and validation debt reduction are the priorities here; ESLint 9 migration remains out of scope.
 - Earlier implemented phases may only move from `implemented` to `shipped` when the tracked manual checks are actually completed and logged.
+- Representative Workstream F fixtures currently live in `src/test/fixtures/workstream-f.ts`.

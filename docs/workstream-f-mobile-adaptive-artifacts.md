@@ -31,12 +31,13 @@ This document defines the detailed implementation plan for mobile-adaptive rende
 
 ## Phased Execution
 
-Status snapshot (2026-04-12):
+Status snapshot (2026-04-23):
 
 - Phase F0: baseline contract documented (in progress, continue refining docs as behavior evolves).
 - Phase F1: initial implementation landed (shared presentation frame + 16:9 fit/contain behavior).
 - Phase F2: initial implementation landed (document canvas frame/boundary consistency in app shell).
-- Phase F3-F4: active backlog implementation slice under Backlog Phase B.
+- Phase F3: implemented via mobile-safe generation guidance in document/presentation prompt surfaces plus lightweight QA guards.
+- Phase F4: partially implemented via representative fixtures and checklist hardening; full manual viewport matrix still pending.
 
 ## Phase F0: UX and Architecture Baseline
 
@@ -127,6 +128,7 @@ Representative fixture set:
 - one long-form document fixture
 - one visually dense document fixture
 - one presentation fixture with cards, media framing, and metrics
+- Current fixture file: `src/test/fixtures/workstream-f.ts`
 
 ## Cross-Workstream Dependencies
 
