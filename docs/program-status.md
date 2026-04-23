@@ -9,6 +9,7 @@ This document records shipped workflow-upgrade progress across the phased implem
 | Phase 0: Baseline Hardening | `shipped` | `1e17977` | Baseline routing/tests/docs foundations landed. |
 | Phase 1: Explicit Workflow Contracts | `shipped` | `6fa8083`, `42baaec`, `4ee1add` | Contracts, submit boundary, run registry skeleton, parity harness skeleton landed. |
 | Phase 2: Runtime Project Rules and Diagnostics | `shipped` | `42bf419`, `75b255d`, `8beb1ec` | Project rules persistence, doctor workflow, config validation, and sidebar panels landed. |
+| Phase 3: Explicit Context Control and Context Compaction | `shipped` | `eeffb20`, `d6e5d9b` | Runtime context controls, inspectable source inventory, deterministic compaction, memory detail alignment, and composer context UI landed. |
 
 ## Known Blockers
 
@@ -21,6 +22,6 @@ This document records shipped workflow-upgrade progress across the phased implem
   - Doctor panel healthy/broken provider checks
   - visible project-rule influence on one document and one presentation generation
 
-## Next Phase
+## Current Focus
 
-- Phase 3: Explicit Context Control and Context Compaction
+- Phase 3 docs and shipped progress are recorded in [phase-3-explicit-context-control-and-compaction.md](./phases/phase-3-explicit-context-control-and-compaction.md).
