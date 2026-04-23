@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { History, GitCommit, RotateCcw, X, Clock } from 'lucide-react';
 import { listVersions, readVersionSnapshot } from '@/services/storage/versionHistory';
+import { normalizeProjectData } from '@/services/projectRules/load';
 import { useProjectStore } from '@/stores/projectStore';
 import type { VersionEntry, ProjectDocument } from '@/types/project';
 import type { ChatMessage } from '@/types';
@@ -59,6 +60,8 @@ export function VersionHistoryPanel({ open, onClose }: VersionHistoryPanelProps)
         activeDocumentId?: string | null;
       };
       const chatHistory = JSON.parse(snapshot.chatHistory) as ChatMessage[];
+      const contextPolicy = JSON.parse(snapshot.contextPolicy) as typeof project.contextPolicy;
+      const workflowPresets = JSON.parse(snapshot.workflowPresets) as typeof project.workflowPresets;
 
       const documents: ProjectDocument[] = Object.values(snapshot.documents).map(
         (raw) => JSON.parse(raw) as ProjectDocument,
@@ -69,14 +72,20 @@ export function VersionHistoryPanel({ open, onClose }: VersionHistoryPanelProps)
           ? manifest.activeDocumentId
           : (documents[0]?.id ?? null);
 
-      setProject({
+      setProject(normalizeProjectData({
         ...project,
         title: manifest.title,
         documents,
         activeDocumentId: restoredActiveDocumentId,
         chatHistory,
+        projectRules: {
+          markdown: snapshot.projectRules,
+          updatedAt: manifest.updatedAt,
+        },
+        contextPolicy: contextPolicy ?? undefined,
+        workflowPresets: workflowPresets ?? undefined,
         updatedAt: manifest.updatedAt,
-      });
+      }));
 
       onClose();
     } catch (e) {

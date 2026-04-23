@@ -2,6 +2,12 @@ import { create } from 'zustand';
 import type { ProjectData, ProjectDocument } from '@/types/project';
 import type { ChatMessage } from '@/types';
 import { createInitialMemoryTree } from '@/services/memory';
+import {
+  defaultContextPolicy,
+  defaultProjectRules,
+  defaultWorkflowPresets,
+} from '@/services/projectRules/defaults';
+import { normalizeProjectData } from '@/services/projectRules/load';
 
 function newProject(): ProjectData {
   return {
@@ -13,6 +19,9 @@ function newProject(): ProjectData {
     activeDocumentId: null,
     chatHistory: [],
     memoryTree: createInitialMemoryTree(),
+    projectRules: defaultProjectRules(),
+    contextPolicy: defaultContextPolicy(),
+    workflowPresets: defaultWorkflowPresets(),
     sections: { drafts: [], main: [], suggestions: [], issues: [] },
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -63,16 +72,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   setProject: (project) =>
     set(() => {
+      const normalizedProject = normalizeProjectData(project);
       const hasActive =
-        !!project.activeDocumentId &&
-        project.documents.some((d) => d.id === project.activeDocumentId);
+        !!normalizedProject.activeDocumentId &&
+        normalizedProject.documents.some((d) => d.id === normalizedProject.activeDocumentId);
       const activeDocumentId = hasActive
-        ? project.activeDocumentId
-        : (project.documents[0]?.id ?? null);
+        ? normalizedProject.activeDocumentId
+        : (normalizedProject.documents[0]?.id ?? null);
 
       return {
         project: {
-          ...project,
+          ...normalizedProject,
           activeDocumentId,
         },
       };

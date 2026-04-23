@@ -1,10 +1,8 @@
-import type { ProjectRulesDocument } from '@/services/projectRules/types';
-
-export function buildProjectRulesPromptBlock(projectRules: ProjectRulesDocument): string {
-  const markdown = projectRules.markdown.trim();
-  if (!markdown) {
+export function buildProjectRulesPromptBlock(markdown: string, rulesAppendix?: string): string {
+  const sections = [markdown.trim(), rulesAppendix?.trim() ?? ''].filter(Boolean);
+  if (sections.length === 0) {
     return '';
   }
 
-  return `## PROJECT RULES\n\n${markdown}`;
+  return `## PROJECT RULES\n\n${sections.join('\n\n')}`;
 }

@@ -8,8 +8,10 @@ import { ChatBar } from '@/components/ChatBar';
 import { ChatPanel } from '@/components/ChatPanel';
 import { ProviderModal } from '@/components/ProviderModal';
 import { ProjectSidebar } from '@/components/ProjectSidebar';
+import { ProjectRulesPanel } from '@/components/ProjectRulesPanel';
 import { VersionHistoryPanel } from '@/components/VersionHistoryPanel';
 import { SpreadsheetCanvas } from '@/components/SpreadsheetCanvas';
+import { DoctorPanel } from '@/components/DoctorPanel';
 import { useProjectStore } from '@/stores/projectStore';
 import { usePresentationStore } from '@/stores/presentationStore';
 import { useChatStore } from '@/stores/chatStore';
@@ -18,6 +20,8 @@ import {
   autosaveProject,
   getProjectAutosave,
 } from '@/services/storage/projectAutosave';
+import { runDoctor } from '@/services/diagnostics/runDoctor';
+import type { DoctorReport } from '@/services/diagnostics/types';
 import type { LinkedTableRef, ProjectDocument, WorkbookMeta } from '@/types/project';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -133,11 +137,16 @@ export default function App() {
   const messages = useChatStore((s) => s.messages);
   const setMessages = useChatStore((s) => s.setMessages);
   const showDocumentPagesView = useSettingsStore((s) => s.showDocumentPagesView);
+  const providerId = useSettingsStore((s) => s.providerId);
+  const providers = useSettingsStore((s) => s.providers);
 
   const [chatPanelOpen, setChatPanelOpen] = useState(false);
   const chatPanelRef = useRef<PanelImperativeHandle>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
+  const [projectRulesOpen, setProjectRulesOpen] = useState(false);
+  const [doctorOpen, setDoctorOpen] = useState(false);
+  const [doctorReport, setDoctorReport] = useState<DoctorReport | null>(null);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [textEditorOpen, setTextEditorOpen] = useState(false);
@@ -238,6 +247,21 @@ export default function App() {
     },
     [addDocument, project.documents.length],
   );
+
+  const handleSaveProjectRules = useCallback((updates: Pick<typeof project, 'projectRules' | 'contextPolicy' | 'workflowPresets'>) => {
+    setProject({
+      ...project,
+      ...updates,
+      updatedAt: Date.now(),
+    });
+  }, [project, setProject]);
+
+  const handleRunDoctor = useCallback(() => {
+    setDoctorReport(runDoctor({
+      project,
+      providerConfig: providers[providerId],
+    }));
+  }, [project, providerId, providers]);
 
   const showPresentation = activeDocument?.type === 'presentation';
   const showDocument = activeDocument?.type === 'document';
@@ -444,6 +468,8 @@ export default function App() {
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           onRequestAddDocument={handleAddDocument}
+          onOpenProjectRules={() => setProjectRulesOpen(true)}
+          onOpenDoctor={() => setDoctorOpen(true)}
         />
 
         <Group
@@ -744,6 +770,18 @@ export default function App() {
         />
       </div>
       <ProviderModal />
+      <ProjectRulesPanel
+        open={projectRulesOpen}
+        onOpenChange={setProjectRulesOpen}
+        project={project}
+        onSave={handleSaveProjectRules}
+      />
+      <DoctorPanel
+        open={doctorOpen}
+        onOpenChange={setDoctorOpen}
+        report={doctorReport}
+        onRun={handleRunDoctor}
+      />
       <DocumentPdfPreview
         open={pdfPreviewOpen}
         onOpenChange={setPdfPreviewOpen}

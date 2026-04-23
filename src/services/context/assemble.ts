@@ -1,12 +1,13 @@
 import { buildAttachmentContext } from '@/lib/fileAttachment';
-import { buildScopedChatHistory, resolveOutgoingMessageScope } from '@/services/chat/routing';
+import { resolveOutgoingMessageScope } from '@/services/chat/routing';
 import {
   countConversationChars,
   countTextChars,
 } from '@/services/ai/debug';
 import type { FileAttachment } from '@/types';
 import type { AIImagePart } from '@/services/ai/types';
-import type { ProjectData, ProjectDocument } from '@/types/project';
+import type { ChatMessage } from '@/types';
+import type { ContextPolicy, ProjectData, ProjectDocument } from '@/types/project';
 
 import { estimateContextTokens } from '@/services/context/budgets';
 import { getActiveWorkbook, getExistingArtifactText, getRelatedDocuments } from '@/services/context/selectors';
@@ -22,6 +23,7 @@ export interface AssembleContextInput {
   showAllMessages: boolean;
   applyToAllDocuments: boolean;
   memoryContext: string;
+  contextPolicy: ContextPolicy;
 }
 
 export interface AssembledChatContext {
@@ -40,16 +42,30 @@ export function assembleContext(input: AssembleContextInput): AssembledChatConte
     showAllMessages,
     applyToAllDocuments,
     memoryContext,
+    contextPolicy,
   } = input;
 
   const { messageScope, scopedDocumentId } = resolveOutgoingMessageScope(
     activeDocument?.id,
     applyToAllDocuments,
   );
-  const attachmentTextContext = buildAttachmentContext(attachments);
+  const maxChatMessages = contextPolicy.maxChatMessages ?? 0;
+  const maxAttachmentChars = contextPolicy.maxAttachmentChars ?? 0;
+  const maxRelatedDocuments = contextPolicy.maxRelatedDocuments ?? 0;
+  const maxMemoryTokens = contextPolicy.maxMemoryTokens ?? 0;
+  const selectedMessages = selectContextMessages(messages, activeDocument?.id, showAllMessages, contextPolicy);
+  const limitedMessages = maxChatMessages > 0
+    ? selectedMessages.slice(-maxChatMessages)
+    : [];
+  const attachmentTextContext = contextPolicy.includeAttachments
+    ? clampContextText(buildAttachmentContext(attachments), maxAttachmentChars)
+    : '';
   const promptWithContext = (attachmentTextContext ? `${prompt}${attachmentTextContext}` : prompt).trim();
-  const chatHistory = buildScopedChatHistory(messages, activeDocument?.id, showAllMessages);
-  const imageParts: AIImagePart[] = attachments
+  const chatHistory = limitedMessages.map((message) => ({
+    role: message.role,
+    content: message.content,
+  }));
+  const imageParts: AIImagePart[] = (contextPolicy.includeAttachments ? attachments : [])
     .filter((attachment) => attachment.kind === 'image')
     .map((attachment) => ({
       type: 'image',
@@ -58,7 +74,12 @@ export function assembleContext(input: AssembleContextInput): AssembledChatConte
     }));
   const activeWorkbook = getActiveWorkbook(activeDocument);
   const { existingContentHtml, existingMarkdown } = getExistingArtifactText(activeDocument);
-  const relatedDocuments = getRelatedDocuments(project, activeDocument);
+  const relatedDocuments = contextPolicy.includeRelatedDocuments
+    ? getRelatedDocuments(project, activeDocument, maxRelatedDocuments)
+    : [];
+  const normalizedMemoryContext = contextPolicy.includeMemory
+    ? clampContextText(memoryContext, maxMemoryTokens * 4)
+    : '';
 
   const sources: ContextSource[] = [
     { kind: 'conversation' as const, label: 'prompt', charCount: countTextChars(prompt) },
@@ -88,7 +109,7 @@ export function assembleContext(input: AssembleContextInput): AssembledChatConte
       relatedDocuments,
     },
     memory: {
-      text: summarizeContextValue(memoryContext),
+      text: summarizeContextValue(normalizedMemoryContext),
     },
     data: {
       projectId: project.id,
@@ -98,7 +119,7 @@ export function assembleContext(input: AssembleContextInput): AssembledChatConte
       promptChars: countTextChars(prompt),
       promptWithContextChars: countTextChars(promptWithContext),
       chatHistoryChars: countConversationChars(chatHistory),
-      memoryContextChars: countTextChars(memoryContext),
+      memoryContextChars: countTextChars(normalizedMemoryContext),
       artifactContextChars:
         countTextChars(existingContentHtml) +
         countTextChars(existingMarkdown) +
@@ -106,7 +127,7 @@ export function assembleContext(input: AssembleContextInput): AssembledChatConte
       attachmentContextChars: countTextChars(attachmentTextContext),
       estimatedTotalTokens: estimateContextTokens([
         promptWithContext,
-        memoryContext,
+        normalizedMemoryContext,
         existingContentHtml,
         existingMarkdown,
         activeWorkbook ? JSON.stringify(activeWorkbook) : '',
@@ -121,4 +142,31 @@ export function assembleContext(input: AssembleContextInput): AssembledChatConte
     messageScope,
     scopedDocumentId,
   };
+}
+
+function clampContextText(value: string, maxChars: number): string {
+  if (maxChars <= 0) return '';
+  return value.length <= maxChars ? value : value.slice(0, maxChars);
+}
+
+function selectContextMessages(
+  messages: ChatMessage[],
+  activeDocumentId: string | null | undefined,
+  showAllMessages: boolean,
+  contextPolicy: ContextPolicy,
+): ChatMessage[] {
+  const inScope = messages.filter((message) => {
+    if (showAllMessages || !activeDocumentId) return true;
+    return message.scope === 'project' || !message.documentId || message.documentId === activeDocumentId;
+  });
+
+  if (contextPolicy.includeProjectChat) {
+    return inScope;
+  }
+
+  if (!activeDocumentId) {
+    return [];
+  }
+
+  return inScope.filter((message) => message.documentId === activeDocumentId);
 }

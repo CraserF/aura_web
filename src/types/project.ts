@@ -65,6 +65,43 @@ export interface LinkedTableRef {
 /** Visibility level for a project */
 export type ProjectVisibility = 'private' | 'public';
 
+export interface ProjectRulesDocument {
+  markdown: string;
+  updatedAt: number;
+}
+
+export interface ContextPolicyOverride {
+  includeProjectChat?: boolean;
+  includeMemory?: boolean;
+  includeAttachments?: boolean;
+  includeRelatedDocuments?: boolean;
+  maxChatMessages?: number;
+  maxMemoryTokens?: number;
+  maxRelatedDocuments?: number;
+  maxAttachmentChars?: number;
+}
+
+export interface ContextPolicy extends ContextPolicyOverride {
+  version: number;
+  artifactOverrides?: Partial<Record<DocumentType, ContextPolicyOverride>>;
+}
+
+export interface WorkflowPreset {
+  id: string;
+  name: string;
+  artifactType?: DocumentType;
+  rulesAppendix?: string;
+  contextPolicyOverrides?: ContextPolicyOverride;
+  documentStylePreset?: string;
+  enabled: boolean;
+}
+
+export interface WorkflowPresetCollection {
+  version: number;
+  presets: WorkflowPreset[];
+  defaultPresetByArtifact: Partial<Record<DocumentType, string>>;
+}
+
 /** A single document in a project */
 export interface ProjectDocument {
   id: string;
@@ -117,6 +154,9 @@ export interface ProjectData {
   activeDocumentId: string | null;
   chatHistory: ChatMessage[];
   memoryTree?: MemoryDirectory;
+  projectRules?: ProjectRulesDocument;
+  contextPolicy?: ContextPolicy;
+  workflowPresets?: WorkflowPresetCollection;
   sections: ProjectSections;
   createdAt: number;
   updatedAt: number;

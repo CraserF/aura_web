@@ -53,6 +53,10 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
   const promptWithContext = context.conversation.promptWithContext;
   const chatHistory = context.conversation.chatHistory;
   const activeDocument = activeArtifacts.activeDocument;
+  const configWarnings = runRequest.projectRulesSnapshot.diagnostics.map((diagnostic) => ({
+    code: diagnostic.code,
+    message: diagnostic.message,
+  }));
 
   const isEditFlow = !!activeDocument?.contentHtml && activeDocument.type === 'presentation';
 
@@ -144,6 +148,7 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         existingSlidesHtml: existingSlides,
         chatHistory,
         memoryContext,
+        projectRulesBlock: runRequest.projectRulesSnapshot.promptBlock || undefined,
       },
       llmConfig: {
         providerEntry,
@@ -230,7 +235,7 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
           ? 'Presentation QA passed.'
           : 'Presentation QA completed with advisories.',
       },
-      warnings: reviewWarning,
+      warnings: [...configWarnings, ...reviewWarning],
       changedTargets: [{
         documentId: changedDocumentId,
         action: changeAction,
@@ -256,7 +261,7 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
           passed: false,
           summary: 'Run cancelled by user.',
         },
-        warnings: [],
+        warnings: configWarnings,
         changedTargets: [],
         structuredStatus: {
           title: 'Generation cancelled',
@@ -277,7 +282,7 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         passed: false,
         summary: 'Presentation workflow failed.',
       },
-      warnings: [],
+      warnings: configWarnings,
       changedTargets: [],
       structuredStatus: {
         title: 'Presentation workflow failed',

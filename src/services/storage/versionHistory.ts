@@ -90,6 +90,19 @@ async function writeProjectFiles(project: ProjectData): Promise<void> {
     `${REPO_DIR}/chat-history.json`,
     JSON.stringify(project.chatHistory, null, 2),
   );
+
+  await fs.promises.writeFile(
+    `${REPO_DIR}/project-rules.md`,
+    project.projectRules?.markdown ?? '',
+  );
+  await fs.promises.writeFile(
+    `${REPO_DIR}/context-policy.json`,
+    JSON.stringify(project.contextPolicy ?? {}, null, 2),
+  );
+  await fs.promises.writeFile(
+    `${REPO_DIR}/workflow-presets.json`,
+    JSON.stringify(project.workflowPresets ?? {}, null, 2),
+  );
 }
 
 /** Stage all files and create a commit */
@@ -154,6 +167,9 @@ export async function readVersionSnapshot(hash: string): Promise<{
   manifest: string;
   documents: Record<string, string>;
   chatHistory: string;
+  projectRules: string;
+  contextPolicy: string;
+  workflowPresets: string;
 } | null> {
   try {
     const fs = getFs();
@@ -177,6 +193,9 @@ export async function readVersionSnapshot(hash: string): Promise<{
       manifest: await readBlob('manifest.json'),
       documents: documentEntries,
       chatHistory: await readBlob('chat-history.json').catch(() => '[]'),
+      projectRules: await readBlob('project-rules.md').catch(() => ''),
+      contextPolicy: await readBlob('context-policy.json').catch(() => 'null'),
+      workflowPresets: await readBlob('workflow-presets.json').catch(() => 'null'),
     };
   } catch (err) {
     console.warn('[VersionHistory] readSnapshot failed:', err);

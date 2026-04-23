@@ -4,6 +4,8 @@ import type { ProjectData, ProjectDocument } from '@/types/project';
 
 import { resolveIntent } from '@/services/ai/intent/resolveIntent';
 import { assembleContext } from '@/services/context/assemble';
+import { loadContextPolicy } from '@/services/projectRules/load';
+import { resolveProjectRulesSnapshot } from '@/services/projectRules/resolve';
 import type { RunRequest } from '@/services/runs/types';
 
 export interface BuildRunRequestInput {
@@ -48,8 +50,8 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
     showAllMessages,
     applyToAllDocuments,
     memoryContext: '',
+    contextPolicy: loadContextPolicy(project.contextPolicy),
   });
-  const { messageScope, scopedDocumentId } = initialAssembly;
 
   const memoryContext = await buildMemoryContext(initialAssembly.context.conversation.promptWithContext);
   const assembled = assembleContext({
@@ -61,6 +63,7 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
     showAllMessages,
     applyToAllDocuments,
     memoryContext,
+    contextPolicy: loadContextPolicy(project.contextPolicy),
   });
   const intent = resolveIntent({
     prompt: assembled.context.conversation.promptWithContext,
@@ -69,20 +72,32 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
     scope: assembled.messageScope,
     allowClarification,
   });
+  const projectRulesSnapshot = resolveProjectRulesSnapshot(project, intent.artifactType);
+  const assembledWithPolicy = assembleContext({
+    prompt,
+    attachments,
+    messages,
+    activeDocument,
+    project,
+    showAllMessages,
+    applyToAllDocuments,
+    memoryContext,
+    contextPolicy: projectRulesSnapshot.contextPolicy,
+  });
 
   return {
     runRequest: {
       runId: crypto.randomUUID(),
       intent,
-      context: assembled.context,
+      context: assembledWithPolicy.context,
       providerConfig,
       activeArtifacts: {
         activeDocument,
       },
-      projectRulesSnapshot: null,
+      projectRulesSnapshot,
       createdAt: Date.now(),
     },
-    messageScope,
-    scopedDocumentId,
+    messageScope: assembledWithPolicy.messageScope,
+    scopedDocumentId: assembledWithPolicy.scopedDocumentId,
   };
 }

@@ -35,7 +35,7 @@ function makeProject(documents: ProjectDocument[]): ProjectData {
 }
 
 describe('buildRunRequest', () => {
-  it('packages the provider snapshot, active artifact refs, and null project rules placeholder', async () => {
+  it('packages the provider snapshot, active artifact refs, and resolved project rules snapshot', async () => {
     const activeDocument = makeDocument();
     const result = await buildRunRequest({
       prompt: 'Revise this into a tighter summary',
@@ -59,8 +59,10 @@ describe('buildRunRequest', () => {
     expect(result.scopedDocumentId).toBe('doc-1');
     expect(result.runRequest.providerConfig.model).toBe('gpt-4o');
     expect(result.runRequest.activeArtifacts.activeDocument?.id).toBe('doc-1');
-    expect(result.runRequest.projectRulesSnapshot).toBeNull();
+    expect(result.runRequest.projectRulesSnapshot.contextPolicy.maxChatMessages).toBe(12);
+    expect(result.runRequest.projectRulesSnapshot.promptBlock).toBe('');
     expect(result.runRequest.context.memory.text).toContain('launch notes');
     expect(result.runRequest.intent.artifactType).toBe('document');
+    expect(result.runRequest.projectRulesSnapshot.activePresetId).toBeUndefined();
   });
 });

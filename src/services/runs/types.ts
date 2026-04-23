@@ -3,6 +3,7 @@ import type { ProjectDocument } from '@/types/project';
 
 import type { ResolvedIntent } from '@/services/ai/intent/types';
 import type { ContextBundle } from '@/services/context/types';
+import type { ResolvedProjectRulesSnapshot } from '@/services/projectRules/types';
 import type { RunStatus } from '@/services/runs/status';
 
 export interface RunRequest {
@@ -13,7 +14,7 @@ export interface RunRequest {
   activeArtifacts: {
     activeDocument: ProjectDocument | null;
   };
-  projectRulesSnapshot: null;
+  projectRulesSnapshot: ResolvedProjectRulesSnapshot;
   createdAt: number;
 }
 

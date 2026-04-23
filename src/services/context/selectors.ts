@@ -21,9 +21,11 @@ export function getExistingArtifactText(activeDocument: ProjectDocument | null):
 export function getRelatedDocuments(
   project: ProjectData,
   activeDocument: ProjectDocument | null,
+  maxRelatedDocuments?: number,
 ): Array<Pick<ProjectDocument, 'id' | 'title' | 'type'>> {
   return project.documents
     .filter((document) => document.id !== activeDocument?.id)
+    .slice(0, maxRelatedDocuments ?? Number.MAX_SAFE_INTEGER)
     .map((document) => ({
       id: document.id,
       title: document.title,

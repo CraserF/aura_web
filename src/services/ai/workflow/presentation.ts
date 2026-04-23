@@ -133,6 +133,7 @@ export async function runPresentationWorkflow(
           effectiveChatHistory,
           model,
           onEvent,
+          input.projectRulesBlock,
           signal,
         )
       : await design(
@@ -141,6 +142,7 @@ export async function runPresentationWorkflow(
           effectiveChatHistory,
           model,
           onEvent,
+          input.projectRulesBlock,
           signal,
         );
 
@@ -204,6 +206,7 @@ export async function runPresentationWorkflow(
           designResult.html,
           planResult,
           onEvent,
+          input.projectRulesBlock,
           signal,
         );
         onEvent({ type: 'step-done', stepId: 'evaluate', label: 'Evaluating quality…' });

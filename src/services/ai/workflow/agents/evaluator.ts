@@ -86,6 +86,7 @@ export async function evaluateAndRevise(
   html: string,
   planResult: PlanResult,
   onEvent: EventListener,
+  projectRulesBlock?: string,
   signal?: AbortSignal,
   maxIterations = 1,
 ): Promise<string> {
@@ -160,6 +161,7 @@ export async function evaluateAndRevise(
     const revisionSystem = buildRevisionSystemPrompt(
       planResult.blueprint.palette,
       planResult.animationLevel,
+      projectRulesBlock,
     );
 
     const revisionPrompt = buildRevisionUserPrompt(currentHtml, actionableIssues);

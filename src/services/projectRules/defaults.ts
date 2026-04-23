@@ -2,7 +2,7 @@ import type {
   ContextPolicy,
   ProjectRulesDocument,
   WorkflowPresetCollection,
-} from '@/services/projectRules/types';
+} from '@/types/project';
 
 export function defaultProjectRules(): ProjectRulesDocument {
   return {

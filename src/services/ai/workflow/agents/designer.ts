@@ -380,6 +380,7 @@ export async function design(
   chatHistory: AIMessage[],
   model: LanguageModel,
   onEvent: EventListener,
+  projectRulesBlock?: string,
   signal?: AbortSignal,
 ): Promise<DesignResult> {
   const t0 = performance.now();
@@ -389,6 +390,8 @@ export async function design(
     planResult.selectedTemplate,
     planResult.exemplarPackId,
     planResult.animationLevel,
+    undefined,
+    projectRulesBlock,
   );
 
   // Build conversation messages
@@ -562,6 +565,7 @@ export async function designEdit(
   chatHistory: AIMessage[],
   model: LanguageModel,
   onEvent: EventListener,
+  projectRulesBlock?: string,
   signal?: AbortSignal,
 ): Promise<DesignResult> {
   const t0 = performance.now();
@@ -571,6 +575,7 @@ export async function designEdit(
   const systemPrompt = buildEditDesignerPrompt(
     planResult.blueprint.palette,
     planResult.animationLevel,
+    projectRulesBlock,
   );
 
   const messages: ModelMessage[] = [];

@@ -50,6 +50,10 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
   const chatHistory = context.conversation.chatHistory;
   const imageParts = context.attachments.imageParts;
   const activeDocument = activeArtifacts.activeDocument;
+  const configWarnings = runRequest.projectRulesSnapshot.diagnostics.map((diagnostic) => ({
+    code: diagnostic.code,
+    message: diagnostic.message,
+  }));
   const isEdit = intent.operation === 'edit' && activeDocument?.type === 'document';
 
   workflowStepsRef.current = [
@@ -114,6 +118,7 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
         existingMarkdown: activeDocument?.type === 'document' ? activeDocument.sourceMarkdown : undefined,
         chatHistory,
         memoryContext,
+        projectRulesBlock: runRequest.projectRulesSnapshot.promptBlock || undefined,
         styleHint: documentStylePreset,
         projectLinks: projectLinks.length > 0 ? projectLinks : undefined,
         imageParts: imageParts.length > 0 ? imageParts : undefined,
@@ -196,7 +201,7 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
         passed: true,
         summary: 'Document workflow completed and passed document QA.',
       },
-      warnings: [],
+      warnings: configWarnings,
       changedTargets: [{
         documentId: changedDocumentId,
         action: changeAction,
@@ -222,7 +227,7 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
           passed: false,
           summary: 'Run cancelled by user.',
         },
-        warnings: [],
+        warnings: configWarnings,
         changedTargets: [],
         structuredStatus: {
           title: 'Generation cancelled',
@@ -243,7 +248,7 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
         passed: false,
         summary: 'Document workflow failed.',
       },
-      warnings: [],
+      warnings: configWarnings,
       changedTargets: [],
       structuredStatus: {
         title: 'Document workflow failed',

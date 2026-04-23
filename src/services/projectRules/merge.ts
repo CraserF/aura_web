@@ -1,4 +1,4 @@
-import type { ContextPolicy, ContextPolicyOverride } from '@/services/projectRules/types';
+import type { ContextPolicy, ContextPolicyOverride } from '@/types/project';
 
 export function mergeContextPolicy(
   base: ContextPolicy,

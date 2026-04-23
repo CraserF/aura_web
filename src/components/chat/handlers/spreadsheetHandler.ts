@@ -47,6 +47,10 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
   const prompt = context.conversation.prompt;
   const promptWithContext = context.conversation.promptWithContext;
   const activeDocument = activeArtifacts.activeDocument;
+  const configWarnings = runRequest.projectRulesSnapshot.diagnostics.map((diagnostic) => ({
+    code: diagnostic.code,
+    message: diagnostic.message,
+  }));
 
   const activeWorkbook = activeDocument?.type === 'spreadsheet' ? activeDocument.workbook ?? null : null;
   const docIsDefaultSheet = isDefaultSheet(activeDocument);
@@ -80,7 +84,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
           passed: true,
           summary: 'Spreadsheet workflow exited without applying changes.',
         },
-        warnings: [],
+        warnings: configWarnings,
         changedTargets: [{
           documentId: activeDocument?.id,
           action: 'none',
@@ -117,7 +121,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
           passed: true,
           summary: 'Spreadsheet chart created successfully.',
         },
-        warnings: [],
+        warnings: configWarnings,
         changedTargets: [{
           documentId: activeDocument!.id,
           action: 'updated',
@@ -148,7 +152,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
           passed: true,
           summary: 'Spreadsheet action executed successfully.',
         },
-        warnings: [],
+        warnings: configWarnings,
         changedTargets: [{
           documentId: activeDocument!.id,
           action: 'updated',
@@ -215,7 +219,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
         passed: true,
         summary: 'Spreadsheet created successfully.',
       },
-      warnings: [],
+      warnings: configWarnings,
       changedTargets: [{
         documentId: targetDocument.id,
         action: activeDocument?.type === 'spreadsheet' ? 'updated' : 'created',
@@ -239,7 +243,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
         passed: false,
         summary: 'Spreadsheet workflow failed.',
       },
-      warnings: [],
+      warnings: configWarnings,
       changedTargets: [],
       structuredStatus: {
         title: 'Spreadsheet workflow failed',

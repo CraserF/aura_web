@@ -79,6 +79,7 @@ export async function runBatchQueue(opts: BatchQueueOptions): Promise<BatchQueue
       [], // no chat history for individual batch slides
       model,
       onEvent,
+      undefined,
       signal,
     );
 

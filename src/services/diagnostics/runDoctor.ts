@@ -1,6 +1,7 @@
 import type { ProviderConfig } from '@/types';
 import type { ProjectData } from '@/types/project';
 import type { DoctorReport } from '@/services/diagnostics/types';
+import { normalizeProjectData } from '@/services/projectRules/load';
 import { runProviderDiagnostics } from '@/services/diagnostics/checks/provider';
 import { runProjectDiagnostics } from '@/services/diagnostics/checks/project';
 import { runExportDiagnostics } from '@/services/diagnostics/checks/exports';
@@ -14,12 +15,13 @@ export interface RunDoctorInput {
 }
 
 export function runDoctor(input: RunDoctorInput): DoctorReport {
+  const project = normalizeProjectData(input.project);
   const checks = [
     runProviderDiagnostics(input.providerConfig),
-    runProjectDiagnostics(input.project),
-    runExportDiagnostics(input.project),
-    runMemoryDiagnostics(input.project),
-    runDataDiagnostics(input.project),
+    runProjectDiagnostics(project),
+    runExportDiagnostics(project),
+    runMemoryDiagnostics(project),
+    runDataDiagnostics(project),
     runDependencyDiagnostics(),
   ];
 

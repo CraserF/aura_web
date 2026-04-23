@@ -351,9 +351,17 @@ interface ProjectSidebarProps {
   open: boolean;
   onClose?: () => void;
   onRequestAddDocument?: (type: 'document' | 'presentation' | 'spreadsheet', parentId?: string) => void;
+  onOpenProjectRules?: () => void;
+  onOpenDoctor?: () => void;
 }
 
-export function ProjectSidebar({ open, onClose, onRequestAddDocument }: ProjectSidebarProps) {
+export function ProjectSidebar({
+  open,
+  onClose,
+  onRequestAddDocument,
+  onOpenProjectRules,
+  onOpenDoctor,
+}: ProjectSidebarProps) {
   const project = useProjectStore((s) => s.project);
   const activeDocumentId = useProjectStore((s) => s.project.activeDocumentId);
   const setActiveDocumentId = useProjectStore((s) => s.setActiveDocumentId);
@@ -476,7 +484,15 @@ export function ProjectSidebar({ open, onClose, onRequestAddDocument }: ProjectS
         </div>
 
         {/* Footer stats */}
-        <div className="border-t border-border px-3 py-2">
+        <div className="space-y-2 border-t border-border px-3 py-2">
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="h-7 flex-1 text-[11px]" onClick={onOpenProjectRules}>
+              Project Rules
+            </Button>
+            <Button variant="outline" size="sm" className="h-7 flex-1 text-[11px]" onClick={onOpenDoctor}>
+              Doctor
+            </Button>
+          </div>
           <p className="text-[10px] text-muted-foreground/60">
             {sortedDocs.length} document{sortedDocs.length !== 1 ? 's' : ''}
           </p>

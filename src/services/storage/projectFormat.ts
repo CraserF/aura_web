@@ -17,9 +17,19 @@ import type { ChatMessage } from '@/types';
 import { sanitizeFilename } from '@/lib/sanitizeFilename';
 import { extractChartSpecsFromHtml } from '@/services/charts';
 import { exportMemoryTree, hasArchivedMemory, importMemoryTree } from '@/services/memory';
+import { normalizeProjectData } from '@/services/projectRules/load';
 import { exportSheetParquet, importSheetParquet } from '@/services/spreadsheet/workbook';
 
-const FORMAT_VERSION = '2.1';
+const FORMAT_VERSION = '2.2';
+
+function parseOptionalJson<T>(value: string | null | undefined): T | null {
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
+}
 
 /** Pack a full project into a .aura zip and trigger download */
 export async function downloadProjectFile(project: ProjectData): Promise<void> {
@@ -40,6 +50,9 @@ export async function downloadProjectFile(project: ProjectData): Promise<void> {
 
   zip.file('manifest.json', JSON.stringify(manifest, null, 2));
   zip.file('chat-history.json', JSON.stringify(project.chatHistory, null, 2));
+  zip.file('project-rules.md', project.projectRules?.markdown ?? '');
+  zip.file('context-policy.json', JSON.stringify(project.contextPolicy ?? {}, null, 2));
+  zip.file('workflow-presets.json', JSON.stringify(project.workflowPresets ?? {}, null, 2));
 
   if (project.memoryTree) {
     for (const entry of exportMemoryTree(project.memoryTree)) {
@@ -105,6 +118,12 @@ export async function openProjectFile(file: File): Promise<ProjectData> {
   const chatHistoryJson =
     (await zip.file('chat-history.json')?.async('string')) ?? '[]';
   const chatHistory = JSON.parse(chatHistoryJson) as ChatMessage[];
+  const projectRulesMarkdown =
+    (await zip.file('project-rules.md')?.async('string')) ?? '';
+  const contextPolicyJson =
+    (await zip.file('context-policy.json')?.async('string')) ?? 'null';
+  const workflowPresetsJson =
+    (await zip.file('workflow-presets.json')?.async('string')) ?? 'null';
 
   const documents: ProjectDocument[] = [];
   const docsFolder = zip.folder('documents');
@@ -170,7 +189,7 @@ export async function openProjectFile(file: File): Promise<ProjectData> {
     ? importMemoryTree(memoryEntries.filter((entry) => entry.content))
     : undefined;
 
-  return {
+  return normalizeProjectData({
     id: manifest.id,
     title: manifest.title,
     description: manifest.description,
@@ -179,10 +198,16 @@ export async function openProjectFile(file: File): Promise<ProjectData> {
     activeDocumentId: restoredActiveDocumentId,
     chatHistory,
     memoryTree,
+    projectRules: {
+      markdown: projectRulesMarkdown,
+      updatedAt: manifest.updatedAt,
+    },
+    contextPolicy: parseOptionalJson<ProjectData['contextPolicy']>(contextPolicyJson) ?? undefined,
+    workflowPresets: parseOptionalJson<ProjectData['workflowPresets']>(workflowPresetsJson) ?? undefined,
     sections: { drafts: [], main: [], suggestions: [], issues: [] },
     createdAt: manifest.createdAt,
     updatedAt: manifest.updatedAt,
-  };
+  });
 }
 
 /** Upgrade a v1 presentation .aura file to the v2 project format */
@@ -213,7 +238,7 @@ async function upgradeV1ToProject(
     updatedAt: (v1Manifest.updatedAt as number) ?? now,
   };
 
-  return {
+  return normalizeProjectData({
     id: crypto.randomUUID(),
     title,
     visibility: 'private',
@@ -223,5 +248,5 @@ async function upgradeV1ToProject(
     sections: { drafts: [], main: [], suggestions: [], issues: [] },
     createdAt: (v1Manifest.createdAt as number) ?? now,
     updatedAt: (v1Manifest.updatedAt as number) ?? now,
-  };
+  });
 }

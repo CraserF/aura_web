@@ -37,6 +37,7 @@ export interface DocumentInput {
   existingMarkdown?: string;
   chatHistory: AIMessage[];
   memoryContext?: string;
+  projectRulesBlock?: string;
   documentType?: string; // hints like "report", "notes", "wiki", "readme"
   styleHint?: string;
   /** Other documents/presentations in the project — used to generate cross-document links */
@@ -76,11 +77,19 @@ Return the complete updated document while preserving the existing layout qualit
 Keep the document focused on the current request, prefer the smallest necessary change, and output only the updated content.`;
 
 function withMemoryContext(prompt: string, memoryContext?: string): string {
-  if (!memoryContext) {
-    return prompt;
+  const sections = [prompt];
+  if (memoryContext) {
+    sections.push(`Relevant memory context:\n${memoryContext}\n\nUse this memory only when it improves the current document.`);
+  }
+  return sections.join('\n\n');
+}
+
+function withProjectRules(systemPrompt: string, projectRulesBlock?: string): string {
+  if (!projectRulesBlock?.trim()) {
+    return systemPrompt;
   }
 
-  return `${prompt}\n\nRelevant memory context:\n${memoryContext}\n\nUse this memory only when it improves the current document.`;
+  return `${systemPrompt}\n\n${projectRulesBlock}\n\nFollow these project rules unless the user explicitly overrides them.`;
 }
 
 interface DocumentTheme {
@@ -834,7 +843,10 @@ export async function runDocumentWorkflow(
     onEvent({ type: 'step-start', stepId: 'generate', label: isEdit ? 'Updating document…' : 'Writing document…' });
     onEvent({ type: 'progress', message: isEdit ? 'Applying changes…' : 'Crafting your document…', pct: 28 });
 
-    const systemPrompt = isEdit ? EDIT_DOCUMENT_SYSTEM_PROMPT : DOCUMENT_SYSTEM_PROMPT;
+    const systemPrompt = withProjectRules(
+      isEdit ? EDIT_DOCUMENT_SYSTEM_PROMPT : DOCUMENT_SYSTEM_PROMPT,
+      input.projectRulesBlock,
+    );
     const userPrompt = withMemoryContext(
       isEdit ? await buildEditPrompt(input, planResult) : await buildCreatePrompt(input, planResult),
       input.memoryContext,

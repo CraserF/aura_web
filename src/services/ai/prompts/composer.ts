@@ -148,6 +148,7 @@ export async function buildDesignerPrompt(
   exemplarPackId: ExemplarPackId,
   animLevel: 1 | 2 | 3 | 4,
   _slideCount?: number,
+  projectRulesBlock?: string,
 ): Promise<string> {
   const composer = new PromptComposer()
     .addBase(blueprint.palette)
@@ -176,6 +177,7 @@ Requirements:
 
   return composer
     .addTemplateExamples(templateExamplesSection)
+    .addCustom(projectRulesBlock ?? '')
     .addQuality()
     .addPostRules()
     .build();
@@ -189,10 +191,12 @@ Requirements:
 export function buildRevisionSystemPrompt(
   palette: TemplatePalette | undefined,
   _animLevel: 1 | 2 | 3 | 4,
+  projectRulesBlock?: string,
 ): string {
   return new PromptComposer()
     .addBase(palette)
     .addAntiPatterns()
+    .addCustom(projectRulesBlock ?? '')
     .addCustom(`## YOUR TASK — SURGICAL REVISION
 
 You are making MINIMAL, TARGETED fixes to a specific list of design errors in an existing slide.
@@ -217,6 +221,7 @@ You are making MINIMAL, TARGETED fixes to a specific list of design errors in an
 export function buildEditDesignerPrompt(
   palette: TemplatePalette | undefined,
   animLevel: 1 | 2 | 3 | 4,
+  projectRulesBlock?: string,
 ): string {
   return new PromptComposer()
     .addBase(palette)
@@ -224,6 +229,7 @@ export function buildEditDesignerPrompt(
     .addSvg()
     .addCharts()
     .addCustom(buildCondensedAntiPatterns())
+    .addCustom(projectRulesBlock ?? '')
     .addCustom(`## YOUR TASK — EDIT MODE
 
 You are modifying existing slide(s) based on a user request.

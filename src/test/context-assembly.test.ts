@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { assembleContext } from '@/services/context/assemble';
+import { defaultContextPolicy } from '@/services/projectRules/defaults';
 import type { ChatMessage, FileAttachment } from '@/types';
 import type { ProjectData, ProjectDocument } from '@/types/project';
 
@@ -63,6 +64,7 @@ describe('assembleContext', () => {
       showAllMessages: false,
       applyToAllDocuments: false,
       memoryContext: 'Remember the quarterly launch cadence.',
+      contextPolicy: defaultContextPolicy(),
     });
 
     expect(assembled.messageScope).toBe('document');
@@ -76,5 +78,50 @@ describe('assembleContext', () => {
     expect(assembled.context.memory.text).toContain('launch cadence');
     expect(assembled.context.metrics.estimatedTotalTokens).toBeGreaterThan(0);
     expect(assembled.context.sources.length).toBeGreaterThan(0);
+  });
+
+  it('respects context policy limits when assembling context', () => {
+    const activeDocument = makeDocument();
+    const attachments: FileAttachment[] = [
+      {
+        id: 'a1',
+        name: 'brief.md',
+        mimeType: 'text/markdown',
+        kind: 'text',
+        content: '# Notes '.repeat(1000),
+      },
+    ];
+    const messages: ChatMessage[] = Array.from({ length: 4 }).map((_, index) => ({
+      id: `m${index}`,
+      role: index % 2 === 0 ? 'user' : 'assistant',
+      content: `message-${index}`,
+      timestamp: index,
+      documentId: 'doc-1',
+      scope: 'document',
+    }));
+
+    const assembled = assembleContext({
+      prompt: 'Focus this summary',
+      attachments,
+      messages,
+      activeDocument,
+      project: makeProject(messages, [activeDocument]),
+      showAllMessages: false,
+      applyToAllDocuments: false,
+      memoryContext: 'memory '.repeat(400),
+      contextPolicy: {
+        ...defaultContextPolicy(),
+        includeProjectChat: false,
+        maxChatMessages: 2,
+        maxMemoryTokens: 5,
+        maxAttachmentChars: 40,
+        includeRelatedDocuments: false,
+      },
+    });
+
+    expect(assembled.context.conversation.chatHistory).toHaveLength(2);
+    expect(assembled.context.attachments.textContext.length).toBeLessThanOrEqual(40);
+    expect(assembled.context.memory.text.length).toBeLessThanOrEqual(20);
+    expect(assembled.context.artifact.relatedDocuments).toEqual([]);
   });
 });
