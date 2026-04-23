@@ -10,11 +10,11 @@ Make Aura's current workflow runtime externally exposable without another major 
 
 | Stream | Owner | Write Set | Depends On | Status | Validation | Commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| Bootstrap | Codex | `docs/phases/phase-10-api-mcp-and-automation-alignment.md`, `docs/implementation-plan-multi-agent.md`, `docs/program-status.md`, `src/services/executionSpec/*`, `src/services/adapters/*` scaffolds | None | `validated` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | |
-| Stream A: Serializable spec contracts | Codex | execution-spec types/build/serialize/hydrate helpers, run-request contract updates | Bootstrap | `planned` | Pending | |
-| Stream B: Dry-run and explain execution | Codex | submit/build mode plumbing, explain helpers, non-mutating execution paths | Stream A | `planned` | Pending | |
-| Stream C: Structured output normalization | Codex | stable artifact/project output envelopes, run-result contract updates, registry/event metadata | Streams A-B | `planned` | Pending | |
-| Stream D: Adapter seams + validation | Codex | API/MCP/automation request-response mappers, regression coverage, tracker updates | Streams A-C | `planned` | Pending | |
+| Bootstrap | Codex | `docs/phases/phase-10-api-mcp-and-automation-alignment.md`, `docs/implementation-plan-multi-agent.md`, `docs/program-status.md`, `src/services/executionSpec/*`, `src/services/adapters/*` scaffolds | None | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `b500fe4` |
+| Stream A: Serializable spec contracts | Codex | execution-spec types/build/serialize/hydrate helpers, run-request contract updates | Bootstrap | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `d415576` |
+| Stream B: Dry-run and explain execution | Codex | submit/build mode plumbing, explain helpers, non-mutating execution paths | Stream A | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `d415576` |
+| Stream C: Structured output normalization | Codex | stable artifact/project output envelopes, run-result contract updates, registry/event metadata | Streams A-B | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `d415576` |
+| Stream D: Adapter seams + validation | Codex | API/MCP/automation request-response mappers, regression coverage, tracker updates | Streams A-C | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `d415576` |
 
 ## Validation Log
 
@@ -24,8 +24,18 @@ Make Aura's current workflow runtime externally exposable without another major 
 - Build (`npm run build`): Passed
 - Tests (`npm test`): Passed
 - Lint (`npm run lint`): Blocked by pre-existing ESLint 9 config gap (`eslint.config.*` missing)
-- Commit:
-- Result: Validated, commit pending
+- Commit: `b500fe4`
+- Result: Committed
+
+- Date: 2026-04-23
+- Agent: Codex
+- Scope: Serializable run specs, non-mutating dry-run and explain execution, structured run output envelopes, run-registry/event metadata updates, adapter request/response mappers, and regression coverage
+- Build (`npm run build`): Passed
+- Tests (`npm test`): Passed
+- Lint (`npm run lint`): Blocked by pre-existing ESLint 9 config gap (`eslint.config.*` missing)
+- Manual validation: Pending document explain, spreadsheet dry-run, project explain/dry-run, and normal execute regression in-app checks
+- Commit: `d415576`
+- Result: Committed
 
 ## Status Values
 
