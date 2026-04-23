@@ -30,4 +30,4 @@ This document records shipped workflow-upgrade progress across the phased implem
 
 ## Current Focus
 
-- Backlog Phase A export/media execution is tracked in [backlog-phase-a-export-and-media.md](./phases/backlog-phase-a-export-and-media.md).
+- Phase 4 targeted editing is tracked in [phase-4-unified-targeted-editing.md](./phases/phase-4-unified-targeted-editing.md).

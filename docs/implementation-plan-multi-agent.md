@@ -7,6 +7,7 @@ Use this file as the source of truth for coordination across agents.
 ## Phase Documents
 
 - [Backlog Phase A: Standalone Export Artifacts and Aura Media Packaging](./phases/backlog-phase-a-export-and-media.md)
+- [Phase 4: Unified Targeted Editing](./phases/phase-4-unified-targeted-editing.md)
 - [Phase 1: Explicit Workflow Contracts](./phases/phase-1-explicit-workflow-contracts.md)
 - [Phase 2: Runtime Project Rules and Diagnostics](./phases/phase-2-runtime-project-rules-and-diagnostics.md)
 - [Phase 3: Explicit Context Control and Context Compaction](./phases/phase-3-explicit-context-control-and-compaction.md)
@@ -48,6 +49,7 @@ Validation backfill note:
 
 - Items marked complete before the validation gate was introduced require manual-check backfill evidence.
 - Treat Workstream A as conditionally complete until that backfill is logged.
+- Backlog Phase A code is implemented, but its top-level checklist items remain unchecked until the documented manual validation debt is logged.
 
 - [x] Add a persisted feature flag to hide the Pages UI without removing page logic
 - [x] Hide the current Pages button behind the feature flag
@@ -226,6 +228,10 @@ Blocking dependency:
 
 Validation requirement:
 - Must include prompt-size comparison evidence for at least one content-only edit and one style edit.
+
+Status:
+- Phase 4 targeted editing is the current build focus.
+- Backlog Phase A remains implemented but not checklist-complete because manual validation is still pending.
 
 ## Workstream F: Mobile-Adaptive Artifact Design System
 
