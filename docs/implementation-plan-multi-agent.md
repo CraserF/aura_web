@@ -6,6 +6,7 @@ Use this file as the source of truth for coordination across agents.
 
 ## Phase Documents
 
+- [Backlog Phase A: Standalone Export Artifacts and Aura Media Packaging](./phases/backlog-phase-a-export-and-media.md)
 - [Phase 1: Explicit Workflow Contracts](./phases/phase-1-explicit-workflow-contracts.md)
 - [Phase 2: Runtime Project Rules and Diagnostics](./phases/phase-2-runtime-project-rules-and-diagnostics.md)
 - [Phase 3: Explicit Context Control and Context Compaction](./phases/phase-3-explicit-context-control-and-compaction.md)
@@ -20,8 +21,8 @@ No item, phase, or workstream may be marked complete without validation evidence
 
 Required checks for any behavior change:
 
-- `bun run build`
-- `bun run test`
+- `npm run build`
+- `npm test`
 - Targeted manual checks for the changed UX path (desktop and mobile if UI changed)
 
 Rules:
@@ -36,8 +37,8 @@ Evidence template:
 - Date:
 - Agent:
 - Scope:
-- Build (`bun run build`):
-- Tests (`bun run test`):
+- Build (`npm run build`):
+- Tests (`npm test`):
 - Manual validation:
 - Result:
 

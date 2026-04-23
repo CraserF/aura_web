@@ -24,4 +24,4 @@ This document records shipped workflow-upgrade progress across the phased implem
 
 ## Current Focus
 
-- Phase 3 docs and shipped progress are recorded in [phase-3-explicit-context-control-and-compaction.md](./phases/phase-3-explicit-context-control-and-compaction.md).
+- Backlog Phase A export/media execution is tracked in [backlog-phase-a-export-and-media.md](./phases/backlog-phase-a-export-and-media.md).
