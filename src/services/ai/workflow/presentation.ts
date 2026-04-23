@@ -23,6 +23,7 @@ import { evaluateAndRevise } from './agents/evaluator';
 import { sanitizeInnerHtml } from '@/services/html/sanitizer';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { aiDebugLog, logEditingMetrics, toErrorInfo } from '../debug';
+import { getProviderCapabilityProfile } from '../providerCapabilities';
 import type {
   PresentationInput,
   PresentationOutput,
@@ -62,6 +63,10 @@ export async function runPresentationWorkflow(
   // Create the AI SDK model with shared defaults (temperature, maxOutputTokens)
   const baseModel: LanguageModel = await createModel(llmConfig);
   const model = withDefaults(baseModel);
+  const providerProfile = getProviderCapabilityProfile({
+    id: llmConfig.providerEntry.id,
+    model: llmConfig.model,
+  });
   aiDebugLog('workflow', `starting ${isEdit ? 'edit' : 'create'} workflow`, { model: llmConfig.model });
 
   try {
@@ -187,7 +192,12 @@ export async function runPresentationWorkflow(
     // 3. alwaysRunEvaluation is enabled OR QA somehow failed on the fast-path output
     // When fastPath=false (agent loop ran), the agent already self-corrected — don't pile on.
     const canEvaluate = planResult.intent !== 'add_slides';
-    const shouldEvaluate = canEvaluate && designResult.fastPath && (alwaysRunEvaluation || !qaResult.passed);
+    const localModelSkipsSecondaryEvaluation = providerProfile.secondaryEvaluation === 'skip';
+    const shouldEvaluate =
+      canEvaluate &&
+      designResult.fastPath &&
+      (alwaysRunEvaluation || !qaResult.passed) &&
+      !localModelSkipsSecondaryEvaluation;
     aiDebugLog('workflow', `phase 3 decision`, {
       intent: planResult.intent,
       fastPath: designResult.fastPath,
@@ -196,6 +206,7 @@ export async function runPresentationWorkflow(
       advisoryCount: qaResult.advisoryCount,
       alwaysRunEvaluation,
       canEvaluate,
+      localModelSkipsSecondaryEvaluation,
       shouldEvaluate,
     });
 
@@ -219,7 +230,13 @@ export async function runPresentationWorkflow(
       }
     } else {
       onEvent({ type: 'step-skipped', stepId: 'evaluate', label: 'Evaluating quality…' });
-      onEvent({ type: 'progress', message: 'QA passed — skipping evaluation', pct: 85 });
+      onEvent({
+        type: 'progress',
+        message: localModelSkipsSecondaryEvaluation
+          ? 'Local model safe path — skipping secondary evaluation'
+          : 'QA passed — skipping evaluation',
+        pct: 85,
+      });
     }
 
     // For add_slides the merged deck's QA mixes old slides with new; use the designer's

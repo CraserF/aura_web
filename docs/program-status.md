@@ -84,3 +84,5 @@ This document records shipped workflow-upgrade progress across the phased implem
 
 - Backlog Phase B mobile-adaptive artifact completion and validation sweep is tracked in [backlog-phase-b-mobile-adaptive-and-validation-sweep.md](./phases/backlog-phase-b-mobile-adaptive-and-validation-sweep.md).
 - Major workflow changes should be validated through [major-change-protocol.md](./validation/major-change-protocol.md) and the companion [artifact-case-matrix.md](./validation/artifact-case-matrix.md).
+- Top-level checklist drift in [implementation-plan-multi-agent.md](./implementation-plan-multi-agent.md) is being reconciled so implemented-vs-unvalidated work is explicit.
+- The first local-model hardening pass is centered on [ollama-gemma4-baseline.md](./validation/ollama-gemma4-baseline.md) using `gemma4:e2b` as the supported baseline.

@@ -13,7 +13,7 @@ Finish Workstream F Phase F3/F4 without inventing a new canonical phase, and use
 | Bootstrap | Codex | `docs/phases/backlog-phase-b-mobile-adaptive-and-validation-sweep.md`, `docs/implementation-plan-multi-agent.md`, `docs/program-status.md`, `docs/workstream-f-mobile-adaptive-artifacts.md` | None | `committed` | Tracked in repo; later branch validation passed via `npm test` and `npm run build`; `npm run lint` blocked by missing `eslint.config.*` | `0ceb26b` |
 | Stream A: Workstream F F3 generation guidance | Codex | `src/services/ai/prompts/composer.ts`, `src/services/ai/workflow/document.ts`, `src/services/ai/templates/document-blueprints.ts`, mobile-hostile QA hooks | Bootstrap | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `26fee79` |
 | Stream B: F4 hardening + fixture set | Codex | `src/test/fixtures/workstream-f.ts`, focused QA tests, viewport checklist docs, any frame-shell follow-up fixes required by validation | Stream A | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `26fee79` |
-| Stream C: Validation sweep | Codex | `docs/program-status.md`, relevant phase docs, `docs/implementation-plan-multi-agent.md` evidence updates, validation protocol docs, case registry coverage tests | Streams A-B | `in_progress` | Partial presentation-shell viewport evidence is logged; the fresh-server scoped document-creation blocker is cleared, and the major-change validation protocol now defines the remaining case families; the broader sweep remains incomplete | — |
+| Stream C: Validation sweep | Codex | `docs/program-status.md`, relevant phase docs, `docs/implementation-plan-multi-agent.md` evidence updates, validation protocol docs, case registry coverage tests | Streams A-B | `in_progress` | Partial presentation-shell viewport evidence is logged; the fresh-server scoped document-creation blocker is cleared, the major-change validation protocol now defines the remaining case families, and the top-level implementation checklist has been reconciled to distinguish implemented-vs-unvalidated work; the broader sweep remains incomplete | — |
 | Stream D: Wrap-up | Codex | final tracker updates, build/test evidence, blocker notes | Streams A-C | `planned` | Pending metadata update | — |
 
 ## Validation Log
@@ -81,6 +81,22 @@ Finish Workstream F Phase F3/F4 without inventing a new canonical phase, and use
   - Added a reusable scorecard in `docs/validation/scorecard-template.md`.
   - Added a case registry in `src/test/fixtures/major-change-cases.ts` and integrity coverage to stop the matrix from collapsing back into smoke-test-only checks.
   - Existing Backlog Phase A and Phase 4-10 validation debt remains pending and must now be backfilled through this protocol rather than ad hoc notes.
+- Commit: Pending
+- Result: Committed
+
+- Date: 2026-04-23
+- Agent: Codex
+- Scope: Backlog closure tracking reconciliation plus Ollama baseline stabilization scaffolding
+- Build (`npm run build`): Passed
+- Tests (`npm test`): Passed; targeted doctor/provider coverage also passed (`npm test -- --run src/test/doctor.test.ts`)
+- Lint (`npm run lint`): Blocked by pre-existing ESLint 9 config gap (`eslint.config.*` missing)
+- Manual validation:
+  - Reconciled `docs/implementation-plan-multi-agent.md` so stale unchecked top-level items now read as implemented-but-pending-validation instead of implying missing feature work.
+  - Added an Ollama baseline validation checklist and scorecard centered on `gemma4:e2b`.
+  - Added a small provider capability profile so the Doctor and provider settings UI can explain that Ollama is treated as a generation-first path with reduced structured-review loops.
+  - Added a quieter presentation-workflow fallback that skips the secondary evaluator on local models instead of attempting the same structured-review path used for cloud providers.
+  - Safari in-app spot-check on the local app confirmed the provider modal now shows the recommended `gemma4:e2b` baseline plus the new local-model guidance, and the Doctor panel shows the new informational Ollama capability note while keeping the provider check in a healthy state.
+  - Broader manual backlog validation and the Ollama local scorecard pass are still pending.
 - Commit: Pending
 - Result: Committed
 

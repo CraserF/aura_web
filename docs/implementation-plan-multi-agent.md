@@ -28,6 +28,8 @@ Use this file as the source of truth for coordination across agents.
 - [Major Workflow Change Validation Protocol](./validation/major-change-protocol.md)
 - [Artifact Case Matrix](./validation/artifact-case-matrix.md)
 - [Major Change Validation Scorecard Template](./validation/scorecard-template.md)
+- [Ollama Baseline Validation](./validation/ollama-gemma4-baseline.md)
+- [Ollama Validation Scorecard Template](./validation/ollama-scorecard-template.md)
 
 ## Mandatory Validation Gate
 
@@ -75,6 +77,7 @@ Validation backfill note:
 - Backlog Phase B is the current repo-execution focus for Workstream F F3/F4 and manual-validation backfill; it does not absorb the ESLint 9 migration or silently clear legacy manual checks without logged evidence.
 - Backlog Phase B code landed on 2026-04-23 with mobile-safe document/presentation generation guidance, lightweight mobile-hostile QA rules, and representative Workstream F fixtures.
 - Backlog Phase B now also carries the major workflow change validation protocol, scorecard template, and case registry used to gate workflow-affecting changes.
+- Tracking reconciliation note (2026-04-23): stale unchecked top-level checklist items below have been converted into explicit status bullets where later phase docs already confirm implementation but protocol validation is still pending.
 - Manual Backlog Phase B viewport review is now partially logged for the seeded presentation shell, and a fresh-server rerun confirms the original presentation-scoped document-creation blocker is fixed; the broader legacy validation sweep still remains incomplete.
 - Backlog Phase B commit: `26fee79`
 - Phase 8 code landed on 2026-04-23 with preset services, artifact lifecycle metadata, run-history/policy plumbing, and compact preset/run UI surfaces.
@@ -100,28 +103,36 @@ Validation backfill note:
 - [x] Add clearer visual separation between New Project action and New Document action (label or icon grouping)
 
 - [x] Run PDF preview spike and record decision (keep current stack vs replace)
-- [ ] Implement standalone read-only HTML export for documents
-- [ ] Implement standalone read-only HTML export for presentations
-- [ ] Add document email-optimized HTML export path
-- [ ] Add share/export affordances based on standalone artifacts
+- Implemented, pending protocol validation:
+  - standalone read-only HTML export for documents
+  - standalone read-only HTML export for presentations
+  - document email-optimized HTML export path
+  - share/export affordances based on standalone artifacts
 
-- [ ] Restrict formal Aura media storage to image-first model (while keeping text context attachments)
-- [ ] Add Aura media directory packaging to import/export format
-- [ ] Preserve safe relative media links through sanitization and export
-- [ ] Split attachment behavior into explicit render vs context channels
+- Implemented, pending protocol validation:
+  - image-first Aura media storage with explicit render vs context channels
+  - Aura media directory packaging in import/export
+  - safe relative media-link preservation through sanitization and export
 
-- [ ] Add document edit-intent routing (content-only vs style/hybrid/structural)
-- [ ] Add presentation edit-intent routing to preserve locked design on content-only changes
-- [ ] Add prompt-size/branch observability metrics for lean edit paths
+- Implemented, pending protocol validation:
+  - document edit-intent routing (content-only vs style, hybrid, structural)
+  - presentation edit-intent routing that preserves locked design on content-only changes
+  - prompt-size and branch observability for lean edit paths
 
-- [ ] Add planning and implementation for mobile-adaptive generated documents and presentations
-- [ ] Ensure generated documents consistently show a visible document boundary frame so users can recognize document edges
+- Implemented, pending protocol validation:
+  - mobile-adaptive generated document and presentation guidance
+  - visible framed document boundary treatment for generated documents
 
 Workstream F progress note:
 
 - Initial shared canvas-frame implementation landed for both document and presentation canvases.
 - Backlog Phase B delivered the F3 generation-guidance slice plus F4 review fixtures and lightweight QA coverage.
 - Automated checks are passing; partial presentation-shell viewport evidence is logged, but the full matrix is still pending before checkbox completion.
+- Remaining Backlog Phase B closure work:
+  - Workstream F tablet portrait viewport check
+  - Workstream F desktop wide viewport check
+  - Backlog Phase A and Phase 4-10 manual protocol backfill
+  - Ollama local baseline pass for `gemma4:e2b`
 
 ## Workstreams
 

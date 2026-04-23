@@ -9,6 +9,11 @@ import {
   type OllamaModelOption,
 } from '@/services/ai/ollama';
 import {
+  getProviderCapabilityProfile,
+  OLLAMA_BASELINE_LABEL,
+  OLLAMA_BASELINE_MODEL,
+} from '@/services/ai/providerCapabilities';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -192,6 +197,7 @@ function ProviderConfigForm({
 
   const isOllama = config.id === 'ollama';
   const isGemini = config.id === 'gemini';
+  const capabilityProfile = getProviderCapabilityProfile(config);
 
   const mergeCurrentOllamaModel = (models: OllamaModelOption[]): OllamaModelOption[] => {
     if (!config.model || models.some((model) => model.id === config.model)) {
@@ -313,6 +319,9 @@ function ProviderConfigForm({
           <p className="mt-0.5 text-xs text-muted-foreground">
             No API key needed. Aura will connect to your Ollama host, list installed models, and use the one you select.
           </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Recommended first-pass baseline: {OLLAMA_BASELINE_LABEL}.
+          </p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -392,6 +401,15 @@ function ProviderConfigForm({
               No local models were returned by Ollama. Pull a model first, then refresh.
             </p>
           )}
+          {config.model === OLLAMA_BASELINE_MODEL ? (
+            <p className="text-xs text-muted-foreground">
+              Local baseline active. Aura will favor a quieter generation-first path and reduce structured-review loops that are noisy on local models.
+            </p>
+          ) : (
+            capabilityProfile.warnings[0] && (
+              <p className="text-xs text-amber-600">{capabilityProfile.warnings[0]}</p>
+            )
+          )}
         </div>
       )}
 
@@ -449,9 +467,10 @@ function ProviderConfigForm({
             placeholder={isOllama ? OLLAMA_DEFAULT_HOST : 'Custom base URL'}
           />
           {isOllama && (
-            <p className="text-xs text-muted-foreground">
-              Use the Ollama host only. Aura will automatically use the correct API path.
-            </p>
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <p>Use the Ollama host only. Aura will automatically use the correct API path.</p>
+              <p>Aura uses Ollama through chat completions and treats local models as a best-effort generation path.</p>
+            </div>
           )}
         </div>
       )}

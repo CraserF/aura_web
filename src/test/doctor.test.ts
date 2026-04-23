@@ -3,6 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { validateContextPolicy } from '@/services/configValidate/contextPolicy';
 import { validateWorkflowPresets } from '@/services/configValidate/presets';
 import { runDoctor } from '@/services/diagnostics/runDoctor';
+import {
+  getProviderCapabilityProfile,
+  OLLAMA_BASELINE_MODEL,
+} from '@/services/ai/providerCapabilities';
 import type { ProjectData } from '@/types/project';
 
 function makeProject(overrides: Partial<ProjectData> = {}): ProjectData {
@@ -84,5 +88,38 @@ describe('runDoctor', () => {
       'data',
       'dependencies',
     ]);
+  });
+
+  it('recommends the gemma4 baseline for non-baseline Ollama models', () => {
+    const report = runDoctor({
+      project: makeProject(),
+      providerConfig: {
+        id: 'ollama',
+        name: 'Ollama',
+        apiKey: 'ollama',
+        baseUrl: 'http://127.0.0.1:11434',
+        model: 'llama3.1',
+      },
+    });
+
+    const providerCheck = report.checks[0];
+    expect(providerCheck?.status).toBe('warning');
+    expect(providerCheck?.diagnostics.some((diagnostic) => diagnostic.code === 'ollama-local-capabilities')).toBe(true);
+    expect(providerCheck?.diagnostics.some((diagnostic) => diagnostic.code === 'ollama-non-baseline-model')).toBe(true);
+  });
+});
+
+describe('provider capabilities', () => {
+  it('marks the Ollama gemma4 baseline as the recommended local profile', () => {
+    const profile = getProviderCapabilityProfile({
+      id: 'ollama',
+      model: OLLAMA_BASELINE_MODEL,
+    });
+
+    expect(profile.isRecommendedBaseline).toBe(true);
+    expect(profile.toolSupport).toBe('limited');
+    expect(profile.structuredOutput).toBe('best-effort');
+    expect(profile.secondaryEvaluation).toBe('skip');
+    expect(profile.warnings).toEqual([]);
   });
 });
