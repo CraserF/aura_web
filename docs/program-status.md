@@ -13,6 +13,7 @@ This document records shipped workflow-upgrade progress across the phased implem
 | Backlog Phase A: Export and Media | `implemented` | `fc8ebb6`, `4215266`, `9879367` | Standalone artifact export, email HTML, render-vs-context attachments, and media packaging landed; manual export validation is still pending. |
 | Phase 4: Unified Targeted Editing | `implemented` | `396920e`, `a66f0b0`, `0bb7057` | Shared editing contracts, bounded target resolution, workflow wiring, and targeted-edit telemetry landed; manual targeted-edit validation is still pending. |
 | Phase 5: Template-First Bootstrapping | `implemented` | `c46301e`, `acf61d6` | Starter registries, idempotent project init, and project-level new-project bootstrap UI landed; manual bootstrap validation is still pending. |
+| Phase 6: Project Augmentation and Events | `implemented` | `e02dd7f`, `0301a74` | Project-wide routing, dependency graph build/refresh/validate, project summary/review/link/refresh workflow, and in-memory typed run events landed; manual project-workflow validation is still pending. |
 
 ## Known Blockers
 
@@ -40,6 +41,11 @@ This document records shipped workflow-upgrade progress across the phased implem
   - each shipped starter kit creating the expected artifacts with sane defaults
   - rerunning init after editing a starter-created artifact without duplicate artifacts or overwritten content
   - save/reopen of a starter-kit project preserving starter-created state
+- Phase 6 manual in-app validation is still pending for:
+  - project-wide summary requests creating or updating one stable managed summary artifact on rerun
+  - project review requests returning findings without mutating artifacts
+  - dependency refresh/reporting surfacing a broken linked-table reference clearly
+  - a normal artifact-scoped edit still behaving unchanged after a project-wide run
 
 ## Current Focus
 

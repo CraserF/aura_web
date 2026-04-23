@@ -240,8 +240,11 @@ Status:
 - Manual targeted-edit validation is still pending before top-level checklist completion.
 - Phase 5 code landed on 2026-04-23 with starter registries, idempotent init, and the new project dialog flow.
 - Manual Phase 5 bootstrap validation is still pending before any top-level starter-kit completion call.
+- Phase 6 code landed on 2026-04-23 with project-wide routing, dependency graph refresh/validation, project augmentation workflow, and typed run events.
+- Manual Phase 6 project-workflow validation is still pending before any top-level project-augmentation completion call.
 - Phase 4 commit: `a66f0b0`
 - Phase 5 commit: `acf61d6`
+- Phase 6 commit: `0301a74`
 
 ## Workstream F: Mobile-Adaptive Artifact Design System
 
