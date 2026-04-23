@@ -10,22 +10,32 @@ Turn the existing preset, validation, and run-event seams into a reusable workfl
 
 | Stream | Owner | Write Set | Depends On | Status | Validation | Commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| Bootstrap | Codex | `docs/phases/phase-8-presets-lifecycle-and-policy.md`, `docs/implementation-plan-multi-agent.md`, `docs/program-status.md`, `src/services/presets/*`, `src/services/policy/*`, `src/services/runs/outputBuffer.ts`, `src/services/runs/recovery.ts` scaffolds | None | `planned` | Pending | Pending |
-| Stream A: Presets + RunRequest integration | Codex | preset services, project-rules snapshot expansion, run-request contract updates | Bootstrap | `planned` | Pending | Pending |
-| Stream B: Lifecycle persistence | Codex | `ProjectDocument` lifecycle fields, transitions, storage/version-history wiring | Stream A | `planned` | Pending | Pending |
-| Stream C: Run registry + Policy engine | Codex | run status expansion, output buffering, retry/recovery, policy evaluation hooks | Streams A-B | `planned` | Pending | Pending |
-| Stream D: UI + Validation | Codex | preset selector/save flow, lifecycle badges, run-history/readiness surface, tests, tracker updates | Streams A-C | `planned` | Pending | Pending |
+| Bootstrap | Codex | `docs/phases/phase-8-presets-lifecycle-and-policy.md`, `docs/implementation-plan-multi-agent.md`, `docs/program-status.md`, `src/services/presets/*`, `src/services/policy/*`, `src/services/runs/outputBuffer.ts`, `src/services/runs/recovery.ts` scaffolds | None | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `6da7e83` |
+| Stream A: Presets + RunRequest integration | Codex | preset services, project-rules snapshot expansion, run-request contract updates | Bootstrap | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `5508683` |
+| Stream B: Lifecycle persistence | Codex | `ProjectDocument` lifecycle fields, transitions, storage/version-history wiring | Stream A | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `5508683` |
+| Stream C: Run registry + Policy engine | Codex | run status expansion, output buffering, retry/recovery, policy evaluation hooks | Streams A-B | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `5508683` |
+| Stream D: UI + Validation | Codex | preset selector/save flow, lifecycle badges, run-history/readiness surface, tests, tracker updates | Streams A-C | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `5508683` |
 
 ## Validation Log
 
-- Date: Pending
+- Date: 2026-04-23
 - Agent: Codex
-- Scope: Pending
-- Build (`npm run build`): Pending
-- Tests (`npm test`): Pending
-- Lint (`npm run lint`): Pending
-- Commit: Pending
-- Result: Pending
+- Scope: Phase 8 coordination docs, implementation-plan/program-status updates, and preset/policy/run scaffolds
+- Build (`npm run build`): Passed
+- Tests (`npm test`): Passed
+- Lint (`npm run lint`): Blocked by pre-existing ESLint 9 config gap (`eslint.config.*` missing)
+- Commit: `6da7e83`
+- Result: Committed
+
+- Date: 2026-04-23
+- Agent: Codex
+- Scope: Preset-aware run requests, lifecycle persistence and transitions, run-registry/policy integration, preset and run-history UI, and Phase 8 regression coverage
+- Build (`npm run build`): Passed
+- Tests (`npm test`): Passed
+- Lint (`npm run lint`): Blocked by pre-existing ESLint 9 config gap (`eslint.config.*` missing)
+- Manual validation: Pending preset save/reapply checks, lifecycle badge transitions after readiness/export, blocked publish visibility, and retry/supersede in-app verification
+- Commit: `5508683`
+- Result: Committed
 
 ## Status Values
 

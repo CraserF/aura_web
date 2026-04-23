@@ -59,6 +59,9 @@ Validation backfill note:
 - Phase 7 does not absorb Backlog Phase A, Phase 4, Phase 5, or Phase 6 manual validation debt; keep those tracked separately.
 - Phase 7 does not absorb Backlog Phase A, Phase 4, Phase 5, or Phase 6 manual validation debt; keep those tracked separately.
 - Phase 8 does not absorb Backlog Phase A, Workstream F, or Phase 4-7 manual validation debt; keep those tracked separately.
+- Phase 8 code landed on 2026-04-23 with preset services, artifact lifecycle metadata, run-history/policy plumbing, and compact preset/run UI surfaces.
+- Manual Phase 8 validation is still pending before any top-level lifecycle/preset workflow completion call.
+- Phase 8 commit: `5508683`
 
 - [x] Add a persisted feature flag to hide the Pages UI without removing page logic
 - [x] Hide the current Pages button behind the feature flag

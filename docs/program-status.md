@@ -15,6 +15,7 @@ This document records shipped workflow-upgrade progress across the phased implem
 | Phase 5: Template-First Bootstrapping | `implemented` | `c46301e`, `acf61d6` | Starter registries, idempotent project init, and project-level new-project bootstrap UI landed; manual bootstrap validation is still pending. |
 | Phase 6: Project Augmentation and Events | `implemented` | `e02dd7f`, `0301a74` | Project-wide routing, dependency graph build/refresh/validate, project summary/review/link/refresh workflow, and in-memory typed run events landed; manual project-workflow validation is still pending. |
 | Phase 7: Validation Profiles and Publish | `implemented` | `2ae847a`, `07b0a08`, `736db4e` | Shared validation profiles, artifact/project readiness validation, publish gating panels, and clean-environment checks landed; manual publish/readiness validation is still pending. |
+| Phase 8: Presets, Lifecycle, and Policy | `implemented` | `6da7e83`, `5508683` | Preset-aware run requests, lifecycle metadata and persistence, expanded run registry/output buffering, deterministic policy actions, and compact preset/run-history UI landed; manual Phase 8 validation is still pending. |
 
 ## Known Blockers
 
@@ -52,6 +53,11 @@ This document records shipped workflow-upgrade progress across the phased implem
   - confirming a blocked export does not proceed without explicit override
   - confirming an override export still works and keeps readiness visible
   - running a project-wide readiness check after a Phase 6 augmentation flow and verifying the result is understandable
+- Phase 8 manual in-app validation is still pending for:
+  - saving and reapplying one document preset and one presentation preset from the composer controls
+  - validating an artifact and confirming lifecycle badge transitions survive reload
+  - confirming a blocked publish/export shows policy and registry state clearly
+  - retrying a failed run and verifying retry/superseded state reads correctly in the run history panel
 
 ## Current Focus
 
