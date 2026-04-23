@@ -6,6 +6,7 @@ Use this file as the source of truth for coordination across agents.
 
 ## Phase Documents
 
+- [Phase 8: Presets, Lifecycle, and Policy](./phases/phase-8-presets-lifecycle-and-policy.md)
 - [Phase 7: Validation Profiles and Publish](./phases/phase-7-validation-profiles-and-publish.md)
 - [Phase 6: Project Augmentation and Events](./phases/phase-6-project-augmentation-and-events.md)
 - [Phase 5: Template-First Bootstrapping](./phases/phase-5-template-first-bootstrapping.md)
@@ -57,6 +58,7 @@ Validation backfill note:
 - Phase 6 does not absorb Backlog Phase A, Phase 4, or Phase 5 manual validation debt; keep those tracked separately.
 - Phase 7 does not absorb Backlog Phase A, Phase 4, Phase 5, or Phase 6 manual validation debt; keep those tracked separately.
 - Phase 7 does not absorb Backlog Phase A, Phase 4, Phase 5, or Phase 6 manual validation debt; keep those tracked separately.
+- Phase 8 does not absorb Backlog Phase A, Workstream F, or Phase 4-7 manual validation debt; keep those tracked separately.
 
 - [x] Add a persisted feature flag to hide the Pages UI without removing page logic
 - [x] Hide the current Pages button behind the feature flag

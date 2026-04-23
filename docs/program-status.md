@@ -14,7 +14,7 @@ This document records shipped workflow-upgrade progress across the phased implem
 | Phase 4: Unified Targeted Editing | `implemented` | `396920e`, `a66f0b0`, `0bb7057` | Shared editing contracts, bounded target resolution, workflow wiring, and targeted-edit telemetry landed; manual targeted-edit validation is still pending. |
 | Phase 5: Template-First Bootstrapping | `implemented` | `c46301e`, `acf61d6` | Starter registries, idempotent project init, and project-level new-project bootstrap UI landed; manual bootstrap validation is still pending. |
 | Phase 6: Project Augmentation and Events | `implemented` | `e02dd7f`, `0301a74` | Project-wide routing, dependency graph build/refresh/validate, project summary/review/link/refresh workflow, and in-memory typed run events landed; manual project-workflow validation is still pending. |
-| Phase 7: Validation Profiles and Publish | `implemented` | `2ae847a`, `07b0a08` | Shared validation profiles, artifact/project readiness validation, publish gating panels, and clean-environment checks landed; manual publish/readiness validation is still pending. |
+| Phase 7: Validation Profiles and Publish | `implemented` | `2ae847a`, `07b0a08`, `736db4e` | Shared validation profiles, artifact/project readiness validation, publish gating panels, and clean-environment checks landed; manual publish/readiness validation is still pending. |
 
 ## Known Blockers
 
@@ -55,4 +55,4 @@ This document records shipped workflow-upgrade progress across the phased implem
 
 ## Current Focus
 
-- Phase 7 validation/publish work is tracked in [phase-7-validation-profiles-and-publish.md](./phases/phase-7-validation-profiles-and-publish.md).
+- Phase 8 preset/lifecycle/policy work is tracked in [phase-8-presets-lifecycle-and-policy.md](./phases/phase-8-presets-lifecycle-and-policy.md).
