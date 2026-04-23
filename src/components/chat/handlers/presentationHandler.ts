@@ -21,6 +21,7 @@ import { extractChartSpecsFromHtml } from '@/services/charts';
 import { useProjectStore } from '@/stores/projectStore';
 import type { RunRequest } from '@/services/runs/types';
 import type { RunResult } from '@/services/contracts/runResult';
+import { resolveTargets } from '@/services/editing/resolveTargets';
 
 export interface PresentationHandlerContext {
   runRequest: RunRequest;
@@ -75,6 +76,16 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
   ];
 
   const isEditFlow = !!activeDocument?.contentHtml && activeDocument.type === 'presentation';
+  const resolvedTargets = isEditFlow
+    ? resolveTargets({
+        prompt,
+        intent,
+        activeDocument,
+      })
+    : [];
+  const targetSummary = resolvedTargets.length > 0
+    ? resolvedTargets.map((target) => target.label)
+    : intent.targetSelectors.map((selector) => selector.label ?? selector.type);
 
   workflowStepsRef.current = isEditFlow
     ? [
@@ -165,6 +176,14 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         chatHistory,
         memoryContext,
         projectRulesBlock: runRequest.projectRulesSnapshot.promptBlock || undefined,
+        ...(isEditFlow ? {
+          editing: {
+            resolvedTargets,
+            targetSummary,
+            strategyHint: intent.editStrategyHint,
+            allowFullRegeneration: intent.allowFullRegeneration,
+          },
+        } : {}),
       },
       llmConfig: {
         providerEntry,
@@ -239,6 +258,7 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         title: result.title,
         slideCount: result.slideCount,
         reviewPassed: result.reviewPassed,
+        ...(result.editing ? { editing: result.editing } : {}),
       },
       assistantMessage: {
         content: result.html
@@ -251,7 +271,17 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
           ? 'Presentation QA passed.'
           : 'Presentation QA completed with advisories.',
       },
-      warnings: [...configWarnings, ...contextWarnings, ...reviewWarning],
+      warnings: [
+        ...configWarnings,
+        ...contextWarnings,
+        ...reviewWarning,
+        ...(result.editing?.dryRunFailures.length
+          ? [{
+              code: 'editing-dry-run-fallback',
+              message: `Targeted edit fell back after ${result.editing.dryRunFailures.length} unmatched target(s).`,
+            }]
+          : []),
+      ],
       changedTargets: [{
         documentId: changedDocumentId,
         action: changeAction,

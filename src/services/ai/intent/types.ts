@@ -1,5 +1,6 @@
 import type { ClarifyOption } from '@/types';
 import type { DocumentType } from '@/types/project';
+import type { EditStrategy, TargetSelector } from '@/services/editing/types';
 
 export type IntentOperation = 'create' | 'edit' | 'action';
 export type IntentScope = 'document' | 'project';
@@ -16,6 +17,9 @@ export interface ResolvedIntent {
   scope: IntentScope;
   targetDocumentId?: string;
   targetSheetId?: string;
+  targetSelectors: TargetSelector[];
+  editStrategyHint?: EditStrategy;
+  allowFullRegeneration: boolean;
   confidence: number;
   needsClarification: boolean;
   reason: string;

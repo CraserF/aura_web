@@ -1,3 +1,5 @@
+import type { DocumentType } from '@/types/project';
+
 export type EditStrategy =
   | 'search-replace'
   | 'block-replace'
@@ -33,7 +35,7 @@ export interface TargetSelector {
 
 export interface ResolvedTarget {
   selector: TargetSelector;
-  artifactType: 'document' | 'presentation' | 'spreadsheet';
+  artifactType: DocumentType;
   label: string;
   blockId?: string;
   sheetId?: string;
@@ -53,6 +55,13 @@ export interface EditFallbackDecision {
   attemptedStrategies: EditStrategy[];
   finalStrategy: EditStrategy;
   reason: string;
+}
+
+export interface EditingTelemetry {
+  strategyUsed: EditStrategy;
+  fallbackUsed: boolean;
+  targetSummary: string[];
+  dryRunFailures: string[];
 }
 
 // TODO(phase-4): Replace broad selector/value usage with tighter artifact-specific

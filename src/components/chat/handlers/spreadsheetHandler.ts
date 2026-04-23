@@ -16,6 +16,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import { createDefaultSheet } from '@/services/spreadsheet/workbook';
 import type { RunRequest } from '@/services/runs/types';
 import type { RunResult } from '@/services/contracts/runResult';
+import { resolveTargets } from '@/services/editing/resolveTargets';
 
 function isDefaultSheet(doc: ProjectDocument | null): boolean {
   const sheet = doc?.workbook?.sheets[doc.workbook?.activeSheetIndex ?? 0];
@@ -67,6 +68,23 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
         }]
       : []),
   ];
+  const resolvedTargets = activeDocument?.type === 'spreadsheet'
+    ? resolveTargets({
+        prompt,
+        intent,
+        activeDocument,
+      })
+    : [];
+  const editing = intent.operation === 'action'
+    ? {
+        strategyUsed: intent.editStrategyHint ?? 'sheet-action',
+        fallbackUsed: false,
+        targetSummary: (resolvedTargets.length > 0
+          ? resolvedTargets.map((target) => target.label)
+          : intent.targetSelectors.map((selector) => selector.label ?? selector.type)),
+        dryRunFailures: [],
+      }
+    : undefined;
 
   const activeWorkbook = activeDocument?.type === 'spreadsheet' ? activeDocument.workbook ?? null : null;
   const docIsDefaultSheet = isDefaultSheet(activeDocument);
@@ -92,6 +110,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
         intent,
         outputs: {
           kind: result.kind,
+          ...(editing ? { editing } : {}),
         },
         assistantMessage: {
           content: result.message,
@@ -129,6 +148,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
           chartHtml: result.chartHtml,
           chartType: result.chartType,
           rowCount: result.rowCount,
+          ...(editing ? { editing } : {}),
         },
         assistantMessage: {
           content: result.message,
@@ -160,6 +180,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
         outputs: {
           kind: result.kind,
           updatedSheets: result.updatedSheets,
+          ...(editing ? { editing } : {}),
         },
         assistantMessage: {
           content: result.message,
@@ -222,12 +243,13 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
       runId,
       status: 'completed',
       intent,
-      outputs: {
-        kind: result.kind,
-        workbookTitle: result.workbookTitle,
-        sheetName: result.sheetName,
-        updatedSheets: result.updatedSheets,
-      },
+        outputs: {
+          kind: result.kind,
+          workbookTitle: result.workbookTitle,
+          sheetName: result.sheetName,
+          updatedSheets: result.updatedSheets,
+          ...(editing ? { editing } : {}),
+        },
       assistantMessage: {
         content: result.summary,
       },

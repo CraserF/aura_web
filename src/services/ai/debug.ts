@@ -110,6 +110,21 @@ export function logContextMetrics(
   });
 }
 
+export function logEditingMetrics(
+  scope: string,
+  metrics: {
+    strategyUsed: string;
+    fallbackUsed: boolean;
+    targetSummary: string[];
+    dryRunFailures: string[];
+    regenerationAvoided: boolean;
+    promptCharsDelta?: number;
+  },
+): void {
+  if (!isAIDebugEnabled()) return;
+  aiDebugLog(scope, 'editing metrics', metrics);
+}
+
 export function toErrorInfo(error: unknown): Record<string, unknown> {
   if (error instanceof Error) {
     const maybeCause = (error as Error & { cause?: unknown }).cause;

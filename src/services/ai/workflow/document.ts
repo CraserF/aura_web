@@ -12,18 +12,20 @@ import { createModel } from './engine';
 import { withDefaults } from '../middleware';
 import { sanitizeHtml } from '@/services/html/sanitizer';
 import { CACHE_CONTROL } from './engine';
-import { aiDebugLog, logPromptMetrics } from '../debug';
+import { aiDebugLog, logEditingMetrics, logPromptMetrics } from '../debug';
 import { validateDocument } from './agents/document-qa';
 import type {
   LLMConfig,
   EventListener,
 } from './types';
 import type { AIMessage } from '../types';
+import type { EditStrategy, EditingTelemetry, ResolvedTarget } from '@/services/editing/types';
 import { toModelMessages } from './engine';
 import {
   selectDocumentBlueprint,
   type DocumentBlueprint,
 } from '../templates/document-blueprints';
+import { applyDocumentTargetedEdit, prepareDocumentHtmlForEditing } from '@/services/editing/patchDocument';
 
 export interface DocumentProjectLink {
   id: string;
@@ -44,12 +46,19 @@ export interface DocumentInput {
   projectLinks?: DocumentProjectLink[];
   /** Image parts for multi-modal document requests */
   imageParts?: Array<{ type: 'image'; image: string; mimeType: string }>;
+  editing?: {
+    resolvedTargets: ResolvedTarget[];
+    targetSummary: string[];
+    strategyHint?: EditStrategy;
+    allowFullRegeneration: boolean;
+  };
 }
 
 export interface DocumentOutput {
   html: string;
   markdown: string;
   title: string;
+  editing?: EditingTelemetry;
 }
 
 type ResolvedDocumentType = 'report' | 'brief' | 'proposal' | 'notes' | 'wiki' | 'readme' | 'article';
@@ -527,6 +536,13 @@ ${summary}
     return this;
   }
 
+  addText(value: string): this {
+    if (value.trim()) {
+      this.sections.push(value);
+    }
+    return this;
+  }
+
   addRules(isEdit: boolean, plan: DocumentPlan): this {
     const isClean = plan.artDirection === 'clean';
     this.sections.push(`## Rules
@@ -567,6 +583,12 @@ async function buildCreatePrompt(input: DocumentInput, plan: DocumentPlan): Prom
 async function buildEditPrompt(input: DocumentInput, plan: DocumentPlan): Promise<string> {
   const existingSummary = input.existingMarkdown?.trim() || summarizeExistingDocument(input.existingHtml ?? '');
   const shouldIncludeExample = /restyle|redesign|make it look|polish|visual|infographic|more graphic/i.test(input.prompt);
+  const targetSummary = input.editing?.targetSummary.length
+    ? `## Targeted Edit Scope\nOnly modify these target areas unless the user explicitly asked for a full rewrite:\n- ${input.editing.targetSummary.join('\n- ')}`
+    : '';
+  const boundedEditRules = input.editing && !input.editing.allowFullRegeneration
+    ? 'Preserve all non-targeted blocks exactly where possible. Prefer block-local edits over document-wide rewrites.'
+    : 'A full rewrite is allowed if it best satisfies the request.';
 
   return new DocumentPromptComposer()
     .addBase(plan)
@@ -576,8 +598,10 @@ async function buildEditPrompt(input: DocumentInput, plan: DocumentPlan): Promis
     .addPalette(plan.theme)
     .addExample(plan.blueprint, plan.documentType, plan.artDirection, shouldIncludeExample)
     .addProjectLinks(input.projectLinks ?? [])
+    .addText(targetSummary)
     .addRequest('User Instruction', input.prompt)
     .addRules(true, plan)
+    .addText(`## Edit Execution Rules\n- ${boundedEditRules}`)
     .build();
 }
 
@@ -910,16 +934,45 @@ export async function runDocumentWorkflow(
 
     onEvent({ type: 'progress', message: 'Sanitizing content…', pct: 84 });
 
+    let finalHtml = sanitizeHtml(renderedHtml);
+    let editingTelemetry: EditingTelemetry | undefined;
+
+    if (isEdit && input.existingHtml && input.editing) {
+      const targetedEdit = applyDocumentTargetedEdit({
+        existingHtml: prepareDocumentHtmlForEditing(input.existingHtml).html,
+        generatedHtml: finalHtml,
+        targets: input.editing.resolvedTargets,
+        strategyHint: input.editing.allowFullRegeneration
+          ? 'full-regenerate'
+          : input.editing.strategyHint === 'style-token'
+            ? 'style-token'
+            : input.editing.strategyHint === 'search-replace'
+              ? 'search-replace'
+              : 'block-replace',
+        allowFullRegeneration: input.editing.allowFullRegeneration,
+      });
+      finalHtml = sanitizeHtml(targetedEdit.html);
+      editingTelemetry = {
+        strategyUsed: targetedEdit.strategyUsed,
+        fallbackUsed: targetedEdit.fallbackUsed,
+        targetSummary: input.editing.targetSummary,
+        dryRunFailures: targetedEdit.dryRunFailures,
+      };
+      logEditingMetrics('document', {
+        ...editingTelemetry,
+        regenerationAvoided: targetedEdit.strategyUsed !== 'full-regenerate',
+        promptCharsDelta: finalHtml.length - (input.existingHtml?.length ?? 0),
+      });
+    }
+
     const sourceMarkdown = looksLikeHtml(rawContent)
-      ? summarizeExistingDocument(renderedHtml)
+      ? summarizeExistingDocument(finalHtml)
       : rawContent.trim();
 
-    // Sanitize the HTML for security
-    const sanitized = sanitizeHtml(renderedHtml);
     onEvent({ type: 'step-done', stepId: 'generate', label: isEdit ? 'Updating document…' : 'Writing document…' });
 
     onEvent({ type: 'step-start', stepId: 'qa', label: 'Checking document quality…' });
-    const qaResult = validateDocument(sanitized);
+    const qaResult = validateDocument(finalHtml);
     aiDebugLog('document', 'document QA', {
       passed: qaResult.passed,
       score: qaResult.score,
@@ -934,12 +987,13 @@ export async function runDocumentWorkflow(
     onEvent({ type: 'step-done', stepId: 'qa', label: 'Checking document quality…' });
 
     onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing document…' });
-    const title = extractDocumentTitle(sanitized) || extractTitleFromPrompt(input.prompt);
+    const title = extractDocumentTitle(finalHtml) || extractTitleFromPrompt(input.prompt);
 
     const output: DocumentOutput = {
-      html: sanitized,
+      html: finalHtml,
       markdown: sourceMarkdown,
       title,
+      ...(editingTelemetry ? { editing: editingTelemetry } : {}),
     };
 
     onEvent({ type: 'step-done', stepId: 'finalize', label: 'Finalizing document…' });

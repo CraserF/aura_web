@@ -22,7 +22,7 @@ import { validateSlides } from './agents/qa-validator';
 import { evaluateAndRevise } from './agents/evaluator';
 import { sanitizeInnerHtml } from '@/services/html/sanitizer';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { aiDebugLog, toErrorInfo } from '../debug';
+import { aiDebugLog, logEditingMetrics, toErrorInfo } from '../debug';
 import type {
   PresentationInput,
   PresentationOutput,
@@ -134,6 +134,7 @@ export async function runPresentationWorkflow(
           model,
           onEvent,
           input.projectRulesBlock,
+          input.editing,
           signal,
         )
       : await design(
@@ -235,7 +236,15 @@ export async function runPresentationWorkflow(
       title: designResult.title,
       slideCount: designResult.slideCount,
       reviewPassed,
+      ...(designResult.editing ? { editing: designResult.editing } : {}),
     };
+
+    if (designResult.editing) {
+      logEditingMetrics('presentation', {
+        ...designResult.editing,
+        regenerationAvoided: designResult.editing.strategyUsed !== 'full-regenerate',
+      });
+    }
 
     onEvent({ type: 'step-done', stepId: 'finalize', label: 'Finalizing slide…' });
     onEvent({ type: 'complete', result: output });

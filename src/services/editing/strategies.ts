@@ -1,11 +1,4 @@
-import type { EditFallbackDecision, EditStrategy, PatchAttempt } from '@/services/editing/types';
-
-export interface EditingTelemetry {
-  strategyUsed: EditStrategy;
-  fallbackUsed: boolean;
-  targetSummary: string[];
-  dryRunFailures: string[];
-}
+import type { EditFallbackDecision, EditStrategy, EditingTelemetry, PatchAttempt } from '@/services/editing/types';
 
 export function buildEditingTelemetry(
   strategyUsed: EditStrategy,

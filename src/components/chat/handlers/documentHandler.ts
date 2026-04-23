@@ -17,6 +17,7 @@ import { extractChartSpecsFromHtml } from '@/services/charts';
 import { useProjectStore } from '@/stores/projectStore';
 import type { RunResult } from '@/services/contracts/runResult';
 import type { RunRequest } from '@/services/runs/types';
+import { resolveTargets } from '@/services/editing/resolveTargets';
 
 export interface DocumentHandlerContext {
   runRequest: RunRequest;
@@ -71,6 +72,16 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
       : []),
   ];
   const isEdit = intent.operation === 'edit' && activeDocument?.type === 'document';
+  const resolvedTargets = isEdit
+    ? resolveTargets({
+        prompt,
+        intent,
+        activeDocument,
+      })
+    : [];
+  const targetSummary = resolvedTargets.length > 0
+    ? resolvedTargets.map((target) => target.label)
+    : intent.targetSelectors.map((selector) => selector.label ?? selector.type);
 
   workflowStepsRef.current = [
     { id: 'plan', label: 'Plan', status: 'pending' },
@@ -138,6 +149,14 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
         styleHint: documentStylePreset,
         projectLinks: projectLinks.length > 0 ? projectLinks : undefined,
         imageParts: imageParts.length > 0 ? imageParts : undefined,
+        ...(isEdit ? {
+          editing: {
+            resolvedTargets,
+            targetSummary,
+            strategyHint: intent.editStrategyHint,
+            allowFullRegeneration: intent.allowFullRegeneration,
+          },
+        } : {}),
       },
       llmConfig: {
         providerEntry,
@@ -207,6 +226,7 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
         html: result.html,
         markdown: result.markdown,
         title: result.title,
+        ...(result.editing ? { editing: result.editing } : {}),
       },
       assistantMessage: {
         content: result.html
@@ -217,7 +237,16 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
         passed: true,
         summary: 'Document workflow completed and passed document QA.',
       },
-      warnings: [...configWarnings, ...contextWarnings],
+      warnings: [
+        ...configWarnings,
+        ...contextWarnings,
+        ...(result.editing?.dryRunFailures.length
+          ? [{
+              code: 'editing-dry-run-fallback',
+              message: `Targeted edit fell back after ${result.editing.dryRunFailures.length} unmatched target(s).`,
+            }]
+          : []),
+      ],
       changedTargets: [{
         documentId: changedDocumentId,
         action: changeAction,

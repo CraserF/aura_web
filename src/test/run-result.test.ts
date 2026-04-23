@@ -9,6 +9,8 @@ const baseIntent = {
   operation: 'edit' as const,
   scope: 'document' as const,
   targetDocumentId: 'doc-1',
+  targetSelectors: [{ type: 'document-block' as const, label: 'Best matching document block' }],
+  allowFullRegeneration: false,
   confidence: 0.99,
   needsClarification: false,
   reason: 'active document type is authoritative',

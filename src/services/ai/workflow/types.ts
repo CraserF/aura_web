@@ -3,6 +3,7 @@
  * Uses AI SDK patterns directly — no custom step/context abstractions.
  */
 import type { AIMessage, ProviderEntry } from '../types';
+import type { EditStrategy, EditingTelemetry, ResolvedTarget } from '@/services/editing/types';
 
 export type { AIMessage };
 
@@ -38,6 +39,12 @@ export interface PresentationInput {
   chatHistory: AIMessage[];
   memoryContext?: string;
   projectRulesBlock?: string;
+  editing?: {
+    resolvedTargets: ResolvedTarget[];
+    targetSummary: string[];
+    strategyHint?: EditStrategy;
+    allowFullRegeneration: boolean;
+  };
 }
 
 /** Output from the presentation workflow */
@@ -46,4 +53,5 @@ export interface PresentationOutput {
   title?: string;
   slideCount: number;
   reviewPassed: boolean;
+  editing?: EditingTelemetry;
 }

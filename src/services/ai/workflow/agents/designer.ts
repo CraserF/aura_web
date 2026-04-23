@@ -32,6 +32,8 @@ import type { EventListener } from '../types';
 import { toModelMessages, CACHE_CONTROL } from '../engine';
 import { aiDebugLog, logPromptMetrics } from '../../debug';
 import { withRetry } from '../../fallbackModel';
+import type { EditStrategy, EditingTelemetry } from '@/services/editing/types';
+import { applyPresentationPatchBlocks } from '@/services/editing/patchPresentation';
 
 export interface DesignResult {
   html: string;
@@ -39,6 +41,7 @@ export interface DesignResult {
   slideCount: number;
   /** True when the draft passed QA without the ToolLoopAgent correction loop. */
   fastPath: boolean;
+  editing?: EditingTelemetry;
 }
 
 interface ContinuityAssessment {
@@ -566,6 +569,11 @@ export async function designEdit(
   model: LanguageModel,
   onEvent: EventListener,
   projectRulesBlock?: string,
+  editing?: {
+    targetSummary: string[];
+    strategyHint?: EditStrategy;
+    allowFullRegeneration: boolean;
+  },
   signal?: AbortSignal,
 ): Promise<DesignResult> {
   const t0 = performance.now();
@@ -587,7 +595,7 @@ export async function designEdit(
   // Build the user prompt — add_slides gets a focused "new slide only" prompt
   const userContent = isAddSlides
     ? buildAddSlidesPrompt(planResult, existingSlidesHtml, existingSlideCount)
-    : buildEditPrompt(planResult, existingSlidesHtml, existingSlideCount);
+    : buildEditPrompt(planResult, existingSlidesHtml, existingSlideCount, editing?.targetSummary);
 
   messages.push({ role: 'user', content: userContent });
 
@@ -622,20 +630,23 @@ export async function designEdit(
   aiDebugLog('designer:edit', `streaming complete in ${streamMs}ms`, { draftChars: draftText.length, slideCount: countSlides(draftHtml), isAddSlides });
   let processedDraft = draftHtml;
   let patchApplied = false;
+  let patchDryRunFailures: string[] = [];
+  let patchFallbackUsed = false;
   if (isAddSlides) {
     processedDraft = preserveExistingSlidesForAddIntent(existingSlidesHtml, draftHtml);
   } else if (draftText.includes('<<<<<<< FIND')) {
     // Patch mode: try to apply SEARCH/REPLACE blocks to the existing HTML
-    const patches = parsePatchBlocks(draftText);
-    if (patches.length > 0) {
-      const patchResult = applyPatches(existingSlidesHtml, patches);
+    const patchResult = applyPresentationPatchBlocks(existingSlidesHtml, draftText);
+    if (patchResult.patchCount > 0) {
       if (patchResult.success) {
         processedDraft = patchResult.html;
         patchApplied = true;
-        aiDebugLog('designer:edit', `patch mode: applied ${patches.length} patch(es) successfully`);
+        aiDebugLog('designer:edit', `patch mode: applied ${patchResult.patchCount} patch(es) successfully`);
       } else {
-        aiDebugLog('designer:edit', `patch pre-flight failed (${patchResult.failedPatches.length} unmatched), falling back to full HTML`);
-        console.warn('[designer:edit] patch pre-flight failed:', patchResult.failedPatches.map(p => p.find.slice(0, 80)));
+        patchDryRunFailures = patchResult.dryRunFailures;
+        patchFallbackUsed = true;
+        aiDebugLog('designer:edit', `patch pre-flight failed (${patchResult.dryRunFailures.length} unmatched), falling back to full HTML`);
+        console.warn('[designer:edit] patch pre-flight failed:', patchResult.dryRunFailures);
       }
     } else {
       aiDebugLog('designer:edit', 'patch markers found but parsed 0 patches — treating as full HTML');
@@ -686,6 +697,14 @@ export async function designEdit(
       title: extractTitle(processedDraft),
       slideCount: countSlides(processedDraft),
       fastPath: true,
+      ...(editing ? {
+        editing: {
+          strategyUsed: editing.allowFullRegeneration ? 'full-regenerate' : patchApplied ? 'search-replace' : editing.strategyHint ?? 'search-replace',
+          fallbackUsed: patchFallbackUsed,
+          targetSummary: editing.targetSummary,
+          dryRunFailures: patchDryRunFailures,
+        },
+      } : {}),
     };
   }
 
@@ -794,6 +813,14 @@ export async function designEdit(
     title: finalTitle,
     slideCount: countSlides(finalHtml),
     fastPath: false,
+    ...(editing ? {
+      editing: {
+        strategyUsed: editing.allowFullRegeneration ? 'full-regenerate' : patchApplied ? 'search-replace' : editing.strategyHint ?? 'search-replace',
+        fallbackUsed: patchFallbackUsed,
+        targetSummary: editing.targetSummary,
+        dryRunFailures: patchDryRunFailures,
+      },
+    } : {}),
   };
 }
 
@@ -824,7 +851,11 @@ function buildEditPrompt(
   planResult: PlanResult,
   existingSlidesHtml: string,
   existingSlideCount: number,
+  targetSummary?: string[],
 ): string {
+  const targetedScope = targetSummary && targetSummary.length > 0
+    ? `\n**Target only these areas unless the user explicitly asked for a full rewrite:**\n- ${targetSummary.join('\n- ')}\n`
+    : '';
   return `## EDIT MODE — Modify Existing Slide(s)
 
 Here are the current slides (${existingSlideCount} slide(s) total):
@@ -834,6 +865,7 @@ ${existingSlidesHtml}
 \`\`\`
 
 **User request:** ${planResult.enhancedPrompt}
+${targetedScope}
 
 **CRITICAL RULES:**
 - Output the COMPLETE deck: \`<style>\` block and ALL \`<section>\` elements.

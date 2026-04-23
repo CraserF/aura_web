@@ -51,7 +51,9 @@
       "prompt": "Condense this into an executive summary",
       "expects": {
         "route": "document",
-        "usesActiveArtifactType": true
+        "usesActiveArtifactType": true,
+        "targetSelectorType": "paragraph-cluster",
+        "editStrategyHint": "block-replace"
       }
     },
     {
@@ -62,7 +64,34 @@
       "prompt": "Sort the table by amount descending",
       "expects": {
         "route": "spreadsheet",
-        "requiresActiveWorkbook": true
+        "requiresActiveWorkbook": true,
+        "targetSelectorType": "sort-state",
+        "editStrategyHint": "sheet-action"
+      }
+    },
+    {
+      "id": "presentation-title-slide-tweak",
+      "artifactType": "presentation",
+      "operation": "edit",
+      "activeDocumentType": "presentation",
+      "prompt": "Update the title slide heading to feel more urgent",
+      "expects": {
+        "route": "presentation",
+        "usesActiveArtifactType": true,
+        "targetSelectorType": "slide-number",
+        "editStrategyHint": "search-replace"
+      }
+    },
+    {
+      "id": "document-explicit-full-rewrite",
+      "artifactType": "document",
+      "operation": "edit",
+      "activeDocumentType": "document",
+      "prompt": "Rewrite this document from scratch as a concise investor memo",
+      "expects": {
+        "route": "document",
+        "usesActiveArtifactType": true,
+        "allowFullRegeneration": true
       }
     }
   ]

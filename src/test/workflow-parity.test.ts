@@ -18,6 +18,8 @@ describe('workflow parity harness skeleton', () => {
     'presentation-create-from-prompt',
     'document-refine-active-document',
     'spreadsheet-action-flow',
+    'presentation-title-slide-tweak',
+    'document-explicit-full-rewrite',
   ]) {
     const scenario = manifest.scenarios.find((entry) => entry.id === scenarioId);
 

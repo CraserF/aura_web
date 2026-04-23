@@ -71,6 +71,9 @@ describe('buildRunRequest', () => {
     expect(result.runRequest.projectRulesSnapshot.promptBlock).toBe('');
     expect(result.runRequest.context.memory.text).toContain('launch notes');
     expect(result.runRequest.intent.artifactType).toBe('document');
+    expect(result.runRequest.intent.targetSelectors[0]?.type).toBe('paragraph-cluster');
+    expect(result.runRequest.intent.editStrategyHint).toBe('block-replace');
+    expect(result.runRequest.intent.allowFullRegeneration).toBe(false);
     expect(result.runRequest.projectRulesSnapshot.activePresetId).toBeUndefined();
   });
 });

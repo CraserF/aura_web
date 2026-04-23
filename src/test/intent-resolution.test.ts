@@ -48,6 +48,8 @@ describe('resolveIntent', () => {
     expect(result.artifactType).toBe('presentation');
     expect(result.operation).toBe('edit');
     expect(result.reason).toContain('authoritative');
+    expect(result.targetSelectors[0]?.type).toBe('current-slide');
+    expect(result.allowFullRegeneration).toBe(false);
   });
 
   it('falls back to prompt-based workflow detection when no artifact is active', () => {
@@ -61,6 +63,7 @@ describe('resolveIntent', () => {
     expect(result.artifactType).toBe('document');
     expect(result.operation).toBe('create');
     expect(result.reason).toContain('fallback');
+    expect(result.targetSelectors).toEqual([]);
   });
 
   it('marks ambiguous presentation create prompts as requiring clarification', () => {
@@ -105,5 +108,40 @@ describe('resolveIntent', () => {
     expect(result.artifactType).toBe('spreadsheet');
     expect(result.operation).toBe('action');
     expect(result.targetSheetId).toBe('sheet-1');
+    expect(result.editStrategyHint).toBe('sheet-action');
+    expect(result.targetSelectors[0]?.type).toBe('sort-state');
+  });
+
+  it('allows full regeneration only for explicit rewrite requests', () => {
+    const activeDocument = makeDocument({
+      contentHtml: '<section><h2>Overview</h2><p>Draft.</p></section>',
+    });
+
+    const result = resolveIntent({
+      prompt: 'Rewrite this document from scratch in a more persuasive tone',
+      activeDocument,
+      project: makeProject([activeDocument]),
+      scope: 'document',
+    });
+
+    expect(result.allowFullRegeneration).toBe(true);
+    expect(result.editStrategyHint).toBe('full-regenerate');
+  });
+
+  it('asks for clarification when a specific document section maps to multiple targets', () => {
+    const activeDocument = makeDocument({
+      contentHtml: '<section><h2>Overview</h2><p>Alpha</p></section><section><h2>Overview</h2><p>Beta</p></section>',
+    });
+
+    const result = resolveIntent({
+      prompt: 'Revise the section "Overview"',
+      activeDocument,
+      project: makeProject([activeDocument]),
+      scope: 'document',
+    });
+
+    expect(result.needsClarification).toBe(true);
+    expect(result.clarification?.question).toContain('which target');
+    expect(result.clarification?.options.length).toBeGreaterThan(1);
   });
 });

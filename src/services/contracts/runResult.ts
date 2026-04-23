@@ -1,6 +1,7 @@
 import type { ClarifyOption } from '@/types';
 
 import type { ResolvedIntent } from '@/services/ai/intent/types';
+import type { EditingTelemetry } from '@/services/editing/types';
 import type { RunStatus } from '@/services/runs/status';
 
 export interface RunResultAssistantMessage {
@@ -29,11 +30,15 @@ export interface RunResultStructuredStatus {
   detail: string;
 }
 
+export interface RunResultOutputs extends Record<string, unknown> {
+  editing?: EditingTelemetry;
+}
+
 export interface RunResult {
   runId: string;
   status: RunStatus;
   intent: ResolvedIntent;
-  outputs: Record<string, unknown>;
+  outputs: RunResultOutputs;
   assistantMessage: RunResultAssistantMessage;
   validation: RunResultValidationSummary;
   warnings: RunResultWarning[];
