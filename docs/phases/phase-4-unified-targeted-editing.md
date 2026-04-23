@@ -10,11 +10,11 @@ Make modify/refine flows scoped by default, reuse shared editing contracts acros
 
 | Stream | Owner | Write Set | Depends On | Status | Validation | Commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| Bootstrap | Codex | `docs/phases/phase-4-unified-targeted-editing.md`, `docs/implementation-plan-multi-agent.md`, `docs/program-status.md`, `src/services/editing/*` scaffolds | None | `validated` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | Pending |
-| Stream A: Contracts + Intent | Codex | editing types, `ResolvedIntent`, routing tests | Bootstrap | `planned` | Pending | Pending |
-| Stream B: Target Resolution + Artifact Adapters | Codex | target resolution, document block markers, artifact adapter tests | Stream A | `planned` | Pending | Pending |
-| Stream C: Strategy Execution + Workflow Wiring | Codex | editing strategies, workflow integration, handler result metadata | Streams A + B | `planned` | Pending | Pending |
-| Stream D: Observability + Validation | Codex | debug metrics, parity coverage, tracker updates | Stream C | `planned` | Pending | Pending |
+| Bootstrap | Codex | `docs/phases/phase-4-unified-targeted-editing.md`, `docs/implementation-plan-multi-agent.md`, `docs/program-status.md`, `src/services/editing/*` scaffolds | None | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `396920e` |
+| Stream A: Contracts + Intent | Codex | editing types, `ResolvedIntent`, routing tests | Bootstrap | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `a66f0b0` |
+| Stream B: Target Resolution + Artifact Adapters | Codex | target resolution, document block markers, artifact adapter tests | Stream A | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `a66f0b0` |
+| Stream C: Strategy Execution + Workflow Wiring | Codex | editing strategies, workflow integration, handler result metadata | Streams A + B | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `a66f0b0` |
+| Stream D: Observability + Validation | Codex | debug metrics, parity coverage, tracker updates | Stream C | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `a66f0b0` |
 
 ## Status Values
 
@@ -34,4 +34,17 @@ Make modify/refine flows scoped by default, reuse shared editing contracts acros
 - Build (`npm run build`): Passed
 - Tests (`npm test`): Passed
 - Lint (`npm run lint`): Blocked by pre-existing ESLint 9 config gap (`eslint.config.*` missing)
-- Result: Ready to commit
+- Commit: `396920e`
+- Result: Committed
+
+### Streams A-D
+
+- Date: 2026-04-23
+- Agent: Codex
+- Scope: shared editing contracts, richer intent routing, document/presentation/spreadsheet target resolution, bounded document edits, presentation patch telemetry, spreadsheet strategy metadata, parity updates, and targeted-edit regression coverage
+- Build (`npm run build`): Passed
+- Tests (`npm test`): Passed
+- Lint (`npm run lint`): Blocked by pre-existing ESLint 9 config gap (`eslint.config.*` missing)
+- Manual validation: Pending Phase 4 in-app targeted-edit checks
+- Commit: `a66f0b0`
+- Result: Committed

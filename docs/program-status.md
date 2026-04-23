@@ -27,6 +27,11 @@ This document records shipped workflow-upgrade progress across the phased implem
   - email HTML browser/mail-preview check
   - packaged media save/reopen check
   - artifact export menu behavior on desktop and mobile
+- Phase 4 manual in-app validation is still pending for:
+  - document section edit without unrelated layout drift
+  - presentation title/card tweak with untouched slides preserved
+  - explicit full-rewrite request using regeneration only in that path
+  - spreadsheet scoped action reporting the correct target area
 
 ## Current Focus
 

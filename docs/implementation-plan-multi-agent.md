@@ -232,6 +232,9 @@ Validation requirement:
 Status:
 - Phase 4 targeted editing is the current build focus.
 - Backlog Phase A remains implemented but not checklist-complete because manual validation is still pending.
+- Phase 4 code landed on 2026-04-23 with bounded target selectors, strategy hints, and editing telemetry.
+- Manual targeted-edit validation is still pending before top-level checklist completion.
+- Commit: `a66f0b0`
 
 ## Workstream F: Mobile-Adaptive Artifact Design System
 
