@@ -7,6 +7,7 @@ import {
   getProviderCapabilityProfile,
   OLLAMA_BASELINE_MODEL,
 } from '@/services/ai/providerCapabilities';
+import { defaultContextPolicy } from '@/services/projectRules/defaults';
 import type { ProjectData } from '@/types/project';
 
 function makeProject(overrides: Partial<ProjectData> = {}): ProjectData {
@@ -36,6 +37,13 @@ describe('config validation', () => {
     expect(diagnostics.some((item) => item.code === 'invalid-type')).toBe(true);
     expect(diagnostics.some((item) => item.code === 'deprecated-field')).toBe(true);
     expect(diagnostics.some((item) => item.code === 'unknown-key')).toBe(true);
+  });
+
+  it('does not warn on supported top-level context policy keys', () => {
+    const diagnostics = validateContextPolicy(defaultContextPolicy());
+
+    expect(diagnostics.some((item) => item.path === 'contextPolicy.version' && item.code === 'unknown-key')).toBe(false);
+    expect(diagnostics.some((item) => item.path === 'contextPolicy.artifactOverrides' && item.code === 'unknown-key')).toBe(false);
   });
 
   it('flags duplicate workflow preset ids', () => {

@@ -8,6 +8,7 @@ function validateOverride(
   value: unknown,
   path: string,
   diagnostics: ConfigDiagnostic[],
+  extraAllowedKeys: string[] = [],
 ): void {
   if (!isRecord(value)) {
     diagnostics.push({
@@ -22,7 +23,7 @@ function validateOverride(
 
   const booleanKeys = ['includeProjectChat', 'includeMemory', 'includeAttachments', 'includeRelatedDocuments'] as const;
   const numberKeys = ['maxChatMessages', 'maxMemoryTokens', 'maxRelatedDocuments', 'maxAttachmentChars'] as const;
-  const allowedKeys = new Set([...booleanKeys, ...numberKeys, 'includeChatHistory']);
+  const allowedKeys = new Set([...booleanKeys, ...numberKeys, 'includeChatHistory', ...extraAllowedKeys]);
 
   for (const key of Object.keys(value)) {
     if (!allowedKeys.has(key)) {
@@ -122,7 +123,7 @@ export function validateContextPolicy(policy: unknown): ConfigDiagnostic[] {
     });
   }
 
-  validateOverride(policy, 'contextPolicy', diagnostics);
+  validateOverride(policy, 'contextPolicy', diagnostics, ['version', 'artifactOverrides']);
 
   if ('artifactOverrides' in policy) {
     if (!isRecord(policy.artifactOverrides)) {

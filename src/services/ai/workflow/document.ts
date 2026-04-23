@@ -14,6 +14,7 @@ import { sanitizeHtml } from '@/services/html/sanitizer';
 import { CACHE_CONTROL } from './engine';
 import { aiDebugLog, logEditingMetrics, logPromptMetrics } from '../debug';
 import { validateDocument } from './agents/document-qa';
+import { getProviderCapabilityProfile } from '../providerCapabilities';
 import type {
   LLMConfig,
   EventListener,
@@ -574,6 +575,7 @@ ${summary}
 
 async function buildCreatePrompt(input: DocumentInput, plan: DocumentPlan): Promise<string> {
   const includeExample = plan.preferHtml || plan.artDirection !== 'clean';
+  const requestedTitle = extractRequestedDocumentTitle(input.prompt);
 
   return new DocumentPromptComposer()
     .addBase(plan)
@@ -583,6 +585,9 @@ async function buildCreatePrompt(input: DocumentInput, plan: DocumentPlan): Prom
     .addPalette(plan.theme)
     .addExample(plan.blueprint, plan.documentType, plan.artDirection, includeExample)
     .addProjectLinks(input.projectLinks ?? [])
+    .addText(requestedTitle
+      ? `## Required Title\nUse this exact document title verbatim as the first \`<h1>\`: ${requestedTitle}\nDo not rename, paraphrase, or swap in a more generic alternative.`
+      : '')
     .addRequest('User Request', input.prompt)
     .addRules(false, plan)
     .build();
@@ -855,6 +860,10 @@ export async function runDocumentWorkflow(
 ): Promise<DocumentOutput> {
   const { input, llmConfig, onEvent, signal } = opts;
   const isEdit = !!input.existingHtml;
+  const providerProfile = getProviderCapabilityProfile({
+    id: llmConfig.providerEntry.id,
+    model: llmConfig.model,
+  });
 
   const baseModel: LanguageModel = await createModel(llmConfig);
   const model = withDefaults(baseModel);
@@ -943,6 +952,10 @@ export async function runDocumentWorkflow(
     onEvent({ type: 'progress', message: 'Sanitizing content…', pct: 84 });
 
     let finalHtml = sanitizeHtml(renderedHtml);
+    const requestedTitle = extractRequestedDocumentTitle(input.prompt);
+    if (requestedTitle) {
+      finalHtml = enforceRequestedDocumentTitle(finalHtml, requestedTitle);
+    }
     let editingTelemetry: EditingTelemetry | undefined;
 
     if (isEdit && input.existingHtml && input.editing) {
@@ -995,7 +1008,7 @@ export async function runDocumentWorkflow(
     onEvent({ type: 'step-done', stepId: 'qa', label: 'Checking document quality…' });
 
     onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing document…' });
-    const title = extractDocumentTitle(finalHtml) || extractTitleFromPrompt(input.prompt);
+    const title = requestedTitle || extractDocumentTitle(finalHtml) || extractTitleFromPrompt(input.prompt);
 
     const output: DocumentOutput = {
       html: finalHtml,
@@ -1005,7 +1018,13 @@ export async function runDocumentWorkflow(
     };
 
     onEvent({ type: 'step-done', stepId: 'finalize', label: 'Finalizing document…' });
-    onEvent({ type: 'progress', message: 'Done!', pct: 100 });
+    onEvent({
+      type: 'progress',
+      message: providerProfile.providerId === 'ollama'
+        ? 'Done! Local baseline run complete.'
+        : 'Done!',
+      pct: 100,
+    });
     onEvent({ type: 'complete', result: output });
     return output;
   } catch (err) {
@@ -2138,6 +2157,38 @@ function extractDocumentTitle(html: string): string {
   if (title?.textContent?.trim()) return title.textContent.trim();
 
   return '';
+}
+
+export function extractRequestedDocumentTitle(prompt: string): string | undefined {
+  const match = prompt.match(/\b(?:called|titled|named)\s+["“]?([^"”.,\n]+?)["”]?(?=\s+(?:with|that|for|about|in)\b|[.!?]|$)/i);
+  return match?.[1]?.trim() || undefined;
+}
+
+export function enforceRequestedDocumentTitle(html: string, requestedTitle: string): string {
+  if (!html.trim() || !requestedTitle.trim()) return html;
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const h1 = doc.querySelector('h1');
+
+  if (h1) {
+    h1.textContent = requestedTitle;
+  } else if (doc.body.firstElementChild) {
+    const heading = doc.createElement('h1');
+    heading.textContent = requestedTitle;
+    doc.body.firstElementChild.prepend(heading);
+  } else {
+    const heading = doc.createElement('h1');
+    heading.textContent = requestedTitle;
+    doc.body.appendChild(heading);
+  }
+
+  const title = doc.querySelector('title');
+  if (title) {
+    title.textContent = requestedTitle;
+  }
+
+  return doc.body.innerHTML.trim() || html;
 }
 
 /** Fall back to extracting a title from the user prompt */

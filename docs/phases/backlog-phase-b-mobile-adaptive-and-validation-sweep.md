@@ -100,6 +100,34 @@ Finish Workstream F Phase F3/F4 without inventing a new canonical phase, and use
 - Commit: Pending
 - Result: Committed
 
+- Date: 2026-04-23
+- Agent: Codex
+- Scope: Backlog refinement, context-policy warning noise removal during Ollama hardening
+- Build (`npm run build`): Passed
+- Tests (`npm test`): Passed; targeted doctor/config validation coverage also passed (`npm test -- --run src/test/doctor.test.ts`)
+- Lint (`npm run lint`): Still blocked by pre-existing ESLint 9 config gap (`eslint.config.*` missing)
+- Manual validation:
+  - Root cause isolated in `validateContextPolicy()`: the shared override validator was still warning on top-level `version` and `artifactOverrides` keys even though they are part of the supported context-policy shape.
+  - Landed a narrow validator fix plus regression coverage so supported top-level context-policy keys no longer emit false `unknown-key` warnings.
+  - Post-fix in-app browser verification confirmed the Doctor panel now reports `Project configuration looks healthy.` for a fresh project instead of surfacing the old `Unknown context policy key "version"` / `artifactOverrides` warnings.
+  - Remaining backlog work is unchanged: Workstream F tablet portrait and desktop wide checks, protocol backfill for Backlog Phase A and Phase 4-10, and the first full Ollama baseline scorecard pass are still pending.
+- Commit: Pending
+- Result: Committed
+
+- Date: 2026-04-23
+- Agent: Codex
+- Scope: Ollama baseline smoke pass continuation, explicit document-title hardening
+- Build (`npm run build`): Passed
+- Tests (`npm test`): Passed; targeted document-title plus doctor coverage passed (`npm test -- --run src/test/document-title.test.ts src/test/doctor.test.ts`)
+- Lint (`npm run lint`): Still blocked by pre-existing ESLint 9 config gap (`eslint.config.*` missing)
+- Manual validation:
+  - Started the first real in-app browser Ollama baseline smoke case using the recommended `gemma4:e2b` local model.
+  - A long-form document create eventually produced a document artifact, but the generated title drifted away from the explicit requested title (`North Star Expansion Plan`), which is not acceptable for the baseline scorecard.
+  - Classified the failure as a prompt-tuning and local-model consistency issue, then landed a narrow hardening fix: explicit requested titles extracted from prompts like `called ...` / `titled ...` are now treated as deterministic constraints in the document workflow and enforced into the final document title/H1.
+  - This is partial Ollama baseline evidence only; the broader document/presentation create-edit-style-rewrite scorecard is still pending.
+- Commit: Pending
+- Result: Committed
+
 ## Workstream F Review Checklist
 
 Use this same checklist in both Workstream F validation and the broader backlog sweep.
