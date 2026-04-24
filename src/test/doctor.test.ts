@@ -128,6 +128,9 @@ describe('provider capabilities', () => {
     expect(profile.toolSupport).toBe('limited');
     expect(profile.structuredOutput).toBe('best-effort');
     expect(profile.secondaryEvaluation).toBe('skip');
+    expect(profile.editCorrectionMode).toBe('best-effort');
+    expect(profile.maxEditCorrectionSteps).toBe(3);
+    expect(profile.editCorrectionTimeoutMs).toBe(20_000);
     expect(profile.warnings).toEqual([]);
   });
 });

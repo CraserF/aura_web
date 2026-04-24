@@ -194,6 +194,21 @@ Finish Workstream F Phase F3/F4 without inventing a new canonical phase, and use
 - Commit: Pending
 - Result: Blocked
 
+- Date: 2026-04-24
+- Agent: Codex
+- Scope: Workflow-quality continuation, bounded local presentation edit correction, and local-model throughput hardening
+- Build (`npm run build`): Passed
+- Tests (`npm test`): Passed; targeted provider capability coverage also passed (`npm test -- --run src/test/doctor.test.ts`)
+- Lint (`npm run lint`): Still blocked by pre-existing ESLint 9 config gap (`eslint.config.*` missing)
+- Manual validation:
+  - Added a provider-aware local edit-correction budget so Ollama presentation edits no longer use the same unlimited correction posture as frontier-model paths.
+  - Presentation edit correction now runs with a smaller step budget on local models and will fall back to the streamed draft if the bounded correction window times out, instead of letting the workflow stall indefinitely inside the self-repair loop.
+  - Fresh browser verification in this slice confirmed the app reloads cleanly at `http://127.0.0.1:4175/` and the seeded `Expansion Scorecard` shell still renders after the change.
+  - A clean in-app re-run of the original long-running Ollama presentation edit scenario was not completed in this slice, so the throughput improvement is currently code-and-test validated rather than fully re-baselined through the manual scorecard.
+  - The presentation-edit blocker should remain open until the next manual Ollama scorecard pass confirms that the bounded local path materially improves completion behavior.
+- Commit: Pending
+- Result: Committed
+
 ## Workstream F Review Checklist
 
 Use this same checklist in both Workstream F validation and the broader backlog sweep.

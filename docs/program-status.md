@@ -23,7 +23,7 @@ This document records shipped workflow-upgrade progress across the phased implem
 
 - `npm run lint` is still blocked by the repo-level ESLint 9 migration gap because `eslint.config.*` is missing.
 - Manual workflow validation should now use the protocol in `docs/validation/major-change-protocol.md` and the registry in `src/test/fixtures/major-change-cases.ts`; older ad hoc notes should be treated as partial evidence until backfilled through that protocol.
-- Latest Ollama baseline note (2026-04-24): in-app browser presentation edits on `gemma4:e2b` keep visible progress alive but still exceed the design-step budget, so local presentation-edit stabilization remains blocked.
+- Latest Ollama baseline note (2026-04-24): the local presentation-edit path now has a bounded correction budget and best-effort draft fallback for `gemma4:e2b`, but a clean in-app scorecard rerun is still pending before the presentation-edit blocker can be cleared or reclassified.
 
 ## Validation Debt
 
