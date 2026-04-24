@@ -159,6 +159,24 @@ Finish Workstream F Phase F3/F4 without inventing a new canonical phase, and use
 - Commit: Pending
 - Result: Committed
 
+- Date: 2026-04-24
+- Agent: Codex
+- Scope: Ollama baseline continuation, in-app browser presentation edit timing validation, and local-model stream-budget hardening
+- Build (`npm run build`): Passed after each code change
+- Tests (`npm test`): Passed after each code change
+- Lint (`npm run lint`): Still blocked by pre-existing ESLint 9 config gap (`eslint.config.*` missing)
+- Manual validation:
+  - In-app browser baseline validation on the seeded `Expansion Scorecard` presentation confirmed the progress UX stays alive throughout the local-model edit path: the run advanced from `Applying changes…` to `Still applying slide changes…`, then `Refining the updated slide composition…`, then `Finishing the current slide draft…`.
+  - A broader local-model palette/style edit remained active after ~90 seconds and was still unfinished after ~150 seconds, which exceeds the agreed design-step budget even though progress stayed visible.
+  - A much smaller subtitle-only edit showed the same pattern: it progressed normally through the same status messages but still had not completed after ~70 seconds, which rules out “only large style rewrites are slow” as the sole explanation.
+  - Landed two narrow hardening attempts on the presentation designer path:
+    - capped streamed presentation draft output to reduce trailing local-model verbosity
+    - added an Ollama-only soft stream timeout intended to let edit flows finalize from a valid partial draft or patch set instead of waiting indefinitely for stream completion
+  - The live in-app rerun still did not finish inside the 90-second validation window, so the Ollama presentation-edit path remains blocked. Current classification: `workflow bug` with possible `provider capability mismatch` contributing.
+  - The latest successful local evidence remains partial: the edited slide content improved and progress stayed continuous, but the completion-time bar for presentation edits is still not met.
+- Commit: Pending
+- Result: Blocked
+
 ## Workstream F Review Checklist
 
 Use this same checklist in both Workstream F validation and the broader backlog sweep.

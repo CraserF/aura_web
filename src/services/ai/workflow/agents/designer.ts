@@ -45,10 +45,24 @@ export interface DesignResult {
   editing?: EditingTelemetry;
 }
 
+// Single-slide presentation drafts are rich but still bounded artifacts.
+// Keeping the stream capped avoids local models dragging the design step out
+// with trailing chatter before fast-path QA can run.
+const PRESENTATION_STREAM_MAX_OUTPUT_TOKENS = 4096;
+
 interface ContinuityAssessment {
   score: number;
   passes: boolean;
   issues: string[];
+}
+
+interface StreamDraftOptions {
+  model: LanguageModel;
+  messages: ModelMessage[];
+  abortSignal?: AbortSignal;
+  onChunk: (chunk: string) => void;
+  softTimeoutMs?: number;
+  canUsePartialDraft?: (draftText: string) => boolean;
 }
 
 /**
@@ -235,6 +249,46 @@ function preserveExistingSlidesForAddIntent(existingHtml: string, candidateHtml:
   return `${existingHtml}\n${newSections.join('\n')}`;
 }
 
+async function streamDraft(opts: StreamDraftOptions): Promise<string> {
+  const { model, messages, abortSignal, onChunk, softTimeoutMs } = opts;
+  const streamAbortController = new AbortController();
+  const combinedSignal = abortSignal
+    ? AbortSignal.any([abortSignal, streamAbortController.signal])
+    : streamAbortController.signal;
+
+  let draftText = '';
+  const timeoutId = softTimeoutMs
+    ? setTimeout(() => {
+        streamAbortController.abort(new DOMException('Draft stream soft timeout reached', 'AbortError'));
+      }, softTimeoutMs)
+    : undefined;
+
+  try {
+    const streamResult = streamText({
+      model,
+      messages,
+      maxOutputTokens: PRESENTATION_STREAM_MAX_OUTPUT_TOKENS,
+      abortSignal: combinedSignal,
+    });
+    for await (const chunk of streamResult.textStream) {
+      draftText += chunk;
+      onChunk(chunk);
+    }
+    return draftText;
+  } catch (error) {
+    const aborted = error instanceof DOMException && error.name === 'AbortError';
+    const canUsePartialDraft = opts.canUsePartialDraft
+      ? opts.canUsePartialDraft(draftText)
+      : countSlides(postProcess(draftText).html) > 0;
+    if (aborted && streamAbortController.signal.aborted && canUsePartialDraft) {
+      return draftText;
+    }
+    throw error;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
 /**
  * Remove double-encoded attribute quote wrappers that arise from AI tool call
  * JSON serialization. Converts x="\"0\"" → x="0".
@@ -385,6 +439,7 @@ export async function design(
   model: LanguageModel,
   onEvent: EventListener,
   projectRulesBlock?: string,
+  streamSoftTimeoutMs?: number,
   signal?: AbortSignal,
 ): Promise<DesignResult> {
   const t0 = performance.now();
@@ -452,16 +507,16 @@ After generating the slide HTML, call the validateSlideHtml tool to check for is
 
   let draftText = '';
   await withRetry(async () => {
-    draftText = '';
-    const streamResult = streamText({
+    draftText = await streamDraft({
       model,
       messages: requestMessages,
       abortSignal: signal,
+      softTimeoutMs: streamSoftTimeoutMs,
+      canUsePartialDraft: (partialDraft) => countSlides(postProcess(partialDraft).html) > 0,
+      onChunk: (chunk) => {
+        onEvent({ type: 'streaming', stepId: 'design', chunk });
+      },
     });
-    for await (const chunk of streamResult.textStream) {
-      draftText += chunk;
-      onEvent({ type: 'streaming', stepId: 'design', chunk });
-    }
   });
 
   // Show the draft immediately
@@ -570,6 +625,7 @@ export async function designEdit(
   model: LanguageModel,
   onEvent: EventListener,
   projectRulesBlock?: string,
+  streamSoftTimeoutMs?: number,
   editing?: {
     targetSummary: string[];
     strategyHint?: EditStrategy;
@@ -614,16 +670,17 @@ export async function designEdit(
 
   let draftText = '';
   await withRetry(async () => {
-    draftText = '';
-    const streamResult = streamText({
+    draftText = await streamDraft({
       model,
       messages: requestMessages,
       abortSignal: signal,
+      softTimeoutMs: streamSoftTimeoutMs,
+      canUsePartialDraft: (partialDraft) =>
+        countSlides(postProcess(partialDraft).html) > 0 || parsePatchBlocks(partialDraft).length > 0,
+      onChunk: (chunk) => {
+        onEvent({ type: 'streaming', stepId: 'targeted-design', chunk });
+      },
     });
-    for await (const chunk of streamResult.textStream) {
-      draftText += chunk;
-      onEvent({ type: 'streaming', stepId: 'targeted-design', chunk });
-    }
   });
 
   const { html: draftHtml, fontLinks: draftFontLinks } = postProcess(draftText, planResult.blueprint.palette.fontImport);

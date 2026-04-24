@@ -86,6 +86,7 @@ export async function runPresentationWorkflow(
     id: llmConfig.providerEntry.id,
     model: llmConfig.model,
   });
+  const streamSoftTimeoutMs = providerProfile.providerId === 'ollama' ? 60_000 : undefined;
   aiDebugLog('workflow', `starting ${isEdit ? 'edit' : 'create'} workflow`, { model: llmConfig.model });
 
   try {
@@ -176,6 +177,7 @@ export async function runPresentationWorkflow(
               model,
               onEvent,
               input.projectRulesBlock,
+              streamSoftTimeoutMs,
               input.editing,
               signal,
             )
@@ -186,6 +188,7 @@ export async function runPresentationWorkflow(
               model,
               onEvent,
               input.projectRulesBlock,
+              streamSoftTimeoutMs,
               signal,
             );
       } finally {
