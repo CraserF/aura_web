@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{TITLE}} — Finance Grid Light</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f0f8fc;
+      --surface: #ffffff;
+      --border: rgba(11, 95, 122, 0.12);
+      --primary: #0f90b8;
+      --accent: #129476;
+      --heading: #113447;
+      --body: #486675;
+      --muted: #7096a4;
+      --heading-font: 'Playfair Display', serif;
+      --body-font: 'Source Sans 3', sans-serif;
+    }
+    .reveal { font-family: var(--body-font); color: var(--body); font-size: 34px; }
+    .reveal .slides { text-align: left; }
+    .reveal .slides section { padding: 2.8rem 3rem; box-sizing: border-box; }
+    .finance-shell { width: 100%; height: 100%; display: grid; grid-template-rows: auto 1fr auto; gap: 1rem; }
+    .finance-rail { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 2px solid var(--primary); padding-bottom: 0.7rem; }
+    .finance-rail h2 { font-family: var(--heading-font); font-size: 2.15em; margin: 0; color: var(--heading); }
+    .finance-rail .meta { font-size: 0.64em; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+    .finance-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 1rem; }
+    .finance-card, .metric-card, .summary-strip { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 10px 26px rgba(14, 99, 126, 0.05); }
+    .finance-card, .metric-card { padding: 1.15rem 1.2rem; position: relative; overflow: hidden; }
+    .finance-card { border-left: 5px solid var(--primary); }
+    .metric-card { border-left: 5px solid var(--accent); }
+    .summary-strip { padding: 0.9rem 1.1rem; border-top: 5px solid var(--primary); background: linear-gradient(180deg, #ffffff 0%, #eef7fb 100%); }
+    .card-label { font-size: 0.62em; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-bottom: 0.35rem; }
+    .finance-card h3, .summary-strip h3 { font-family: var(--heading-font); font-size: 1.18em; color: var(--heading); margin: 0 0 0.35rem; }
+    .finance-card p, .summary-strip p { font-size: 0.9em; line-height: 1.56; margin: 0; color: var(--body); }
+    .big-number { font-family: var(--heading-font); font-size: 2.7em; line-height: 0.94; color: var(--accent); margin-bottom: 0.15rem; }
+    .diagram-bars { display: grid; gap: 0.35rem; margin-top: 0.85rem; }
+    .diagram-bars span { display: block; height: 12px; border-radius: 999px; background: linear-gradient(90deg, rgba(15,144,184,0.16), rgba(15,144,184,0.46)); }
+    .diagram-bars span:nth-child(2) { width: 88%; margin-left: auto; }
+    .diagram-bars span:nth-child(3) { width: 74%; margin-left: auto; }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+      <section data-background-color="#f0f8fc">
+        <div class="finance-shell">
+          <header class="finance-rail">
+            <h2>{{TITLE}}</h2>
+            <div class="meta">Structured mechanism</div>
+          </header>
+          <div class="finance-grid">
+            <article class="finance-card">
+              <div class="card-label">Mechanism</div>
+              <h3>Explain the system inside the layout</h3>
+              <p>{{SUBTITLE}}</p>
+              <div class="diagram-bars">
+                <span style="width:100%"></span>
+                <span></span>
+                <span></span>
+              </div>
+            </article>
+            <aside class="metric-card">
+              <div class="card-label">Key figure</div>
+              <div class="big-number">72%</div>
+              <p>Use one dominant figure and one short interpretation instead of a generic KPI wall.</p>
+            </aside>
+          </div>
+          <section class="summary-strip">
+            <h3>Summary strip</h3>
+            <p>Close the slide with one disciplined synthesis line or tapered stack, not another repeated row of cards.</p>
+          </section>
+        </div>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

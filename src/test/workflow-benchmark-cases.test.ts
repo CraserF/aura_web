@@ -20,4 +20,14 @@ describe('workflow benchmark cases', () => {
     expect(families.has('validation-export')).toBe(true);
     expect(families.has('explain-dry-run')).toBe(true);
   });
+
+  it('includes the new reference-led visual benchmark cases for polished presentations and documents', () => {
+    const benchmarkIds = new Set(WORKFLOW_BENCHMARK_CASES.map((benchmark) => benchmark.id));
+
+    expect(benchmarkIds.has('presentation-title-opening')).toBe(true);
+    expect(benchmarkIds.has('presentation-stage-setting')).toBe(true);
+    expect(benchmarkIds.has('presentation-finance-grid-create')).toBe(true);
+    expect(benchmarkIds.has('document-proposal-create')).toBe(true);
+    expect(benchmarkIds.has('document-research-create')).toBe(true);
+  });
 });

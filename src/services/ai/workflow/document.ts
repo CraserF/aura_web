@@ -26,6 +26,7 @@ import {
   selectDocumentBlueprint,
   type DocumentBlueprint,
 } from '../templates/document-blueprints';
+import { getReferenceStylePack } from '../templates';
 import { applyDocumentTargetedEdit, prepareDocumentHtmlForEditing } from '@/services/editing/patchDocument';
 import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
 
@@ -113,15 +114,32 @@ function withTemplateGuidance(systemPrompt: string, templateGuidance?: TemplateG
     return systemPrompt;
   }
 
+  const stylePack = templateGuidance.referenceStylePackId
+    ? getReferenceStylePack(templateGuidance.referenceStylePackId)
+    : null;
+
   return `${systemPrompt}
 
 Workflow guidance:
 - intent family: ${templateGuidance.intentFamily}
 - provider tier: ${templateGuidance.providerTier}
+- document family: ${templateGuidance.documentThemeFamily ?? 'auto'}
+- selected template: ${templateGuidance.selectedTemplateId ?? 'n/a'}
 - design constraints:
 ${templateGuidance.designConstraints.map((constraint) => `  - ${constraint}`).join('\n')}
 - must avoid:
-${templateGuidance.antiPatterns.map((pattern) => `  - ${pattern}`).join('\n')}`;
+${templateGuidance.antiPatterns.map((pattern) => `  - ${pattern}`).join('\n')}
+${stylePack ? `- sanitized style pack: ${stylePack.label}
+- style pack summary: ${stylePack.summary}
+- typography cues: ${stylePack.typography.join(' ')}
+- palette cues: ${stylePack.paletteRules.join(' ')}
+- layout cues: ${stylePack.layoutRules.join(' ')}
+- confidentiality rules:
+${stylePack.confidentialityRules.map((rule) => `  - ${rule}`).join('\n')}
+- synthetic style example:
+\`\`\`html
+${stylePack.syntheticExample}
+\`\`\`` : ''}`;
 }
 
 interface DocumentTheme {
@@ -409,7 +427,11 @@ function planDocumentRequest(input: DocumentInput): DocumentPlan {
   const blueprint = selectDocumentBlueprint(input.prompt, documentType, input.styleHint);
   return {
     documentType,
-    theme: pickDocumentTheme(`${input.prompt} ${blueprint.label} ${input.styleHint ?? ''}`, documentType),
+    theme: pickDocumentTheme(
+      `${input.prompt} ${blueprint.label} ${input.styleHint ?? ''}`,
+      documentType,
+      input.templateGuidance?.documentThemeFamily,
+    ),
     artDirection: blueprint.artDirection ?? inferArtDirection(documentType),
     blueprint,
     preferHtml: shouldPreferDesignedHtml(documentType, input.prompt, input.styleHint),
@@ -705,8 +727,107 @@ Use numbered lists and code fences where helpful.`;
   }
 }
 
-function pickDocumentTheme(prompt: string, documentType: ResolvedDocumentType): DocumentTheme {
+function pickDocumentTheme(
+  prompt: string,
+  documentType: ResolvedDocumentType,
+  preferredFamily?: TemplateGuidanceProfile['documentThemeFamily'],
+): DocumentTheme {
   const normalized = prompt.toLowerCase();
+
+  if (preferredFamily) {
+    switch (preferredFamily) {
+      case 'executive-light':
+        return normalizeDocumentTheme({
+          name: 'executive-light',
+          label: 'Executive Board',
+          bg: '#f5f8fb',
+          surface: 'rgba(17, 75, 108, 0.04)',
+          surfaceAlt: 'rgba(15, 134, 168, 0.08)',
+          border: 'rgba(17, 75, 108, 0.11)',
+          primary: '#114b6c',
+          accent: '#2a9d8f',
+          text: '#152b39',
+          muted: '#5f7684',
+          shellBg: 'rgba(255,255,255,0.97)',
+          glow: 'rgba(15, 134, 168, 0.10)',
+        });
+      case 'editorial-light':
+        return normalizeDocumentTheme({
+          name: 'editorial-light',
+          label: 'Editorial Report',
+          bg: '#f7fafb',
+          surface: 'rgba(24, 56, 74, 0.04)',
+          surfaceAlt: 'rgba(15, 134, 168, 0.07)',
+          border: 'rgba(24, 56, 74, 0.11)',
+          primary: '#18384a',
+          accent: '#0f86a8',
+          text: '#1f2e37',
+          muted: '#617784',
+          shellBg: 'rgba(255,255,255,0.975)',
+          glow: 'rgba(15, 134, 168, 0.08)',
+        });
+      case 'proposal-light':
+        return normalizeDocumentTheme({
+          name: 'proposal-light',
+          label: 'Strategy Board',
+          bg: '#f8fafc',
+          surface: 'rgba(24, 56, 74, 0.04)',
+          surfaceAlt: 'rgba(34, 139, 127, 0.08)',
+          border: 'rgba(24, 56, 74, 0.11)',
+          primary: '#173e57',
+          accent: '#228b7f',
+          text: '#182a34',
+          muted: '#5e7481',
+          shellBg: 'rgba(255,255,255,0.975)',
+          glow: 'rgba(34, 139, 127, 0.09)',
+        });
+      case 'research-light':
+        return normalizeDocumentTheme({
+          name: 'research-light',
+          label: 'Research Summary',
+          bg: '#faf8f3',
+          surface: 'rgba(87, 72, 48, 0.04)',
+          surfaceAlt: 'rgba(184, 120, 57, 0.09)',
+          border: 'rgba(87, 72, 48, 0.10)',
+          primary: '#574830',
+          accent: '#b87839',
+          text: '#2a2218',
+          muted: '#74695e',
+          shellBg: 'rgba(255,255,255,0.975)',
+          glow: 'rgba(184, 120, 57, 0.08)',
+        });
+      case 'playbook-light':
+        return normalizeDocumentTheme({
+          name: 'playbook-light',
+          label: 'Process Playbook',
+          bg: '#f6faf8',
+          surface: 'rgba(30, 84, 69, 0.04)',
+          surfaceAlt: 'rgba(56, 161, 105, 0.08)',
+          border: 'rgba(30, 84, 69, 0.10)',
+          primary: '#1e5445',
+          accent: '#38a169',
+          text: '#193229',
+          muted: '#61776e',
+          shellBg: 'rgba(255,255,255,0.975)',
+          glow: 'rgba(56, 161, 105, 0.09)',
+        });
+      case 'infographic-light':
+        return normalizeDocumentTheme({
+          name: 'infographic-light',
+          label: 'Infographic Brief',
+          bg: '#f2f8fb',
+          surface: 'rgba(16, 111, 140, 0.04)',
+          surfaceAlt: 'rgba(22, 160, 133, 0.09)',
+          border: 'rgba(16, 111, 140, 0.10)',
+          primary: '#106f8c',
+          accent: '#16a085',
+          text: '#16313d',
+          muted: '#607984',
+          shellBg: 'rgba(255,255,255,0.975)',
+          glow: 'rgba(16, 111, 140, 0.09)',
+        });
+    }
+  }
 
   // --- Topic-based matching ---
 

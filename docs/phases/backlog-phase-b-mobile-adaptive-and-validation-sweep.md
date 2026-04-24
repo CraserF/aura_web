@@ -209,6 +209,22 @@ Finish Workstream F Phase F3/F4 without inventing a new canonical phase, and use
 - Commit: Pending
 - Result: Committed
 
+- Date: 2026-04-24
+- Agent: Codex
+- Scope: Reference-led visual quality overhaul scaffolding for presentations and documents
+- Build (`npm run build`): Passed
+- Tests (`npm test`): Passed; targeted planner/benchmark/confidentiality coverage also passed (`npm test -- --run src/test/workflow-planner.test.ts src/test/workflow-benchmark-cases.test.ts src/test/reference-style-packs.test.ts`)
+- Lint (`npm run lint`): Still blocked by pre-existing ESLint 9 config gap (`eslint.config.*` missing)
+- Manual validation:
+  - Added sanitized reference style packs and synthetic exemplar guidance for polished title, stage-setting, editorial-light, finance-grid-light, quiz-show, and professional-light document systems.
+  - Added recipe-aware presentation workflow planning so title, stage-setting, finance-grid, and related slide prompts now resolve to explicit recipe/template/style-pack combinations instead of falling back to generic office-style selection.
+  - Added new light presentation template families (`editorial-light`, `finance-grid-light`, `stage-setting-light`) and broadened the workflow benchmark fixtures to include the new visual target families.
+  - Added document-family guidance and light theme-family overrides for executive, editorial, proposal, research, playbook, and infographic document paths.
+  - Added confidentiality-focused regression coverage to ensure the new style-pack and benchmark layer stays synthetic and avoids obvious direct-reference leakage markers.
+  - Manual visual benchmark scoring against the live app is still pending; this slice is implemented and test-backed, not yet manually accepted against the new reference-quality bar.
+- Commit: Pending
+- Result: Committed
+
 ## Workstream F Review Checklist
 
 Use this same checklist in both Workstream F validation and the broader backlog sweep.

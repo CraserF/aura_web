@@ -18,6 +18,22 @@ export interface WorkflowBenchmarkCaseDefinition {
 
 export const WORKFLOW_BENCHMARK_CASES: WorkflowBenchmarkCaseDefinition[] = [
   {
+    id: 'presentation-title-opening',
+    artifactType: 'presentation',
+    title: 'Presentation title opening',
+    caseFamily: 'create',
+    fixturePrompt: 'Create a polished opening title slide for a strategic transformation briefing.',
+    expectedFocus: 'Split-scene or seam-led opening composition with premium hierarchy.',
+  },
+  {
+    id: 'presentation-stage-setting',
+    artifactType: 'presentation',
+    title: 'Presentation stage-setting create',
+    caseFamily: 'create',
+    fixturePrompt: 'Create a setting-the-stage slide that explains why the current shift matters.',
+    expectedFocus: 'Context framing, scene-plus-insight composition, and editorial clarity.',
+  },
+  {
     id: 'presentation-narrative-create',
     artifactType: 'presentation',
     title: 'Presentation narrative create',
@@ -32,6 +48,14 @@ export const WORKFLOW_BENCHMARK_CASES: WorkflowBenchmarkCaseDefinition[] = [
     caseFamily: 'create',
     fixturePrompt: 'Create a metrics-heavy executive scorecard deck with a premium visual system.',
     expectedFocus: 'Data clarity without generic KPI wall repetition.',
+  },
+  {
+    id: 'presentation-finance-grid-create',
+    artifactType: 'presentation',
+    title: 'Presentation finance grid create',
+    caseFamily: 'create',
+    fixturePrompt: 'Create a finance-grid explainer slide with layered support mechanics and a refined light visual system.',
+    expectedFocus: 'Embedded mechanism visuals and structured light infographic rhythm.',
   },
   {
     id: 'presentation-style-edit',
@@ -74,12 +98,28 @@ export const WORKFLOW_BENCHMARK_CASES: WorkflowBenchmarkCaseDefinition[] = [
     expectedFocus: 'Preserve substance while improving typography and layout.',
   },
   {
+    id: 'document-proposal-create',
+    artifactType: 'document',
+    title: 'Document proposal create',
+    caseFamily: 'create',
+    fixturePrompt: 'Create a strategy proposal board with a cleaner professional light theme.',
+    expectedFocus: 'Proposal framing, proof strips, and premium light-mode structure.',
+  },
+  {
     id: 'document-structural-rewrite',
     artifactType: 'document',
     title: 'Document structural rewrite',
     caseFamily: 'structural-rewrite',
     fixturePrompt: 'Keep the topic but reorganize this document into a tighter executive brief structure.',
     expectedFocus: 'Structural changes without quality collapse.',
+  },
+  {
+    id: 'document-research-create',
+    artifactType: 'document',
+    title: 'Document research create',
+    caseFamily: 'create',
+    fixturePrompt: 'Create a research summary with a refined light editorial system and tidy findings modules.',
+    expectedFocus: 'Evidence-led structure and professional palette restraint.',
   },
   {
     id: 'document-readiness-export',

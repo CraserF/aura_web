@@ -8,6 +8,21 @@ interface SelectionPattern {
 
 const SELECTION_PATTERNS: SelectionPattern[] = [
   {
+    templateId: 'stage-setting-light',
+    patterns: [/\b(setting(?: |-)?the(?: |-)?stage|why it matters|context slide|background slide|problem framing|scene setting)\b/i],
+    weight: 11,
+  },
+  {
+    templateId: 'finance-grid-light',
+    patterns: [/\b(finance|financial|mechanism|capital stack|allocation|scorecard|blended|funding structure|investment model)\b/i],
+    weight: 11,
+  },
+  {
+    templateId: 'editorial-light',
+    patterns: [/\b(executive brief|board|leadership update|editorial|explainer|premium business|business narrative)\b/i],
+    weight: 10,
+  },
+  {
     templateId: 'editorial-magazine',
     patterns: [/\b(editorial|magazine|long.?form|thought\s*leader|serif|article|essay|literary)\b/i],
     weight: 9,
@@ -132,7 +147,7 @@ export function selectTemplate(
   const fullText = [prompt, context?.audience, context?.purpose].filter(Boolean).join(' ');
   const lower = fullText.toLowerCase();
 
-  let bestMatch: TemplateId = 'tech-architecture';
+  let bestMatch: TemplateId = 'editorial-light';
   let bestScore = 0;
 
   for (const { templateId, patterns, weight } of SELECTION_PATTERNS) {

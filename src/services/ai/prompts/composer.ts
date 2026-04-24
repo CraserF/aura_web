@@ -5,6 +5,7 @@
  * based on the template, animation level, and generation context.
  */
 import type { ExemplarPackId, TemplateId, TemplatePalette, TemplateBlueprint } from '../templates';
+import { getReferenceStylePack } from '../templates';
 import { buildBaseSection } from './sections/base';
 import { buildTypographySection } from './sections/typography';
 import { buildLayoutSection } from './sections/layout';
@@ -156,17 +157,39 @@ Rules:
 function buildGuidanceProfileSection(guidanceProfile?: TemplateGuidanceProfile): string {
   if (!guidanceProfile) return '';
 
+  const stylePack = guidanceProfile.referenceStylePackId
+    ? getReferenceStylePack(guidanceProfile.referenceStylePackId)
+    : null;
+
   return `## WORKFLOW GUIDANCE PROFILE
 
 Intent family: ${guidanceProfile.intentFamily}
 Provider tier: ${guidanceProfile.providerTier}
+${guidanceProfile.presentationRecipeId ? `Presentation recipe: ${guidanceProfile.presentationRecipeId}` : ''}
+${guidanceProfile.documentThemeFamily ? `Document family: ${guidanceProfile.documentThemeFamily}` : ''}
+${guidanceProfile.selectedTemplateId ? `Selected template: ${guidanceProfile.selectedTemplateId}` : ''}
 ${guidanceProfile.exemplarPackId ? `Recipe anchor: ${guidanceProfile.exemplarPackId}` : ''}
+${stylePack ? `Reference pack: ${stylePack.label}` : ''}
 
 Design constraints:
 ${guidanceProfile.designConstraints.map((constraint) => `- ${constraint}`).join('\n')}
 
 Must avoid:
-${guidanceProfile.antiPatterns.map((pattern) => `- ${pattern}`).join('\n')}`;
+${guidanceProfile.antiPatterns.map((pattern) => `- ${pattern}`).join('\n')}
+${stylePack ? `
+
+Reference style traits:
+- Summary: ${stylePack.summary}
+- Typography: ${stylePack.typography.join(' ')}
+- Palette: ${stylePack.paletteRules.join(' ')}
+- Layout: ${stylePack.layoutRules.join(' ')}
+- Motion: ${stylePack.motionRules.join(' ')}
+- Confidentiality: ${stylePack.confidentialityRules.join(' ')}
+
+Synthetic style example:
+\`\`\`html
+${stylePack.syntheticExample}
+\`\`\`` : ''}`;
 }
 
 /**

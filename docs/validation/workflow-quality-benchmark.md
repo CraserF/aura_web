@@ -8,6 +8,10 @@ This benchmark complements the broader major-change protocol. It is the focused 
 
 ### Presentations
 
+- title opening
+- stage-setting / context slide
+- editorial explainer
+- finance / infographic grid
 - narrative deck create
 - metrics-heavy deck create
 - style/theme shift
@@ -20,6 +24,8 @@ This benchmark complements the broader major-change protocol. It is the focused 
 
 - long-form report create
 - executive brief create
+- proposal board create
+- research summary create
 - targeted content edit
 - style/theme change
 - structural rewrite
@@ -47,6 +53,13 @@ This benchmark complements the broader major-change protocol. It is the focused 
   - provider capability mismatch
   - prompt/design-system issue
   - model-quality limitation
+
+## Confidentiality Rules
+
+- treat external visual references as style references only, never as reusable content assets
+- keep benchmark prompts, exemplars, and templates synthetic
+- do not copy real names, numbers, locations, case details, or narrative claims from confidential examples into committed assets
+- if a benchmark fixture or exemplar appears to mirror a real reference too closely, replace it before logging the run as valid
 
 ## Acceptance Defaults
 
