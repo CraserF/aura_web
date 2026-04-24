@@ -128,6 +128,20 @@ Finish Workstream F Phase F3/F4 without inventing a new canonical phase, and use
 - Commit: Pending
 - Result: Committed
 
+- Date: 2026-04-24
+- Agent: Codex
+- Scope: Long-running document/presentation progress heartbeat hardening plus validation-bar documentation
+- Build (`npm run build`): Passed
+- Tests (`npm test`): Passed
+- Lint (`npm run lint`): Still blocked by pre-existing ESLint 9 config gap (`eslint.config.*` missing)
+- Manual validation:
+  - Added narrow progress heartbeats to the long-running document generation/edit stream and presentation design/edit step so the UI no longer sits on a stale status during local-model or slower runs.
+  - Fresh in-app browser verification against `http://127.0.0.1:4175/` confirmed a presentation edit no longer remained frozen at `Applying changes…` and `30%`; after roughly 10 seconds it advanced to `Still applying slide changes…` at `36%`.
+  - Captured the current acceptance bar in the validation docs: roughly 90 seconds for generation is acceptable when progress stays visible, and up to 2 minutes for design is acceptable when the step keeps communicating and the quality justifies it.
+  - This improves trust during longer local or design-heavy runs, but it does not close the remaining Workstream F viewport checks or the broader manual protocol backfill.
+- Commit: Pending
+- Result: Committed
+
 ## Workstream F Review Checklist
 
 Use this same checklist in both Workstream F validation and the broader backlog sweep.

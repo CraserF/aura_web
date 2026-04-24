@@ -31,6 +31,7 @@ Record for each case where possible:
 
 - time to first visible progress
 - time to completion
+- whether visible progress remained continuous during the long-running step
 - stalls
 - retries
 - cancellations
@@ -42,7 +43,13 @@ Interpretation defaults:
 - `blocked`
   - manual cancellation required
   - no visible progress in a reasonable time
+  - long-running design or generation appears frozen instead of continuing to report progress
   - workflow becomes meaningfully unusable
+
+Acceptance defaults:
+
+- roughly 90 seconds for generation is acceptable when the workflow keeps communicating progress
+- up to 2 minutes for a design step is acceptable when the workflow keeps communicating progress
 
 ## Quality Notes
 

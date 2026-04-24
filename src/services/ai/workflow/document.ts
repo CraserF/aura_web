@@ -351,6 +351,25 @@ interface DocumentPlan {
   isEdit: boolean;
 }
 
+function startProgressHeartbeat(opts: {
+  onEvent: EventListener;
+  startPct: number;
+  maxPct: number;
+  intervalMs?: number;
+  messages: string[];
+}): () => void {
+  const { onEvent, startPct, maxPct, intervalMs = 8000, messages } = opts;
+  let tick = 0;
+  const timer = setInterval(() => {
+    tick += 1;
+    const pct = Math.min(maxPct, startPct + (tick * 6));
+    const message = messages[Math.min(tick - 1, messages.length - 1)] ?? messages[messages.length - 1] ?? 'Working…';
+    onEvent({ type: 'progress', message, pct });
+  }, intervalMs);
+
+  return () => clearInterval(timer);
+}
+
 function shouldPreferDesignedHtml(documentType: ResolvedDocumentType, prompt: string, styleHint?: string): boolean {
   const normalized = prompt.toLowerCase();
   if (styleHint && styleHint !== 'auto') return true;
@@ -932,11 +951,31 @@ export async function runDocumentWorkflow(
       maxOutputTokens: 16384,
       abortSignal: signal,
     });
+    const stopHeartbeat = startProgressHeartbeat({
+      onEvent,
+      startPct: 28,
+      maxPct: 68,
+      messages: isEdit
+        ? [
+            'Still applying targeted document changes…',
+            'Refining the updated document layout…',
+            'Finishing the current document draft…',
+          ]
+        : [
+            'Still crafting the document structure…',
+            'Shaping the document layout and hierarchy…',
+            'Finishing the current document draft…',
+          ],
+    });
 
-    for await (const chunk of stream.textStream) {
-      if (signal?.aborted) break;
-      accumulated += chunk;
-      onEvent({ type: 'streaming', stepId: 'generate', chunk });
+    try {
+      for await (const chunk of stream.textStream) {
+        if (signal?.aborted) break;
+        accumulated += chunk;
+        onEvent({ type: 'streaming', stepId: 'generate', chunk });
+      }
+    } finally {
+      stopHeartbeat();
     }
 
     onEvent({ type: 'progress', message: 'Structuring document…', pct: 72 });

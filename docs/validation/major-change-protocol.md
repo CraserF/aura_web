@@ -84,6 +84,7 @@ Record:
 
 - time to first visible progress
 - time to completion
+- whether progress feedback stayed visible throughout the long-running step
 - stalls
 - retries
 - cancellations
@@ -97,10 +98,17 @@ Default interpretation:
 Recommended v1 warning threshold:
 
 - warn when the same case is slower by more than **25%** or by more than **5 seconds** absolute, whichever is more meaningful
+- warn when a design or generation step stays alive but does not refresh visible progress for too long, even if total completion time remains acceptable
 
 Recommended v1 blocking threshold:
 
 - block when progress does not appear in a reasonable window for the flow, or the run must be cancelled manually, or completion time is so degraded that the workflow is not usable
+
+Recommended v1 UX acceptance bar:
+
+- a long-running design step may take up to **2 minutes** when the output quality justifies it
+- roughly **90 seconds** for generation is acceptable when the workflow keeps communicating progress
+- long-running design or generation flows should emit visible progress updates continuously rather than sitting on a frozen percentage or stale status message
 
 ### Quality
 

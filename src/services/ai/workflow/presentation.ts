@@ -40,6 +40,25 @@ export interface RunWorkflowOptions {
   signal?: AbortSignal;
 }
 
+function startProgressHeartbeat(opts: {
+  onEvent: EventListener;
+  startPct: number;
+  maxPct: number;
+  intervalMs?: number;
+  messages: string[];
+}): () => void {
+  const { onEvent, startPct, maxPct, intervalMs = 8000, messages } = opts;
+  let tick = 0;
+  const timer = setInterval(() => {
+    tick += 1;
+    const pct = Math.min(maxPct, startPct + (tick * 6));
+    const message = messages[Math.min(tick - 1, messages.length - 1)] ?? messages[messages.length - 1] ?? 'Working…';
+    onEvent({ type: 'progress', message, pct });
+  }, intervalMs);
+
+  return () => clearInterval(timer);
+}
+
 /**
  * Run the appropriate presentation workflow based on whether slides exist.
  * Sequential orchestrator — calls each phase directly using AI SDK patterns.
@@ -130,27 +149,49 @@ export async function runPresentationWorkflow(
     const designLabel = isEdit ? 'Editing slides…' : 'Designing your slide…';
     onEvent({ type: 'step-start', stepId: designStepId, label: designLabel });
     onEvent({ type: 'progress', message: isEdit ? 'Applying changes…' : 'Designing a stunning slide…', pct: 30 });
+    const stopDesignHeartbeat = startProgressHeartbeat({
+      onEvent,
+      startPct: 30,
+      maxPct: 60,
+      messages: isEdit
+        ? [
+            'Still applying slide changes…',
+            'Refining the updated slide composition…',
+            'Finishing the current slide draft…',
+          ]
+        : [
+            'Still designing the slide composition…',
+            'Refining hierarchy, layout, and visual balance…',
+            'Finishing the current slide draft…',
+          ],
+    });
 
-    const designResult = isEdit
-      ? await designEdit(
-          planResult,
-          input.existingSlidesHtml!,
-          effectiveChatHistory,
-          model,
-          onEvent,
-          input.projectRulesBlock,
-          input.editing,
-          signal,
-        )
-      : await design(
-          planResult,
-          input.existingSlidesHtml,
-          effectiveChatHistory,
-          model,
-          onEvent,
-          input.projectRulesBlock,
-          signal,
-        );
+    const designResult = await (async () => {
+      try {
+        return isEdit
+          ? await designEdit(
+              planResult,
+              input.existingSlidesHtml!,
+              effectiveChatHistory,
+              model,
+              onEvent,
+              input.projectRulesBlock,
+              input.editing,
+              signal,
+            )
+          : await design(
+              planResult,
+              input.existingSlidesHtml,
+              effectiveChatHistory,
+              model,
+              onEvent,
+              input.projectRulesBlock,
+              signal,
+            );
+      } finally {
+        stopDesignHeartbeat();
+      }
+    })();
 
     onEvent({
       type: 'progress',

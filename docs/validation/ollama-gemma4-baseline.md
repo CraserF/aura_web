@@ -99,7 +99,18 @@ Record:
 - model id
 - time to first visible progress
 - time to completion
+- whether progress stayed continuous during long-running design or generation work
 - quality result
 - consistency result
 - failure classification
 - final status
+
+## Speed and Feedback Bar
+
+Use these defaults when judging the first Ollama baseline pass:
+
+- up to roughly **90 seconds** for generation is acceptable when the app keeps showing progress
+- up to **2 minutes** for a design step is acceptable when the output quality justifies it
+- long-running steps should keep refreshing the visible progress state instead of appearing frozen on one percentage or one message
+
+Treat "slow but clearly alive" differently from "stalled and untrustworthy." The first is usually a warning; the second is a blocker.
