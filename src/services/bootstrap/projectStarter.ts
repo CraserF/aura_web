@@ -155,7 +155,29 @@ async function buildPresentationStarterResult(
     .map((node) => node.textContent?.trim() ?? '')
     .filter(Boolean)
     .join('\n\n');
-  const contentHtml = section.outerHTML;
+
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const knownTokens: Record<string, string> = {
+    TITLE: title,
+    COMPANY: title,
+    WORKSHOP_TITLE: title,
+    SUBTITLE: '',
+    DATE: today,
+    PRESENTER: '',
+    PRESENTER_ROLE: '',
+    CONTACT_INFO: '',
+    INSTRUCTOR: '',
+    FACILITATOR_NAME: '',
+    ONE_LINE_DESCRIPTION: '',
+    STAGE: 'Seed',
+  };
+  let sectionHtml = section.outerHTML;
+  for (const [token, value] of Object.entries(knownTokens)) {
+    sectionHtml = sectionHtml.replace(new RegExp(`\\{\\{${token}\\}\\}`, 'g'), value);
+  }
+  sectionHtml = sectionHtml.replace(/\{\{[A-Z0-9_]+\}\}/g, '');
+
+  const contentHtml = styles ? `<style>\n${styles}\n</style>\n${sectionHtml}` : sectionHtml;
 
   return {
     title,

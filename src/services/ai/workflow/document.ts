@@ -654,7 +654,9 @@ async function buildCreatePrompt(input: DocumentInput, plan: DocumentPlan): Prom
 
 async function buildEditPrompt(input: DocumentInput, plan: DocumentPlan): Promise<string> {
   const existingSummary = input.existingMarkdown?.trim() || summarizeExistingDocument(input.existingHtml ?? '');
-  const shouldIncludeExample = /restyle|redesign|make it look|polish|visual|infographic|more graphic/i.test(input.prompt);
+  const shouldIncludeExample =
+    input.templateGuidance?.intentFamily === 'restyle' ||
+    /restyle|redesign|make it look|polish|visual|infographic|more graphic/i.test(input.prompt);
   const targetSummary = input.editing?.targetSummary.length
     ? `## Targeted Edit Scope\nOnly modify these target areas unless the user explicitly asked for a full rewrite:\n- ${input.editing.targetSummary.join('\n- ')}`
     : '';
@@ -1017,7 +1019,7 @@ export async function runDocumentWorkflow(
   opts: RunDocumentWorkflowOptions,
 ): Promise<DocumentOutput> {
   const { input, llmConfig, onEvent, signal } = opts;
-  const isEdit = !!input.existingHtml;
+  const isEdit = !!input.existingHtml && input.templateGuidance?.intentFamily !== 'rewrite';
   const providerProfile = getProviderCapabilityProfile({
     id: llmConfig.providerEntry.id,
     model: llmConfig.model,

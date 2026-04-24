@@ -10,6 +10,7 @@ import {
   History,
   PanelLeft,
   FolderOpen,
+  Loader2,
 } from 'lucide-react';
 import { usePresentationStore } from '@/stores/presentationStore';
 import { useProjectStore } from '@/stores/projectStore';
@@ -101,6 +102,7 @@ export function Toolbar({
   const [pendingNewSelection, setPendingNewSelection] = useState<NewProjectSelection | null>(null);
   const [initReportOpen, setInitReportOpen] = useState(false);
   const [initReport, setInitReport] = useState<Awaited<ReturnType<typeof initProject>>['report'] | null>(null);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
 
   const hasContent = project.documents.length > 0;
 
@@ -119,6 +121,7 @@ export function Toolbar({
       return;
     }
 
+    setIsCreatingProject(true);
     try {
       const baseProject = createBlankProject();
       const initResult = selection.mode === 'starter-kit'
@@ -139,6 +142,8 @@ export function Toolbar({
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error creating project';
       setToolbarError(`Failed to create project: ${message}`);
+    } finally {
+      setIsCreatingProject(false);
     }
   };
 
@@ -266,12 +271,13 @@ export function Toolbar({
                 size="icon"
                 className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
                 onClick={handleNew}
+                disabled={isCreatingProject}
                 aria-label="New project"
               >
-                <FolderPlus className="size-4" />
+                {isCreatingProject ? <Loader2 className="size-4 animate-spin" /> : <FolderPlus className="size-4" />}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>New project</TooltipContent>
+            <TooltipContent>{isCreatingProject ? 'Creating project…' : 'New project'}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -428,12 +434,13 @@ export function Toolbar({
                 size="icon"
                 className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
                 onClick={handleNew}
+                disabled={isCreatingProject}
                 aria-label="New project"
               >
-                <FolderPlus className="size-4" />
+                {isCreatingProject ? <Loader2 className="size-4 animate-spin" /> : <FolderPlus className="size-4" />}
               </Button>
               </TooltipTrigger>
-              <TooltipContent>New project</TooltipContent>
+              <TooltipContent>{isCreatingProject ? 'Creating project…' : 'New project'}</TooltipContent>
             </Tooltip>
 
             <Tooltip>

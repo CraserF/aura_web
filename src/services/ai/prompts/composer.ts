@@ -289,6 +289,18 @@ export function buildEditDesignerPrompt(
     .addCustom(buildCondensedAntiPatterns())
     .addCustom(buildMobileStageSection())
     .addCustom(buildGuidanceProfileSection(guidanceProfile))
+    .addCustom(guidanceProfile?.intentFamily === 'restyle'
+      ? `## RESTYLE MODE — VISUAL CHANGES ONLY
+
+This is a RESTYLE request. Your ONLY task is to modify the visual appearance.
+
+**RESTYLE RULES — these take priority over all other instructions:**
+- ONLY modify CSS variables, color values, font families, and spacing tokens in the <style> block.
+- Do NOT change any text content, heading labels, data values, or structural layout.
+- Do NOT add, remove, or reorder any HTML elements.
+- Prefer a SEARCH/REPLACE patch targeting only CSS variable declarations and color values in the <style> block.
+- If regenerating the full style block is unavoidable, output ONLY the <style> block changes — not a full HTML rewrite.`
+      : '')
     .addCustom(projectRulesBlock ?? '')
     .addCustom(`## YOUR TASK — EDIT MODE
 
