@@ -62,6 +62,14 @@ export interface PlanResult {
   sharedStyle?: SharedStyleContext;
 }
 
+function canQueueSlideWork(prompt: string, intent: RequestIntent): boolean {
+  if (intent !== 'batch_create' && intent !== 'add_slides') {
+    return false;
+  }
+
+  return /\b(\d+|several|multiple|few)\s+slides?\b/i.test(prompt) || /:\s*\w/.test(prompt) || /\d+\.\s+\w/.test(prompt);
+}
+
 type ExemplarBackedTemplateId = ReturnType<typeof resolveTemplatePlan>['templateId'];
 
 // ── Main plan function ──────────────────────────────────────
@@ -101,7 +109,7 @@ export async function plan(
   let enhancedPrompt = prompt;
 
   // Batch create: decompose into individual slide briefs, build shared style context
-  if (intent === 'batch_create') {
+  if (canQueueSlideWork(prompt, intent)) {
     const slideBriefs = parseSlideBriefs(prompt);
     const sharedStyle = buildSharedStyleContext(templatePlan, blueprint);
     enhancedPrompt = buildEnhancedPrompt(prompt, undefined, 'create', templatePlan.styleManifest);
@@ -110,7 +118,7 @@ export async function plan(
     aiDebugLog('planner', `batch plan complete in ${elapsed}ms`, { slideCount: slideBriefs.length });
 
     return {
-      intent: 'batch_create',
+      intent,
       blocked: false,
       style,
       selectedTemplate: templatePlan.templateId,
@@ -119,8 +127,8 @@ export async function plan(
       blueprint,
       styleManifest: templatePlan.styleManifest,
       enhancedPrompt,
-      slideBriefs,
-      sharedStyle,
+      ...(slideBriefs.length > 0 ? { slideBriefs } : {}),
+      ...(sharedStyle ? { sharedStyle } : {}),
     };
   }
 
@@ -366,7 +374,7 @@ function buildRecipeGuidance(
  * Parse user prompt into individual slide briefs.
  * Handles formats: "deck: intro, problem, solution" or numbered lists.
  */
-function parseSlideBriefs(prompt: string): SlideBrief[] {
+export function parseSlideBriefs(prompt: string): SlideBrief[] {
   // Try to find content after colon
   const colonMatch = prompt.match(/:\s*(.+)$/s);
   const colonContent = colonMatch?.[1];

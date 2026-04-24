@@ -27,6 +27,7 @@ import {
   type DocumentBlueprint,
 } from '../templates/document-blueprints';
 import { applyDocumentTargetedEdit, prepareDocumentHtmlForEditing } from '@/services/editing/patchDocument';
+import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
 
 export interface DocumentProjectLink {
   id: string;
@@ -47,6 +48,7 @@ export interface DocumentInput {
   projectLinks?: DocumentProjectLink[];
   /** Image parts for multi-modal document requests */
   imageParts?: Array<{ type: 'image'; image: string; mimeType: string }>;
+  templateGuidance?: TemplateGuidanceProfile;
   editing?: {
     resolvedTargets: ResolvedTarget[];
     targetSummary: string[];
@@ -104,6 +106,22 @@ function withProjectRules(systemPrompt: string, projectRulesBlock?: string): str
   }
 
   return `${systemPrompt}\n\n${projectRulesBlock}\n\nFollow these project rules unless the user explicitly overrides them.`;
+}
+
+function withTemplateGuidance(systemPrompt: string, templateGuidance?: TemplateGuidanceProfile): string {
+  if (!templateGuidance) {
+    return systemPrompt;
+  }
+
+  return `${systemPrompt}
+
+Workflow guidance:
+- intent family: ${templateGuidance.intentFamily}
+- provider tier: ${templateGuidance.providerTier}
+- design constraints:
+${templateGuidance.designConstraints.map((constraint) => `  - ${constraint}`).join('\n')}
+- must avoid:
+${templateGuidance.antiPatterns.map((pattern) => `  - ${pattern}`).join('\n')}`;
 }
 
 interface DocumentTheme {
@@ -903,9 +921,12 @@ export async function runDocumentWorkflow(
     onEvent({ type: 'step-start', stepId: 'generate', label: isEdit ? 'Updating document…' : 'Writing document…' });
     onEvent({ type: 'progress', message: isEdit ? 'Applying changes…' : 'Crafting your document…', pct: 28 });
 
-    const systemPrompt = withProjectRules(
-      isEdit ? EDIT_DOCUMENT_SYSTEM_PROMPT : DOCUMENT_SYSTEM_PROMPT,
-      input.projectRulesBlock,
+    const systemPrompt = withTemplateGuidance(
+      withProjectRules(
+        isEdit ? EDIT_DOCUMENT_SYSTEM_PROMPT : DOCUMENT_SYSTEM_PROMPT,
+        input.projectRulesBlock,
+      ),
+      input.templateGuidance,
     );
     const userPrompt = withMemoryContext(
       isEdit ? await buildEditPrompt(input, planResult) : await buildCreatePrompt(input, planResult),

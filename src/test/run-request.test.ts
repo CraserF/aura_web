@@ -81,6 +81,9 @@ describe('buildRunRequest', () => {
     expect(result.runRequest.projectSnapshot.activeDocumentId).toBe('doc-1');
     expect(result.runRequest.projectSnapshot.linkedReferenceCount).toBe(0);
     expect(result.runRequest.projectSnapshot.artifactCountsByType.document).toBe(1);
+    expect(result.runRequest.workflowPlan?.artifactType).toBe('document');
+    expect(result.runRequest.workflowPlan?.requestKind).toBe('explain');
+    expect(result.runRequest.workflowPlan?.templateGuidance.intentFamily).toBe('explain');
     expect(result.runRequest.mode).toBe('dry-run');
     expect(result.runRequest.serializableSpec?.mode).toBe('dry-run');
     expect(result.runRequest.serializableSpec?.providerRef.hasApiKey).toBe(true);
@@ -132,6 +135,7 @@ describe('buildRunRequest', () => {
     expect(directIntent.artifactType).toBe('document');
     expect(result.runRequest.intent.artifactType).toBe('document');
     expect(result.runRequest.intent.operation).toBe('create');
+    expect(result.runRequest.workflowPlan?.requestKind).toBe('create');
     expect(result.runRequest.intent.targetDocumentId).toBeUndefined();
     expect(result.runRequest.intent.targetSelectors).toEqual([]);
   });

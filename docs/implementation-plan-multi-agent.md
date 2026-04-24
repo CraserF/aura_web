@@ -28,8 +28,15 @@ Use this file as the source of truth for coordination across agents.
 - [Major Workflow Change Validation Protocol](./validation/major-change-protocol.md)
 - [Artifact Case Matrix](./validation/artifact-case-matrix.md)
 - [Major Change Validation Scorecard Template](./validation/scorecard-template.md)
+- [Workflow Quality Benchmark](./validation/workflow-quality-benchmark.md)
 - [Ollama Baseline Validation](./validation/ollama-gemma4-baseline.md)
 - [Ollama Validation Scorecard Template](./validation/ollama-scorecard-template.md)
+
+## Research References
+
+- [Agent Product Benchmark](./research/agent-product-benchmark.md)
+- [Dyad Teardown](./research/dyad-teardown.md)
+- [Aura Workflow Gap Analysis](./research/aura-workflow-gap-analysis.md)
 
 ## Mandatory Validation Gate
 
@@ -77,6 +84,7 @@ Validation backfill note:
 - Backlog Phase B is the current repo-execution focus for Workstream F F3/F4 and manual-validation backfill; it does not absorb the ESLint 9 migration or silently clear legacy manual checks without logged evidence.
 - Backlog Phase B code landed on 2026-04-23 with mobile-safe document/presentation generation guidance, lightweight mobile-hostile QA rules, and representative Workstream F fixtures.
 - Backlog Phase B now also carries the major workflow change validation protocol, scorecard template, and case registry used to gate workflow-affecting changes.
+- Backlog Phase B now also carries the research-first workflow redesign slice: external agent benchmarking, Dyad teardown notes, Aura workflow-gap analysis, a shared artifact workflow-plan contract, and a workflow-quality benchmark loop for future tuning.
 - Tracking reconciliation note (2026-04-23): stale unchecked top-level checklist items below have been converted into explicit status bullets where later phase docs already confirm implementation but protocol validation is still pending.
 - Manual Backlog Phase B viewport review is now partially logged for the seeded presentation shell, and a fresh-server rerun confirms the original presentation-scoped document-creation blocker is fixed; the broader legacy validation sweep still remains incomplete.
 - Backlog Phase B commit: `26fee79`

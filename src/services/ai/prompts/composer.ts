@@ -17,6 +17,7 @@ import { buildAntiPatternsSection, buildCondensedAntiPatterns } from './sections
 import { buildTemplateExamplesSection } from './sections/template-examples';
 import { buildModernPatternsSection } from './sections/modern-patterns';
 import { buildChartGuidanceSection } from './sections/charts';
+import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
 
 export class PromptComposer {
   private sections: string[] = [];
@@ -150,6 +151,22 @@ Rules:
 - browser, screenshot, and device-frame treatments must live inside clear bounded panes with enough breathing room around them
 - multi-panel layouts should privilege comparison clarity over raw card count; if a slide feels crowded, collapse to fewer modules rather than thinner text
 - do not add responsive stretch logic inside slide HTML; preserve the fixed stage model and rely on clean composition instead`;
+} 
+
+function buildGuidanceProfileSection(guidanceProfile?: TemplateGuidanceProfile): string {
+  if (!guidanceProfile) return '';
+
+  return `## WORKFLOW GUIDANCE PROFILE
+
+Intent family: ${guidanceProfile.intentFamily}
+Provider tier: ${guidanceProfile.providerTier}
+${guidanceProfile.exemplarPackId ? `Recipe anchor: ${guidanceProfile.exemplarPackId}` : ''}
+
+Design constraints:
+${guidanceProfile.designConstraints.map((constraint) => `- ${constraint}`).join('\n')}
+
+Must avoid:
+${guidanceProfile.antiPatterns.map((pattern) => `- ${pattern}`).join('\n')}`;
 }
 
 /**
@@ -163,6 +180,7 @@ export async function buildDesignerPrompt(
   animLevel: 1 | 2 | 3 | 4,
   _slideCount?: number,
   projectRulesBlock?: string,
+  guidanceProfile?: TemplateGuidanceProfile,
 ): Promise<string> {
   const composer = new PromptComposer()
     .addBase(blueprint.palette)
@@ -192,6 +210,7 @@ Requirements:
   return composer
     .addTemplateExamples(templateExamplesSection)
     .addCustom(buildMobileStageSection())
+    .addCustom(buildGuidanceProfileSection(guidanceProfile))
     .addCustom(projectRulesBlock ?? '')
     .addQuality()
     .addPostRules()
@@ -237,6 +256,7 @@ export function buildEditDesignerPrompt(
   palette: TemplatePalette | undefined,
   animLevel: 1 | 2 | 3 | 4,
   projectRulesBlock?: string,
+  guidanceProfile?: TemplateGuidanceProfile,
 ): string {
   return new PromptComposer()
     .addBase(palette)
@@ -245,6 +265,7 @@ export function buildEditDesignerPrompt(
     .addCharts()
     .addCustom(buildCondensedAntiPatterns())
     .addCustom(buildMobileStageSection())
+    .addCustom(buildGuidanceProfileSection(guidanceProfile))
     .addCustom(projectRulesBlock ?? '')
     .addCustom(`## YOUR TASK — EDIT MODE
 

@@ -8,6 +8,7 @@ import type { AppliedWorkflowPreset } from '@/services/presets/types';
 import type { ResolvedProjectRulesSnapshot } from '@/services/projectRules/types';
 import type { RunStatus } from '@/services/runs/status';
 import type { RunEventType } from '@/services/events/types';
+import type { ArtifactWorkflowPlan } from '@/services/workflowPlanner/types';
 
 export type ExecutionMode = 'execute' | 'dry-run' | 'explain';
 
@@ -30,6 +31,7 @@ export interface RunRequest {
   selectedPresetId?: string;
   appliedPreset?: AppliedWorkflowPreset;
   projectSnapshot: RunProjectSnapshot;
+  workflowPlan?: ArtifactWorkflowPlan;
   mode: ExecutionMode;
   serializableSpec?: SerializableRunSpec;
   createdAt: number;

@@ -179,6 +179,7 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         chatHistory,
         memoryContext,
         projectRulesBlock: runRequest.projectRulesSnapshot.promptBlock || undefined,
+        templateGuidance: runRequest.workflowPlan?.templateGuidance,
         ...(isEditFlow ? {
           editing: {
             resolvedTargets,
@@ -311,6 +312,7 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
           targetSummary,
           changedTargets: [...changedTargets],
           validation,
+          workflowPlan: runRequest.workflowPlan,
           presentation: {
             artifactType: 'presentation',
             title: result.title,
@@ -370,6 +372,7 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
               passed: false,
               summary: 'Run cancelled by user.',
             },
+            workflowPlan: runRequest.workflowPlan,
             presentation: {
               artifactType: 'presentation',
             },
@@ -405,6 +408,7 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
             passed: false,
             summary: 'Presentation workflow failed.',
           },
+          workflowPlan: runRequest.workflowPlan,
           presentation: {
             artifactType: 'presentation',
           },

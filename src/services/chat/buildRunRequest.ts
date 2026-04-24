@@ -10,6 +10,7 @@ import { loadContextPolicy } from '@/services/projectRules/load';
 import { resolveProjectRulesSnapshot } from '@/services/projectRules/resolve';
 import type { ExecutionMode, RunRequest } from '@/services/runs/types';
 import type { ContextSelectionState } from '@/services/context/types';
+import { buildArtifactWorkflowPlan } from '@/services/workflowPlanner';
 
 export interface BuildRunRequestInput {
   prompt: string;
@@ -147,6 +148,17 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
       selectedPresetId,
       appliedPreset: projectRulesSnapshot.appliedPreset,
       projectSnapshot: buildProjectSnapshot(project),
+      workflowPlan: buildArtifactWorkflowPlan({
+        prompt,
+        artifactType: intent.artifactType,
+        operation: intent.operation,
+        activeDocument,
+        mode,
+        providerId: providerConfig.id,
+        providerModel: providerConfig.model,
+        editStrategyHint: intent.editStrategyHint,
+        allowFullRegeneration: intent.allowFullRegeneration,
+      }),
       mode,
       createdAt: Date.now(),
     };

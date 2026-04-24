@@ -11,6 +11,7 @@ import type {
 import type { ExecutionMode } from '@/services/runs/types';
 import type { PublishReadinessResult } from '@/services/validation/types';
 import type { SpreadsheetExecutionSummary } from '@/services/spreadsheet/plans';
+import type { ArtifactWorkflowPlan } from '@/services/workflowPlanner/types';
 
 export interface DocumentRunOutputs {
   artifactType: 'document';
@@ -57,10 +58,10 @@ export interface RunOutputsEnvelope {
   targetSummary: string[];
   changedTargets: RunResultChangedTarget[];
   validation: RunResultValidationSummary;
+  workflowPlan?: ArtifactWorkflowPlan;
   document?: DocumentRunOutputs;
   presentation?: PresentationRunOutputs;
   spreadsheet?: SpreadsheetRunOutputs;
   project?: ProjectRunOutputs;
   explain?: RunExplainResult;
 }
-

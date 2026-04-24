@@ -149,6 +149,7 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
         chatHistory,
         memoryContext,
         projectRulesBlock: runRequest.projectRulesSnapshot.promptBlock || undefined,
+        templateGuidance: runRequest.workflowPlan?.templateGuidance,
         styleHint: documentStylePreset,
         projectLinks: projectLinks.length > 0 ? projectLinks : undefined,
         imageParts: imageParts.length > 0 ? imageParts : undefined,
@@ -278,6 +279,7 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
           targetSummary,
           changedTargets: [...changedTargets],
           validation,
+          workflowPlan: runRequest.workflowPlan,
           document: {
             artifactType: 'document',
             title: result.title,
@@ -334,6 +336,7 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
               passed: false,
               summary: 'Run cancelled by user.',
             },
+            workflowPlan: runRequest.workflowPlan,
             document: {
               artifactType: 'document',
             },
@@ -369,6 +372,7 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
             passed: false,
             summary: 'Document workflow failed.',
           },
+          workflowPlan: runRequest.workflowPlan,
           document: {
             artifactType: 'document',
           },

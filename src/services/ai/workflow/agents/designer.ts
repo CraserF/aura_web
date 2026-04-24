@@ -35,6 +35,7 @@ import { aiDebugLog, logPromptMetrics } from '../../debug';
 import { withRetry } from '../../fallbackModel';
 import type { EditStrategy, EditingTelemetry } from '@/services/editing/types';
 import { applyPresentationPatchBlocks } from '@/services/editing/patchPresentation';
+import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
 
 export interface DesignResult {
   html: string;
@@ -439,6 +440,7 @@ export async function design(
   model: LanguageModel,
   onEvent: EventListener,
   projectRulesBlock?: string,
+  guidanceProfile?: TemplateGuidanceProfile,
   streamSoftTimeoutMs?: number,
   signal?: AbortSignal,
 ): Promise<DesignResult> {
@@ -451,6 +453,7 @@ export async function design(
     planResult.animationLevel,
     undefined,
     projectRulesBlock,
+    guidanceProfile,
   );
 
   // Build conversation messages
@@ -625,6 +628,7 @@ export async function designEdit(
   model: LanguageModel,
   onEvent: EventListener,
   projectRulesBlock?: string,
+  guidanceProfile?: TemplateGuidanceProfile,
   streamSoftTimeoutMs?: number,
   editing?: {
     targetSummary: string[];
@@ -641,6 +645,7 @@ export async function designEdit(
     planResult.blueprint.palette,
     planResult.animationLevel,
     projectRulesBlock,
+    guidanceProfile,
   );
 
   const messages: ModelMessage[] = [];

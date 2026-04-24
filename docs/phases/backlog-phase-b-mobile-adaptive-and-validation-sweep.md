@@ -14,6 +14,7 @@ Finish Workstream F Phase F3/F4 without inventing a new canonical phase, and use
 | Stream A: Workstream F F3 generation guidance | Codex | `src/services/ai/prompts/composer.ts`, `src/services/ai/workflow/document.ts`, `src/services/ai/templates/document-blueprints.ts`, mobile-hostile QA hooks | Bootstrap | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `26fee79` |
 | Stream B: F4 hardening + fixture set | Codex | `src/test/fixtures/workstream-f.ts`, focused QA tests, viewport checklist docs, any frame-shell follow-up fixes required by validation | Stream A | `committed` | `npm test` passed; `npm run build` passed; `npm run lint` blocked by missing `eslint.config.*` | `26fee79` |
 | Stream C: Validation sweep | Codex | `docs/program-status.md`, relevant phase docs, `docs/implementation-plan-multi-agent.md` evidence updates, validation protocol docs, case registry coverage tests | Streams A-B | `in_progress` | Partial presentation-shell viewport evidence is logged; the fresh-server scoped document-creation blocker is cleared, the major-change validation protocol now defines the remaining case families, and the top-level implementation checklist has been reconciled to distinguish implemented-vs-unvalidated work; the broader sweep remains incomplete | — |
+| Stream E: Workflow quality research + planner hardening | Codex | `docs/research/*`, `docs/validation/workflow-quality-benchmark.md`, `src/services/workflowPlanner/*`, workflow handlers/prompts/tests | Stream C | `in_progress` | Research docs landed; shared workflow-plan contracts and queue-aware prompt guidance landed; presentation multi-slide add requests can now flow through the sequential queue path; broader backlog sweep and full benchmark backfill remain incomplete | — |
 | Stream D: Wrap-up | Codex | final tracker updates, build/test evidence, blocker notes | Streams A-C | `planned` | Pending metadata update | — |
 
 ## Validation Log
@@ -111,6 +112,22 @@ Finish Workstream F Phase F3/F4 without inventing a new canonical phase, and use
   - Landed a narrow validator fix plus regression coverage so supported top-level context-policy keys no longer emit false `unknown-key` warnings.
   - Post-fix in-app browser verification confirmed the Doctor panel now reports `Project configuration looks healthy.` for a fresh project instead of surfacing the old `Unknown context policy key "version"` / `artifactOverrides` warnings.
   - Remaining backlog work is unchanged: Workstream F tablet portrait and desktop wide checks, protocol backfill for Backlog Phase A and Phase 4-10, and the first full Ollama baseline scorecard pass are still pending.
+- Commit: Pending
+- Result: Committed
+
+- Date: 2026-04-24
+- Agent: Codex
+- Scope: Research-first workflow redesign slice, shared artifact workflow-plan contracts, queue-aware presentation hardening, and workflow-quality benchmark scaffolding
+- Build (`npm run build`): Pending
+- Tests (`npm test`): Pending
+- Lint (`npm run lint`): Pending; still expected to be blocked by the pre-existing ESLint 9 config gap (`eslint.config.*` missing)
+- Manual validation:
+  - Added external benchmark research docs for Crush, Claw Code, Codex, OpenCode, `wshobson/agents`, and Dyad.
+  - Added a focused Aura workflow gap analysis plus a workflow-quality benchmark loop to guide future quality tuning instead of ad hoc prompt churn.
+  - Added shared `ArtifactWorkflowPlan`, `QueuedWorkItem`, `TemplateGuidanceProfile`, and `WorkflowBenchmarkResult` contracts.
+  - Added queue-aware workflow planning to `RunRequest` and structured run outputs.
+  - Extended the presentation queue path so multi-slide add requests can be staged sequentially against an existing deck, not only fresh batch-create flows.
+  - Added provider-aware prompt guidance so local-model presentation and document runs get stricter design constraints than frontier-model paths.
 - Commit: Pending
 - Result: Committed
 

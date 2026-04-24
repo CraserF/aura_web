@@ -8,12 +8,15 @@ import type { EventListener } from './types';
 import { design } from './agents/designer';
 import { buildBatchSlidePrompt } from '../prompts/composer';
 import { sanitizeInnerHtml } from '@/services/html/sanitizer';
+import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
 
 export interface BatchQueueOptions {
   planResult: PlanResult;
   model: LanguageModel;
   onEvent: EventListener;
   onSlideComplete: (combinedHtml: string, slideIndex: number, totalSlides: number) => void;
+  initialHtml?: string;
+  guidanceProfile?: TemplateGuidanceProfile;
   signal?: AbortSignal;
 }
 
@@ -28,16 +31,25 @@ export interface BatchQueueResult {
  * can display progressive results.
  */
 export async function runBatchQueue(opts: BatchQueueOptions): Promise<BatchQueueResult> {
-  const { planResult, model, onEvent, onSlideComplete, signal } = opts;
+  const { planResult, model, onEvent, onSlideComplete, initialHtml, guidanceProfile, signal } = opts;
   const briefs: SlideBrief[] = planResult.slideBriefs ?? [];
   const totalSlides = briefs.length;
 
   if (totalSlides === 0) throw new Error('No slide briefs in batch plan');
 
-  let sharedStyleBlock = ''; // extracted <style> from slide 1
+  let sharedStyleBlock = '';
+  const extensionStyleBlocks: string[] = [];
   const completedSections: string[] = [];
-  let sharedLinkBlock = ''; // extracted <link> from slide 1
+  let sharedLinkBlock = '';
   let batchTitle = briefs[0]?.title ?? 'Presentation';
+
+  if (initialHtml) {
+    const initialLinks = initialHtml.match(/<link[^>]*>/gi) ?? [];
+    sharedLinkBlock = Array.from(new Set(initialLinks)).join('\n');
+    sharedStyleBlock = initialHtml.match(/<style[\s\S]*?<\/style>/i)?.[0] ?? '';
+    const initialSections = initialHtml.match(/<section[\s\S]*?<\/section>/gi) ?? [];
+    completedSections.push(...initialSections);
+  }
 
   for (let i = 0; i < briefs.length; i++) {
     const brief = briefs[i];
@@ -75,24 +87,32 @@ export async function runBatchQueue(opts: BatchQueueOptions): Promise<BatchQueue
     // Generate this slide using the standard design flow
     const slideResult = await design(
       slidePlanResult,
-      i === 0 ? undefined : buildCurrentHtml(sharedLinkBlock, sharedStyleBlock, completedSections),
+      buildCurrentHtml(sharedLinkBlock, sharedStyleBlock, completedSections, extensionStyleBlocks),
       [], // no chat history for individual batch slides
       model,
       onEvent,
       undefined,
+      guidanceProfile,
       undefined,
       signal,
     );
 
     const cleanHtml = sanitizeInnerHtml(slideResult.html);
 
-    // Extract shared <link> and <style> from slide 1 for reuse
-    if (i === 0) {
-      const linkMatch = cleanHtml.match(/<link[^>]*>/gi) ?? [];
-      sharedLinkBlock = linkMatch.join('\n');
-      const styleMatch = cleanHtml.match(/<style[\s\S]*?<\/style>/i)?.[0] ?? '';
+    const linkMatch = cleanHtml.match(/<link[^>]*>/gi) ?? [];
+    if (linkMatch.length > 0) {
+      sharedLinkBlock = Array.from(new Set([...(sharedLinkBlock ? sharedLinkBlock.split('\n') : []), ...linkMatch])).filter(Boolean).join('\n');
+    }
+    const styleMatch = cleanHtml.match(/<style[\s\S]*?<\/style>/i)?.[0] ?? '';
+
+    // Extract shared <link> and <style> from the first newly generated slide if
+    // we are building a fresh deck. Existing decks keep their original style
+    // block and treat new style blocks as incremental extensions.
+    if (i === 0 && !sharedStyleBlock) {
       sharedStyleBlock = styleMatch;
       batchTitle = slideResult.title ?? brief.title;
+    } else if (styleMatch && styleMatch !== sharedStyleBlock && !extensionStyleBlocks.includes(styleMatch)) {
+      extensionStyleBlocks.push(styleMatch);
     }
 
     // Extract just the <section> elements from this slide
@@ -104,7 +124,7 @@ export async function runBatchQueue(opts: BatchQueueOptions): Promise<BatchQueue
     }
 
     // Build combined HTML and notify canvas
-    const combinedHtml = buildCurrentHtml(sharedLinkBlock, sharedStyleBlock, completedSections);
+    const combinedHtml = buildCurrentHtml(sharedLinkBlock, sharedStyleBlock, completedSections, extensionStyleBlocks);
     onSlideComplete(combinedHtml, brief.index, totalSlides);
 
     onEvent({
@@ -115,7 +135,7 @@ export async function runBatchQueue(opts: BatchQueueOptions): Promise<BatchQueue
     });
   }
 
-  const finalHtml = buildCurrentHtml(sharedLinkBlock, sharedStyleBlock, completedSections);
+  const finalHtml = buildCurrentHtml(sharedLinkBlock, sharedStyleBlock, completedSections, extensionStyleBlocks);
   return {
     html: finalHtml,
     slideCount: completedSections.length,
@@ -123,6 +143,11 @@ export async function runBatchQueue(opts: BatchQueueOptions): Promise<BatchQueue
   };
 }
 
-function buildCurrentHtml(linkBlock: string, styleBlock: string, sections: string[]): string {
-  return [linkBlock, styleBlock, ...sections].filter(Boolean).join('\n');
+function buildCurrentHtml(
+  linkBlock: string,
+  styleBlock: string,
+  sections: string[],
+  extensionStyleBlocks: string[] = [],
+): string {
+  return [linkBlock, styleBlock, ...extensionStyleBlocks, ...sections].filter(Boolean).join('\n');
 }

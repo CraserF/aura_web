@@ -4,6 +4,7 @@
  */
 import type { AIMessage, ProviderEntry } from '../types';
 import type { EditStrategy, EditingTelemetry, ResolvedTarget } from '@/services/editing/types';
+import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
 
 export type { AIMessage };
 
@@ -39,6 +40,7 @@ export interface PresentationInput {
   chatHistory: AIMessage[];
   memoryContext?: string;
   projectRulesBlock?: string;
+  templateGuidance?: TemplateGuidanceProfile;
   editing?: {
     resolvedTargets: ResolvedTarget[];
     targetSummary: string[];

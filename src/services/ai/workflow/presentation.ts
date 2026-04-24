@@ -111,10 +111,24 @@ export async function runPresentationWorkflow(
     // Check for abort between phases
     if (signal?.aborted) throw new DOMException('Workflow aborted', 'AbortError');
 
-    // ── Batch create flow ────────────────────────────────────────
-    if (planResult.intent === 'batch_create' && planResult.slideBriefs && planResult.slideBriefs.length > 0) {
-      onEvent({ type: 'step-start', stepId: 'design', label: `Designing ${planResult.slideBriefs.length} slides…` });
-      onEvent({ type: 'progress', message: `Planning ${planResult.slideBriefs.length} slides…`, pct: 25 });
+    // ── Queued multi-slide flow ─────────────────────────────────
+    if (
+      (planResult.intent === 'batch_create' || planResult.intent === 'add_slides')
+      && planResult.slideBriefs
+      && planResult.slideBriefs.length > 0
+    ) {
+      const queuedStepId = isEdit ? 'targeted-design' : 'design';
+      const queuedLabel = isEdit
+        ? `Queueing ${planResult.slideBriefs.length} new slides…`
+        : `Designing ${planResult.slideBriefs.length} slides…`;
+      onEvent({ type: 'step-start', stepId: queuedStepId, label: queuedLabel });
+      onEvent({
+        type: 'progress',
+        message: isEdit
+          ? `Queueing ${planResult.slideBriefs.length} new slides one at a time…`
+          : `Planning ${planResult.slideBriefs.length} slides…`,
+        pct: 25,
+      });
 
       const { runBatchQueue } = await import('./batchQueue');
 
@@ -122,13 +136,15 @@ export async function runPresentationWorkflow(
         planResult,
         model,
         onEvent,
+        ...(isEdit && input.existingSlidesHtml ? { initialHtml: input.existingSlidesHtml } : {}),
+        ...(input.templateGuidance ? { guidanceProfile: input.templateGuidance } : {}),
         onSlideComplete: (combinedHtml, slideIndex, totalSlides) => {
           onEvent({ type: 'batch-slide-complete', html: combinedHtml, slideIndex, totalSlides });
         },
         signal,
       });
 
-      onEvent({ type: 'step-done', stepId: 'design', label: `Designing ${planResult.slideBriefs.length} slides…` });
+      onEvent({ type: 'step-done', stepId: queuedStepId, label: queuedLabel });
       onEvent({ type: 'step-skipped', stepId: 'evaluate', label: 'Evaluating quality…' });
       onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing presentation…' });
 
@@ -177,6 +193,7 @@ export async function runPresentationWorkflow(
               model,
               onEvent,
               input.projectRulesBlock,
+              input.templateGuidance,
               streamSoftTimeoutMs,
               input.editing,
               signal,
@@ -188,6 +205,7 @@ export async function runPresentationWorkflow(
               model,
               onEvent,
               input.projectRulesBlock,
+              input.templateGuidance,
               streamSoftTimeoutMs,
               signal,
             );
