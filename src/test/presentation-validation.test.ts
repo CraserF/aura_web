@@ -52,4 +52,21 @@ describe('presentation validation', () => {
 
     expect(result.warnings.map((issue) => issue.code)).toContain('mobile-stage-density');
   });
+
+  it('does not warn about missing custom font sources when the HTML includes a Google Fonts link', () => {
+    const result = validatePresentationAgainstProfile({
+      document: makePresentation({
+        contentHtml: `
+          <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+          <style>
+            .slide-wrap { font-family: 'Inter', sans-serif; }
+            h1 { font-family: 'Space Grotesk', sans-serif; }
+          </style>
+          <section data-background-color="#0f172a"><div class="slide-wrap"><h1>Slide</h1></div></section>
+        `,
+      }),
+    });
+
+    expect(result.warnings.map((issue) => issue.code)).not.toContain('google-fonts');
+  });
 });

@@ -57,6 +57,7 @@ This document records shipped workflow-upgrade progress across the phased implem
   - confirming a blocked export does not proceed without explicit override
   - confirming an override export still works and keeps readiness visible
   - running a project-wide readiness check after a Phase 6 augmentation flow and verifying the result is understandable
+  - Latest evidence note (2026-04-24): the presentation readiness modal opened successfully from the toolbar for `Market Expansion Snapshot` and surfaced non-blocking warnings plus a passing artifact readiness state, but the full Phase 7 protocol cases remain unrun.
 - Phase 8 manual in-app validation is still pending for:
   - saving and reapplying one document preset and one presentation preset from the composer controls
   - validating an artifact and confirming lifecycle badge transitions survive reload
@@ -74,11 +75,13 @@ This document records shipped workflow-upgrade progress across the phased implem
   - running one project-wide explain or dry-run and verifying dependency and validation effects are visible
   - confirming a normal execute run still behaves unchanged afterward
 - Workstream F manual viewport validation is still pending for:
-  - tablet portrait
-  - desktop wide
+  - document-side viewport matrix backfill
   - Manual evidence logged on 2026-04-23:
     - presentation shell spot-check passed for desktop standard, mobile narrow portrait (`390x844`), and mobile landscape (`844x390`)
     - fresh-server scoped document creation from a seeded presentation-only project now succeeds, so document-side viewport checks can resume in the next validation slice
+  - Manual evidence logged on 2026-04-24:
+    - presentation shell spot-check also passed for tablet portrait (`768x1024`) and desktop wide (`1440x1024`), completing the current presentation-side viewport matrix
+    - a saved-slide persistence bug was fixed so Google Fonts `<link>` tags are retained in stored presentation HTML instead of existing only as live preview injections
 
 ## Current Focus
 

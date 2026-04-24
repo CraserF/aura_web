@@ -38,12 +38,11 @@ export function extractHtmlFromResponse(response: string): ExtractedHtml {
   // Strip any incomplete trailing <section> that was never closed (truncated output)
   html = stripIncompleteTrailingSection(html);
 
-  // Extract Google Font <link> tags from the HTML
-  const fontLinks: string[] = [];
-  html = html.replace(/<link[^>]*href="(https:\/\/fonts\.googleapis\.com[^"]*)"[^>]*>/gi, (_match, href: string) => {
-    fontLinks.push(href);
-    return '';
-  });
+  // Keep Google Font <link> tags in the stored HTML so readiness checks,
+  // standalone exports, and reopened projects preserve the same font sources.
+  const fontLinks = [...html.matchAll(/<link[^>]*href="(https:\/\/fonts\.googleapis\.com[^"]*)"[^>]*>/gi)]
+    .map((match) => match[1])
+    .filter((href): href is string => Boolean(href));
 
   return { html: html.trim(), fontLinks };
 }

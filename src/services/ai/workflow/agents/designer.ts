@@ -24,6 +24,7 @@ import { getExemplarPack } from '../../templates';
 import { extractHtmlFromResponse, countSlides, extractTitle } from '../../utils/extractHtml';
 import { sanitizeSlideHtml } from '../../utils/sanitizeHtml';
 import { injectFonts } from '../../utils/injectFonts';
+import { ensureFontSourceDeclaration } from '../../utils/ensureFontSource';
 import { validateSlides } from './qa-validator';
 import { parsePatchBlocks, applyPatches } from '../patchUtils';
 import type { PlanResult } from './planner';
@@ -245,9 +246,9 @@ function normalizeAttributeQuotes(html: string): string {
 /**
  * Post-process raw LLM output into clean, validated slide HTML.
  */
-function postProcess(raw: string): { html: string; fontLinks: string[] } {
+function postProcess(raw: string, fontImport?: string): { html: string; fontLinks: string[] } {
   const { html: rawHtml, fontLinks } = extractHtmlFromResponse(raw);
-  const html = sanitizeSlideHtml(normalizeAttributeQuotes(rawHtml));
+  const html = sanitizeSlideHtml(ensureFontSourceDeclaration(normalizeAttributeQuotes(rawHtml), fontImport));
   return { html, fontLinks };
 }
 
@@ -274,7 +275,7 @@ function createDesignAgent(
         }),
         execute: async ({ html }) => {
           // Post-process before validation (same pipeline as final output)
-          const { html: processed } = postProcess(html);
+          const { html: processed } = postProcess(html, planResult.blueprint.palette.fontImport);
           const result = validateSlides(processed, {
             expectedBgColor: planResult.blueprint.palette.bg,
             isCreate: planResult.intent === 'create',
@@ -325,7 +326,7 @@ function createDesignAgent(
         execute: async ({ html }) => {
           // Pre-flight QA gate: reject submissions with blocking violations so the
           // model self-corrects before the result is accepted by the caller.
-          const { html: processed } = postProcess(html);
+          const { html: processed } = postProcess(html, planResult.blueprint.palette.fontImport);
           const result = validateSlides(processed, {
             expectedBgColor: planResult.blueprint.palette.bg,
             isCreate: planResult.intent === 'create',
@@ -464,7 +465,7 @@ After generating the slide HTML, call the validateSlideHtml tool to check for is
   });
 
   // Show the draft immediately
-  const { html: draftHtml, fontLinks: draftFontLinks } = postProcess(draftText);
+  const { html: draftHtml, fontLinks: draftFontLinks } = postProcess(draftText, planResult.blueprint.palette.fontImport);
   const streamMs = (performance.now() - t0).toFixed(0);
   aiDebugLog('designer', `streaming complete in ${streamMs}ms`, { draftChars: draftText.length, slideCount: countSlides(draftHtml) });
   if (countSlides(draftHtml) > 0) {
@@ -523,7 +524,7 @@ After generating the slide HTML, call the validateSlideHtml tool to check for is
     for (const call of step.toolCalls) {
       if (call.toolName === 'submitFinalSlide') {
         const { html: submittedRaw, title } = call.input as { html: string; title: string };
-        const { html: submittedHtml, fontLinks } = postProcess(submittedRaw);
+        const { html: submittedHtml, fontLinks } = postProcess(submittedRaw, planResult.blueprint.palette.fontImport);
         if (countSlides(submittedHtml) > 0) {
           finalHtml = submittedHtml;
           finalTitle = title || finalTitle;
@@ -535,7 +536,7 @@ After generating the slide HTML, call the validateSlideHtml tool to check for is
 
   // Fallback: if agent didn't call submitFinalSlide, try to extract from last text
   if (finalHtml === draftHtml && agentResult.text) {
-    const { html: fallbackHtml, fontLinks } = postProcess(agentResult.text);
+    const { html: fallbackHtml, fontLinks } = postProcess(agentResult.text, planResult.blueprint.palette.fontImport);
     if (countSlides(fallbackHtml) > 0) {
       finalHtml = fallbackHtml;
       finalTitle = extractTitle(fallbackHtml) || finalTitle;
@@ -625,7 +626,7 @@ export async function designEdit(
     }
   });
 
-  const { html: draftHtml, fontLinks: draftFontLinks } = postProcess(draftText);
+  const { html: draftHtml, fontLinks: draftFontLinks } = postProcess(draftText, planResult.blueprint.palette.fontImport);
   const streamMs = (performance.now() - t0).toFixed(0);
   aiDebugLog('designer:edit', `streaming complete in ${streamMs}ms`, { draftChars: draftText.length, slideCount: countSlides(draftHtml), isAddSlides });
   let processedDraft = draftHtml;
@@ -759,7 +760,7 @@ export async function designEdit(
     for (const call of step.toolCalls) {
       if (call.toolName === 'submitFinalSlide') {
         const { html: submittedRaw, title } = call.input as { html: string; title: string };
-        let { html: submittedHtml, fontLinks } = postProcess(submittedRaw);
+        let { html: submittedHtml, fontLinks } = postProcess(submittedRaw, planResult.blueprint.palette.fontImport);
         if (isAddSlides) {
           submittedHtml = preserveExistingSlidesForAddIntent(existingSlidesHtml, submittedHtml);
         }
@@ -780,7 +781,7 @@ export async function designEdit(
       if (agentPatches.length > 0) {
         const agentPatchResult = applyPatches(existingSlidesHtml, agentPatches);
         if (agentPatchResult.success) {
-          const { fontLinks } = postProcess(agentResult.text);
+          const { fontLinks } = postProcess(agentResult.text, planResult.blueprint.palette.fontImport);
           finalHtml = agentPatchResult.html;
           finalTitle = extractTitle(finalHtml) || finalTitle;
           injectFonts(fontLinks);
@@ -792,7 +793,7 @@ export async function designEdit(
     }
     // If patches didn't apply, try extracting full HTML from the agent text
     if (finalHtml === processedDraft) {
-      let { html: fallbackHtml, fontLinks } = postProcess(agentResult.text);
+      let { html: fallbackHtml, fontLinks } = postProcess(agentResult.text, planResult.blueprint.palette.fontImport);
       if (isAddSlides) {
         fallbackHtml = preserveExistingSlidesForAddIntent(existingSlidesHtml, fallbackHtml);
       }

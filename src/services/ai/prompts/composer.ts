@@ -256,6 +256,8 @@ You are modifying existing slide(s) based on a user request.
 - Do NOT add \`font-size\` to wrapper elements (e.g. \`.slide-wrap\`) unless the user explicitly asked to change font size.
 - Do NOT change \`padding\` on the wrapper unless the user explicitly asked to change padding.
 - Keep the exact same CSS architecture, palette, fonts, animation patterns, and variable definitions.
+- Replace all template placeholders with real, topic-matching copy. Never leave tokens like \`{{COMPANY}}\`, \`{{DATE}}\`, \`[INSERT ...]\`, \`[YOUR ...]\`, or \`Lorem ipsum\` in the final slide.
+- If the slide uses custom font families, preserve or add the required Google Fonts \`<link>\` or \`@font-face\` source declaration in the final output.
 - Preserve contained-stage readability when the slide is scaled down into smaller framed mobile viewports.
 - If the request is to add slides, treat existing slides as immutable unless the user explicitly requested edits to specific existing slides.
 - For add-slide requests, append new slide sections and keep existing \`<style>\` and \`<section>\` elements unchanged.

@@ -142,6 +142,23 @@ Finish Workstream F Phase F3/F4 without inventing a new canonical phase, and use
 - Commit: Pending
 - Result: Committed
 
+- Date: 2026-04-24
+- Agent: Codex
+- Scope: Backlog Phase B validation continuation, presentation viewport backfill, and Ollama presentation persistence hardening
+- Build (`npm run build`): Passed
+- Tests (`npm test`): Passed; targeted regression coverage also passed (`npm test -- --run src/test/extractHtml.test.ts src/test/presentation-validation.test.ts`)
+- Lint (`npm run lint`): Still blocked by pre-existing ESLint 9 config gap (`eslint.config.*` missing)
+- Manual validation:
+  - Safari Responsive Design Mode validation passed for the seeded `Market Expansion Snapshot` presentation at `768x1024` (tablet portrait) and `1440x1024` (desktop wide). The slide remained framed, readable, and did not stretch into the extra viewport width.
+  - The presentation readiness path opened successfully from the toolbar and surfaced meaningful warnings without blocking export outright, which is partial Phase 7 evidence for the existing validation/publish surface.
+  - Continued Ollama (`gemma4:e2b`) presentation-edit validation confirmed the long-running design step still emits continuous feedback on the live path, advancing from `Applying changes…` at `30%` to `Finishing the current slide draft…` at `54%` with updated status copy.
+  - Root cause isolated for one repeated readiness inconsistency: `extractHtmlFromResponse()` was stripping Google Fonts `<link>` tags out of persisted slide HTML and only injecting them into the live page head, which could make stored/exported artifacts look like they lacked font source declarations.
+  - A follow-up live Ollama edit reduced copy density from 96 words to 82 words and removed the earlier placeholder-token warning, but still reported a missing custom-font source declaration for `inter, space grotesk`; this is now classified as a real local-model output issue rather than a false validation result.
+  - Landed a narrow persistence fix so emitted Google Fonts links remain in saved slide HTML while still being exposed for live injection, tightened the presentation self-check/edit prompt to explicitly reject unresolved placeholder tokens in final slide copy, and added a palette-font fallback that restores the expected Google Fonts link when a local-model slide uses custom palette fonts but omits the source declaration.
+  - Broader validation remains incomplete: the document-side Workstream F viewport matrix, Backlog Phase A export/media cases, and the full Ollama baseline scorecard still need to be backfilled through the protocol.
+- Commit: Pending
+- Result: Committed
+
 ## Workstream F Review Checklist
 
 Use this same checklist in both Workstream F validation and the broader backlog sweep.
