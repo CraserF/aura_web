@@ -13,6 +13,61 @@ Chosen direction:
 - Remove external API/MCP/automation seams until the new architecture is complete.
 - Simplify the app for non-technical users with guided defaults and hidden advanced controls.
 
+## Progress Tracker
+
+Last updated: 2026-04-25.
+
+### Completed In First Runtime Slice
+- Added the internal `ArtifactRuntime` module:
+  - `ArtifactRunPlan`;
+  - `ArtifactRunEvent`;
+  - `ArtifactPart`;
+  - `DesignManifest`;
+  - `ValidationGate`;
+  - provider policy;
+  - runtime metrics budget.
+- Changed the active chat request path so `buildRunRequest()` now creates one authoritative `artifactRunPlan`.
+- Stopped the active app runtime from building or attaching the legacy serializable external execution spec.
+- Removed active dry-run/explain branching from `submitPrompt()`.
+- Replaced active `run.spec-built` / `run.explained` event flow with `run.plan-built`.
+- Routed presentation generation through the new runtime plan:
+  - `PresentationInput` now accepts `artifactRunPlan`;
+  - the presentation handler passes the run plan into the workflow;
+  - queued presentation slides are derived from runtime work parts when available;
+  - runtime design manifest details are appended to the presentation plan.
+- Added compact prompt packs for:
+  - core artifact contract;
+  - presentation fragment contract;
+  - validator feedback.
+- Added those prompt packs to create/edit presentation prompt composition.
+- Simplified the visible settings surface:
+  - sidebar label changed from `Project Rules` to `Project Style`;
+  - normal users now see guided defaults for audience, tone, visual style, quality/speed, source usage, and optional extra guidance;
+  - raw rules markdown, context policy, and workflow presets are hidden under `Advanced`.
+- Updated tests and benchmark fixtures away from explain/dry-run coverage toward runtime-plan coverage.
+
+### Validation Completed
+- `npm test -- artifact-runtime workflow-planner run-request run-dry-run run-explain structured-run-outputs external-adapter-contracts run-events workflow-benchmark-cases`
+  - Passed: 9 files, 23 tests.
+- `npm test`
+  - Passed: 93 files, 507 tests.
+- `npm run typecheck`
+  - Passed.
+- `npm run build`
+  - Passed.
+  - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
+- Changed-file ESLint
+  - Passed.
+
+### Current Open State
+- The active runtime now has an internal plan object, but presentation generation still delegates most actual generation to the existing presentation workflow.
+- `ArtifactRunPlan` currently wraps the existing `ArtifactWorkflowPlan`; the next slice should make the runtime plan the primary planner output rather than an adapter around the older plan.
+- Legacy external execution-spec files still exist in the repository as quarantined code, but active chat generation no longer imports them.
+- Starter-kit generation still needs to be moved onto the runtime path.
+- Documents and spreadsheets still use their current handlers, though they now receive run requests that include `artifactRunPlan`.
+- Workflow presets still exist in the advanced UI and storage model. They are hidden from the default user surface but not removed yet.
+- Production templates are still mixed with legacy templates; routing has not yet been fully reduced to production families only.
+
 ## Key Architecture Changes
 - Replace today’s scattered workflow path with a single internal `ArtifactRuntime`.
 - Remove the external-facing execution-spec layer for now: API/MCP/automation adapter mappers, dry-run/explain plumbing, and serializable external run contracts should be deleted or quarantined.
@@ -92,16 +147,151 @@ Chosen direction:
 - Show first usable preview early and update progressively.
 
 ## Implementation Order
-1. Remove/quarantine external API/MCP/automation seams and dry-run/explain complexity from the active runtime.
-2. Define the new `ArtifactRunPlan`, `ArtifactRunEvent`, `ArtifactPart`, `DesignManifest`, and `ValidationGate` types.
-3. Rebuild presentation generation around the new run engine while keeping the current UI entry point.
-4. Replace presentation prompt composition with compact prompt packs and design manifests.
-5. Convert starter kits to use the same presentation runtime and production design families.
-6. Simplify user-facing project settings into guided style/preferences, with current technical controls moved to Advanced.
-7. Move document generation onto the same run engine.
-8. Keep spreadsheet execution deterministic but emit the same run events and validation summaries.
-9. Delete or convert legacy templates after production routing is stable.
-10. Add benchmark and viewport validation harnesses for presentations first, then documents and spreadsheets.
+1. Done: Remove/quarantine external API/MCP/automation seams and dry-run/explain complexity from the active runtime.
+2. Done: Define the new `ArtifactRunPlan`, `ArtifactRunEvent`, `ArtifactPart`, `DesignManifest`, and `ValidationGate` types.
+3. In progress: Rebuild presentation generation around the new run engine while keeping the current UI entry point.
+4. In progress: Replace presentation prompt composition with compact prompt packs and design manifests.
+5. Next: Convert starter kits to use the same presentation runtime and production design families.
+6. Partially done: Simplify user-facing project settings into guided style/preferences, with current technical controls moved to Advanced.
+7. Next: Move document generation onto the same run engine.
+8. Next: Keep spreadsheet execution deterministic but emit the same run events and validation summaries.
+9. Later: Delete or convert legacy templates after production routing is stable.
+10. Later: Add benchmark and viewport validation harnesses for presentations first, then documents and spreadsheets.
+
+## Next Steps
+
+### Step 1: Make `ArtifactRunPlan` The Planner Output
+- Move planner ownership into `src/services/artifactRuntime`.
+- Stop treating `ArtifactWorkflowPlan` as the primary plan shape.
+- Keep a temporary compatibility adapter only where older handlers still expect `workflowPlan`.
+- Add tests that prove every prompt creates exactly one authoritative runtime plan.
+- Add tests for provider policy selection:
+  - frontier mode;
+  - local/Ollama constrained mode;
+  - queued part granularity;
+  - repair/evaluation budget.
+
+### Step 2: Build Presentation Runtime V1
+- Add a presentation runtime orchestrator that owns:
+  - intent summary;
+  - outline;
+  - design manifest;
+  - queued slide parts;
+  - per-slide validation;
+  - targeted repair;
+  - final assembly.
+- Keep the current UI entry point, but move orchestration out of `src/services/ai/workflow/presentation.ts` over time.
+- Emit runtime part events for:
+  - planning;
+  - designing;
+  - creating slide N;
+  - validating slide N;
+  - repairing slide N;
+  - finalizing.
+- Store runtime metrics:
+  - time to first preview;
+  - total generation time;
+  - estimated input/output tokens;
+  - validation pass rate;
+  - repair count.
+
+### Step 3: Convert Starter Kits To Runtime
+- Replace the separate starter presentation path with deterministic runtime plans.
+- Generate starter decks through the same presentation runtime parts used by normal generation.
+- Preserve the starter rendering reset invariants:
+  - `contentHtml` contains complete scoped slide HTML;
+  - `themeCss` is always `''`;
+  - no unresolved tokens;
+  - no empty hero shells;
+  - slide count equals actual section count.
+- Add starter tests proving:
+  - starter decks contain multiple sections;
+  - starter deck parts are created from `ArtifactRunPlan`;
+  - executive starter uses the executive production design family;
+  - pitch/launch starter uses the launch production design family.
+
+### Step 4: Harden Presentation Template Routing
+- Route default generation only through production template families.
+- Decide whether each legacy template should be:
+  - converted to production format;
+  - archived out of active routing;
+  - deleted after routing is stable.
+- Add production-template tests:
+  - no `<html>` / `<body>` wrappers;
+  - no JavaScript;
+  - no external images;
+  - no unresolved tokens;
+  - readable source font sizes;
+  - reduced-motion support;
+  - canvas-safe sizing.
+
+### Step 5: Document Runtime V1
+- Introduce document runtime parts:
+  - outline;
+  - section;
+  - module;
+  - shell;
+  - validation result.
+- Extract document shell and module styling into a compact design-system module.
+- Replace broad freeform document prompts with module-oriented prompt packs.
+- Add iframe/mobile/print validation gates.
+
+### Step 6: Spreadsheet Runtime Events
+- Keep spreadsheet execution deterministic.
+- Map existing spreadsheet plans/actions into runtime parts:
+  - workbook action;
+  - formula;
+  - query;
+  - chart;
+  - validation result.
+- Emit the same runtime events and validation summaries as presentations/documents.
+- Use spreadsheet execution as the low-token reliability benchmark for the rest of the runtime.
+
+### Step 7: Finish UX Simplification
+- Replace user-authored workflow presets with curated built-in modes:
+  - Executive;
+  - Editorial;
+  - Proposal;
+  - Research;
+  - Launch;
+  - Teaching;
+  - Data Story.
+- Keep advanced diagnostics available, but remove technical model/context tuning from the default path.
+- Add UX tests for:
+  - guided defaults;
+  - advanced-only technical controls;
+  - simple generation step labels;
+  - no visible dry-run/explain/external-spec controls.
+
+### Step 8: Delete Quarantined External Runtime Code
+- After presentation runtime and starter kits are stable, remove or archive:
+  - API/MCP/automation adapter mappers;
+  - serializable external run spec builders;
+  - hydrate/serialize helpers;
+  - non-mutating explain/dry-run implementation.
+- Add a regression test that active generation cannot import these paths.
+
+### Step 9: Add Quality And Benchmark Harnesses
+- Add benchmark checks for:
+  - first preview time;
+  - total generation time;
+  - token estimate;
+  - validation pass rate;
+  - repair count.
+- Add viewport validation for:
+  - desktop;
+  - desktop wide;
+  - tablet portrait;
+  - mobile portrait;
+  - mobile landscape.
+- Start with presentations, then extend to documents and spreadsheets.
+
+## Immediate Next Implementation Slice
+- Build `src/services/artifactRuntime/presentationRuntime.ts`.
+- Move queued slide generation control from `src/services/ai/workflow/presentation.ts` into the runtime layer.
+- Add per-slide runtime validation and repair stubs, even if the first implementation calls existing validators underneath.
+- Convert starter presentation generation to create `ArtifactRunPlan` instances and use the new runtime.
+- Add starter-runtime tests before changing document or spreadsheet workflows.
 
 ## Test Plan
 - Add planner tests proving each user prompt produces exactly one authoritative `ArtifactRunPlan`.
