@@ -35,10 +35,6 @@ function resolveDocumentTypeHint(prompt: string): string {
 }
 
 function resolveRequestKind(input: BuildArtifactWorkflowPlanInput): ArtifactWorkflowRequestKind {
-  if (input.mode !== 'execute') {
-    return 'explain';
-  }
-
   if (input.allowFullRegeneration) {
     return 'rewrite';
   }

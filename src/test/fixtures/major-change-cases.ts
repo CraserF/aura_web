@@ -8,7 +8,7 @@ export type MajorChangeCaseCategory =
   | 'structural-edit'
   | 'large-rewrite'
   | 'validation-export'
-  | 'explain-dry-run'
+  | 'runtime-plan'
   | 'viewport'
   | 'formula-change'
   | 'query-change'
@@ -241,14 +241,14 @@ export const DOCUMENT_MAJOR_CHANGE_CASES: MajorChangeCaseDefinition[] = [
     priority: 'extended',
   },
   {
-    id: 'document-explain-dry-run',
+    id: 'document-runtime-plan',
     artifactType: 'document',
-    category: 'explain-dry-run',
-    title: 'Explain and dry-run document flow',
-    prompt: 'Run explain mode and dry-run for a document update, then verify predicted changes without mutation.',
-    startingState: 'Existing document and explain/dry-run support.',
-    expectedOutcome: 'Explain and dry-run describe the intended document change without mutating content.',
-    checks: ['explain shows targets', 'dry-run predicts changes', 'document remains unchanged'],
+    category: 'runtime-plan',
+    title: 'Document runtime plan',
+    prompt: 'Plan a document update with an outline, module queue, validation gate, and finalizer summary.',
+    startingState: 'Existing document with runtime planning available.',
+    expectedOutcome: 'Runtime plan identifies document modules, source usage, validation gates, and write targets.',
+    checks: ['plan shows targets', 'module queue present', 'validation gate present'],
     priority: 'required',
   },
   {
@@ -453,14 +453,14 @@ export const PRESENTATION_MAJOR_CHANGE_CASES: MajorChangeCaseDefinition[] = [
     priority: 'required',
   },
   {
-    id: 'presentation-explain-dry-run',
+    id: 'presentation-runtime-plan',
     artifactType: 'presentation',
-    category: 'explain-dry-run',
-    title: 'Explain and dry-run presentation flow',
-    prompt: 'Run explain and dry-run for a deck update, then confirm predicted slide targets without mutating the deck.',
+    category: 'runtime-plan',
+    title: 'Presentation runtime plan',
+    prompt: 'Plan a deck update with slide queue, design manifest, validation gate, and final assembly.',
     startingState: 'Existing presentation deck.',
-    expectedOutcome: 'Explain and dry-run describe intended slide changes without mutation.',
-    checks: ['slide targets visible', 'predicted changes sensible', 'deck remains unchanged'],
+    expectedOutcome: 'Runtime plan describes slide targets, design family, validation gates, and assembly order.',
+    checks: ['slide targets visible', 'design manifest present', 'validation gates present'],
     priority: 'required',
   },
   {
@@ -632,14 +632,14 @@ export const SPREADSHEET_MAJOR_CHANGE_CASES: MajorChangeCaseDefinition[] = [
     priority: 'required',
   },
   {
-    id: 'spreadsheet-explain-dry-run',
+    id: 'spreadsheet-runtime-plan',
     artifactType: 'spreadsheet',
-    category: 'explain-dry-run',
-    title: 'Explain and dry-run spreadsheet flow',
-    prompt: 'Run explain and dry-run for a computed-column and query-view update, then confirm no workbook mutation occurs.',
-    startingState: 'Existing workbook with explain/dry-run support.',
-    expectedOutcome: 'Explain and dry-run predict formula/query targets without mutating workbook data.',
-    checks: ['targets visible', 'predicted changes sensible', 'workbook unchanged'],
+    category: 'runtime-plan',
+    title: 'Spreadsheet runtime plan',
+    prompt: 'Plan a computed-column and query-view update with deterministic formula, query, chart, and validation actions.',
+    startingState: 'Existing workbook with runtime planning available.',
+    expectedOutcome: 'Runtime plan separates formula/query targets from deterministic workbook execution.',
+    checks: ['targets visible', 'formula action present', 'query action present'],
     priority: 'required',
   },
   {
@@ -669,7 +669,7 @@ export const REQUIRED_DOCUMENT_CASE_CATEGORIES: MajorChangeCaseCategory[] = [
   'structural-edit',
   'large-rewrite',
   'validation-export',
-  'explain-dry-run',
+  'runtime-plan',
   'viewport',
 ];
 
@@ -681,7 +681,7 @@ export const REQUIRED_PRESENTATION_CASE_CATEGORIES: MajorChangeCaseCategory[] = 
   'structural-edit',
   'large-rewrite',
   'validation-export',
-  'explain-dry-run',
+  'runtime-plan',
   'viewport',
 ];
 
@@ -693,6 +693,6 @@ export const REQUIRED_SPREADSHEET_CASE_CATEGORIES: MajorChangeCaseCategory[] = [
   'schema-layout',
   'dependency-refresh',
   'validation-export',
-  'explain-dry-run',
+  'runtime-plan',
   'performance-sensitive',
 ];

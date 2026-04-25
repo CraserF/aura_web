@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import { buildRunRequest } from '@/services/chat/buildRunRequest';
 import { createDefaultContextSelectionState } from '@/services/context/types';
-import { buildNonMutatingRunResult } from '@/services/executionSpec/explain';
 import type { ProjectData, ProjectDocument } from '@/types/project';
 
 function makeDocument(overrides: Partial<ProjectDocument> = {}): ProjectDocument {
@@ -37,8 +36,8 @@ function makeProject(documents: ProjectDocument[]): ProjectData {
   };
 }
 
-describe('run explain mode', () => {
-  it('reports included context and predicted project changes deterministically', async () => {
+describe('legacy explain request mode', () => {
+  it('is normalized into an execution-oriented artifact run plan', async () => {
     const project = makeProject([
       makeDocument(),
       makeDocument({
@@ -64,7 +63,7 @@ describe('run explain mode', () => {
     const activeDocument = project.documents[0] ?? null;
 
     const { runRequest } = await buildRunRequest({
-      prompt: 'Summarize the project into one overview',
+      prompt: 'Create a new executive overview document',
       attachments: [],
       messages: [],
       project,
@@ -84,17 +83,9 @@ describe('run explain mode', () => {
       mode: 'explain',
     });
 
-    const result = await buildNonMutatingRunResult({
-      runRequest,
-      project,
-    });
-
-    expect(result.status).toBe('completed');
-    expect(result.outputs.envelope.mode).toBe('explain');
-    expect(result.outputs.envelope.project).toBeDefined();
-    expect(result.outputs.envelope.explain?.projectOperation).toBe('summarize-project');
-    expect(result.outputs.envelope.explain?.validationProfile).toBe('publish-ready');
-    expect(result.outputs.envelope.explain?.includedSources.length).toBeGreaterThan(0);
-    expect(result.outputs.envelope.explain?.predictedChanges.some((change) => change.action !== 'none')).toBe(true);
+    expect(runRequest.mode).toBe('execute');
+    expect(runRequest.artifactRunPlan.version).toBe(1);
+    expect(runRequest.artifactRunPlan.workflow.requestKind).toBe('edit');
+    expect(runRequest.serializableSpec).toBeUndefined();
   });
 });

@@ -161,7 +161,7 @@ describe('run events', () => {
     expect(listRunEvents(result.runId).map((event) => event.type)).toEqual([
       'run.started',
       'run.context-assembled',
-      'run.spec-built',
+      'run.plan-built',
       'run.intent-resolved',
       'run.generating',
       'run.completed',

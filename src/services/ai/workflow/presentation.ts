@@ -24,6 +24,7 @@ import { sanitizeInnerHtml } from '@/services/html/sanitizer';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { aiDebugLog, logEditingMetrics, toErrorInfo } from '../debug';
 import { getProviderCapabilityProfile } from '../providerCapabilities';
+import { applyArtifactRunPlanToPresentationPlan } from '@/services/artifactRuntime/presentation';
 import type {
   PresentationInput,
   PresentationOutput,
@@ -97,16 +98,21 @@ export async function runPresentationWorkflow(
     onEvent({ type: 'step-start', stepId: 'plan', label: 'Analyzing your request…' });
     onEvent({ type: 'progress', message: 'Understanding your request…', pct: 10 });
 
-    const planResult = await plan(input.prompt, isEdit);
+    let planResult = await plan(input.prompt, isEdit);
 
     if (planResult.blocked) {
       onEvent({ type: 'step-error', stepId: 'plan', error: planResult.blockReason ?? 'Request blocked.' });
       throw new Error(planResult.blockReason ?? 'Request blocked.');
     }
 
+    planResult = applyArtifactRunPlanToPresentationPlan(planResult, input.artifactRunPlan, isEdit);
+    const guidanceProfile = input.templateGuidance ?? input.artifactRunPlan?.workflow.templateGuidance;
+
     onEvent({
       type: 'progress',
-      message: `Detected ${planResult.style} style, animation level ${planResult.animationLevel}`,
+      message: input.artifactRunPlan
+        ? `Designing with ${input.artifactRunPlan.designManifest.family}`
+        : `Detected ${planResult.style} style, animation level ${planResult.animationLevel}`,
       pct: 20,
     });
     onEvent({ type: 'step-done', stepId: 'plan', label: 'Analyzing your request…' });
@@ -140,7 +146,7 @@ export async function runPresentationWorkflow(
         model,
         onEvent,
         ...(isEdit && input.existingSlidesHtml ? { initialHtml: input.existingSlidesHtml } : {}),
-        ...(input.templateGuidance ? { guidanceProfile: input.templateGuidance } : {}),
+        ...(guidanceProfile ? { guidanceProfile } : {}),
         onSlideComplete: (combinedHtml, slideIndex, totalSlides) => {
           onEvent({ type: 'batch-slide-complete', html: combinedHtml, slideIndex, totalSlides });
         },
@@ -196,7 +202,7 @@ export async function runPresentationWorkflow(
               model,
               onEvent,
               input.projectRulesBlock,
-              input.templateGuidance,
+              guidanceProfile,
               input.editing,
               editCorrectionPolicy,
               signal,
@@ -208,7 +214,7 @@ export async function runPresentationWorkflow(
               model,
               onEvent,
               input.projectRulesBlock,
-              input.templateGuidance,
+              guidanceProfile,
               signal,
             );
       } finally {

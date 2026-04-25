@@ -11,7 +11,6 @@ import type { ExecutionMode } from '@/services/runs/types';
 
 import { buildRunRequest } from '@/services/chat/buildRunRequest';
 import { renderRunResult } from '@/services/chat/renderRunResult';
-import { buildNonMutatingRunResult } from '@/services/executionSpec/explain';
 import {
   createRunRecord,
   appendRunPolicyActions,
@@ -22,7 +21,6 @@ import {
   setRunDependencyWarnings,
   setRunOutputSummary,
   setRunRetryInfo,
-  setRunSpecMetadata,
   updateRunRecordStatus,
 } from '@/services/runs/registry';
 import { writeRunOutputBuffer } from '@/services/runs/outputBuffer';
@@ -263,10 +261,6 @@ export async function submitPrompt(
 
   createRunRecord(runRequest.runId, runRequest.intent, runRequest.mode);
   setRunRetryInfo(runRequest.runId, runRequest.runId, 0);
-  setRunSpecMetadata(
-    runRequest.runId,
-    runRequest.serializableSpec ? `spec:${runRequest.serializableSpec.runId}` : undefined,
-  );
   const startedEvent = publishRunEvent({
     type: 'run.started',
     runId: runRequest.runId,
@@ -288,17 +282,20 @@ export async function submitPrompt(
     },
   });
   recordRunEvent(runRequest.runId, contextEvent);
-  const specBuiltEvent = publishRunEvent({
-    type: 'run.spec-built',
+  const planBuiltEvent = publishRunEvent({
+    type: 'run.plan-built',
     runId: runRequest.runId,
     source: eventSource,
     payload: {
       mode: runRequest.mode,
-      hasSerializableSpec: Boolean(runRequest.serializableSpec),
+      runtimePlanVersion: runRequest.artifactRunPlan.version,
+      artifactType: runRequest.artifactRunPlan.artifactType,
+      requestKind: runRequest.artifactRunPlan.workflow.requestKind,
+      queuedPartCount: runRequest.artifactRunPlan.workQueue.length,
       selectedPresetId: runRequest.selectedPresetId,
     },
   });
-  recordRunEvent(runRequest.runId, specBuiltEvent);
+  recordRunEvent(runRequest.runId, planBuiltEvent);
   const intentEvent = publishRunEvent({
     type: 'run.intent-resolved',
     runId: runRequest.runId,
@@ -346,59 +343,6 @@ export async function submitPrompt(
     setStatus({ state: 'idle' });
     setStreamingContent('');
     return blockedResult;
-  }
-
-  if (runRequest.mode !== 'execute') {
-    const result = await buildNonMutatingRunResult({
-      runRequest,
-      project,
-    });
-    updateRunRecordStatus(runRequest.runId, result.status);
-    setRunBlockedReason(
-      runRequest.runId,
-      result.status === 'blocked' ? result.structuredStatus.detail : undefined,
-    );
-    markRunTouchedDocuments(
-      runRequest.runId,
-      Array.from(new Set(result.changedTargets.map((target) => target.documentId).filter(Boolean) as string[])),
-    );
-    setRunDependencyWarnings(runRequest.runId, result.warnings.map((warning) => warning.message));
-    publishPolicyEvaluation(
-      runRequest.runId,
-      eventSource,
-      'after-validation',
-      [
-        ...(!result.validation.passed ? ['validation-blocked' as const] : []),
-        ...((result.outputs.publish?.exportBlocked ?? false) ? ['export-unavailable' as const] : []),
-      ],
-    );
-    const explainEvent = publishRunEvent({
-      type: 'run.explained',
-      runId: runRequest.runId,
-      source: eventSource,
-      payload: {
-        mode: runRequest.mode,
-        blocked: result.status === 'blocked',
-        changedTargetCount: result.changedTargets.length,
-      },
-    });
-    recordRunEvent(runRequest.runId, explainEvent);
-    setRunOutputSummary(runRequest.runId, result.structuredStatus.detail);
-    setRunSpecMetadata(runRequest.runId, runRequest.serializableSpec ? `spec:${runRequest.serializableSpec.runId}` : undefined, result.structuredStatus.detail);
-    const finalEvent = publishRunEvent({
-      type: result.status === 'blocked' ? 'run.blocked' : 'run.completed',
-      runId: runRequest.runId,
-      source: eventSource,
-      payload: {
-        status: result.status,
-        mode: runRequest.mode,
-      },
-    });
-    recordRunEvent(runRequest.runId, finalEvent);
-    addMessage(buildAssistantChatMessage(result, scopedDocumentId, messageScope));
-    setStatus({ state: 'idle' });
-    setStreamingContent('');
-    return result;
   }
 
   updateRunRecordStatus(runRequest.runId, 'running');
@@ -495,7 +439,6 @@ export async function submitPrompt(
     outputs: result.outputs,
   });
   setRunOutputSummary(runRequest.runId, rendered.statusMessage, outputBufferId);
-  setRunSpecMetadata(runRequest.runId, runRequest.serializableSpec ? `spec:${runRequest.serializableSpec.runId}` : undefined, result.structuredStatus.detail);
   markSupersededRuns(
     runRequest.runId,
     Array.from(

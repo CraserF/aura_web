@@ -2,11 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { buildRunRequest } from '@/services/chat/buildRunRequest';
 import { createDefaultContextSelectionState } from '@/services/context/types';
-import { deserializeRunSpec, serializeRunSpec } from '@/services/executionSpec/serialize';
-import { hydrateRunSpec } from '@/services/executionSpec/hydrate';
 import type { ProjectData, ProjectDocument } from '@/types/project';
 
-function makeDocument(overrides: Partial<ProjectDocument> = {}): ProjectDocument {
+function makeDocument(): ProjectDocument {
   return {
     id: 'doc-1',
     title: 'Working Draft',
@@ -20,17 +18,16 @@ function makeDocument(overrides: Partial<ProjectDocument> = {}): ProjectDocument
     order: 0,
     createdAt: 1,
     updatedAt: 1,
-    ...overrides,
   };
 }
 
-function makeProject(documents: ProjectDocument[]): ProjectData {
+function makeProject(document: ProjectDocument): ProjectData {
   return {
     id: 'project-1',
     title: 'Project',
     visibility: 'private',
-    documents,
-    activeDocumentId: documents[0]?.id ?? null,
+    documents: [document],
+    activeDocumentId: document.id,
     chatHistory: [],
     sections: { drafts: [], main: [], suggestions: [], issues: [] },
     createdAt: 1,
@@ -38,14 +35,14 @@ function makeProject(documents: ProjectDocument[]): ProjectData {
   };
 }
 
-describe('serializable run spec', () => {
-  it('round-trips through serialize and hydrate without exposing raw secrets', async () => {
+describe('serializable run spec quarantine', () => {
+  it('does not expose provider secrets because active runs no longer build external specs', async () => {
     const activeDocument = makeDocument();
     const { runRequest } = await buildRunRequest({
       prompt: 'Tighten this document',
       attachments: [],
       messages: [],
-      project: makeProject([activeDocument]),
+      project: makeProject(activeDocument),
       activeDocument,
       showAllMessages: false,
       applyToAllDocuments: false,
@@ -67,21 +64,9 @@ describe('serializable run spec', () => {
       mode: 'explain',
     });
 
-    const spec = runRequest.serializableSpec;
-    expect(spec).toBeDefined();
-    const serialized = serializeRunSpec(spec!);
-
-    expect(serialized).not.toContain('super-secret-key');
-
-    const parsed = deserializeRunSpec(serialized);
-    const hydrated = hydrateRunSpec(parsed);
-
-    expect(parsed.mode).toBe('explain');
-    expect(parsed.providerRef.hasApiKey).toBe(true);
-    expect(parsed.targeting.targetDocumentId).toBe(activeDocument.id);
-    expect(parsed.contextSnapshot.selectedSourceIds.length).toBeGreaterThan(0);
-    expect(hydrated.providerConfig.apiKey).toBe('');
-    expect(hydrated.providerConfig.model).toBe('gpt-4.1');
-    expect(hydrated.intent.targetDocumentId).toBe(activeDocument.id);
+    expect(runRequest.mode).toBe('execute');
+    expect(runRequest.serializableSpec).toBeUndefined();
+    expect(JSON.stringify(runRequest.artifactRunPlan)).not.toContain('super-secret-key');
+    expect(runRequest.artifactRunPlan.intentSummary).toContain('document workflow');
   });
 });

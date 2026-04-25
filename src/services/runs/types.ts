@@ -8,6 +8,7 @@ import type { AppliedWorkflowPreset } from '@/services/presets/types';
 import type { ResolvedProjectRulesSnapshot } from '@/services/projectRules/types';
 import type { RunStatus } from '@/services/runs/status';
 import type { RunEventType } from '@/services/events/types';
+import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
 import type { ArtifactWorkflowPlan } from '@/services/workflowPlanner/types';
 
 export type ExecutionMode = 'execute' | 'dry-run' | 'explain';
@@ -31,8 +32,10 @@ export interface RunRequest {
   selectedPresetId?: string;
   appliedPreset?: AppliedWorkflowPreset;
   projectSnapshot: RunProjectSnapshot;
+  artifactRunPlan: ArtifactRunPlan;
   workflowPlan?: ArtifactWorkflowPlan;
   mode: ExecutionMode;
+  /** @deprecated Quarantined legacy external-run contract. Active app runtime no longer writes this. */
   serializableSpec?: SerializableRunSpec;
   createdAt: number;
 }

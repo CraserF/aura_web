@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import { buildRunRequest } from '@/services/chat/buildRunRequest';
 import { createDefaultContextSelectionState } from '@/services/context/types';
-import { buildNonMutatingRunResult } from '@/services/executionSpec/explain';
 import type { ProjectData, ProjectDocument } from '@/types/project';
 
 function makeDocument(overrides: Partial<ProjectDocument> = {}): ProjectDocument {
@@ -37,7 +36,7 @@ function makeProject(documents: ProjectDocument[]): ProjectData {
   };
 }
 
-async function buildResult(project: ProjectData, activeDocument: ProjectDocument | null, prompt: string) {
+async function buildRequest(project: ProjectData, activeDocument: ProjectDocument | null, prompt: string) {
   const { runRequest } = await buildRunRequest({
     prompt,
     attachments: [],
@@ -59,11 +58,11 @@ async function buildResult(project: ProjectData, activeDocument: ProjectDocument
     mode: 'explain',
   });
 
-  return buildNonMutatingRunResult({ runRequest, project });
+  return runRequest;
 }
 
-describe('structured run outputs', () => {
-  it('normalizes document, presentation, spreadsheet, and project explain outputs into stable envelopes', async () => {
+describe('structured artifact runtime parts', () => {
+  it('models document, presentation, and spreadsheet runs with first-class runtime parts', async () => {
     const document = makeDocument();
     const presentation = makeDocument({
       id: 'deck-1',
@@ -98,14 +97,13 @@ describe('structured run outputs', () => {
     });
     const project = makeProject([document, presentation, spreadsheet]);
 
-    const documentResult = await buildResult(project, document, 'Tighten this document section');
-    const presentationResult = await buildResult(project, presentation, 'Update the current slide title');
-    const spreadsheetResult = await buildResult(project, spreadsheet, 'Add a margin column as Revenue minus Cost');
-    const projectResult = await buildResult(project, document, 'Summarize the project');
+    const documentRun = await buildRequest(project, document, 'Tighten this document section');
+    const presentationRun = await buildRequest(project, presentation, 'Add 2 slides: customer proof, implementation timeline');
+    const spreadsheetRun = await buildRequest(project, spreadsheet, 'Add a margin column as Revenue minus Cost');
 
-    expect(documentResult.outputs.envelope.document?.artifactType).toBe('document');
-    expect(presentationResult.outputs.envelope.presentation?.artifactType).toBe('presentation');
-    expect(spreadsheetResult.outputs.envelope.spreadsheet?.artifactType).toBe('spreadsheet');
-    expect(projectResult.outputs.envelope.project?.artifactType).toBe('project');
+    expect(documentRun.artifactRunPlan.workQueue[0]?.kind).toBe('document-shell');
+    expect(presentationRun.artifactRunPlan.workQueue.map((part) => part.kind)).toEqual(['slide', 'slide']);
+    expect(spreadsheetRun.artifactRunPlan.workQueue[0]?.kind).toBe('workbook-action');
+    expect([documentRun, presentationRun, spreadsheetRun].every((run) => run.serializableSpec === undefined)).toBe(true);
   });
 });

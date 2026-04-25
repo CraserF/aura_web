@@ -5,12 +5,11 @@ import type { MemoryContextBuildResult, MemoryContextDetailMode } from '@/servic
 
 import { resolveIntent } from '@/services/ai/intent/resolveIntent';
 import { assembleContext } from '@/services/context/assemble';
-import { buildSerializableRunSpec } from '@/services/executionSpec/build';
 import { loadContextPolicy } from '@/services/projectRules/load';
 import { resolveProjectRulesSnapshot } from '@/services/projectRules/resolve';
 import type { ExecutionMode, RunRequest } from '@/services/runs/types';
 import type { ContextSelectionState } from '@/services/context/types';
-import { buildArtifactWorkflowPlan } from '@/services/workflowPlanner';
+import { buildArtifactRunPlan } from '@/services/artifactRuntime';
 
 export interface BuildRunRequestInput {
   prompt: string;
@@ -77,8 +76,8 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
     buildMemoryContext,
     selectedPresetId,
     allowClarification = true,
-    mode = 'execute',
   } = input;
+  const mode: ExecutionMode = 'execute';
 
   const initialAssembly = assembleContext({
     prompt,
@@ -135,6 +134,18 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
   });
 
   const runId = crypto.randomUUID();
+  const artifactRunPlan = buildArtifactRunPlan({
+    runId,
+    prompt,
+    artifactType: intent.artifactType,
+    operation: intent.operation,
+    activeDocument,
+    mode,
+    providerId: providerConfig.id,
+    providerModel: providerConfig.model,
+    editStrategyHint: intent.editStrategyHint,
+    allowFullRegeneration: intent.allowFullRegeneration,
+  });
 
   const runRequest: RunRequest = {
       runId,
@@ -148,27 +159,11 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
       selectedPresetId,
       appliedPreset: projectRulesSnapshot.appliedPreset,
       projectSnapshot: buildProjectSnapshot(project),
-      workflowPlan: buildArtifactWorkflowPlan({
-        prompt,
-        artifactType: intent.artifactType,
-        operation: intent.operation,
-        activeDocument,
-        mode,
-        providerId: providerConfig.id,
-        providerModel: providerConfig.model,
-        editStrategyHint: intent.editStrategyHint,
-        allowFullRegeneration: intent.allowFullRegeneration,
-      }),
+      artifactRunPlan,
+      workflowPlan: artifactRunPlan.workflow,
       mode,
       createdAt: Date.now(),
     };
-
-  runRequest.serializableSpec = buildSerializableRunSpec({
-    runRequest,
-    messageScope: intent.projectOperation ? 'project' : assembledWithPolicy.messageScope,
-    scopedDocumentId: intent.projectOperation ? undefined : assembledWithPolicy.scopedDocumentId,
-    mode,
-  });
 
   return {
     runRequest,

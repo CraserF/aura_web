@@ -140,7 +140,7 @@ describe('buildArtifactWorkflowPlan', () => {
     expect(plan.templateGuidance.designConstraints.some((constraint) => constraint.includes('1-3 major layout zones'))).toBe(true);
   });
 
-  it('marks explain and dry-run flows as explain-style workflow plans', () => {
+  it('keeps planner output execution-oriented even if a legacy non-execute mode is requested', () => {
     const plan = buildArtifactWorkflowPlan({
       prompt: 'Explain what would change if you rewrote this document as an executive brief',
       artifactType: 'document',
@@ -152,8 +152,9 @@ describe('buildArtifactWorkflowPlan', () => {
       allowFullRegeneration: true,
     });
 
-    expect(plan.requestKind).toBe('explain');
+    expect(plan.requestKind).toBe('rewrite');
     expect(plan.queueMode).toBe('none');
+    expect(plan.templateGuidance.intentFamily).toBe('rewrite');
   });
 
   it('selects a proposal-light family for strategy proposal documents', () => {

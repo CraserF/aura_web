@@ -11,7 +11,7 @@ export interface WorkflowBenchmarkCaseDefinition {
     | 'structural-rewrite'
     | 'queued-work'
     | 'validation-export'
-    | 'explain-dry-run';
+    | 'runtime-plan';
   fixturePrompt: string;
   expectedFocus: string;
 }
@@ -146,11 +146,11 @@ export const WORKFLOW_BENCHMARK_CASES: WorkflowBenchmarkCaseDefinition[] = [
     expectedFocus: 'Deterministic formula and query handling.',
   },
   {
-    id: 'spreadsheet-explain-dry-run',
+    id: 'spreadsheet-runtime-plan',
     artifactType: 'spreadsheet',
-    title: 'Spreadsheet explain/dry-run',
-    caseFamily: 'explain-dry-run',
-    fixturePrompt: 'Explain and dry-run a spreadsheet update without mutating the workbook.',
-    expectedFocus: 'Correct non-mutating behavior and target reporting.',
+    title: 'Spreadsheet runtime plan',
+    caseFamily: 'runtime-plan',
+    fixturePrompt: 'Plan a spreadsheet update with explicit formula, query, chart, and validation parts.',
+    expectedFocus: 'Low-token deterministic runtime planning and target reporting.',
   },
 ];

@@ -19,6 +19,10 @@ import { buildTemplateExamplesSection } from './sections/template-examples';
 import { buildModernPatternsSection } from './sections/modern-patterns';
 import { buildChartGuidanceSection } from './sections/charts';
 import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
+import {
+  buildCoreArtifactContractPack,
+  buildPresentationFragmentContractPack,
+} from '@/services/artifactRuntime/promptPacks';
 
 export class PromptComposer {
   private sections: string[] = [];
@@ -233,6 +237,8 @@ Requirements:
 
   return composer
     .addTemplateExamples(templateExamplesSection)
+    .addCustom(buildCoreArtifactContractPack())
+    .addCustom(buildPresentationFragmentContractPack(guidanceProfile))
     .addCustom(buildMobileStageSection())
     .addCustom(buildGuidanceProfileSection(guidanceProfile))
     .addCustom(projectRulesBlock ?? '')
@@ -287,6 +293,8 @@ export function buildEditDesignerPrompt(
     .addAnimation(animLevel)
     .addSvg()
     .addCharts()
+    .addCustom(buildCoreArtifactContractPack())
+    .addCustom(buildPresentationFragmentContractPack(guidanceProfile))
     .addCustom(buildCondensedAntiPatterns())
     .addCustom(buildMobileStageSection())
     .addCustom(buildGuidanceProfileSection(guidanceProfile))

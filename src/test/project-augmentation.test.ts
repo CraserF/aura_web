@@ -5,6 +5,7 @@ vi.mock('@/services/storage/versionHistory', () => ({
 }));
 
 import { handleProjectWorkflow } from '@/services/ai/workflow/project';
+import { buildArtifactRunPlan } from '@/services/artifactRuntime';
 import { clearRunEvents, listRunEvents } from '@/services/events/eventBus';
 import { useProjectStore } from '@/stores/projectStore';
 import type { RunRequest } from '@/services/runs/types';
@@ -48,6 +49,19 @@ function makeRunRequest(
     runId: string;
   },
 ): RunRequest {
+  const artifactRunPlan = overrides.artifactRunPlan ?? buildArtifactRunPlan({
+    runId: overrides.runId,
+    prompt: overrides.context?.conversation.prompt ?? 'Project workflow',
+    artifactType: overrides.intent.artifactType,
+    operation: overrides.intent.operation,
+    activeDocument: overrides.activeArtifacts?.activeDocument ?? null,
+    mode: overrides.mode ?? 'execute',
+    providerId: overrides.providerConfig?.id ?? 'openai',
+    providerModel: overrides.providerConfig?.model,
+    editStrategyHint: overrides.intent.editStrategyHint,
+    allowFullRegeneration: overrides.intent.allowFullRegeneration,
+  });
+
   return {
     runId: overrides.runId,
     intent: overrides.intent,
@@ -124,6 +138,8 @@ function makeRunRequest(
         { document: 0, presentation: 0, spreadsheet: 0 },
       ),
     },
+    artifactRunPlan,
+    workflowPlan: overrides.workflowPlan ?? artifactRunPlan.workflow,
     mode: overrides.mode ?? 'execute',
     createdAt: overrides.createdAt ?? 1,
   };

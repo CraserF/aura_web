@@ -4,6 +4,7 @@
  */
 import type { AIMessage, ProviderEntry } from '../types';
 import type { EditStrategy, EditingTelemetry, ResolvedTarget } from '@/services/editing/types';
+import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
 import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
 
 export type { AIMessage };
@@ -40,6 +41,7 @@ export interface PresentationInput {
   chatHistory: AIMessage[];
   memoryContext?: string;
   projectRulesBlock?: string;
+  artifactRunPlan?: ArtifactRunPlan;
   templateGuidance?: TemplateGuidanceProfile;
   editing?: {
     resolvedTargets: ResolvedTarget[];

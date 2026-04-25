@@ -62,7 +62,6 @@ describe('buildRunRequest', () => {
         trimmedMemories: [],
         items: [],
       }),
-      mode: 'dry-run',
     });
 
     expect(result.messageScope).toBe('document');
@@ -81,15 +80,14 @@ describe('buildRunRequest', () => {
     expect(result.runRequest.projectSnapshot.activeDocumentId).toBe('doc-1');
     expect(result.runRequest.projectSnapshot.linkedReferenceCount).toBe(0);
     expect(result.runRequest.projectSnapshot.artifactCountsByType.document).toBe(1);
+    expect(result.runRequest.artifactRunPlan.version).toBe(1);
+    expect(result.runRequest.artifactRunPlan.workflow).toBe(result.runRequest.workflowPlan);
+    expect(result.runRequest.artifactRunPlan.roles).toContain('design-director');
     expect(result.runRequest.workflowPlan?.artifactType).toBe('document');
-    expect(result.runRequest.workflowPlan?.requestKind).toBe('explain');
-    expect(result.runRequest.workflowPlan?.templateGuidance.intentFamily).toBe('explain');
-    expect(result.runRequest.mode).toBe('dry-run');
-    expect(result.runRequest.serializableSpec?.mode).toBe('dry-run');
-    expect(result.runRequest.serializableSpec?.providerRef.hasApiKey).toBe(true);
-    expect(result.runRequest.serializableSpec?.providerRef).not.toHaveProperty('apiKey');
-    expect(result.runRequest.serializableSpec?.targeting.targetDocumentId).toBe('doc-1');
-    expect(result.runRequest.serializableSpec?.contextSnapshot.sources.length).toBeGreaterThan(0);
+    expect(result.runRequest.workflowPlan?.requestKind).toBe('edit');
+    expect(result.runRequest.workflowPlan?.templateGuidance.intentFamily).toBe('edit');
+    expect(result.runRequest.mode).toBe('execute');
+    expect(result.runRequest.serializableSpec).toBeUndefined();
   });
 
   it('routes explicit cross-artifact create prompts away from the active presentation', async () => {

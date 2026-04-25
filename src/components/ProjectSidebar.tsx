@@ -511,7 +511,7 @@ export function ProjectSidebar({
         <div className="space-y-2 border-t border-border px-3 py-2">
           <div className="flex gap-2">
             <Button variant="outline" size="sm" className="h-7 flex-1 text-[11px]" onClick={onOpenProjectRules}>
-              Project Rules
+              Project Style
             </Button>
             <Button variant="outline" size="sm" className="h-7 flex-1 text-[11px]" onClick={onOpenDoctor}>
               Doctor

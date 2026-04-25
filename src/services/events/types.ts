@@ -1,11 +1,10 @@
 export type RunEventType =
   | 'run.started'
-  | 'run.spec-built'
+  | 'run.plan-built'
   | 'run.context-assembled'
   | 'run.intent-resolved'
   | 'run.blocked'
   | 'run.generating'
-  | 'run.explained'
   | 'run.policy-applied'
   | 'run.completed'
   | 'run.failed'

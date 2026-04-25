@@ -18,7 +18,7 @@ describe('workflow benchmark cases', () => {
     expect(families.has('structural-rewrite')).toBe(true);
     expect(families.has('queued-work')).toBe(true);
     expect(families.has('validation-export')).toBe(true);
-    expect(families.has('explain-dry-run')).toBe(true);
+    expect(families.has('runtime-plan')).toBe(true);
   });
 
   it('includes the new reference-led visual benchmark cases for polished presentations and documents', () => {

@@ -92,16 +92,16 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
 
   workflowStepsRef.current = isEditFlow
     ? [
-        { id: 'plan', label: 'Plan', status: 'pending' },
-        { id: 'targeted-design', label: 'Design', status: 'pending' },
-        { id: 'evaluate', label: 'Evaluate', status: 'pending' },
-        { id: 'finalize', label: 'Finalize', status: 'pending' },
+        { id: 'plan', label: 'Planning', status: 'pending' },
+        { id: 'targeted-design', label: 'Creating slides', status: 'pending' },
+        { id: 'evaluate', label: 'Checking quality', status: 'pending' },
+        { id: 'finalize', label: 'Finishing', status: 'pending' },
       ]
     : [
-        { id: 'plan', label: 'Plan', status: 'pending' },
-        { id: 'design', label: 'Design', status: 'pending' },
-        { id: 'evaluate', label: 'Evaluate', status: 'pending' },
-        { id: 'finalize', label: 'Finalize', status: 'pending' },
+        { id: 'plan', label: 'Planning', status: 'pending' },
+        { id: 'design', label: 'Creating slides', status: 'pending' },
+        { id: 'evaluate', label: 'Checking quality', status: 'pending' },
+        { id: 'finalize', label: 'Finishing', status: 'pending' },
       ];
 
   setStatus({
@@ -179,6 +179,7 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         chatHistory,
         memoryContext,
         projectRulesBlock: runRequest.projectRulesSnapshot.promptBlock || undefined,
+        artifactRunPlan: runRequest.artifactRunPlan,
         templateGuidance: runRequest.workflowPlan?.templateGuidance,
         ...(isEditFlow ? {
           editing: {
@@ -206,7 +207,7 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
       ? `Generated presentation "${result.title}" with ${result.slideCount} slides.`
       : `Generated presentation with ${result.slideCount} slides.`;
     let changedDocumentId = activeDocument?.id;
-    let changeAction: 'created' | 'updated' = activeDocument?.type === 'presentation' ? 'updated' : 'created';
+    const changeAction: 'created' | 'updated' = activeDocument?.type === 'presentation' ? 'updated' : 'created';
 
     if (result.html) {
       if (activeDocument?.type === 'presentation') {

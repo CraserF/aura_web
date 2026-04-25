@@ -20,6 +20,59 @@ interface ProjectRulesPanelProps {
 }
 
 const ARTIFACT_TYPES = ['document', 'presentation', 'spreadsheet'] as const;
+const STYLE_BLOCK_START = '<!-- aura:project-style:start -->';
+const STYLE_BLOCK_END = '<!-- aura:project-style:end -->';
+
+const DEFAULT_AUDIENCE = 'Leadership';
+const DEFAULT_TONE = 'Executive';
+const DEFAULT_VISUAL_STYLE = 'Polished light';
+const DEFAULT_QUALITY_SPEED = 'Best quality';
+const DEFAULT_SOURCE_USAGE = 'Use relevant sources automatically';
+
+const AUDIENCE_OPTIONS = [DEFAULT_AUDIENCE, 'Clients', 'Internal team', 'Students', 'General audience'];
+const TONE_OPTIONS = [DEFAULT_TONE, 'Editorial', 'Persuasive', 'Teaching', 'Operational'];
+const VISUAL_STYLE_OPTIONS = [DEFAULT_VISUAL_STYLE, 'Launch energy', 'Editorial grid', 'Research clean', 'Data story'];
+const QUALITY_SPEED_OPTIONS = [DEFAULT_QUALITY_SPEED, 'Balanced', 'Fast draft'];
+const SOURCE_USAGE_OPTIONS = [DEFAULT_SOURCE_USAGE, 'Prefer attached sources', 'Use only selected sources'];
+
+function stripGuidedStyleBlock(markdown: string): string {
+  const startIndex = markdown.indexOf(STYLE_BLOCK_START);
+  const endIndex = markdown.indexOf(STYLE_BLOCK_END);
+  if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) return markdown;
+  return `${markdown.slice(0, startIndex)}${markdown.slice(endIndex + STYLE_BLOCK_END.length)}`.trim();
+}
+
+function readGuidedField(markdown: string, label: string, fallback: string): string {
+  const match = markdown.match(new RegExp(`- ${label}:\\s*(.+)`));
+  return match?.[1]?.trim() || fallback;
+}
+
+function buildGuidedStyleBlock({
+  audience,
+  tone,
+  visualStyle,
+  qualitySpeed,
+  sourceUsage,
+  note,
+}: {
+  audience: string;
+  tone: string;
+  visualStyle: string;
+  qualitySpeed: string;
+  sourceUsage: string;
+  note: string;
+}): string {
+  return `${STYLE_BLOCK_START}
+## Project Style
+
+- Audience: ${audience}
+- Tone: ${tone}
+- Visual style: ${visualStyle}
+- Quality preference: ${qualitySpeed}
+- Source usage: ${sourceUsage}
+${note.trim() ? `- Extra guidance: ${note.trim()}` : ''}
+${STYLE_BLOCK_END}`;
+}
 
 export function ProjectRulesPanel({
   open,
@@ -28,22 +81,44 @@ export function ProjectRulesPanel({
   onSave,
 }: ProjectRulesPanelProps) {
   const normalizedProject = normalizeProjectData(project);
-  const [markdown, setMarkdown] = useState(normalizedProject.projectRules?.markdown ?? '');
+  const initialMarkdown = normalizedProject.projectRules?.markdown ?? '';
+  const [audience, setAudience] = useState(readGuidedField(initialMarkdown, 'Audience', DEFAULT_AUDIENCE));
+  const [tone, setTone] = useState(readGuidedField(initialMarkdown, 'Tone', DEFAULT_TONE));
+  const [visualStyle, setVisualStyle] = useState(readGuidedField(initialMarkdown, 'Visual style', DEFAULT_VISUAL_STYLE));
+  const [qualitySpeed, setQualitySpeed] = useState(readGuidedField(initialMarkdown, 'Quality preference', DEFAULT_QUALITY_SPEED));
+  const [sourceUsage, setSourceUsage] = useState(readGuidedField(initialMarkdown, 'Source usage', DEFAULT_SOURCE_USAGE));
+  const [styleNote, setStyleNote] = useState(readGuidedField(initialMarkdown, 'Extra guidance', ''));
+  const [markdown, setMarkdown] = useState(stripGuidedStyleBlock(initialMarkdown));
   const [contextPolicy, setContextPolicy] = useState<ContextPolicy>(normalizedProject.contextPolicy!);
   const [workflowPresets, setWorkflowPresets] = useState<WorkflowPresetCollection>(normalizedProject.workflowPresets!);
 
   useEffect(() => {
     if (!open) return;
     const nextProject = normalizeProjectData(project);
-    setMarkdown(nextProject.projectRules?.markdown ?? '');
+    const nextMarkdown = nextProject.projectRules?.markdown ?? '';
+    setAudience(readGuidedField(nextMarkdown, 'Audience', DEFAULT_AUDIENCE));
+    setTone(readGuidedField(nextMarkdown, 'Tone', DEFAULT_TONE));
+    setVisualStyle(readGuidedField(nextMarkdown, 'Visual style', DEFAULT_VISUAL_STYLE));
+    setQualitySpeed(readGuidedField(nextMarkdown, 'Quality preference', DEFAULT_QUALITY_SPEED));
+    setSourceUsage(readGuidedField(nextMarkdown, 'Source usage', DEFAULT_SOURCE_USAGE));
+    setStyleNote(readGuidedField(nextMarkdown, 'Extra guidance', ''));
+    setMarkdown(stripGuidedStyleBlock(nextMarkdown));
     setContextPolicy(nextProject.contextPolicy!);
     setWorkflowPresets(nextProject.workflowPresets!);
   }, [open, project]);
 
   const handleSave = () => {
+    const guidedMarkdown = buildGuidedStyleBlock({
+      audience,
+      tone,
+      visualStyle,
+      qualitySpeed,
+      sourceUsage,
+      note: styleNote,
+    });
     onSave({
       projectRules: {
-        markdown,
+        markdown: [guidedMarkdown, markdown.trim()].filter(Boolean).join('\n\n'),
         updatedAt: Date.now(),
       },
       contextPolicy,
@@ -85,21 +160,54 @@ export function ProjectRulesPanel({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Project Rules</DialogTitle>
+          <DialogTitle>Project Style</DialogTitle>
           <DialogDescription>
-            Define shared markdown rules, context limits, and workflow presets for this project.
+            Choose simple defaults for how Aura writes, designs, and uses sources in this project.
           </DialogDescription>
         </DialogHeader>
 
         <section className="space-y-2">
-          <h3 className="text-sm font-semibold">Rules Markdown</h3>
+          <h3 className="text-sm font-semibold">Guided Defaults</h3>
+          <div className="grid gap-3 md:grid-cols-2">
+            <SelectField label="Audience" value={audience} options={AUDIENCE_OPTIONS} onChange={setAudience} />
+            <SelectField label="Tone" value={tone} options={TONE_OPTIONS} onChange={setTone} />
+            <SelectField label="Visual style" value={visualStyle} options={VISUAL_STYLE_OPTIONS} onChange={setVisualStyle} />
+            <SelectField label="Quality / speed" value={qualitySpeed} options={QUALITY_SPEED_OPTIONS} onChange={setQualitySpeed} />
+            <label className="space-y-1 text-sm md:col-span-2">
+              <span className="font-medium">Source usage</span>
+              <select
+                value={sourceUsage}
+                onChange={(event) => setSourceUsage(event.target.value)}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              >
+                {SOURCE_USAGE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           <textarea
-            value={markdown}
-            onChange={(event) => setMarkdown(event.target.value)}
-            className="min-h-40 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-            placeholder="Add project-wide writing, design, or workflow rules here."
+            value={styleNote}
+            onChange={(event) => setStyleNote(event.target.value)}
+            className="min-h-20 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            placeholder="Optional extra preference, such as preferred terminology, brand voice, or design constraints."
           />
         </section>
+
+        <details className="space-y-3 rounded-md border border-border px-4 py-3">
+          <summary className="cursor-pointer text-sm font-semibold">Advanced</summary>
+
+          <section className="space-y-2 pt-3">
+            <h3 className="text-sm font-semibold">Rules Markdown</h3>
+            <textarea
+              value={markdown}
+              onChange={(event) => setMarkdown(event.target.value)}
+              className="min-h-40 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              placeholder="Optional raw project-wide writing, design, or workflow rules."
+            />
+          </section>
 
         <section className="space-y-3">
           <h3 className="text-sm font-semibold">Context Policy</h3>
@@ -314,15 +422,45 @@ export function ProjectRulesPanel({
             ))}
           </div>
         </section>
+        </details>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>Save project rules</Button>
+          <Button onClick={handleSave}>Save project style</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="space-y-1 text-sm">
+      <span className="font-medium">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+      >
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 

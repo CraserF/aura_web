@@ -9,8 +9,7 @@ export type ArtifactWorkflowRequestKind =
   | 'restyle'
   | 'rewrite'
   | 'batch'
-  | 'queue'
-  | 'explain';
+  | 'queue';
 
 export type WorkflowPreservationIntent = 'content' | 'style' | 'structure' | 'full';
 
