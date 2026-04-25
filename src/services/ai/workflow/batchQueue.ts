@@ -93,7 +93,6 @@ export async function runBatchQueue(opts: BatchQueueOptions): Promise<BatchQueue
       onEvent,
       undefined,
       guidanceProfile,
-      undefined,
       signal,
     );
 

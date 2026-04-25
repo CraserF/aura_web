@@ -130,7 +130,7 @@ describe('provider capabilities', () => {
     expect(profile.secondaryEvaluation).toBe('skip');
     expect(profile.editCorrectionMode).toBe('best-effort');
     expect(profile.maxEditCorrectionSteps).toBe(3);
-    expect(profile.editCorrectionTimeoutMs).toBe(20_000);
+    expect('editCorrectionTimeoutMs' in profile).toBe(false);
     expect(profile.warnings).toEqual([]);
   });
 });

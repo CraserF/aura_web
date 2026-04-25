@@ -86,11 +86,9 @@ export async function runPresentationWorkflow(
     id: llmConfig.providerEntry.id,
     model: llmConfig.model,
   });
-  const streamSoftTimeoutMs = providerProfile.providerId === 'ollama' ? 60_000 : undefined;
   const editCorrectionPolicy = {
     mode: providerProfile.editCorrectionMode,
     maxCorrectionSteps: providerProfile.maxEditCorrectionSteps,
-    ...(providerProfile.editCorrectionTimeoutMs ? { timeoutMs: providerProfile.editCorrectionTimeoutMs } : {}),
   } as const;
   aiDebugLog('workflow', `starting ${isEdit ? 'edit' : 'create'} workflow`, { model: llmConfig.model });
 
@@ -199,7 +197,6 @@ export async function runPresentationWorkflow(
               onEvent,
               input.projectRulesBlock,
               input.templateGuidance,
-              streamSoftTimeoutMs,
               input.editing,
               editCorrectionPolicy,
               signal,
@@ -212,7 +209,6 @@ export async function runPresentationWorkflow(
               onEvent,
               input.projectRulesBlock,
               input.templateGuidance,
-              streamSoftTimeoutMs,
               signal,
             );
       } finally {

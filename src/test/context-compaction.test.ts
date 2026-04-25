@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { assembleContext } from '@/services/context/assemble';
+import { getCompressionBudget } from '@/services/context/compressionBudget';
 import { createDefaultContextSelectionState } from '@/services/context/types';
 import { defaultContextPolicy } from '@/services/projectRules/defaults';
 import type { ChatMessage } from '@/types';
@@ -38,12 +39,16 @@ function makeProject(messages: ChatMessage[], documents: ProjectDocument[]): Pro
 }
 
 describe('context compaction', () => {
+  it('uses a larger global compression budget for generation context', () => {
+    expect(getCompressionBudget()).toBe(12000);
+  });
+
   it('compacts older conversation while keeping recent messages and pinned memory', () => {
     const activeDocument = makeDocument();
     const messages: ChatMessage[] = Array.from({ length: 12 }).map((_, index) => ({
       id: `m${index}`,
       role: index % 2 === 0 ? 'user' : 'assistant',
-      content: `message-${index} ${'detail '.repeat(220)}`,
+      content: `message-${index} ${'detail '.repeat(700)}`,
       timestamp: index,
       documentId: 'doc-1',
       scope: 'document',

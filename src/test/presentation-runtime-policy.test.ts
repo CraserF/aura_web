@@ -1,0 +1,29 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+import {
+  getProviderCapabilityProfile,
+  OLLAMA_BASELINE_MODEL,
+} from '@/services/ai/providerCapabilities';
+
+function readSource(relativePath: string): string {
+  return readFileSync(join(process.cwd(), 'src', relativePath), 'utf8');
+}
+
+describe('presentation runtime policy', () => {
+  it('does not configure internal timeout-driven aborts for Ollama presentation generation', () => {
+    const profile = getProviderCapabilityProfile({
+      id: 'ollama',
+      model: OLLAMA_BASELINE_MODEL,
+    });
+
+    expect('editCorrectionTimeoutMs' in profile).toBe(false);
+
+    const presentationSource = readSource('services/ai/workflow/presentation.ts');
+    const designerSource = readSource('services/ai/workflow/agents/designer.ts');
+
+    expect(presentationSource).not.toMatch(/streamSoftTimeoutMs|60_000/);
+    expect(designerSource).not.toMatch(/softTimeoutMs|Draft stream soft timeout|Edit correction soft timeout/);
+  });
+});

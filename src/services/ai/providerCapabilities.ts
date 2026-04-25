@@ -11,7 +11,6 @@ export interface ProviderCapabilityProfile {
   secondaryEvaluation: 'full' | 'skip';
   editCorrectionMode: 'full' | 'best-effort';
   maxEditCorrectionSteps: number;
-  editCorrectionTimeoutMs?: number;
   recommendedBaselineModel?: string;
   isRecommendedBaseline: boolean;
   notes: string[];
@@ -53,7 +52,6 @@ export function getProviderCapabilityProfile(
     secondaryEvaluation: 'skip',
     editCorrectionMode: 'best-effort',
     maxEditCorrectionSteps: 3,
-    editCorrectionTimeoutMs: 20_000,
     recommendedBaselineModel: OLLAMA_BASELINE_MODEL,
     isRecommendedBaseline,
     notes: [
