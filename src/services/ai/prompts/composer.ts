@@ -5,7 +5,7 @@
  * based on the template, animation level, and generation context.
  */
 import type { ExemplarPackId, TemplateId, TemplatePalette, TemplateBlueprint } from '../templates';
-import { getReferenceStylePack } from '../templates';
+import { buildPresentationDesignSystemPrompt, getReferenceStylePack } from '../templates';
 import { buildBaseSection } from './sections/base';
 import { buildTypographySection } from './sections/typography';
 import { buildLayoutSection } from './sections/layout';
@@ -212,6 +212,7 @@ export async function buildDesignerPrompt(
     .addAnimation(animLevel)
     .addSvg()
     .addCharts()
+    .addCustom(buildPresentationDesignSystemPrompt())
     .addCustom(buildCondensedAntiPatterns())
     .addCustom(`## DECK SYSTEM FOUNDATION
 

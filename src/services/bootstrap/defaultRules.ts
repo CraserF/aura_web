@@ -38,16 +38,26 @@ const STARTER_KIT_CONTEXT_POLICY: Record<string, ContextPolicyOverride> = {
 const STARTER_KIT_WORKFLOW_PRESETS: Record<string, WorkflowPresetCollection> = {
   'executive-briefing': {
     version: 1,
-    presets: [{
-      id: 'executive-doc-default',
-      name: 'Executive Document Default',
-      artifactType: 'document',
-      rulesAppendix: 'Favor concise leadership-ready summaries and explicit recommendation blocks.',
-      documentStylePreset: 'executive',
-      enabled: true,
-    }],
+    presets: [
+      {
+        id: 'executive-doc-default',
+        name: 'Executive Document Default',
+        artifactType: 'document',
+        rulesAppendix: 'Favor concise leadership-ready summaries, stronger hero rhythm, KPI strips, and explicit recommendation blocks.',
+        documentStylePreset: 'executive',
+        enabled: true,
+      },
+      {
+        id: 'executive-presentation-default',
+        name: 'Executive Presentation Default',
+        artifactType: 'presentation',
+        rulesAppendix: 'Use the executive-briefing-light visual family: large readable cover type, premium light surfaces, decision modules, and restrained motion that remains canvas-safe.',
+        enabled: true,
+      },
+    ],
     defaultPresetByArtifact: {
       document: 'executive-doc-default',
+      presentation: 'executive-presentation-default',
     },
   },
   'research-pack': {
@@ -66,16 +76,26 @@ const STARTER_KIT_WORKFLOW_PRESETS: Record<string, WorkflowPresetCollection> = {
   },
   'launch-plan': {
     version: 1,
-    presets: [{
-      id: 'launch-doc-default',
-      name: 'Launch Document Default',
-      artifactType: 'document',
-      rulesAppendix: 'Prefer milestone-driven plans with explicit owners and launch criteria.',
-      documentStylePreset: 'proposal',
-      enabled: true,
-    }],
+    presets: [
+      {
+        id: 'launch-doc-default',
+        name: 'Launch Document Default',
+        artifactType: 'document',
+        rulesAppendix: 'Prefer milestone-driven plans with explicit owners, readiness evidence, and launch criteria.',
+        documentStylePreset: 'proposal',
+        enabled: true,
+      },
+      {
+        id: 'launch-presentation-default',
+        name: 'Launch Presentation Default',
+        artifactType: 'presentation',
+        rulesAppendix: 'Use the launch-narrative-light visual family: energetic split-scene title slides, readiness paths, bold source-size typography, and bounded animation with reduced-motion support.',
+        enabled: true,
+      },
+    ],
     defaultPresetByArtifact: {
       document: 'launch-doc-default',
+      presentation: 'launch-presentation-default',
     },
   },
 };

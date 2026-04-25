@@ -17,8 +17,25 @@ describe('buildArtifactWorkflowPlan', () => {
 
     expect(plan.requestKind).toBe('create');
     expect(plan.presentationRecipeId).toBe('title-opening');
-    expect(plan.templateGuidance.selectedTemplateId).toBe('split-world');
-    expect(plan.templateGuidance.referenceStylePackId).toBe('presentation-title-polished');
+    expect(plan.templateGuidance.selectedTemplateId).toBe('launch-narrative-light');
+    expect(plan.templateGuidance.referenceStylePackId).toBe('presentation-launch-narrative');
+  });
+
+  it('selects the premium executive starter family for leadership briefings', () => {
+    const plan = buildArtifactWorkflowPlan({
+      prompt: 'Create an executive briefing deck for a leadership review with recommendations and priorities.',
+      artifactType: 'presentation',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    expect(plan.presentationRecipeId).toBe('general-polished');
+    expect(plan.templateGuidance.selectedTemplateId).toBe('executive-briefing-light');
+    expect(plan.templateGuidance.referenceStylePackId).toBe('presentation-executive-starter');
   });
 
   it('selects a stage-setting recipe for context slides', () => {

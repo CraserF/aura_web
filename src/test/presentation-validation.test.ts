@@ -69,4 +69,32 @@ describe('presentation validation', () => {
 
     expect(result.warnings.map((issue) => issue.code)).not.toContain('google-fonts');
   });
+
+  it('warns on viewport units, tiny source type, and missing reduced-motion handling', () => {
+    const result = validatePresentationAgainstProfile({
+      document: makePresentation({
+        contentHtml: `
+          <style>
+            .slide-wrap {
+              width: 100vw;
+              font-size: 14px;
+              animation: fadeIn 800ms ease both;
+            }
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+          </style>
+          <section data-background-color="#0f172a">
+            <div class="slide-wrap"><h1>Slide</h1><p>Readable content</p></div>
+          </section>
+        `,
+      }),
+    });
+
+    const warningCodes = result.warnings.map((issue) => issue.code);
+    expect(warningCodes).toContain('viewport-unit-layout');
+    expect(warningCodes).toContain('tiny-essential-text');
+    expect(warningCodes).toContain('reduced-motion');
+  });
 });

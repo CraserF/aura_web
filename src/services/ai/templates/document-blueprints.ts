@@ -29,6 +29,8 @@ const MOBILE_SAFE_COMPOSITION_RULES = [
 const MOBILE_SAFE_COMPONENT_RULES = [
   'Keep media, charts, and figures fluid with max-width: 100%; avoid fixed pixel widths that would clip inside framed mobile viewports.',
   'Keep hero/header bands compact enough that smaller screens still expose meaningful content below the opening block.',
+  'Use readable 16px+ body text, stronger module headings, and enough spacing that cards do not feel like compressed memo blocks.',
+  'Prefer proof strips, comparison bands, progress rails, and KPI modules over long uninterrupted prose.',
 ];
 
 const DOCUMENT_BLUEPRINTS: Record<DocumentBlueprintId, DocumentBlueprint> = {
@@ -52,7 +54,7 @@ const DOCUMENT_BLUEPRINTS: Record<DocumentBlueprintId, DocumentBlueprint> = {
       ...MOBILE_SAFE_COMPONENT_RULES,
     ],
     recommendedModules: ['doc-meta-grid', 'doc-kpi-grid', 'doc-callout', 'doc-proof-strip'],
-    exampleHtml: `<header class="doc-header"><div class="doc-eyebrow">Executive Brief</div><div class="doc-title-row"><h1>Market Expansion Snapshot</h1><span class="doc-status-badge status-review">REVIEW</span></div><p class="doc-lead">A concise view of the current opportunity, the key constraint, and the recommended next move.</p></header><section class="doc-proof-strip"><strong>Recommendation</strong><p>Prioritize the UK launch path first to shorten compliance time and preserve margin.</p></section>`,
+    exampleHtml: `<header class="doc-header"><div class="doc-eyebrow">Executive Brief</div><div class="doc-title-row"><h1>Decision Snapshot</h1><span class="doc-status-badge status-review">REVIEW</span></div><p class="doc-lead">A concise view of the current opportunity, the key constraint, and the recommended next move.</p></header><section class="doc-proof-strip"><strong>Recommendation</strong><p>Prioritize the clearest execution path first to reduce decision drag and preserve momentum.</p></section><div class="doc-kpi-grid"><div class="doc-kpi"><div class="doc-kpi-value">01</div><div class="doc-kpi-label">Decision</div></div><div class="doc-kpi"><div class="doc-kpi-value">03</div><div class="doc-kpi-label">Priorities</div></div><div class="doc-kpi"><div class="doc-kpi-value">1</div><div class="doc-kpi-label">Open risk</div></div></div>`,
   },
   'editorial-report': {
     id: 'editorial-report',
@@ -74,7 +76,7 @@ const DOCUMENT_BLUEPRINTS: Record<DocumentBlueprintId, DocumentBlueprint> = {
       ...MOBILE_SAFE_COMPONENT_RULES,
     ],
     recommendedModules: ['doc-story-grid', 'doc-comparison', 'doc-pullquote', 'doc-infographic-band'],
-    exampleHtml: `<header class="doc-header"><div class="doc-eyebrow">Editorial Report</div><h1 class="doc-title-gradient">Three Signals Reshaping the Category</h1><p class="doc-lead">A narrative-led report with evidence blocks, standout insight, and premium pacing.</p></header><div class="doc-story-grid"><article class="doc-story-card"><div class="doc-kpi-label">Signal 01</div><h3>Demand is consolidating</h3><p>Mid-market buyers are moving toward fewer, more integrated vendors.</p></article><aside class="doc-story-card"><div class="doc-kpi-label">Why it matters</div><p>Positioning and onboarding clarity now matter as much as raw feature count.</p></aside></div>`,
+    exampleHtml: `<header class="doc-header"><div class="doc-eyebrow">Editorial Report</div><h1 class="doc-title-gradient">Three Signals Reshaping the Category</h1><p class="doc-lead">A narrative-led report with evidence blocks, standout insight, and premium pacing.</p></header><div class="doc-story-grid"><article class="doc-story-card"><div class="doc-kpi-label">Signal 01</div><h3>Demand is consolidating</h3><p>Buyers are moving toward fewer, more integrated options.</p></article><aside class="doc-story-card"><div class="doc-kpi-label">Why it matters</div><p>Positioning and onboarding clarity now matter as much as raw feature count.</p></aside></div><section class="doc-proof-strip"><strong>Editorial thesis</strong><p>Use a clear evidence band to turn the narrative into a memorable decision point.</p></section>`,
   },
   'infographic-onepager': {
     id: 'infographic-onepager',

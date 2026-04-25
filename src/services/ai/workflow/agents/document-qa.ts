@@ -57,6 +57,20 @@ export function validateDocument(html: string): DocumentQAResult {
     });
   }
 
+  const readableTextRules = Array.from(styleText.matchAll(/(?:^|})\s*(body|\.doc-shell|\.doc-body|\.doc-content|p|li|td|th)\b[^{]*\{[^}]*font-size\s*:\s*(\d+(?:\.\d+)?)px/gi))
+    .map(([, selector, size]) => ({
+      selector: selector ?? 'text',
+      size: Number.parseFloat(size ?? '0'),
+    }))
+    .filter((entry) => entry.size > 0 && entry.size < 16);
+  if (readableTextRules.length > 0) {
+    violations.push({
+      rule: 'weak-typography-scale',
+      severity: 'warning',
+      detail: `Document body text uses source sizes below 16px (${readableTextRules[0]?.selector}: ${readableTextRules[0]?.size}px).`,
+    });
+  }
+
   const rawText = body.textContent ?? '';
   if (/\*\*[^*\n]+\*\*|\[[^\]]+\]\([^)]+\)|(^|\s)\*[^*\n]+\*(?=\s|[.,;:!?]|$)/m.test(rawText)) {
     violations.push({
@@ -158,6 +172,15 @@ export function validateDocument(html: string): DocumentQAResult {
       rule: 'mobile-grid-density',
       severity: 'warning',
       detail: 'Multi-column grid rules do not show a narrow-screen single-column fallback.',
+    });
+  }
+
+  const hasFixedGridTrack = /grid-template-columns\s*:[^;{}]*(?:\b(?:4[0-9]{2}|[5-9][0-9]{2,}|[1-9][0-9]{3,})px\b|minmax\(\s*(?:3[6-9][0-9]|[4-9][0-9]{2,})px)/i.test(styleText);
+  if (hasFixedGridTrack && !hasSingleColumnFallback) {
+    violations.push({
+      rule: 'fixed-grid-clipping',
+      severity: 'warning',
+      detail: 'Fixed-width grid tracks may clip inside the document iframe unless a narrow-screen fallback collapses the layout.',
     });
   }
 

@@ -8,6 +8,16 @@ interface SelectionPattern {
 
 const SELECTION_PATTERNS: SelectionPattern[] = [
   {
+    templateId: 'executive-briefing-light',
+    patterns: [/\b(executive briefing|leadership review|board narrative|board deck|decision summary|executive deck)\b/i],
+    weight: 13,
+  },
+  {
+    templateId: 'launch-narrative-light',
+    patterns: [/\b(launch plan|launch narrative|go-to-market|gtm|launch deck|kickoff deck|market launch)\b/i],
+    weight: 13,
+  },
+  {
     templateId: 'stage-setting-light',
     patterns: [/\b(setting(?: |-)?the(?: |-)?stage|why it matters|context slide|background slide|problem framing|scene setting)\b/i],
     weight: 11,

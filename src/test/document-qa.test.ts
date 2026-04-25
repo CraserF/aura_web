@@ -86,4 +86,26 @@ describe('validateDocument', () => {
     const result = validateDocument(html);
     expect(result.violations.some((v) => v.rule === 'mobile-media-clipping')).toBe(true);
   });
+
+  it('flags weak body typography below the readable source-size floor', () => {
+    const html = `
+      <style>
+        .doc-shell {
+          --doc-primary:#000;
+          --doc-accent:#111;
+          --doc-text:#111;
+          --doc-bg:#fff;
+          --doc-surface:#f5f5f5;
+        }
+        p { font-size: 14px; line-height: 1.5; }
+      </style>
+      <div class="doc-shell">
+        <h1>Document</h1>
+        <h2>Section</h2>
+        <p>Body text should not render below the readable floor.</p>
+      </div>
+    `;
+    const result = validateDocument(html);
+    expect(result.violations.some((v) => v.rule === 'weak-typography-scale')).toBe(true);
+  });
 });

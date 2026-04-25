@@ -1365,9 +1365,9 @@ function buildDocumentShellVars(theme: DocumentTheme): string {
   color-scheme: light;
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
-  max-width: 920px;
+  max-width: 960px;
   margin: 0 auto;
-  padding: clamp(20px, 3vw, 34px) clamp(18px, 3vw, 28px) clamp(28px, 4vw, 42px);
+  padding: clamp(22px, 3vw, 38px) clamp(20px, 3vw, 32px) clamp(30px, 4vw, 46px);
 }
 .doc-shell * { box-sizing: border-box; }
 .doc-shell .doc-title-row {
@@ -1535,13 +1535,13 @@ function buildDocumentShellVars(theme: DocumentTheme): string {
 }
 
 function extractDocumentStatus(value: string): 'draft' | 'review' | 'final' | 'archived' | undefined {
-  const match = value.match(/(?:\*\*)?status(?:\*\*)?\s*[:\-]\s*(draft|review|final|archived)\b/i);
+  const match = value.match(/(?:\*\*)?status(?:\*\*)?\s*[:-]\s*(draft|review|final|archived)\b/i);
   return match?.[1]?.toLowerCase() as 'draft' | 'review' | 'final' | 'archived' | undefined;
 }
 
 function stripDocumentStatus(value: string): string {
   return value
-    .replace(/^\s*(?:\*\*)?status(?:\*\*)?\s*[:\-]\s*(?:draft|review|final|archived)\s*$/gim, '')
+    .replace(/^\s*(?:\*\*)?status(?:\*\*)?\s*[:-]\s*(?:draft|review|final|archived)\s*$/gim, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -1641,7 +1641,7 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
 .doc-shell .module-card,
 .doc-shell .benefit-item,
 .doc-shell .callout {
-  padding: clamp(16px, 2vw, 24px) clamp(16px, 2.2vw, 26px);
+  padding: clamp(18px, 2vw, 28px) clamp(18px, 2.2vw, 30px);
   border-radius: clamp(14px, 1.5vw, 18px);
   border: 1px solid var(--doc-border);
   background: linear-gradient(180deg, rgba(255,255,255,0.92) 0%, var(--doc-surface) 100%);
@@ -1675,7 +1675,7 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
 }
 .doc-shell h1 {
   margin: 0;
-  font-size: clamp(2rem, 3.3vw, 2.45rem);
+  font-size: clamp(2.25rem, 3.6vw, 2.85rem);
   line-height: 1.04;
   letter-spacing: -0.035em;
   color: var(--doc-text);
@@ -1689,7 +1689,7 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
 }
 .doc-shell h2 {
   margin: 0 0 12px;
-  font-size: clamp(1.25rem, 2vw, 1.5rem);
+  font-size: clamp(1.38rem, 2.15vw, 1.68rem);
   line-height: 1.2;
   letter-spacing: -0.02em;
   color: var(--doc-text);
@@ -1697,14 +1697,14 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
 .doc-shell h3,
 .doc-shell h4 {
   margin: 18px 0 8px;
-  font-size: clamp(1rem, 1.6vw, 1.15rem);
+  font-size: clamp(1.08rem, 1.6vw, 1.22rem);
   line-height: 1.35;
   color: color-mix(in srgb, var(--doc-text) 88%, var(--doc-primary));
 }
 .doc-lead,
 .doc-shell .value-prop {
   margin: 0;
-  font-size: clamp(1rem, 1.5vw, 1.08rem);
+  font-size: clamp(1.04rem, 1.55vw, 1.16rem);
   line-height: 1.75;
   color: var(--doc-muted);
 }
@@ -1717,7 +1717,7 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
 }
 .doc-shell p {
   margin: 0 0 12px;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.72;
   color: var(--doc-text);
   text-wrap: pretty;
@@ -1815,7 +1815,7 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
 }
 .doc-shell .doc-kpi-value {
   margin: 0 0 4px;
-  font-size: clamp(1.35rem, 2.5vw, 1.85rem);
+  font-size: clamp(1.55rem, 2.65vw, 2.05rem);
   line-height: 1;
   font-weight: 800;
   color: var(--doc-primary);
@@ -1833,6 +1833,12 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
   display: grid;
   gap: 12px;
   background: linear-gradient(135deg, color-mix(in srgb, var(--doc-primary) 8%, white) 0%, color-mix(in srgb, var(--doc-accent) 10%, white) 100%);
+}
+@media (min-width: 760px) {
+  .doc-shell .doc-proof-strip {
+    grid-template-columns: minmax(160px, 0.35fr) minmax(0, 1fr);
+    align-items: center;
+  }
 }
 .doc-shell .doc-proof-strip strong,
 .doc-shell .doc-infographic-band strong {
@@ -1865,8 +1871,20 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
   align-items: flex-start;
   gap: 14px;
 }
-@media (max-width: 820px) {
+@media (max-width: 759px) {
+  .doc-shell {
+    padding-inline: clamp(16px, 5vw, 24px);
+  }
   .doc-shell .doc-sidebar-layout {
+    grid-template-columns: 1fr;
+  }
+  .doc-shell .module-grid,
+  .doc-shell .grid-benefits,
+  .doc-shell .stats-grid,
+  .doc-shell .doc-kpi-grid,
+  .doc-shell .doc-story-grid,
+  .doc-shell .doc-comparison,
+  .doc-shell .doc-check-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -2016,7 +2034,7 @@ function consumeStructuredMarkdownModule(lines: string[], startIndex: number): {
   while (timelineIndex < lines.length) {
     const raw = lines[timelineIndex]?.trim() ?? '';
     if (!raw) break;
-    const match = raw.match(/^(?:[-*]\s+)?(?:(?:step|phase|stage|milestone)\s*\d+|q[1-4]|week\s*\d+)\s*[:\-]\s+(.+)$/i);
+    const match = raw.match(/^(?:[-*]\s+)?(?:(?:step|phase|stage|milestone)\s*\d+|q[1-4]|week\s*\d+)\s*[:-]\s+(.+)$/i);
     if (!match) break;
     timelineItems.push(renderInlineMarkdown(match[1] ?? raw));
     timelineIndex += 1;

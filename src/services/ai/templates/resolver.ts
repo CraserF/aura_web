@@ -47,6 +47,8 @@ export interface StyleManifest {
 export type ExemplarPackId =
   | 'default-template'
   | 'title-opening'
+  | 'executive-starter-deck'
+  | 'launch-narrative'
   | 'stage-setting-context'
   | 'finance-grid-light'
   | 'split-world-title'
@@ -70,11 +72,11 @@ export interface TemplatePlan {
 
 const STYLE_DEFAULT_TEMPLATE: Record<TemplateStyle, TemplateId> = {
   keynote: 'keynote',
-  corporate: 'editorial-light',
+  corporate: 'executive-briefing-light',
   tech: 'tech-architecture',
   creative: 'creative-portfolio',
   minimal: 'minimal',
-  pitch: 'pitch-deck',
+  pitch: 'launch-narrative-light',
   editorial: 'editorial-light',
   scifi: 'sci-fi',
   data: 'finance-grid-light',
@@ -87,6 +89,8 @@ const STYLE_DEFAULT_TEMPLATE: Record<TemplateStyle, TemplateId> = {
 };
 
 const TEMPLATE_STYLE_COMPATIBILITY: Partial<Record<TemplateId, TemplateStyle[]>> = {
+  'executive-briefing-light': ['corporate', 'editorial', 'dashboard', 'pitch'],
+  'launch-narrative-light': ['pitch', 'keynote', 'creative', 'corporate'],
   'editorial-light': ['editorial', 'corporate', 'pitch', 'keynote'],
   'finance-grid-light': ['data', 'ocean', 'dashboard', 'corporate'],
   'stage-setting-light': ['corporate', 'editorial', 'ocean', 'minimal'],
@@ -131,7 +135,7 @@ export function resolveTemplatePlan(
 function getRecipeTemplate(recipeHint: PresentationRecipeId): TemplateId | undefined {
   switch (recipeHint) {
     case 'title-opening':
-      return 'split-world';
+      return 'launch-narrative-light';
     case 'stage-setting':
       return 'stage-setting-light';
     case 'editorial-explainer':
@@ -144,9 +148,9 @@ function getRecipeTemplate(recipeHint: PresentationRecipeId): TemplateId | undef
     case 'comparison':
       return 'comparison';
     case 'closing-action':
-      return 'keynote';
+      return 'launch-narrative-light';
     default:
-      return 'editorial-light';
+      return 'executive-briefing-light';
   }
 }
 
@@ -162,7 +166,7 @@ function getExemplarPackId(
 ): ExemplarPackId {
   switch (recipeHint) {
     case 'title-opening':
-      return 'title-opening';
+      return templateId === 'launch-narrative-light' ? 'launch-narrative' : 'title-opening';
     case 'stage-setting':
       return 'stage-setting-context';
     case 'finance-grid':
@@ -222,7 +226,15 @@ function getExemplarPackId(
   }
 
   if (promptMatches(prompt, [/\btitle slide\b/i, /\bhero slide\b/i, /\bcover slide\b/i, /\bopening slide\b/i])) {
-    return 'title-opening';
+    return templateId === 'launch-narrative-light' ? 'launch-narrative' : 'title-opening';
+  }
+
+  if (templateId === 'launch-narrative-light') {
+    return 'launch-narrative';
+  }
+
+  if (templateId === 'executive-briefing-light') {
+    return 'executive-starter-deck';
   }
 
   if (templateId === 'split-world' || templateId === 'keynote' || templateId === 'cinematic') {
@@ -253,6 +265,47 @@ function buildStyleManifest(
   exemplarPackId: ExemplarPackId,
 ): StyleManifest {
   switch (exemplarPackId) {
+    case 'launch-narrative':
+      return {
+        compositionMode: 'hero-scene',
+        backgroundTreatment: 'split-gradient',
+        typographyMood: 'condensed-display',
+        motionLanguage: 'scene-continuous',
+        svgStrategy: 'hybrid-diagrams',
+        density: 'balanced',
+        cardGrammar: 'Use one energetic split-scene title system, then compact launch thesis, readiness, and action modules with large readable type.',
+        accentStrategy: 'Use teal and green accents for seams, chips, pathway nodes, and readiness signals; avoid full-card rainbow fills.',
+        heroPattern: 'Open with a full-stage launch scene, animated seam or pathway, dominant title, short subtitle, and compact support chips.',
+        componentPatterns: [
+          'split or angled title worlds with a central seam',
+          'readiness cards with large step numbers',
+          'short proof stacks with colored accent edges',
+          'CTA/action cards with icon-number blocks',
+        ],
+        exemplarPackId,
+      };
+
+    case 'executive-starter-deck':
+      return {
+        compositionMode: 'editorial-grid',
+        backgroundTreatment: 'light-infographic',
+        typographyMood: 'condensed-display',
+        motionLanguage: 'diagram-micro',
+        svgStrategy: 'inline-diagrams',
+        density: 'balanced',
+        cardGrammar: 'Use premium executive modules: decision summary, evidence strip, metric row, and recommendation cards with enough whitespace for scaled canvas viewing.',
+        accentStrategy: 'Use blue, teal, and one warm caution accent through borders, chips, and SVG strokes only.',
+        heroPattern: 'Open with a decisive title lockup, presenter/date chips, and a structured signal stack rather than a blank hero.',
+        componentPatterns: [
+          'large leadership title lockup',
+          'three-signal decision stack',
+          'scene panel plus insight cards',
+          'metric row plus interpretation strip',
+          'numbered next-step cards',
+        ],
+        exemplarPackId,
+      };
+
     case 'split-world-title':
       return {
         compositionMode: templateId === 'split-world' ? 'split-world' : 'hero-scene',

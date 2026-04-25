@@ -2,6 +2,8 @@ import type { DocumentType } from '@/types/project';
 
 export type ReferenceStylePackId =
   | 'presentation-title-polished'
+  | 'presentation-executive-starter'
+  | 'presentation-launch-narrative'
   | 'presentation-stage-setting'
   | 'presentation-editorial-light'
   | 'presentation-finance-grid-light'
@@ -48,6 +50,60 @@ const REFERENCE_STYLE_PACKS: Record<ReferenceStylePackId, ReferenceStylePack> = 
       'Do not include real company names, geographies, presenter names, or case details.',
     ],
     syntheticExample: `<section data-background-color="#eef7fa"><div class="title-world title-world-left"></div><div class="title-world title-world-right"></div><div class="title-seam"></div><div class="title-lockup"><div class="eyebrow">Opening Frame</div><h1>Two Systems<br><span>Working Together</span></h1><p>Set the narrative with one bridging idea and two supporting domains.</p></div></section>`,
+  },
+  'presentation-executive-starter': {
+    id: 'presentation-executive-starter',
+    artifactType: 'presentation',
+    label: 'Executive Starter Deck',
+    summary: 'A premium light executive system with large type, decision modules, evidence strips, and subtle diagram motion.',
+    typography: [
+      'Use condensed display typography for titles and a clean sans for body copy.',
+      'Keep leadership-facing labels at readable source sizes and avoid tiny metadata.',
+    ],
+    paletteRules: [
+      'Use light blue paper fields with teal, blue, and one warm caution accent.',
+      'Use accents through borders, chips, and diagram strokes rather than saturated panels.',
+    ],
+    layoutRules: [
+      'Use a cover signal stack, scene-plus-insight layout, metric row, and numbered recommendation cards.',
+      'Keep each slide to 1-3 major zones for fixed-stage canvas legibility.',
+    ],
+    motionRules: [
+      'Use line sweeps and node pulses inside diagrams only.',
+      'Keep text and cards stable after reveal.',
+    ],
+    confidentialityRules: [
+      'Use synthetic leadership labels, priorities, and metrics only.',
+      'Do not reuse real presenter names, organizations, sectors, geographies, dates, or amounts.',
+    ],
+    syntheticExample: `<section data-background-color="#eef7fa"><div class="exec-cover"><div class="eyebrow">Executive Briefing</div><h1>Decision Ready</h1><p>Frame the move, evidence, and action in one readable starter deck.</p></div><aside class="signal-stack"><div>Decision</div><div>Evidence</div><div>Action</div></aside></section>`,
+  },
+  'presentation-launch-narrative': {
+    id: 'presentation-launch-narrative',
+    artifactType: 'presentation',
+    label: 'Launch Narrative',
+    summary: 'An energetic but disciplined launch system with split-scene title motion, proof cards, readiness steps, and action cards.',
+    typography: [
+      'Use large condensed titles and short support copy.',
+      'Keep body copy brief enough to remain readable when the stage scales down.',
+    ],
+    paletteRules: [
+      'Use refined light cyan and green fields with a teal seam or pathway motif.',
+      'Reserve violet or secondary accents for one focal cue at a time.',
+    ],
+    layoutRules: [
+      'Use one animated opening scene followed by thesis, readiness, and action modules.',
+      'Avoid dense pitch-deck slides with many small captions.',
+    ],
+    motionRules: [
+      'Use seam glow, path sweeps, and focal pulses for atmosphere.',
+      'Always include reduced-motion fallbacks and keep foreground copy steady.',
+    ],
+    confidentialityRules: [
+      'Use synthetic launch language and generic audience labels only.',
+      'Do not include real brand names, campaign names, locations, dates, or financial details.',
+    ],
+    syntheticExample: `<section data-background-color="#eef8fb"><div class="launch-seam"></div><div class="launch-lockup"><div class="eyebrow">Launch Narrative</div><h1>Make the Move Visible</h1><p>Connect audience, offer, readiness, and action.</p></div></section>`,
   },
   'presentation-stage-setting': {
     id: 'presentation-stage-setting',

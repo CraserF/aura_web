@@ -1,79 +1,299 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{TITLE}} — Finance Grid Light</title>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --bg: #f0f8fc;
-      --surface: #ffffff;
-      --border: rgba(11, 95, 122, 0.12);
-      --primary: #0f90b8;
-      --accent: #129476;
-      --heading: #113447;
-      --body: #486675;
-      --muted: #7096a4;
-      --heading-font: 'Playfair Display', serif;
-      --body-font: 'Source Sans 3', sans-serif;
+<style>
+  :root {
+    --finance-bg: #f0f8fb;
+    --finance-surface: #ffffff;
+    --finance-panel: #e3f1f6;
+    --finance-border: rgba(10, 93, 122, 0.16);
+    --finance-primary: #0f8eb4;
+    --finance-accent: #149873;
+    --finance-warm: #d99028;
+    --finance-ink: #113545;
+    --finance-body: #496a76;
+    --finance-muted: #7393a0;
+    --finance-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  .finance-slide {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 28px;
+    padding: 64px 78px;
+    background:
+      radial-gradient(circle at 12% 18%, rgba(20, 152, 115, 0.16), transparent 28%),
+      linear-gradient(135deg, #f8fcfd 0%, var(--finance-bg) 100%);
+    color: var(--finance-body);
+    font-family: var(--finance-font);
+  }
+
+  .finance-slide::after {
+    content: "";
+    position: absolute;
+    inset: auto 74px 46px 74px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(15, 142, 180, 0.7), rgba(20, 152, 115, 0.7), transparent);
+    animation: financeScan 5.5s ease-in-out infinite;
+  }
+
+  .finance-head {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    gap: 32px;
+    align-items: end;
+    padding-bottom: 22px;
+    border-bottom: 2px solid rgba(15, 142, 180, 0.18);
+  }
+
+  .finance-head h1,
+  .finance-head h2 {
+    max-width: 1160px;
+    margin: 0;
+    color: var(--finance-ink);
+    font-size: 58px;
+    font-weight: 820;
+    letter-spacing: 0;
+    line-height: 1.02;
+  }
+
+  .finance-kicker,
+  .finance-label {
+    margin: 0;
+    color: var(--finance-muted);
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .finance-grid {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1.04fr 0.96fr;
+    gap: 30px;
+    min-height: 0;
+  }
+
+  .finance-model,
+  .finance-metric,
+  .finance-summary,
+  .finance-step {
+    border: 1px solid var(--finance-border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 22px 48px rgba(16, 83, 110, 0.08);
+  }
+
+  .finance-model {
+    padding: 36px 40px;
+    border-left: 7px solid var(--finance-primary);
+  }
+
+  .finance-model h3 {
+    margin: 12px 0 14px;
+    color: var(--finance-ink);
+    font-size: 42px;
+    line-height: 1.08;
+  }
+
+  .finance-model p,
+  .finance-summary p,
+  .finance-step p {
+    margin: 0;
+    color: var(--finance-body);
+    font-size: 24px;
+    line-height: 1.42;
+  }
+
+  .finance-diagram {
+    display: grid;
+    gap: 14px;
+    margin-top: 34px;
+  }
+
+  .finance-bar {
+    height: 24px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(15, 142, 180, 0.18), rgba(15, 142, 180, 0.58));
+  }
+
+  .finance-bar-medium {
+    width: 84%;
+    margin-left: auto;
+    background: linear-gradient(90deg, rgba(20, 152, 115, 0.18), rgba(20, 152, 115, 0.58));
+  }
+
+  .finance-bar-short {
+    width: 68%;
+    margin-left: auto;
+    background: linear-gradient(90deg, rgba(217, 144, 40, 0.18), rgba(217, 144, 40, 0.62));
+  }
+
+  .finance-metric-stack {
+    display: grid;
+    gap: 20px;
+  }
+
+  .finance-metric {
+    display: grid;
+    grid-template-columns: 168px 1fr;
+    gap: 24px;
+    align-items: center;
+    padding: 28px 30px;
+  }
+
+  .finance-value {
+    color: var(--finance-accent);
+    font-size: 72px;
+    font-weight: 850;
+    letter-spacing: 0;
+    line-height: 0.9;
+  }
+
+  .finance-metric h3,
+  .finance-step h3 {
+    margin: 0 0 8px;
+    color: var(--finance-ink);
+    font-size: 28px;
+    line-height: 1.12;
+  }
+
+  .finance-metric p {
+    margin: 0;
+    font-size: 22px;
+    line-height: 1.36;
+  }
+
+  .finance-summary {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 22px;
+    align-items: center;
+    padding: 28px 32px;
+    background: linear-gradient(135deg, #ffffff 0%, var(--finance-panel) 100%);
+    border-left: 7px solid var(--finance-accent);
+  }
+
+  .finance-summary strong {
+    color: var(--finance-ink);
+    font-size: 29px;
+    line-height: 1.1;
+  }
+
+  .finance-path {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px;
+  }
+
+  .finance-step {
+    min-height: 250px;
+    padding: 30px;
+  }
+
+  .finance-step-number {
+    display: inline-grid;
+    width: 52px;
+    height: 52px;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--finance-panel);
+    color: var(--finance-primary);
+    font-size: 22px;
+    font-weight: 850;
+  }
+
+  @keyframes financeScan {
+    0%, 100% { opacity: 0.35; transform: scaleX(0.82); }
+    50% { opacity: 1; transform: scaleX(1); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .finance-slide::after {
+      animation: none;
     }
-    .reveal { font-family: var(--body-font); color: var(--body); font-size: 34px; }
-    .reveal .slides { text-align: left; }
-    .reveal .slides section { padding: 2.8rem 3rem; box-sizing: border-box; }
-    .finance-shell { width: 100%; height: 100%; display: grid; grid-template-rows: auto 1fr auto; gap: 1rem; }
-    .finance-rail { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 2px solid var(--primary); padding-bottom: 0.7rem; }
-    .finance-rail h2 { font-family: var(--heading-font); font-size: 2.15em; margin: 0; color: var(--heading); }
-    .finance-rail .meta { font-size: 0.64em; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
-    .finance-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 1rem; }
-    .finance-card, .metric-card, .summary-strip { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 10px 26px rgba(14, 99, 126, 0.05); }
-    .finance-card, .metric-card { padding: 1.15rem 1.2rem; position: relative; overflow: hidden; }
-    .finance-card { border-left: 5px solid var(--primary); }
-    .metric-card { border-left: 5px solid var(--accent); }
-    .summary-strip { padding: 0.9rem 1.1rem; border-top: 5px solid var(--primary); background: linear-gradient(180deg, #ffffff 0%, #eef7fb 100%); }
-    .card-label { font-size: 0.62em; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-bottom: 0.35rem; }
-    .finance-card h3, .summary-strip h3 { font-family: var(--heading-font); font-size: 1.18em; color: var(--heading); margin: 0 0 0.35rem; }
-    .finance-card p, .summary-strip p { font-size: 0.9em; line-height: 1.56; margin: 0; color: var(--body); }
-    .big-number { font-family: var(--heading-font); font-size: 2.7em; line-height: 0.94; color: var(--accent); margin-bottom: 0.15rem; }
-    .diagram-bars { display: grid; gap: 0.35rem; margin-top: 0.85rem; }
-    .diagram-bars span { display: block; height: 12px; border-radius: 999px; background: linear-gradient(90deg, rgba(15,144,184,0.16), rgba(15,144,184,0.46)); }
-    .diagram-bars span:nth-child(2) { width: 88%; margin-left: auto; }
-    .diagram-bars span:nth-child(3) { width: 74%; margin-left: auto; }
-  </style>
-</head>
-<body>
-  <div class="reveal">
-    <div class="slides">
-      <section data-background-color="#f0f8fc">
-        <div class="finance-shell">
-          <header class="finance-rail">
-            <h2>{{TITLE}}</h2>
-            <div class="meta">Structured mechanism</div>
-          </header>
-          <div class="finance-grid">
-            <article class="finance-card">
-              <div class="card-label">Mechanism</div>
-              <h3>Explain the system inside the layout</h3>
-              <p>{{SUBTITLE}}</p>
-              <div class="diagram-bars">
-                <span style="width:100%"></span>
-                <span></span>
-                <span></span>
-              </div>
-            </article>
-            <aside class="metric-card">
-              <div class="card-label">Key figure</div>
-              <div class="big-number">72%</div>
-              <p>Use one dominant figure and one short interpretation instead of a generic KPI wall.</p>
-            </aside>
-          </div>
-          <section class="summary-strip">
-            <h3>Summary strip</h3>
-            <p>Close the slide with one disciplined synthesis line or tapered stack, not another repeated row of cards.</p>
-          </section>
+  }
+</style>
+
+<section class="finance-slide" data-background-color="#f0f8fb">
+  <header class="finance-head">
+    <div>
+      <p class="finance-kicker">Finance Grid</p>
+      <h1>{{TITLE}}</h1>
+    </div>
+    <p class="finance-label">{{DATE}}</p>
+  </header>
+  <div class="finance-grid">
+    <article class="finance-model">
+      <p class="finance-label">Mechanism</p>
+      <h3>{{MECHANISM_TITLE}}</h3>
+      <p>{{SUBTITLE}}</p>
+      <div class="finance-diagram" aria-hidden="true">
+        <span class="finance-bar"></span>
+        <span class="finance-bar finance-bar-medium"></span>
+        <span class="finance-bar finance-bar-short"></span>
+      </div>
+    </article>
+    <div class="finance-metric-stack">
+      <article class="finance-metric">
+        <div class="finance-value">{{METRIC_1_VALUE}}</div>
+        <div>
+          <h3>{{METRIC_1_TITLE}}</h3>
+          <p>{{METRIC_1_BODY}}</p>
         </div>
-      </section>
+      </article>
+      <article class="finance-metric">
+        <div class="finance-value">{{METRIC_2_VALUE}}</div>
+        <div>
+          <h3>{{METRIC_2_TITLE}}</h3>
+          <p>{{METRIC_2_BODY}}</p>
+        </div>
+      </article>
     </div>
   </div>
-</body>
-</html>
+  <aside class="finance-summary">
+    <strong>{{SUMMARY_TITLE}}</strong>
+    <p>{{SUMMARY_BODY}}</p>
+  </aside>
+</section>
+
+<section class="finance-slide" data-background-color="#f0f8fb">
+  <header class="finance-head">
+    <div>
+      <p class="finance-kicker">Structured Path</p>
+      <h2>{{PATH_TITLE}}</h2>
+    </div>
+  </header>
+  <div class="finance-path">
+    <article class="finance-step">
+      <span class="finance-step-number">1</span>
+      <h3>{{STEP_1_TITLE}}</h3>
+      <p>{{STEP_1_BODY}}</p>
+    </article>
+    <article class="finance-step">
+      <span class="finance-step-number">2</span>
+      <h3>{{STEP_2_TITLE}}</h3>
+      <p>{{STEP_2_BODY}}</p>
+    </article>
+    <article class="finance-step">
+      <span class="finance-step-number">3</span>
+      <h3>{{STEP_3_TITLE}}</h3>
+      <p>{{STEP_3_BODY}}</p>
+    </article>
+  </div>
+  <aside class="finance-summary">
+    <strong>{{PATH_SUMMARY_TITLE}}</strong>
+    <p>{{PATH_SUMMARY_BODY}}</p>
+  </aside>
+</section>

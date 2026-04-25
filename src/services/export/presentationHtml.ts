@@ -15,6 +15,8 @@ export interface PresentationStandaloneHtmlInput {
 export async function exportPresentationStandaloneHtml(input: PresentationStandaloneHtmlInput): Promise<StandaloneArtifactExport> {
   const sanitized = sanitizeSlideHtml(input.document.contentHtml);
   const resolved = resolveStandaloneHtml(sanitized, input.project.media ?? [], 'relative');
+  const hasInlineStyles = /<style[\s>]/i.test(input.document.contentHtml);
+  const legacyCss = hasInlineStyles ? '' : (input.document.themeCss ?? '');
   const head = `
 <style>
   html, body {
@@ -47,7 +49,7 @@ export async function exportPresentationStandaloneHtml(input: PresentationStanda
     box-shadow: 0 24px 80px rgba(15, 23, 42, 0.45);
   }
 </style>
-<style>${input.document.themeCss ?? ''}</style>`.trim();
+${legacyCss ? `<style>${legacyCss}</style>` : ''}`.trim();
 
   return {
     kind: 'presentation-html',

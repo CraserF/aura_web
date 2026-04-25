@@ -1,0 +1,518 @@
+<style>
+  :root {
+    --launch-bg: #eef8fb;
+    --launch-left: #d8eef8;
+    --launch-right: #d8f3e8;
+    --launch-ink: #061b28;
+    --launch-muted: #476778;
+    --launch-primary: #008fb3;
+    --launch-accent: #00a878;
+    --launch-violet: #4b2ca3;
+    --launch-line: #c7e1ea;
+    --launch-paper: #ffffff;
+    --launch-shadow: 0 18px 44px rgba(6, 27, 40, 0.13);
+    --font-display: "Arial Narrow", "Inter Tight", "Aptos Display", system-ui, sans-serif;
+    --font-body: "Aptos", "Inter", system-ui, sans-serif;
+  }
+
+  .launch-slide {
+    position: relative;
+    overflow: hidden;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    padding: 54px 66px;
+    color: var(--launch-ink);
+    font-family: var(--font-body);
+    background:
+      radial-gradient(circle at 12% 18%, rgba(0, 143, 179, 0.16), transparent 30%),
+      radial-gradient(circle at 82% 78%, rgba(0, 168, 120, 0.14), transparent 32%),
+      linear-gradient(135deg, #f7fcfe 0%, var(--launch-bg) 100%);
+  }
+
+  .launch-title-bg {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(115deg, var(--launch-left) 0 49%, transparent 49.2%),
+      linear-gradient(295deg, var(--launch-right) 0 50%, transparent 50.2%),
+      var(--launch-bg);
+  }
+
+  .launch-seam {
+    position: absolute;
+    top: -12%;
+    bottom: -12%;
+    left: 50%;
+    width: 5px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, var(--launch-accent), var(--launch-primary), var(--launch-accent));
+    box-shadow: 0 0 42px rgba(0, 168, 120, 0.38);
+    transform: rotate(13deg);
+    transform-origin: center;
+    animation: seamGlow 2.8s ease-in-out infinite;
+  }
+
+  .launch-field {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.52;
+  }
+
+  .launch-field svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .launch-wave {
+    fill: none;
+    stroke: var(--launch-primary);
+    stroke-width: 3;
+    stroke-dasharray: 18 12;
+    opacity: 0.45;
+    animation: launchDash 4.5s linear infinite;
+  }
+
+  .launch-node {
+    fill: var(--launch-accent);
+    opacity: 0.76;
+    animation: launchNode 2.4s ease-in-out infinite;
+  }
+
+  .launch-content,
+  .launch-grid,
+  .launch-readiness,
+  .launch-action {
+    position: relative;
+    z-index: 1;
+    height: 100%;
+  }
+
+  .launch-content {
+    display: grid;
+    place-items: center;
+    text-align: center;
+  }
+
+  .launch-lockup {
+    width: min(920px, 100%);
+    display: grid;
+    justify-items: center;
+    gap: 18px;
+  }
+
+  .launch-eyebrow,
+  .launch-label,
+  .launch-meta {
+    color: var(--launch-primary);
+    font-size: 17px;
+    font-weight: 850;
+    letter-spacing: 0.18em;
+    line-height: 1.15;
+    text-transform: uppercase;
+  }
+
+  .launch-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 92px;
+    font-weight: 950;
+    letter-spacing: -0.05em;
+    line-height: 0.88;
+    text-transform: uppercase;
+  }
+
+  .launch-title span {
+    color: var(--launch-primary);
+  }
+
+  .launch-subtitle {
+    width: min(760px, 100%);
+    margin: 0;
+    color: var(--launch-muted);
+    font-size: 29px;
+    line-height: 1.32;
+  }
+
+  .launch-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 6px;
+  }
+
+  .launch-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    padding: 9px 15px;
+    border: 1px solid var(--launch-line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.76);
+    color: #155c70;
+    font-size: 17px;
+    font-weight: 780;
+    box-shadow: 0 9px 24px rgba(6, 27, 40, 0.09);
+  }
+
+  .launch-chip::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--launch-accent);
+    animation: chipPulse 2.2s ease-in-out infinite;
+  }
+
+  .launch-grid {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 30px;
+  }
+
+  .launch-header {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 28px;
+    padding-bottom: 18px;
+    border-bottom: 2px solid rgba(0, 143, 179, 0.19);
+  }
+
+  .launch-header h2 {
+    margin: 8px 0 0;
+    font-family: var(--font-display);
+    font-size: 58px;
+    line-height: 0.94;
+    letter-spacing: -0.04em;
+    text-transform: uppercase;
+  }
+
+  .launch-thesis-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    gap: 24px;
+    min-height: 0;
+  }
+
+  .launch-thesis-card,
+  .launch-proof-card,
+  .launch-step-card,
+  .launch-action-card {
+    border: 1px solid var(--launch-line);
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.86);
+    box-shadow: var(--launch-shadow);
+  }
+
+  .launch-thesis-card {
+    display: grid;
+    align-content: center;
+    gap: 18px;
+    padding: 34px;
+  }
+
+  .launch-thesis-card h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 52px;
+    line-height: 0.94;
+    letter-spacing: -0.035em;
+    text-transform: uppercase;
+  }
+
+  .launch-thesis-card p {
+    margin: 0;
+    color: var(--launch-muted);
+    font-size: 26px;
+    line-height: 1.34;
+  }
+
+  .launch-proof-stack {
+    display: grid;
+    gap: 16px;
+    align-content: stretch;
+  }
+
+  .launch-proof-card {
+    position: relative;
+    padding: 24px 26px;
+    overflow: hidden;
+  }
+
+  .launch-proof-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 6px;
+    background: var(--accent, var(--launch-primary));
+  }
+
+  .launch-proof-card h3 {
+    margin: 8px 0 8px;
+    font-size: 31px;
+    line-height: 1.05;
+  }
+
+  .launch-proof-card p {
+    margin: 0;
+    color: var(--launch-muted);
+    font-size: 23px;
+    line-height: 1.3;
+  }
+
+  .accent-primary {
+    --accent: var(--launch-primary);
+  }
+
+  .accent-accent {
+    --accent: var(--launch-accent);
+  }
+
+  .accent-violet {
+    --accent: var(--launch-violet);
+  }
+
+  .launch-readiness {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 24px;
+  }
+
+  .launch-step-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+  }
+
+  .launch-step-card {
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    gap: 12px;
+    padding: 26px 24px;
+  }
+
+  .launch-step-number {
+    display: grid;
+    place-items: center;
+    width: 58px;
+    height: 58px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, var(--launch-primary), var(--launch-accent));
+    color: #ffffff;
+    font-size: 24px;
+    font-weight: 900;
+  }
+
+  .launch-step-card h3 {
+    margin: 0;
+    color: var(--launch-ink);
+    font-size: 32px;
+    line-height: 1.05;
+  }
+
+  .launch-step-card p {
+    margin: 0;
+    color: var(--launch-muted);
+    font-size: 23px;
+    line-height: 1.32;
+  }
+
+  .launch-readiness-strip {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 18px;
+    align-items: center;
+    padding: 21px 24px;
+    border: 1px solid rgba(0, 143, 179, 0.18);
+    border-radius: 22px;
+    background: linear-gradient(90deg, rgba(0, 143, 179, 0.1), rgba(0, 168, 120, 0.13));
+  }
+
+  .launch-readiness-strip strong {
+    color: var(--launch-primary);
+    font-size: 22px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .launch-readiness-strip span {
+    color: var(--launch-ink);
+    font-size: 25px;
+    line-height: 1.25;
+  }
+
+  .launch-action {
+    display: grid;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.1fr);
+    gap: 32px;
+    align-items: center;
+  }
+
+  .launch-action h2 {
+    margin: 12px 0 18px;
+    font-family: var(--font-display);
+    font-size: 72px;
+    line-height: 0.9;
+    letter-spacing: -0.045em;
+    text-transform: uppercase;
+  }
+
+  .launch-action p {
+    margin: 0;
+    color: var(--launch-muted);
+    font-size: 28px;
+    line-height: 1.32;
+  }
+
+  .launch-action-cards {
+    display: grid;
+    gap: 16px;
+  }
+
+  .launch-action-card {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 17px;
+    align-items: start;
+    padding: 22px 24px;
+  }
+
+  .launch-action-icon {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 17px;
+    background: var(--launch-left);
+    color: var(--launch-primary);
+    font-size: 24px;
+    font-weight: 900;
+  }
+
+  .launch-action-card h3 {
+    margin: 0 0 7px;
+    font-size: 29px;
+    line-height: 1.08;
+  }
+
+  .launch-action-card p {
+    margin: 0;
+    font-size: 22px;
+    line-height: 1.32;
+  }
+
+  @keyframes seamGlow {
+    0%, 100% { opacity: 0.58; filter: saturate(1); }
+    50% { opacity: 1; filter: saturate(1.35); }
+  }
+
+  @keyframes launchDash {
+    to { stroke-dashoffset: -72; }
+  }
+
+  @keyframes launchNode {
+    0%, 100% { transform: scale(1); opacity: 0.76; }
+    50% { transform: scale(1.35); opacity: 0.36; }
+  }
+
+  @keyframes chipPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.55); opacity: 0.38; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .launch-slide *,
+    .launch-slide *::before,
+    .launch-slide *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+</style>
+
+<section class="launch-slide" data-background-color="#eef8fb">
+  <div class="launch-title-bg"></div>
+  <div class="launch-seam"></div>
+  <div class="launch-field" aria-hidden="true">
+    <svg viewBox="0 0 1280 720" role="img" aria-label="Synthetic launch motion field">
+      <path class="launch-wave" d="M40 490 C180 430 260 460 400 408 S640 330 820 382 1090 438 1230 316" />
+      <path class="launch-wave" d="M60 560 C220 504 330 542 485 490 S725 390 910 446 1110 496 1240 410" />
+      <circle class="launch-node" cx="405" cy="408" r="8" />
+      <circle class="launch-node" cx="820" cy="382" r="8" />
+      <circle class="launch-node" cx="1088" cy="438" r="8" />
+    </svg>
+  </div>
+  <div class="launch-content">
+    <div class="launch-lockup">
+      <div class="launch-eyebrow">{{STAGE}} Launch Narrative</div>
+      <h1 class="launch-title">{{TITLE}}</h1>
+      <p class="launch-subtitle">{{ONE_LINE_DESCRIPTION}}</p>
+      <div class="launch-chip-row">
+        <span class="launch-chip">{{DATE}}</span>
+        <span class="launch-chip">{{PRESENTER}}</span>
+        <span class="launch-chip">Go-to-market focus</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="launch-slide" data-background-color="#eef8fb">
+  <div class="launch-grid">
+    <header class="launch-header">
+      <div>
+        <div class="launch-eyebrow">Launch Thesis</div>
+        <h2>{{THESIS_TITLE}}</h2>
+      </div>
+      <div class="launch-meta">{{STAGE}}</div>
+    </header>
+    <div class="launch-thesis-layout">
+      <article class="launch-thesis-card">
+        <div class="launch-label">Core move</div>
+        <h3>{{THESIS_HEADLINE}}</h3>
+        <p>{{THESIS_BODY}}</p>
+      </article>
+      <div class="launch-proof-stack">
+        <article class="launch-proof-card accent-primary"><div class="launch-label">Audience</div><h3>{{PROOF_1_TITLE}}</h3><p>{{PROOF_1_BODY}}</p></article>
+        <article class="launch-proof-card accent-accent"><div class="launch-label">Offer</div><h3>{{PROOF_2_TITLE}}</h3><p>{{PROOF_2_BODY}}</p></article>
+        <article class="launch-proof-card accent-violet"><div class="launch-label">Signal</div><h3>{{PROOF_3_TITLE}}</h3><p>{{PROOF_3_BODY}}</p></article>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="launch-slide" data-background-color="#eef8fb">
+  <div class="launch-readiness">
+    <header class="launch-header">
+      <div>
+        <div class="launch-eyebrow">Readiness Path</div>
+        <h2>{{READINESS_TITLE}}</h2>
+      </div>
+      <div class="launch-meta">{{DATE}}</div>
+    </header>
+    <div class="launch-step-row">
+      <article class="launch-step-card"><div class="launch-step-number">01</div><h3>{{STEP_1_TITLE}}</h3><p>{{STEP_1_BODY}}</p></article>
+      <article class="launch-step-card"><div class="launch-step-number">02</div><h3>{{STEP_2_TITLE}}</h3><p>{{STEP_2_BODY}}</p></article>
+      <article class="launch-step-card"><div class="launch-step-number">03</div><h3>{{STEP_3_TITLE}}</h3><p>{{STEP_3_BODY}}</p></article>
+    </div>
+    <div class="launch-readiness-strip"><strong>Launch filter</strong><span>{{READINESS_SUMMARY}}</span></div>
+  </div>
+</section>
+
+<section class="launch-slide" data-background-color="#eef8fb">
+  <div class="launch-action">
+    <div>
+      <div class="launch-eyebrow">Next Action</div>
+      <h2>{{ACTION_TITLE}}</h2>
+      <p>{{ACTION_BODY}}</p>
+    </div>
+    <div class="launch-action-cards">
+      <article class="launch-action-card"><div class="launch-action-icon">1</div><div><h3>{{ACTION_1_TITLE}}</h3><p>{{ACTION_1_BODY}}</p></div></article>
+      <article class="launch-action-card"><div class="launch-action-icon">2</div><div><h3>{{ACTION_2_TITLE}}</h3><p>{{ACTION_2_BODY}}</p></div></article>
+      <article class="launch-action-card"><div class="launch-action-icon">3</div><div><h3>{{ACTION_3_TITLE}}</h3><p>{{ACTION_3_BODY}}</p></div></article>
+    </div>
+  </div>
+</section>

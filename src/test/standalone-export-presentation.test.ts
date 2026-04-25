@@ -53,4 +53,18 @@ describe('presentation standalone export', () => {
     expect(artifact.html).toContain('src="media/hero.png"');
     expect(artifact.html).toContain('.reveal section { background: #123456; }');
   });
+
+  it('does not inject legacy themeCss when contentHtml already contains inline styles', async () => {
+    const document = makePresentation({
+      contentHtml: '<style>.inline-theme { color: red; }</style><section><h1>Roadmap</h1></section>',
+      themeCss: '.legacy-theme { color: blue; }',
+    });
+    const artifact = await (await import('@/services/export/presentationHtml')).exportPresentationStandaloneHtml({
+      project: makeProject(document),
+      document,
+    });
+
+    expect(artifact.html).toContain('.inline-theme');
+    expect(artifact.html).not.toContain('.legacy-theme');
+  });
 });

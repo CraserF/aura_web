@@ -1,768 +1,336 @@
-<!doctype html>
-<!--
-  INTERACTIVE QUIZ TEMPLATE — Neon Arena
-  Purpose: Quizzes, trivia, gamified learning, audience engagement, training assessments
-  Animation Level: 3 (Heavy — anim-fade-up, anim-scale-in, anim-stagger, pulse, float)
-  Design: Game show style with vibrant gradients, glowing cards, and playful energy
+<style>
+  :root {
+    --quiz-bg: #101827;
+    --quiz-panel: #152235;
+    --quiz-card: rgba(255, 255, 255, 0.08);
+    --quiz-border: rgba(255, 255, 255, 0.16);
+    --quiz-primary: #36c2d7;
+    --quiz-accent: #ffb547;
+    --quiz-green: #3fd489;
+    --quiz-ink: #f8fbff;
+    --quiz-body: rgba(248, 251, 255, 0.78);
+    --quiz-muted: rgba(248, 251, 255, 0.58);
+    --quiz-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
 
-  Palette: Neon Arena
-  - Background: #0a0a1a (near-black with blue tint)
-  - Primary: #7c3aed (electric purple)
-  - Accent: #06b6d4 (cyan)
-  - Heading: #f1f5f9
-  - Body: rgba(241, 245, 249, 0.70)
-  - Muted: rgba(241, 245, 249, 0.40)
-  - Correct: #22c55e (green)
-  - Wrong: #ef4444 (red)
+  .quiz-slide {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 40px;
+    padding: 68px 82px;
+    background:
+      radial-gradient(circle at 74% 18%, rgba(54, 194, 215, 0.24), transparent 26%),
+      radial-gradient(circle at 18% 80%, rgba(255, 181, 71, 0.16), transparent 28%),
+      var(--quiz-bg);
+    color: var(--quiz-body);
+    font-family: var(--quiz-font);
+  }
 
-  CUSTOMIZATION POINTS (search for "CUSTOMIZE"):
-  - {{TITLE}}           Quiz title
-  - {{SUBTITLE}}        Quiz subtitle or tagline
-  - {{TOPIC}}           Topic or category label
-  - {{QUESTION_*}}      Question text
-  - {{OPTION_*}}        Answer option text
-  - {{CORRECT_*}}       Correct answer data
-  - {{SCORE_*}}         Score/result values
-  - {{CTA_*}}           Call-to-action content
--->
-<html lang="en">
+  .quiz-orb {
+    position: absolute;
+    width: 330px;
+    height: 330px;
+    border: 2px solid rgba(54, 194, 215, 0.22);
+    border-radius: 999px;
+    right: 120px;
+    top: 118px;
+    animation: quizOrbit 8s linear infinite;
+  }
 
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><!-- CUSTOMIZE --> {{TITLE}} — Quiz</title>
+  .quiz-orb::before,
+  .quiz-orb::after {
+    content: "";
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: var(--quiz-primary);
+    box-shadow: 0 0 32px rgba(54, 194, 215, 0.5);
+  }
 
-  <!-- Typography: Space Grotesk + Inter -->
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  .quiz-orb::before {
+    top: 36px;
+    left: 52px;
+  }
 
-  <style>
-    /* =============================================
-       NEON ARENA — CSS Custom Properties
-       ============================================= */
-    :root {
-      --primary: #7c3aed;
-      --primary-glow: rgba(124, 58, 237, 0.25);
-      --accent: #06b6d4;
-      --accent-glow: rgba(6, 182, 212, 0.25);
-      --correct: #22c55e;
-      --correct-glow: rgba(34, 197, 94, 0.25);
-      --wrong: #ef4444;
-      --bg-primary: #0a0a1a;
-      --bg-card: rgba(124, 58, 237, 0.06);
-      --bg-card-hover: rgba(124, 58, 237, 0.12);
-      --surface: rgba(241, 245, 249, 0.04);
-      --border: rgba(241, 245, 249, 0.08);
-      --border-primary: rgba(124, 58, 237, 0.30);
-      --border-accent: rgba(6, 182, 212, 0.30);
-      --text-primary: #f1f5f9;
-      --text-secondary: rgba(241, 245, 249, 0.70);
-      --text-muted: rgba(241, 245, 249, 0.40);
-      --font-heading: 'Space Grotesk', sans-serif;
-      --font-body: 'Inter', sans-serif;
-    }
+  .quiz-orb::after {
+    right: 44px;
+    bottom: 46px;
+    background: var(--quiz-accent);
+    box-shadow: 0 0 32px rgba(255, 181, 71, 0.42);
+  }
 
-    /* =============================================
-       BASE STYLES
-       ============================================= */
-    .reveal {
-      font-family: var(--font-body);
-      color: var(--text-secondary);
-      font-size: 36px;
-    }
+  .quiz-header {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    gap: 28px;
+    align-items: center;
+  }
 
-    .reveal .slides {
-      text-align: left;
-    }
+  .quiz-tag,
+  .quiz-label,
+  .quiz-progress {
+    color: var(--quiz-muted);
+    font-size: 17px;
+    font-weight: 850;
+    letter-spacing: 0.14em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
 
-    .reveal .slides section {
-      padding: 4rem 5rem;
-      box-sizing: border-box;
-    }
+  .quiz-progress {
+    padding: 14px 18px;
+    border: 1px solid var(--quiz-border);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
+  }
 
-    .reveal h1,
-    .reveal h2,
-    .reveal h3,
-    .reveal h4 {
-      font-family: var(--font-heading);
-      color: var(--text-primary);
-      font-weight: 700;
-      text-transform: none;
-      letter-spacing: -0.02em;
-      line-height: 1.15;
-      margin: 0;
-    }
+  .quiz-title {
+    position: relative;
+    z-index: 1;
+    max-width: 1120px;
+    margin: 0;
+    color: var(--quiz-ink);
+    font-size: 88px;
+    font-weight: 880;
+    letter-spacing: 0;
+    line-height: 0.98;
+  }
 
-    .reveal p {
-      margin: 0;
-      line-height: 1.6;
-      font-size: 1.1em;
-    }
+  .quiz-subtitle {
+    position: relative;
+    z-index: 1;
+    max-width: 840px;
+    margin: 24px 0 0;
+    color: var(--quiz-body);
+    font-size: 29px;
+    line-height: 1.38;
+  }
 
-    /* =============================================
-       HERO / COVER
-       ============================================= */
-    .quiz-hero-title {
-      font-size: 4.5em;
-      font-weight: 700;
-      line-height: 1.05;
-      letter-spacing: -0.03em;
-      background: linear-gradient(135deg, #f1f5f9 20%, #7c3aed 50%, #06b6d4 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
+  .quiz-cta {
+    position: relative;
+    z-index: 1;
+    justify-self: start;
+    align-self: end;
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 30px;
+    border: 1px solid rgba(54, 194, 215, 0.4);
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(54, 194, 215, 0.2), rgba(255, 181, 71, 0.16));
+    color: var(--quiz-ink);
+    font-size: 24px;
+    font-weight: 800;
+    animation: quizPulse 3.8s ease-in-out infinite;
+  }
 
-    .quiz-hero-subtitle {
-      font-size: 1.3em;
-      color: var(--text-secondary);
-      margin-top: 0.6em;
-      font-weight: 400;
-    }
+  .quiz-content {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1fr 0.92fr;
+    gap: 38px;
+    align-items: center;
+  }
 
-    /* =============================================
-       PROGRESS PILL
-       ============================================= */
-    .progress-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 20px;
-      border-radius: 999px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      font-family: var(--font-heading);
-      font-size: 0.75em;
-      font-weight: 600;
-      color: var(--text-muted);
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
+  .quiz-question {
+    padding: 42px 44px;
+    border: 1px solid var(--quiz-border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 26px 56px rgba(0, 0, 0, 0.2);
+  }
 
-    .progress-pill .current {
-      color: var(--accent);
-    }
+  .quiz-question h2 {
+    margin: 14px 0 0;
+    color: var(--quiz-ink);
+    font-size: 58px;
+    line-height: 1.05;
+  }
 
-    /* =============================================
-       QUESTION TEXT
-       ============================================= */
-    .question-text {
-      font-family: var(--font-heading);
-      font-size: 2.4em;
-      font-weight: 700;
-      color: var(--text-primary);
-      line-height: 1.25;
-      margin: 24px 0 32px;
-      max-width: 900px;
-    }
+  .quiz-options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+  }
 
-    /* =============================================
-       ANSWER OPTION CARDS (2x2 Grid)
-       ============================================= */
-    .options-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1.5rem;
-      max-width: 1000px;
-    }
+  .quiz-option {
+    min-height: 154px;
+    padding: 24px;
+    border: 1px solid var(--quiz-border);
+    border-radius: 8px;
+    background: var(--quiz-card);
+  }
 
-    .option-card {
-      background: var(--bg-card);
-      border: 2px solid var(--border-primary);
-      border-radius: 12px;
-      padding: 2rem 2.2rem;
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      cursor: pointer;
-      transition: all 0.25s ease;
-      position: relative;
-      overflow: hidden;
-    }
+  .quiz-option strong {
+    display: inline-grid;
+    width: 46px;
+    height: 46px;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(54, 194, 215, 0.18);
+    color: var(--quiz-primary);
+    font-size: 22px;
+  }
 
-    .option-card::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      border-radius: 10px;
-      background: linear-gradient(135deg, rgba(124, 58, 237, 0.1), rgba(6, 182, 212, 0.05));
-      opacity: 0;
-      transition: opacity 0.25s ease;
-    }
+  .quiz-option p {
+    margin: 16px 0 0;
+    color: var(--quiz-ink);
+    font-size: 24px;
+    line-height: 1.28;
+  }
 
-    .option-card:hover {
-      border-color: var(--primary);
-      background: var(--bg-card-hover);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(124, 58, 237, 0.15);
-    }
+  .quiz-answer-card {
+    display: grid;
+    grid-template-columns: 170px 1fr;
+    gap: 30px;
+    align-items: center;
+    padding: 46px;
+    border: 1px solid rgba(63, 212, 137, 0.38);
+    border-radius: 8px;
+    background: rgba(63, 212, 137, 0.1);
+    box-shadow: 0 26px 56px rgba(0, 0, 0, 0.18);
+  }
 
-    .option-card:hover::before {
-      opacity: 1;
-    }
+  .quiz-answer-mark {
+    display: grid;
+    width: 138px;
+    height: 138px;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(63, 212, 137, 0.2);
+    color: var(--quiz-green);
+    font-size: 62px;
+    font-weight: 900;
+  }
 
-    .option-letter {
-      font-family: var(--font-heading);
-      font-size: 1.4em;
-      font-weight: 700;
-      color: var(--primary);
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
-      background: rgba(124, 58, 237, 0.12);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      position: relative;
-      z-index: 1;
-    }
+  .quiz-answer-card h2 {
+    margin: 0 0 14px;
+    color: var(--quiz-ink);
+    font-size: 58px;
+    line-height: 1.04;
+  }
 
-    .option-text {
-      font-size: 1.1em;
-      color: var(--text-primary);
-      font-weight: 500;
-      position: relative;
-      z-index: 1;
-    }
+  .quiz-answer-card p {
+    margin: 0;
+    color: var(--quiz-body);
+    font-size: 26px;
+    line-height: 1.38;
+  }
 
-    /* Correct answer highlight */
-    .option-card.correct {
-      border-color: var(--correct);
-      background: rgba(34, 197, 94, 0.08);
-      box-shadow: 0 0 24px rgba(34, 197, 94, 0.20);
-      animation: pulse-glow-green 2s ease-in-out infinite;
-    }
+  .quiz-score {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 0.82fr 1fr;
+    gap: 42px;
+    align-items: center;
+  }
 
-    .option-card.correct .option-letter {
-      background: rgba(34, 197, 94, 0.2);
-      color: var(--correct);
-    }
+  .quiz-score-number {
+    color: var(--quiz-accent);
+    font-size: 150px;
+    font-weight: 900;
+    line-height: 0.9;
+    text-align: center;
+  }
 
-    /* Wrong answer dimmed */
-    .option-card.wrong {
-      border-color: var(--wrong);
-      background: rgba(239, 68, 68, 0.06);
-      opacity: 0.6;
-    }
+  .quiz-score h2 {
+    margin: 0 0 18px;
+    color: var(--quiz-ink);
+    font-size: 62px;
+    line-height: 1.04;
+  }
 
-    .option-card.wrong .option-letter {
-      background: rgba(239, 68, 68, 0.15);
-      color: var(--wrong);
-    }
+  .quiz-score p {
+    margin: 0;
+    color: var(--quiz-body);
+    font-size: 28px;
+    line-height: 1.38;
+  }
 
-    /* =============================================
-       SCORE / RESULTS
-       ============================================= */
-    .score-display {
-      text-align: center;
-    }
+  @keyframes quizOrbit {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
 
-    .score-value {
-      font-family: var(--font-heading);
-      font-size: 8em;
-      font-weight: 700;
-      line-height: 1;
-      letter-spacing: -0.03em;
-      background: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-      animation: float 4s ease-in-out infinite;
-    }
+  @keyframes quizPulse {
+    0%, 100% { box-shadow: 0 0 0 rgba(54, 194, 215, 0); }
+    50% { box-shadow: 0 0 34px rgba(54, 194, 215, 0.28); }
+  }
 
-    .score-label {
-      font-family: var(--font-heading);
-      font-size: 1.4em;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin-top: 8px;
-    }
-
-    .score-desc {
-      font-size: 1.1em;
-      color: var(--text-secondary);
-      margin-top: 8px;
-      max-width: 600px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    /* =============================================
-       FLOATING DECORATIVE ELEMENTS
-       ============================================= */
-    .floating-decor {
-      position: absolute;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    .float-circle {
-      border-radius: 50%;
-      position: absolute;
-      animation: float 6s ease-in-out infinite;
-    }
-
-    .float-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      position: absolute;
-      animation: float 8s ease-in-out infinite;
-    }
-
-    /* =============================================
-       CTA BUTTON
-       ============================================= */
+  @media (prefers-reduced-motion: reduce) {
+    .quiz-orb,
     .quiz-cta {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      padding: 16px 40px;
-      border-radius: 12px;
-      font-family: var(--font-heading);
-      font-size: 1em;
-      font-weight: 600;
-      background: linear-gradient(135deg, var(--primary), #5b21b6);
-      color: #ffffff;
-      border: none;
-      letter-spacing: 0.01em;
-      box-shadow: 0 4px 16px rgba(124, 58, 237, 0.3);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      animation: none;
     }
+  }
+</style>
 
-    .quiz-cta:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(124, 58, 237, 0.4);
-    }
+<section class="quiz-slide" data-background-color="#101827">
+  <div class="quiz-orb" aria-hidden="true"></div>
+  <header class="quiz-header">
+    <div class="quiz-tag">{{TOPIC}}</div>
+    <div class="quiz-progress">Ready</div>
+  </header>
+  <div>
+    <h1 class="quiz-title">{{TITLE}}</h1>
+    <p class="quiz-subtitle">{{SUBTITLE}}</p>
+  </div>
+  <div class="quiz-cta">{{CTA_START_TEXT}}</div>
+</section>
 
-    /* =============================================
-       TOPIC TAG
-       ============================================= */
-    .topic-tag {
-      display: inline-flex;
-      align-items: center;
-      padding: 6px 16px;
-      border-radius: 999px;
-      font-family: var(--font-heading);
-      font-size: 0.7em;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      background: rgba(124, 58, 237, 0.12);
-      color: var(--primary);
-      border: 1px solid var(--border-primary);
-    }
-
-    /* =============================================
-       KEYFRAME ANIMATIONS
-       ============================================= */
-    @keyframes pulse-glow {
-      0%, 100% { box-shadow: 0 0 20px rgba(124, 58, 237, 0.3); }
-      50% { box-shadow: 0 0 40px rgba(124, 58, 237, 0.6); }
-    }
-
-    @keyframes pulse-glow-green {
-      0%, 100% { box-shadow: 0 0 20px rgba(34, 197, 94, 0.2); }
-      50% { box-shadow: 0 0 40px rgba(34, 197, 94, 0.4); }
-    }
-
-    @keyframes float {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-10px); }
-    }
-
-    /* =============================================
-       ANIMATION DELAY UTILITIES
-       ============================================= */
-    .delay-100 { animation-delay: 0.1s; }
-    .delay-200 { animation-delay: 0.2s; }
-    .delay-300 { animation-delay: 0.3s; }
-    .delay-400 { animation-delay: 0.4s; }
-    .delay-500 { animation-delay: 0.5s; }
-    .delay-600 { animation-delay: 0.6s; }
-    .delay-700 { animation-delay: 0.7s; }
-    .delay-800 { animation-delay: 0.8s; }
-  </style>
-</head>
-
-<body>
-  <div class="reveal">
-    <div class="slides">
-
-      <!-- ============================================================
-           SLIDE 1: QUIZ COVER — Title + trophy icon + subtitle
-           ============================================================ -->
-      <section data-background-color="#0a0a1a" data-transition="fade">
-        <!-- Floating decorative elements -->
-        <div class="floating-decor" style="inset: 0; overflow: hidden;">
-          <div class="float-circle" style="width: 200px; height: 200px; background: radial-gradient(circle, rgba(124,58,237,0.08), transparent 70%); top: 5%; right: 10%; animation-delay: 0s;"></div>
-          <div class="float-circle" style="width: 150px; height: 150px; background: radial-gradient(circle, rgba(6,182,212,0.06), transparent 70%); bottom: 15%; left: 5%; animation-delay: 2s;"></div>
-          <div class="float-dot" style="background: var(--primary); opacity: 0.3; top: 20%; left: 15%; animation-delay: 1s;"></div>
-          <div class="float-dot" style="background: var(--accent); opacity: 0.3; top: 40%; right: 20%; animation-delay: 3s;"></div>
-          <div class="float-dot" style="background: var(--primary); opacity: 0.2; bottom: 30%; left: 40%; animation-delay: 2.5s;"></div>
-          <div class="float-dot" style="background: var(--accent); opacity: 0.2; top: 60%; right: 35%; animation-delay: 4s;"></div>
-        </div>
-
-        <div style="position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: center; min-height: 75vh;">
-          <!-- Trophy SVG Icon -->
-          <div class="anim-fade-up" style="margin-bottom: 24px; animation: float 4s ease-in-out infinite;">
-            <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="url(#trophy-grad)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <defs>
-                <linearGradient id="trophy-grad" x1="0" y1="0" x2="24" y2="24">
-                  <stop offset="0%" stop-color="#7c3aed" />
-                  <stop offset="100%" stop-color="#06b6d4" />
-                </linearGradient>
-              </defs>
-              <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-              <path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22" />
-              <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22" />
-              <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-            </svg>
-          </div>
-
-          <div class="topic-tag anim-fade-up delay-100">{{TOPIC}}</div>
-          <div style="height: 16px;"></div>
-          <h1 class="quiz-hero-title anim-fade-up delay-200">{{TITLE}}</h1>
-          <p class="quiz-hero-subtitle anim-fade-up delay-400">{{SUBTITLE}}</p>
-
-          <div style="margin-top: 40px;" class="anim-fade-up delay-600">
-            <span class="quiz-cta" style="animation: pulse-glow 3s ease-in-out infinite;">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="5 3 19 12 5 21 5 3" />
-              </svg>
-              {{CTA_START_TEXT}}
-            </span>
-          </div>
-        </div>
-
-        <aside class="notes">
-          Build excitement. The quiz format creates natural audience engagement and anticipation.
-        </aside>
-      </section>
-
-
-      <!-- ============================================================
-           SLIDE 2: QUESTION 1
-           ============================================================ -->
-      <section data-background-color="#0a0a1a" data-transition="fade">
-        <div class="floating-decor" style="inset: 0; overflow: hidden;">
-          <div class="float-circle" style="width: 120px; height: 120px; background: radial-gradient(circle, rgba(124,58,237,0.06), transparent 70%); top: 10%; right: 15%; animation-delay: 0.5s;"></div>
-          <div class="float-dot" style="background: var(--accent); opacity: 0.25; bottom: 20%; left: 10%; animation-delay: 1.5s;"></div>
-        </div>
-
-        <div style="position: relative; z-index: 1;">
-          <div class="progress-pill anim-fade-up">
-            <span class="current">Question 1</span> <span>of 4</span>
-          </div>
-
-          <h2 class="question-text anim-fade-up delay-200">{{QUESTION_1_TEXT}}</h2>
-
-          <div class="options-grid anim-stagger">
-            <div class="option-card">
-              <div class="option-letter">A</div>
-              <div class="option-text">{{OPTION_1A}}</div>
-            </div>
-            <div class="option-card">
-              <div class="option-letter">B</div>
-              <div class="option-text">{{OPTION_1B}}</div>
-            </div>
-            <div class="option-card">
-              <div class="option-letter">C</div>
-              <div class="option-text">{{OPTION_1C}}</div>
-            </div>
-            <div class="option-card">
-              <div class="option-letter">D</div>
-              <div class="option-text">{{OPTION_1D}}</div>
-            </div>
-          </div>
-        </div>
-
-        <aside class="notes">
-          Give the audience time to think. Build suspense before revealing the answer on the next slide.
-        </aside>
-      </section>
-
-
-      <!-- ============================================================
-           SLIDE 3: QUESTION 2
-           ============================================================ -->
-      <section data-background-color="#0a0a1a" data-transition="fade">
-        <div class="floating-decor" style="inset: 0; overflow: hidden;">
-          <div class="float-circle" style="width: 160px; height: 160px; background: radial-gradient(circle, rgba(6,182,212,0.06), transparent 70%); bottom: 10%; right: 10%; animation-delay: 1s;"></div>
-          <div class="float-dot" style="background: var(--primary); opacity: 0.2; top: 15%; left: 25%; animation-delay: 2s;"></div>
-        </div>
-
-        <div style="position: relative; z-index: 1;">
-          <div class="progress-pill anim-fade-up">
-            <span class="current">Question 2</span> <span>of 4</span>
-          </div>
-
-          <h2 class="question-text anim-fade-up delay-200">{{QUESTION_2_TEXT}}</h2>
-
-          <div class="options-grid anim-stagger">
-            <div class="option-card">
-              <div class="option-letter">A</div>
-              <div class="option-text">{{OPTION_2A}}</div>
-            </div>
-            <div class="option-card">
-              <div class="option-letter">B</div>
-              <div class="option-text">{{OPTION_2B}}</div>
-            </div>
-            <div class="option-card">
-              <div class="option-letter">C</div>
-              <div class="option-text">{{OPTION_2C}}</div>
-            </div>
-            <div class="option-card">
-              <div class="option-letter">D</div>
-              <div class="option-text">{{OPTION_2D}}</div>
-            </div>
-          </div>
-        </div>
-
-        <aside class="notes">
-          Increase difficulty slightly with each question to maintain engagement.
-        </aside>
-      </section>
-
-
-      <!-- ============================================================
-           SLIDE 4: QUESTION 3
-           ============================================================ -->
-      <section data-background-color="#0a0a1a" data-transition="fade">
-        <div class="floating-decor" style="inset: 0; overflow: hidden;">
-          <div class="float-circle" style="width: 140px; height: 140px; background: radial-gradient(circle, rgba(124,58,237,0.07), transparent 70%); top: 5%; left: 10%; animation-delay: 0.3s;"></div>
-          <div class="float-dot" style="background: var(--accent); opacity: 0.3; bottom: 25%; right: 20%; animation-delay: 3s;"></div>
-        </div>
-
-        <div style="position: relative; z-index: 1;">
-          <div class="progress-pill anim-fade-up">
-            <span class="current">Question 3</span> <span>of 4</span>
-          </div>
-
-          <h2 class="question-text anim-fade-up delay-200">{{QUESTION_3_TEXT}}</h2>
-
-          <div class="options-grid anim-stagger">
-            <div class="option-card">
-              <div class="option-letter">A</div>
-              <div class="option-text">{{OPTION_3A}}</div>
-            </div>
-            <div class="option-card">
-              <div class="option-letter">B</div>
-              <div class="option-text">{{OPTION_3B}}</div>
-            </div>
-            <div class="option-card">
-              <div class="option-letter">C</div>
-              <div class="option-text">{{OPTION_3C}}</div>
-            </div>
-            <div class="option-card">
-              <div class="option-letter">D</div>
-              <div class="option-text">{{OPTION_3D}}</div>
-            </div>
-          </div>
-        </div>
-
-        <aside class="notes">
-          This is the third question. Keep energy high by encouraging audience participation.
-        </aside>
-      </section>
-
-
-      <!-- ============================================================
-           SLIDE 5: QUESTION 4
-           ============================================================ -->
-      <section data-background-color="#0a0a1a" data-transition="fade">
-        <div class="floating-decor" style="inset: 0; overflow: hidden;">
-          <div class="float-circle" style="width: 180px; height: 180px; background: radial-gradient(circle, rgba(6,182,212,0.05), transparent 70%); top: 15%; right: 5%; animation-delay: 0.8s;"></div>
-          <div class="float-dot" style="background: var(--primary); opacity: 0.25; bottom: 15%; left: 30%; animation-delay: 1.8s;"></div>
-        </div>
-
-        <div style="position: relative; z-index: 1;">
-          <div class="progress-pill anim-fade-up">
-            <span class="current">Question 4</span> <span>of 4</span>
-          </div>
-
-          <h2 class="question-text anim-fade-up delay-200">{{QUESTION_4_TEXT}}</h2>
-
-          <div class="options-grid anim-stagger">
-            <div class="option-card">
-              <div class="option-letter">A</div>
-              <div class="option-text">{{OPTION_4A}}</div>
-            </div>
-            <div class="option-card">
-              <div class="option-letter">B</div>
-              <div class="option-text">{{OPTION_4B}}</div>
-            </div>
-            <div class="option-card">
-              <div class="option-letter">C</div>
-              <div class="option-text">{{OPTION_4C}}</div>
-            </div>
-            <div class="option-card">
-              <div class="option-letter">D</div>
-              <div class="option-text">{{OPTION_4D}}</div>
-            </div>
-          </div>
-        </div>
-
-        <aside class="notes">
-          Final question. Build anticipation for the results that follow.
-        </aside>
-      </section>
-
-
-      <!-- ============================================================
-           SLIDE 6: ANSWER REVEAL — Correct answers highlighted
-           ============================================================ -->
-      <section data-background-color="#0a0a1a" data-transition="fade">
-        <div style="position: relative; z-index: 1;">
-          <div class="progress-pill anim-fade-up">Answers Revealed</div>
-
-          <h2 style="font-size: 2.6em; margin: 24px 0 32px;" class="anim-fade-up delay-100">{{REVEAL_TITLE}}</h2>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; max-width: 1000px;" class="anim-stagger">
-            <!-- Q1 Answer -->
-            <div class="option-card correct" style="cursor: default;">
-              <div class="option-letter">{{CORRECT_1_LETTER}}</div>
-              <div>
-                <div style="font-size: 0.72em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;">Question 1</div>
-                <div class="option-text">{{CORRECT_1_TEXT}}</div>
-              </div>
-            </div>
-
-            <!-- Q2 Answer -->
-            <div class="option-card correct" style="cursor: default; animation-delay: 0.5s;">
-              <div class="option-letter">{{CORRECT_2_LETTER}}</div>
-              <div>
-                <div style="font-size: 0.72em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;">Question 2</div>
-                <div class="option-text">{{CORRECT_2_TEXT}}</div>
-              </div>
-            </div>
-
-            <!-- Q3 Answer -->
-            <div class="option-card correct" style="cursor: default; animation-delay: 1s;">
-              <div class="option-letter">{{CORRECT_3_LETTER}}</div>
-              <div>
-                <div style="font-size: 0.72em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;">Question 3</div>
-                <div class="option-text">{{CORRECT_3_TEXT}}</div>
-              </div>
-            </div>
-
-            <!-- Q4 Answer -->
-            <div class="option-card correct" style="cursor: default; animation-delay: 1.5s;">
-              <div class="option-letter">{{CORRECT_4_LETTER}}</div>
-              <div>
-                <div style="font-size: 0.72em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;">Question 4</div>
-                <div class="option-text">{{CORRECT_4_TEXT}}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <aside class="notes">
-          Reveal all answers at once for maximum impact. Discuss the ones the audience found most challenging.
-        </aside>
-      </section>
-
-
-      <!-- ============================================================
-           SLIDE 7: SCORE SUMMARY — Large animated metric
-           ============================================================ -->
-      <section data-background-color="#0a0a1a" data-transition="fade">
-        <div class="floating-decor" style="inset: 0; overflow: hidden;">
-          <div class="float-circle" style="width: 300px; height: 300px; background: radial-gradient(circle, rgba(124,58,237,0.08), transparent 70%); top: 10%; left: 30%; animation-delay: 0s;"></div>
-          <div class="float-circle" style="width: 200px; height: 200px; background: radial-gradient(circle, rgba(6,182,212,0.06), transparent 70%); bottom: 10%; right: 20%; animation-delay: 2s;"></div>
-        </div>
-
-        <div style="position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 75vh;">
-          <div class="score-display anim-scale-in">
-            <div class="score-value">{{SCORE_VALUE}}</div>
-            <div class="score-label">{{SCORE_LABEL}}</div>
-            <p class="score-desc" style="margin-top: 12px;">{{SCORE_DESC}}</p>
-          </div>
-
-          <div style="display: flex; gap: 16px; margin-top: 40px;" class="anim-fade-up delay-400">
-            <div style="display: flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 999px; background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2);">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              <span style="font-size: 0.85em; color: var(--correct); font-weight: 600;">{{SCORE_CORRECT}} Correct</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 999px; background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.15);">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              <span style="font-size: 0.85em; color: var(--wrong); font-weight: 600;">{{SCORE_WRONG}} Missed</span>
-            </div>
-          </div>
-        </div>
-
-        <aside class="notes">
-          Celebrate the results regardless of score. Use this as a springboard for discussion.
-        </aside>
-      </section>
-
-
-      <!-- ============================================================
-           SLIDE 8: FINAL CTA
-           ============================================================ -->
-      <section data-background-color="#0a0a1a" data-transition="fade">
-        <div class="floating-decor" style="inset: 0; overflow: hidden;">
-          <div class="float-circle" style="width: 250px; height: 250px; background: radial-gradient(circle, rgba(124,58,237,0.06), transparent 70%); top: 15%; right: 15%; animation-delay: 0.5s;"></div>
-          <div class="float-circle" style="width: 180px; height: 180px; background: radial-gradient(circle, rgba(6,182,212,0.05), transparent 70%); bottom: 20%; left: 10%; animation-delay: 1.5s;"></div>
-        </div>
-
-        <div style="position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 75vh; text-align: center;">
-          <div class="topic-tag anim-fade-up">{{TOPIC}}</div>
-          <div style="height: 16px;"></div>
-          <h2 style="font-size: 3.2em; font-weight: 700; letter-spacing: -0.02em;" class="anim-fade-up delay-200">{{CTA_TITLE}}</h2>
-          <p style="font-size: 1.2em; color: var(--text-secondary); margin-top: 12px; max-width: 600px;" class="anim-fade-up delay-300">{{CTA_DESC}}</p>
-
-          <div style="margin-top: 40px;" class="anim-fade-up delay-500">
-            <span class="quiz-cta">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
-              </svg>
-              {{CTA_BUTTON_TEXT}}
-            </span>
-          </div>
-
-          <div style="margin-top: 48px;" class="anim-fade-up delay-700">
-            <p style="font-size: 0.85em; color: var(--text-muted);">{{CTA_FOOTER}}</p>
-          </div>
-        </div>
-      </section>
-
+<section class="quiz-slide" data-background-color="#101827">
+  <header class="quiz-header">
+    <div class="quiz-tag">{{TOPIC}}</div>
+    <div class="quiz-progress">Question 1 of 4</div>
+  </header>
+  <div class="quiz-content">
+    <article class="quiz-question">
+      <p class="quiz-label">Question</p>
+      <h2>{{QUESTION_1_TEXT}}</h2>
+    </article>
+    <div class="quiz-options">
+      <article class="quiz-option"><strong>A</strong><p>{{OPTION_1A}}</p></article>
+      <article class="quiz-option"><strong>B</strong><p>{{OPTION_1B}}</p></article>
+      <article class="quiz-option"><strong>C</strong><p>{{OPTION_1C}}</p></article>
+      <article class="quiz-option"><strong>D</strong><p>{{OPTION_1D}}</p></article>
     </div>
   </div>
+</section>
 
-  <!-- Reveal.js 5 -->
-  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
-  <script>
-    Reveal.initialize({
-      // Display
-      width: 1920,
-      height: 1080,
-      margin: 0.04,
-      center: true,
+<section class="quiz-slide" data-background-color="#101827">
+  <header class="quiz-header">
+    <div class="quiz-tag">Answer Reveal</div>
+    <div class="quiz-progress">{{CORRECT_1_LETTER}}</div>
+  </header>
+  <article class="quiz-answer-card">
+    <div class="quiz-answer-mark">{{CORRECT_1_LETTER}}</div>
+    <div>
+      <h2>{{REVEAL_TITLE}}</h2>
+      <p>{{REVEAL_BODY}}</p>
+    </div>
+  </article>
+</section>
 
-      // Transitions
-      hash: true,
-      transition: 'fade',
-      transitionSpeed: 'default',
-      backgroundTransition: 'fade',
-
-      // Controls
-      controls: true,
-      controlsLayout: 'bottom-right',
-      progress: true,
-      slideNumber: false,
-
-      // Navigation
-      keyboard: true,
-      touch: true,
-      loop: false,
-
-      // Media
-      embedded: false,
-      help: true,
-      autoPlayMedia: true,
-    });
-  </script>
-</body>
-
-</html>
+<section class="quiz-slide" data-background-color="#101827">
+  <header class="quiz-header">
+    <div class="quiz-tag">Result</div>
+    <div class="quiz-progress">{{SCORE_LABEL}}</div>
+  </header>
+  <div class="quiz-score">
+    <div class="quiz-score-number">{{SCORE_VALUE}}</div>
+    <div>
+      <h2>{{SCORE_TITLE}}</h2>
+      <p>{{SCORE_DESC}}</p>
+    </div>
+  </div>
+</section>

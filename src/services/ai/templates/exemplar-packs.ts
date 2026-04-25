@@ -55,6 +55,44 @@ const EXEMPLAR_PACKS: Record<ExemplarPackId, ExemplarPack> = {
     ],
     htmlExcerpt: `<section data-background-color="#eef7fa"><div class="world world-left"></div><div class="world world-right"></div><div class="world-seam"></div><div class="hero-lockup"><div class="eyebrow">Opening Frame</div><h1>One Clear<br>Starting Point</h1><p>Anchor the narrative with a refined title scene and compact support row.</p></div></section>`,
   },
+  'launch-narrative': {
+    id: 'launch-narrative',
+    name: 'Launch Narrative',
+    visualThesis: 'Use an energetic split-scene title and a concise launch path that feels premium without becoming noisy.',
+    compositionRules: [
+      'Open with a large title, short one-liner, and a seam or pathway motif.',
+      'Use readiness cards and action cards with large numbering and short copy.',
+      'Keep the launch story optimistic, structured, and readable inside a scaled fixed stage.',
+    ],
+    componentRules: [
+      'Use launch chips, proof cards, readiness steps, and action cards as the reusable component family.',
+      'Use teal and green accents for movement, readiness, and signal rather than full-card fills.',
+    ],
+    motionRules: [
+      'Allow ambient seam glow, path sweeps, and chip pulses.',
+      'Keep all body copy static and ensure reduced-motion fallbacks exist.',
+    ],
+    htmlExcerpt: `<section data-background-color="#eef8fb"><div class="launch-seam"></div><div class="launch-lockup"><div class="eyebrow">Launch Narrative</div><h1>Make the Move Visible</h1><p>Use one clear path from audience insight to launch action.</p></div></section>`,
+  },
+  'executive-starter-deck': {
+    id: 'executive-starter-deck',
+    name: 'Executive Starter Deck',
+    visualThesis: 'Create a leadership-ready starter deck with strong type, clear decision framing, and premium light editorial modules.',
+    compositionRules: [
+      'Use a decisive title, a signal stack, and an evidence-to-action flow.',
+      'Keep metrics and recommendations large enough to read when the stage is scaled down.',
+      'Use asymmetry and whitespace rather than generic corporate card walls.',
+    ],
+    componentRules: [
+      'Use decision summaries, insight cards, metric rows, interpretation strips, and numbered next steps.',
+      'Express categories through accent edges, chips, and diagram strokes.',
+    ],
+    motionRules: [
+      'Use subtle line sweeps and diagram pulses only.',
+      'Avoid animating card geometry or long text blocks.',
+    ],
+    htmlExcerpt: `<section data-background-color="#eef7fa"><div class="exec-cover"><div class="eyebrow">Executive Briefing</div><h1>Decision Ready</h1><p>A premium starter frame with clear signals and next actions.</p></div><aside class="signal-stack"><div>Decision</div><div>Evidence</div><div>Action</div></aside></section>`,
+  },
   'stage-setting-context': {
     id: 'stage-setting-context',
     name: 'Stage Setting',

@@ -99,7 +99,7 @@ function resolveReferenceStylePackId(input: BuildArtifactWorkflowPlanInput, pres
   if (input.artifactType === 'presentation') {
     switch (presentationRecipeId) {
       case 'title-opening':
-        return 'presentation-title-polished' as const;
+        return 'presentation-launch-narrative' as const;
       case 'stage-setting':
         return 'presentation-stage-setting' as const;
       case 'finance-grid':
@@ -107,8 +107,10 @@ function resolveReferenceStylePackId(input: BuildArtifactWorkflowPlanInput, pres
         return 'presentation-finance-grid-light' as const;
       case 'quiz-reveal':
         return 'presentation-quiz-show' as const;
+      case 'closing-action':
+        return 'presentation-launch-narrative' as const;
       default:
-        return 'presentation-editorial-light' as const;
+        return 'presentation-executive-starter' as const;
     }
   }
 

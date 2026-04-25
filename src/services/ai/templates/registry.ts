@@ -5,6 +5,7 @@ const TEMPLATE_HTML_MODULES = import.meta.glob('./html/*.html', {
 
 export type TemplateId =
   | 'editorial-light' | 'finance-grid-light' | 'stage-setting-light'
+  | 'executive-briefing-light' | 'launch-narrative-light'
   | 'keynote' | 'corporate' | 'tech-architecture' | 'data-dashboard'
   | 'sci-fi' | 'creative-portfolio' | 'storytelling' | 'educational'
   | 'minimal' | 'cinematic' | 'pitch-deck' | 'workshop'
@@ -26,6 +27,8 @@ const TEMPLATE_HTML_PATHS: Record<TemplateId, string> = {
   'editorial-light': './html/editorial-light.html',
   'finance-grid-light': './html/finance-grid-light.html',
   'stage-setting-light': './html/stage-setting-light.html',
+  'executive-briefing-light': './html/executive-briefing-light.html',
+  'launch-narrative-light': './html/launch-narrative-light.html',
   keynote: './html/keynote.html',
   corporate: './html/corporate.html',
   'tech-architecture': './html/tech-architecture.html',
@@ -74,6 +77,22 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
     animationLevel: 2,
     description: 'Context-setting slide system with scene panel, KPI rail, and editorial insight stack',
     bestFor: ['setting the stage', 'context slide', 'problem framing'],
+    slideCount: { min: 4, max: 8 },
+  },
+  'executive-briefing-light': {
+    id: 'executive-briefing-light',
+    htmlPath: TEMPLATE_HTML_PATHS['executive-briefing-light'],
+    animationLevel: 2,
+    description: 'Premium light executive briefing system with large readable type, decision modules, and subtle diagram motion',
+    bestFor: ['executive briefing', 'leadership review', 'board narrative', 'starter deck'],
+    slideCount: { min: 4, max: 8 },
+  },
+  'launch-narrative-light': {
+    id: 'launch-narrative-light',
+    htmlPath: TEMPLATE_HTML_PATHS['launch-narrative-light'],
+    animationLevel: 3,
+    description: 'Energetic launch narrative deck with split-scene title, readiness modules, and bounded motion',
+    bestFor: ['launch plan', 'pitch opening', 'go-to-market', 'starter deck'],
     slideCount: { min: 4, max: 8 },
   },
   keynote: {
