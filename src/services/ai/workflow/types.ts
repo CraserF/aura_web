@@ -52,10 +52,20 @@ export interface PresentationInput {
 }
 
 /** Output from the presentation workflow */
+export interface PresentationRuntimeTelemetry {
+  timeToFirstPreviewMs?: number;
+  totalRuntimeMs: number;
+  validationPassed: boolean;
+  validationBlockingCount: number;
+  validationAdvisoryCount: number;
+  repairCount: number;
+}
+
 export interface PresentationOutput {
   html: string;
   title?: string;
   slideCount: number;
   reviewPassed: boolean;
+  runtime?: PresentationRuntimeTelemetry;
   editing?: EditingTelemetry;
 }

@@ -12,6 +12,7 @@ import type { ExecutionMode } from '@/services/runs/types';
 import type { PublishReadinessResult } from '@/services/validation/types';
 import type { SpreadsheetExecutionSummary } from '@/services/spreadsheet/plans';
 import type { ArtifactWorkflowPlan } from '@/services/workflowPlanner/types';
+import type { PresentationRuntimeTelemetry } from '@/services/ai/workflow/types';
 
 export interface DocumentRunOutputs {
   artifactType: 'document';
@@ -28,6 +29,7 @@ export interface PresentationRunOutputs {
   html?: string;
   slideCount?: number;
   reviewPassed?: boolean;
+  runtime?: PresentationRuntimeTelemetry;
   editing?: EditingTelemetry;
   publish?: PublishReadinessResult;
 }

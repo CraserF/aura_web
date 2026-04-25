@@ -25,6 +25,10 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { aiDebugLog, logEditingMetrics, toErrorInfo } from '../debug';
 import { getProviderCapabilityProfile } from '../providerCapabilities';
 import { applyArtifactRunPlanToPresentationPlan } from '@/services/artifactRuntime/presentation';
+import {
+  canRunQueuedPresentationRuntime,
+  runQueuedPresentationRuntime,
+} from '@/services/artifactRuntime/presentationRuntime';
 import type {
   PresentationInput,
   PresentationOutput,
@@ -121,53 +125,17 @@ export async function runPresentationWorkflow(
     if (signal?.aborted) throw new DOMException('Workflow aborted', 'AbortError');
 
     // ── Queued multi-slide flow ─────────────────────────────────
-    if (
-      (planResult.intent === 'batch_create' || planResult.intent === 'add_slides')
-      && planResult.slideBriefs
-      && planResult.slideBriefs.length > 0
-    ) {
-      const queuedStepId = isEdit ? 'targeted-design' : 'design';
-      const queuedLabel = isEdit
-        ? `Queueing ${planResult.slideBriefs.length} new slides…`
-        : `Designing ${planResult.slideBriefs.length} slides…`;
-      onEvent({ type: 'step-start', stepId: queuedStepId, label: queuedLabel });
-      onEvent({
-        type: 'progress',
-        message: isEdit
-          ? `Queueing ${planResult.slideBriefs.length} new slides one at a time…`
-          : `Planning ${planResult.slideBriefs.length} slides…`,
-        pct: 25,
-      });
-
-      const { runBatchQueue } = await import('./batchQueue');
-
-      const batchResult = await runBatchQueue({
+    if (canRunQueuedPresentationRuntime(planResult)) {
+      return runQueuedPresentationRuntime({
+        ...(input.artifactRunPlan ? { runPlan: input.artifactRunPlan } : {}),
         planResult,
         model,
+        input,
         onEvent,
-        ...(isEdit && input.existingSlidesHtml ? { initialHtml: input.existingSlidesHtml } : {}),
+        isEdit,
         ...(guidanceProfile ? { guidanceProfile } : {}),
-        onSlideComplete: (combinedHtml, slideIndex, totalSlides) => {
-          onEvent({ type: 'batch-slide-complete', html: combinedHtml, slideIndex, totalSlides });
-        },
-        signal,
+        ...(signal ? { signal } : {}),
       });
-
-      onEvent({ type: 'step-done', stepId: queuedStepId, label: queuedLabel });
-      onEvent({ type: 'step-skipped', stepId: 'evaluate', label: 'Evaluating quality…' });
-      onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing presentation…' });
-
-      const batchOutput: PresentationOutput = {
-        html: batchResult.html,
-        title: batchResult.title,
-        slideCount: batchResult.slideCount,
-        reviewPassed: true,
-      };
-
-      onEvent({ type: 'step-done', stepId: 'finalize', label: 'Finalizing presentation…' });
-      onEvent({ type: 'complete', result: batchOutput });
-
-      return batchOutput;
     }
 
     // ── Phase 2: Design (ToolLoopAgent with self-validation) ─────

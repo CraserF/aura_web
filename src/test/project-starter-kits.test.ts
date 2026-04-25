@@ -75,6 +75,16 @@ describe('project starter kits', () => {
       expect(result.contentHtml).toContain('@scope (.reveal .slides)');
       expect(result.themeCss).toBe('');
       expect(sectionCount).toBe(result.slideCount);
+      expect(result.runtimePlan?.version).toBe(1);
+      expect(result.runtimePlan?.artifactType).toBe('presentation');
+      expect(result.runtimePlan?.designManifest.family).toBe(
+        artifact.starterId === 'corporate'
+          ? 'executive-briefing-light'
+          : 'launch-narrative-light',
+      );
+      expect(result.runtimePlan?.workQueue).toHaveLength(result.slideCount);
+      expect(result.runtimePlan?.workQueue.every((part) => part.kind === 'slide')).toBe(true);
+      expect(result.runtimePlan?.validationGates[0]?.id).toBe('presentation-fragment-contract');
       expect(sectionCount).toBeGreaterThanOrEqual(3);
       expect(sectionCount).toBeLessThanOrEqual(5);
       expect(result.contentHtml).not.toMatch(/\{\{[A-Z0-9_]+\}\}/);

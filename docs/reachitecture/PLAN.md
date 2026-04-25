@@ -46,11 +46,37 @@ Last updated: 2026-04-25.
   - raw rules markdown, context policy, and workflow presets are hidden under `Advanced`.
 - Updated tests and benchmark fixtures away from explain/dry-run coverage toward runtime-plan coverage.
 
+### Completed In Second Runtime Slice
+- Added `src/services/artifactRuntime/presentationRuntime.ts`.
+- Moved queued presentation generation control out of `src/services/ai/workflow/presentation.ts` and into the runtime layer.
+- Added queued presentation runtime helpers for:
+  - queue eligibility;
+  - queued deck execution;
+  - runtime output validation;
+  - repair handoff/stub;
+  - final output assembly.
+- Added runtime telemetry to queued presentation output:
+  - time to first slide preview;
+  - total runtime;
+  - validation pass/fail state;
+  - blocking/advisory validation counts;
+  - repair count.
+- Kept the existing batch slide generator as the implementation engine underneath the runtime wrapper for now.
+- Added runtime validation for queued decks using the existing programmatic slide validator.
+- Added a repair placeholder that records the handoff point without changing output until deterministic/LLM repair is implemented.
+- Updated starter presentation artifacts to create an `ArtifactRunPlan` with slide parts, production design family, validation gate, and starter-specific work queue.
+- Moved deterministic starter presentation sanitize/validate/finalize behavior behind `finalizeStaticPresentationRuntime()`.
+- Added starter coverage proving starter decks expose runtime plans, slide work parts, and production design families.
+- Added runtime finalizer coverage proving deterministic starter-style HTML is scoped and telemetry is produced.
+- Added runtime policy coverage proving queued generation is owned by `artifactRuntime/presentationRuntime.ts`, not the older presentation workflow file.
+
 ### Validation Completed
 - `npm test -- artifact-runtime workflow-planner run-request run-dry-run run-explain structured-run-outputs external-adapter-contracts run-events workflow-benchmark-cases`
   - Passed: 9 files, 23 tests.
+- `npm test -- artifact-runtime presentation-runtime-policy project-starter-kits workflow-planner run-request`
+  - Passed: 5 files, 21 tests.
 - `npm test`
-  - Passed: 93 files, 507 tests.
+  - Passed: 93 files, 509 tests.
 - `npm run typecheck`
   - Passed.
 - `npm run build`
@@ -60,10 +86,11 @@ Last updated: 2026-04-25.
   - Passed.
 
 ### Current Open State
-- The active runtime now has an internal plan object, but presentation generation still delegates most actual generation to the existing presentation workflow.
+- The active runtime now has an internal plan object, and queued presentation generation is controlled by the runtime layer.
+- Single-slide create/edit presentation generation still delegates orchestration to the existing presentation workflow.
 - `ArtifactRunPlan` currently wraps the existing `ArtifactWorkflowPlan`; the next slice should make the runtime plan the primary planner output rather than an adapter around the older plan.
 - Legacy external execution-spec files still exist in the repository as quarantined code, but active chat generation no longer imports them.
-- Starter-kit generation still needs to be moved onto the runtime path.
+- Starter presentation generation now creates runtime plans and uses a runtime finalizer for deterministic sanitize/validate/finalize behavior. The template-to-section assembly step still lives in the starter builder.
 - Documents and spreadsheets still use their current handlers, though they now receive run requests that include `artifactRunPlan`.
 - Workflow presets still exist in the advanced UI and storage model. They are hidden from the default user surface but not removed yet.
 - Production templates are still mixed with legacy templates; routing has not yet been fully reduced to production families only.
@@ -149,9 +176,9 @@ Last updated: 2026-04-25.
 ## Implementation Order
 1. Done: Remove/quarantine external API/MCP/automation seams and dry-run/explain complexity from the active runtime.
 2. Done: Define the new `ArtifactRunPlan`, `ArtifactRunEvent`, `ArtifactPart`, `DesignManifest`, and `ValidationGate` types.
-3. In progress: Rebuild presentation generation around the new run engine while keeping the current UI entry point.
+3. In progress: Rebuild presentation generation around the new run engine while keeping the current UI entry point. Queued deck generation is now runtime-owned; single-slide create/edit still needs migration.
 4. In progress: Replace presentation prompt composition with compact prompt packs and design manifests.
-5. Next: Convert starter kits to use the same presentation runtime and production design families.
+5. In progress: Convert starter kits to use the same presentation runtime and production design families. Starter decks now create runtime plans and use a runtime finalizer; template-to-section assembly still needs to become a runtime part.
 6. Partially done: Simplify user-facing project settings into guided style/preferences, with current technical controls moved to Advanced.
 7. Next: Move document generation onto the same run engine.
 8. Next: Keep spreadsheet execution deterministic but emit the same run events and validation summaries.
@@ -172,7 +199,7 @@ Last updated: 2026-04-25.
   - repair/evaluation budget.
 
 ### Step 2: Build Presentation Runtime V1
-- Add a presentation runtime orchestrator that owns:
+- Continue the presentation runtime orchestrator so it owns:
   - intent summary;
   - outline;
   - design manifest;
@@ -180,7 +207,7 @@ Last updated: 2026-04-25.
   - per-slide validation;
   - targeted repair;
   - final assembly.
-- Keep the current UI entry point, but move orchestration out of `src/services/ai/workflow/presentation.ts` over time.
+- Keep the current UI entry point, but move single-slide create/edit orchestration out of `src/services/ai/workflow/presentation.ts` over time.
 - Emit runtime part events for:
   - planning;
   - designing;
@@ -196,8 +223,8 @@ Last updated: 2026-04-25.
   - repair count.
 
 ### Step 3: Convert Starter Kits To Runtime
-- Replace the separate starter presentation path with deterministic runtime plans.
-- Generate starter decks through the same presentation runtime parts used by normal generation.
+- Continue replacing the separate starter presentation path with deterministic runtime plans.
+- Move starter deck final assembly behind a runtime finalizer while preserving deterministic template rendering.
 - Preserve the starter rendering reset invariants:
   - `contentHtml` contains complete scoped slide HTML;
   - `themeCss` is always `''`;
@@ -287,11 +314,16 @@ Last updated: 2026-04-25.
 - Start with presentations, then extend to documents and spreadsheets.
 
 ## Immediate Next Implementation Slice
-- Build `src/services/artifactRuntime/presentationRuntime.ts`.
-- Move queued slide generation control from `src/services/ai/workflow/presentation.ts` into the runtime layer.
-- Add per-slide runtime validation and repair stubs, even if the first implementation calls existing validators underneath.
-- Convert starter presentation generation to create `ArtifactRunPlan` instances and use the new runtime.
-- Add starter-runtime tests before changing document or spreadsheet workflows.
+- Expand runtime metrics capture beyond queued decks into single-slide create/edit flows:
+  - start time;
+  - time to first usable preview;
+  - total runtime;
+  - validation result;
+  - repair count.
+- Move starter template-to-section assembly into a runtime part builder so starter decks are fully runtime-owned from plan through finalizer.
+- Add an explicit runtime event adapter that can translate `ArtifactRunEvent` into current `WorkflowEvent` updates.
+- Start moving single-slide create/edit presentation orchestration into `presentationRuntime.ts`, leaving the old workflow file as a compatibility shell.
+- Add tests for runtime metrics and starter finalizer behavior.
 
 ## Test Plan
 - Add planner tests proving each user prompt produces exactly one authoritative `ArtifactRunPlan`.

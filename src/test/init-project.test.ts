@@ -31,6 +31,10 @@ vi.mock('@/services/ai/templates', () => ({
       </body>
     </html>
   `),
+  resolveTemplatePlan: vi.fn(() => ({
+    templateId: 'executive-briefing-light',
+    exemplarPackId: 'executive-briefing-light',
+  })),
 }));
 
 vi.mock('@/services/spreadsheet/workbook', async () => {

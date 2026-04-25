@@ -21,9 +21,14 @@ describe('presentation runtime policy', () => {
     expect('editCorrectionTimeoutMs' in profile).toBe(false);
 
     const presentationSource = readSource('services/ai/workflow/presentation.ts');
+    const presentationRuntimeSource = readSource('services/artifactRuntime/presentationRuntime.ts');
     const designerSource = readSource('services/ai/workflow/agents/designer.ts');
 
     expect(presentationSource).not.toMatch(/streamSoftTimeoutMs|60_000/);
+    expect(presentationSource).not.toMatch(/runBatchQueue/);
+    expect(presentationRuntimeSource).toMatch(/runBatchQueue/);
+    expect(presentationRuntimeSource).toMatch(/validatePresentationRuntimeOutput/);
+    expect(presentationRuntimeSource).toMatch(/repairPresentationRuntimeOutput/);
     expect(designerSource).not.toMatch(/softTimeoutMs|Draft stream soft timeout|Edit correction soft timeout/);
   });
 });

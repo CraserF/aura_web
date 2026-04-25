@@ -14,6 +14,11 @@ import { listDocumentBlueprints } from '@/services/ai/templates/document-bluepri
 import { createDefaultSheet, replaceSheetData } from '@/services/spreadsheet/workbook';
 import { planSpreadsheetStarter } from '@/services/spreadsheet/starter';
 import { extractChartSpecsFromHtml } from '@/services/charts';
+import {
+  buildArtifactRunPlan,
+  finalizeStaticPresentationRuntime,
+} from '@/services/artifactRuntime';
+import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
 import type { ProjectData, ProjectDocument } from '@/types/project';
 import { getDocumentStarter } from './documentStarters';
 import { getSpreadsheetStarter } from './spreadsheetStarters';
@@ -279,6 +284,72 @@ function cleanupEmptyOptionalStarterElements(section: HTMLElement): void {
   }
 }
 
+function getStarterSectionTitle(section: HTMLElement, index: number, deckTitle: string): string {
+  const heading = section.querySelector<HTMLElement>('h1, h2, h3, .slide-title, .eyebrow');
+  const text = heading?.textContent?.replace(/\s+/g, ' ').trim();
+  return text || (index === 0 ? deckTitle : `Slide ${index + 1}`);
+}
+
+function buildPresentationStarterRuntimePlan(input: {
+  artifact: ProjectStarterArtifact;
+  starter: PresentationStarterTemplate;
+  title: string;
+  sections: HTMLElement[];
+}): ArtifactRunPlan {
+  const sectionTitles = input.sections.map((section, index) =>
+    getStarterSectionTitle(section, index, input.title));
+  const prompt = `Create ${sectionTitles.length} slides: ${sectionTitles.join(', ')}`;
+  const runtimePlan = buildArtifactRunPlan({
+    runId: crypto.randomUUID(),
+    prompt,
+    artifactType: 'presentation',
+    operation: 'create',
+    activeDocument: null,
+    mode: 'execute',
+    providerId: 'openai',
+    providerModel: 'starter-runtime',
+    allowFullRegeneration: false,
+  });
+  const templateId = input.starter.templateId as TemplateId;
+  const recipeId = runtimePlan.workflow.presentationRecipeId ?? 'general-polished';
+
+  runtimePlan.userIntent = prompt;
+  runtimePlan.intentSummary = `Starter runtime deck for ${input.starter.label} using ${templateId}.`;
+  runtimePlan.workflow.summary = runtimePlan.intentSummary;
+  runtimePlan.workflow.queueMode = 'sequential';
+  runtimePlan.workflow.queuedWorkItems = sectionTitles.map((sectionTitle, index) => ({
+    id: `starter-slide-${index + 1}`,
+    orderIndex: index,
+    targetType: 'slide',
+    targetLabel: sectionTitle,
+    operationKind: 'create',
+    status: 'done',
+    promptSummary: `${input.starter.description} Starter slide ${index + 1}: ${sectionTitle}.`,
+    recipeId,
+  }));
+  runtimePlan.workflow.templateGuidance.selectedTemplateId = templateId;
+  runtimePlan.workflow.templateGuidance.intentFamily = 'batch';
+  runtimePlan.workflow.templateGuidance.designConstraints = [
+    `Use the ${templateId} production starter design family.`,
+    ...runtimePlan.workflow.templateGuidance.designConstraints,
+  ];
+  runtimePlan.designManifest.family = templateId;
+  runtimePlan.designManifest.templateId = templateId;
+  runtimePlan.workQueue = runtimePlan.workflow.queuedWorkItems.map((item) => ({
+    id: item.id,
+    artifactType: 'presentation',
+    kind: 'slide',
+    orderIndex: item.orderIndex,
+    title: item.targetLabel,
+    brief: item.promptSummary,
+    status: 'done',
+    sourceWorkItemId: item.id,
+    ...(item.recipeId ? { recipeId: item.recipeId } : {}),
+  }));
+
+  return runtimePlan;
+}
+
 async function buildPresentationStarterResult(
   artifact: ProjectStarterArtifact,
   starterKitId?: string,
@@ -341,18 +412,30 @@ async function buildPresentationStarterResult(
     replaceTokensInElement(section, knownTokens);
     cleanupEmptyOptionalStarterElements(section);
   }
+  const runtimePlan = buildPresentationStarterRuntimePlan({
+    artifact,
+    starter,
+    title,
+    sections: clonedSections,
+  });
 
   const sectionHtml = clonedSections.map((section) => section.outerHTML).join('\n');
   const rawHtml = styles ? `<style>\n${styles}\n</style>\n${sectionHtml}` : sectionHtml;
-  const contentHtml = sanitizeSlideHtml(rawHtml);
+  const finalized = finalizeStaticPresentationRuntime({
+    rawHtml,
+    title,
+    slideCount: clonedSections.length,
+    runPlan: runtimePlan,
+  });
 
   return {
     title,
     type: 'presentation',
-    contentHtml,
+    contentHtml: finalized.html,
     themeCss: '',
-    slideCount: clonedSections.length,
+    slideCount: finalized.slideCount,
     description: starter.description,
+    runtimePlan,
     starterRef: {
       artifactKey: artifact.key,
       starterId: starter.id,
