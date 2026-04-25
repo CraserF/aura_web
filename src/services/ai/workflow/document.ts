@@ -12,18 +12,23 @@ import { createModel } from './engine';
 import { withDefaults } from '../middleware';
 import { sanitizeHtml } from '@/services/html/sanitizer';
 import { CACHE_CONTROL } from './engine';
-import { aiDebugLog, logPromptMetrics } from '../debug';
+import { aiDebugLog, logEditingMetrics, logPromptMetrics } from '../debug';
 import { validateDocument } from './agents/document-qa';
+import { getProviderCapabilityProfile } from '../providerCapabilities';
 import type {
   LLMConfig,
   EventListener,
 } from './types';
 import type { AIMessage } from '../types';
+import type { EditStrategy, EditingTelemetry, ResolvedTarget } from '@/services/editing/types';
 import { toModelMessages } from './engine';
 import {
   selectDocumentBlueprint,
   type DocumentBlueprint,
 } from '../templates/document-blueprints';
+import { getReferenceStylePack } from '../templates';
+import { applyDocumentTargetedEdit, prepareDocumentHtmlForEditing } from '@/services/editing/patchDocument';
+import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
 
 export interface DocumentProjectLink {
   id: string;
@@ -37,18 +42,27 @@ export interface DocumentInput {
   existingMarkdown?: string;
   chatHistory: AIMessage[];
   memoryContext?: string;
+  projectRulesBlock?: string;
   documentType?: string; // hints like "report", "notes", "wiki", "readme"
   styleHint?: string;
   /** Other documents/presentations in the project — used to generate cross-document links */
   projectLinks?: DocumentProjectLink[];
   /** Image parts for multi-modal document requests */
   imageParts?: Array<{ type: 'image'; image: string; mimeType: string }>;
+  templateGuidance?: TemplateGuidanceProfile;
+  editing?: {
+    resolvedTargets: ResolvedTarget[];
+    targetSummary: string[];
+    strategyHint?: EditStrategy;
+    allowFullRegeneration: boolean;
+  };
 }
 
 export interface DocumentOutput {
   html: string;
   markdown: string;
   title: string;
+  editing?: EditingTelemetry;
 }
 
 type ResolvedDocumentType = 'report' | 'brief' | 'proposal' | 'notes' | 'wiki' | 'readme' | 'article';
@@ -63,6 +77,10 @@ Rules:
 - make each document feel purpose-built, not like a clone of other project docs
 - use strong headings, concise paragraphs, and clear visual rhythm
 - prefer summary bands, KPI rows, comparison cards, process rails, pull quotes, and sidebars over long generic prose
+- default to a strong single-column reading flow for narrative content; only use side-by-side layouts for comparisons, KPI bands, or supporting rails
+- when you use grids or paired modules, make sure they can stack cleanly on narrow screens; avoid dense three-column prose layouts
+- keep media, figures, and charts fluid with max-width: 100%; avoid fixed pixel widths or heights that would clip inside a framed mobile viewport
+- keep hero/header sections concise enough that smaller screens still surface meaningful content without scrolling past a giant intro block
 - for notes, wikis, and reference material: use a clean minimal layout — no decorative elements, just clear hierarchy
 - no JavaScript, remote assets, or external stylesheets
 - when data visualization is needed, emit structured chart placeholders:
@@ -73,14 +91,55 @@ Rules:
 
 const EDIT_DOCUMENT_SYSTEM_PROMPT = `You are a professional document editor.
 Return the complete updated document while preserving the existing layout quality, hierarchy, and visual identity.
-Keep the document focused on the current request, prefer the smallest necessary change, and output only the updated content.`;
+Keep the document focused on the current request, prefer the smallest necessary change, preserve mobile-safe stacking and fluid media behavior, and output only the updated content.`;
 
 function withMemoryContext(prompt: string, memoryContext?: string): string {
-  if (!memoryContext) {
-    return prompt;
+  const sections = [prompt];
+  if (memoryContext) {
+    sections.push(`Relevant memory context:\n${memoryContext}\n\nUse this memory only when it improves the current document.`);
+  }
+  return sections.join('\n\n');
+}
+
+function withProjectRules(systemPrompt: string, projectRulesBlock?: string): string {
+  if (!projectRulesBlock?.trim()) {
+    return systemPrompt;
   }
 
-  return `${prompt}\n\nRelevant memory context:\n${memoryContext}\n\nUse this memory only when it improves the current document.`;
+  return `${systemPrompt}\n\n${projectRulesBlock}\n\nFollow these project rules unless the user explicitly overrides them.`;
+}
+
+function withTemplateGuidance(systemPrompt: string, templateGuidance?: TemplateGuidanceProfile): string {
+  if (!templateGuidance) {
+    return systemPrompt;
+  }
+
+  const stylePack = templateGuidance.referenceStylePackId
+    ? getReferenceStylePack(templateGuidance.referenceStylePackId)
+    : null;
+
+  return `${systemPrompt}
+
+Workflow guidance:
+- intent family: ${templateGuidance.intentFamily}
+- provider tier: ${templateGuidance.providerTier}
+- document family: ${templateGuidance.documentThemeFamily ?? 'auto'}
+- selected template: ${templateGuidance.selectedTemplateId ?? 'n/a'}
+- design constraints:
+${templateGuidance.designConstraints.map((constraint) => `  - ${constraint}`).join('\n')}
+- must avoid:
+${templateGuidance.antiPatterns.map((pattern) => `  - ${pattern}`).join('\n')}
+${stylePack ? `- sanitized style pack: ${stylePack.label}
+- style pack summary: ${stylePack.summary}
+- typography cues: ${stylePack.typography.join(' ')}
+- palette cues: ${stylePack.paletteRules.join(' ')}
+- layout cues: ${stylePack.layoutRules.join(' ')}
+- confidentiality rules:
+${stylePack.confidentialityRules.map((rule) => `  - ${rule}`).join('\n')}
+- synthetic style example:
+\`\`\`html
+${stylePack.syntheticExample}
+\`\`\`` : ''}`;
 }
 
 interface DocumentTheme {
@@ -328,6 +387,25 @@ interface DocumentPlan {
   isEdit: boolean;
 }
 
+function startProgressHeartbeat(opts: {
+  onEvent: EventListener;
+  startPct: number;
+  maxPct: number;
+  intervalMs?: number;
+  messages: string[];
+}): () => void {
+  const { onEvent, startPct, maxPct, intervalMs = 8000, messages } = opts;
+  let tick = 0;
+  const timer = setInterval(() => {
+    tick += 1;
+    const pct = Math.min(maxPct, startPct + (tick * 6));
+    const message = messages[Math.min(tick - 1, messages.length - 1)] ?? messages[messages.length - 1] ?? 'Working…';
+    onEvent({ type: 'progress', message, pct });
+  }, intervalMs);
+
+  return () => clearInterval(timer);
+}
+
 function shouldPreferDesignedHtml(documentType: ResolvedDocumentType, prompt: string, styleHint?: string): boolean {
   const normalized = prompt.toLowerCase();
   if (styleHint && styleHint !== 'auto') return true;
@@ -349,7 +427,11 @@ function planDocumentRequest(input: DocumentInput): DocumentPlan {
   const blueprint = selectDocumentBlueprint(input.prompt, documentType, input.styleHint);
   return {
     documentType,
-    theme: pickDocumentTheme(`${input.prompt} ${blueprint.label} ${input.styleHint ?? ''}`, documentType),
+    theme: pickDocumentTheme(
+      `${input.prompt} ${blueprint.label} ${input.styleHint ?? ''}`,
+      documentType,
+      input.templateGuidance?.documentThemeFamily,
+    ),
     artDirection: blueprint.artDirection ?? inferArtDirection(documentType),
     blueprint,
     preferHtml: shouldPreferDesignedHtml(documentType, input.prompt, input.styleHint),
@@ -374,6 +456,8 @@ function getComponentHints(documentType: ResolvedDocumentType, tier: ArtDirectio
   const hints = [
     'Give this document its own layout identity; do not mirror unrelated project docs unless explicitly asked.',
     'Use accent-bar section headers and consistent section colors: blue=context, green=process, coral=warnings, slate=reference.',
+    'Bias toward one strong reading column for narrative content; reserve side-by-side layouts for comparisons, KPIs, or supporting context.',
+    'Keep media and structured modules wrap-safe on narrow screens; avoid fixed-width visuals and dense three-column prose blocks.',
   ];
 
   if (documentType === 'readme' || documentType === 'wiki') {
@@ -518,6 +602,13 @@ ${summary}
     return this;
   }
 
+  addText(value: string): this {
+    if (value.trim()) {
+      this.sections.push(value);
+    }
+    return this;
+  }
+
   addRules(isEdit: boolean, plan: DocumentPlan): this {
     const isClean = plan.artDirection === 'clean';
     this.sections.push(`## Rules
@@ -528,6 +619,8 @@ ${summary}
   ? 'This is a reference/notes document: keep it clean and minimal — clear hierarchy, one accent color, no decorative bands or animations. Favour whitespace and readability over visuals.'
   : 'Make the document feel distinct by mixing 2–4 suitable patterns: hero summary, KPI rail, comparison cards, progress rows, timeline, pull quote, sidebar, or metadata grid'}
 - Prefer ${isClean ? 'functional clarity' : 'infographic-style clarity'} over decoration; every visual element should communicate something
+- Treat narrow screens as a first-class reading mode: default to single-column narrative flow, let supporting modules stack cleanly, and avoid dense three-across prose layouts
+- Keep media fluid with max-width: 100% and avoid hard pixel widths/heights that could clip inside the framed document viewport
 - ${isClean ? 'Avoid animations, heavy gradients, and decorative components.' : 'Subtle Aura-only motion is welcome on key containers via classes like aura-rise-in, aura-fade-in, or aura-pulse-soft'}
 - ${isEdit ? 'Preserve the existing structure and make the smallest necessary change.' : 'Prefer polished structure over decorative excess.'}
 - Avoid walls of text, generic headings, and repeated identical component blocks`);
@@ -541,6 +634,7 @@ ${summary}
 
 async function buildCreatePrompt(input: DocumentInput, plan: DocumentPlan): Promise<string> {
   const includeExample = plan.preferHtml || plan.artDirection !== 'clean';
+  const requestedTitle = extractRequestedDocumentTitle(input.prompt);
 
   return new DocumentPromptComposer()
     .addBase(plan)
@@ -550,6 +644,9 @@ async function buildCreatePrompt(input: DocumentInput, plan: DocumentPlan): Prom
     .addPalette(plan.theme)
     .addExample(plan.blueprint, plan.documentType, plan.artDirection, includeExample)
     .addProjectLinks(input.projectLinks ?? [])
+    .addText(requestedTitle
+      ? `## Required Title\nUse this exact document title verbatim as the first \`<h1>\`: ${requestedTitle}\nDo not rename, paraphrase, or swap in a more generic alternative.`
+      : '')
     .addRequest('User Request', input.prompt)
     .addRules(false, plan)
     .build();
@@ -557,7 +654,15 @@ async function buildCreatePrompt(input: DocumentInput, plan: DocumentPlan): Prom
 
 async function buildEditPrompt(input: DocumentInput, plan: DocumentPlan): Promise<string> {
   const existingSummary = input.existingMarkdown?.trim() || summarizeExistingDocument(input.existingHtml ?? '');
-  const shouldIncludeExample = /restyle|redesign|make it look|polish|visual|infographic|more graphic/i.test(input.prompt);
+  const shouldIncludeExample =
+    input.templateGuidance?.intentFamily === 'restyle' ||
+    /restyle|redesign|make it look|polish|visual|infographic|more graphic/i.test(input.prompt);
+  const targetSummary = input.editing?.targetSummary.length
+    ? `## Targeted Edit Scope\nOnly modify these target areas unless the user explicitly asked for a full rewrite:\n- ${input.editing.targetSummary.join('\n- ')}`
+    : '';
+  const boundedEditRules = input.editing && !input.editing.allowFullRegeneration
+    ? 'Preserve all non-targeted blocks exactly where possible. Prefer block-local edits over document-wide rewrites.'
+    : 'A full rewrite is allowed if it best satisfies the request.';
 
   return new DocumentPromptComposer()
     .addBase(plan)
@@ -567,8 +672,10 @@ async function buildEditPrompt(input: DocumentInput, plan: DocumentPlan): Promis
     .addPalette(plan.theme)
     .addExample(plan.blueprint, plan.documentType, plan.artDirection, shouldIncludeExample)
     .addProjectLinks(input.projectLinks ?? [])
+    .addText(targetSummary)
     .addRequest('User Instruction', input.prompt)
     .addRules(true, plan)
+    .addText(`## Edit Execution Rules\n- ${boundedEditRules}`)
     .build();
 }
 
@@ -622,8 +729,107 @@ Use numbered lists and code fences where helpful.`;
   }
 }
 
-function pickDocumentTheme(prompt: string, documentType: ResolvedDocumentType): DocumentTheme {
+function pickDocumentTheme(
+  prompt: string,
+  documentType: ResolvedDocumentType,
+  preferredFamily?: TemplateGuidanceProfile['documentThemeFamily'],
+): DocumentTheme {
   const normalized = prompt.toLowerCase();
+
+  if (preferredFamily) {
+    switch (preferredFamily) {
+      case 'executive-light':
+        return normalizeDocumentTheme({
+          name: 'executive-light',
+          label: 'Executive Board',
+          bg: '#f5f8fb',
+          surface: 'rgba(17, 75, 108, 0.04)',
+          surfaceAlt: 'rgba(15, 134, 168, 0.08)',
+          border: 'rgba(17, 75, 108, 0.11)',
+          primary: '#114b6c',
+          accent: '#2a9d8f',
+          text: '#152b39',
+          muted: '#5f7684',
+          shellBg: 'rgba(255,255,255,0.97)',
+          glow: 'rgba(15, 134, 168, 0.10)',
+        });
+      case 'editorial-light':
+        return normalizeDocumentTheme({
+          name: 'editorial-light',
+          label: 'Editorial Report',
+          bg: '#f7fafb',
+          surface: 'rgba(24, 56, 74, 0.04)',
+          surfaceAlt: 'rgba(15, 134, 168, 0.07)',
+          border: 'rgba(24, 56, 74, 0.11)',
+          primary: '#18384a',
+          accent: '#0f86a8',
+          text: '#1f2e37',
+          muted: '#617784',
+          shellBg: 'rgba(255,255,255,0.975)',
+          glow: 'rgba(15, 134, 168, 0.08)',
+        });
+      case 'proposal-light':
+        return normalizeDocumentTheme({
+          name: 'proposal-light',
+          label: 'Strategy Board',
+          bg: '#f8fafc',
+          surface: 'rgba(24, 56, 74, 0.04)',
+          surfaceAlt: 'rgba(34, 139, 127, 0.08)',
+          border: 'rgba(24, 56, 74, 0.11)',
+          primary: '#173e57',
+          accent: '#228b7f',
+          text: '#182a34',
+          muted: '#5e7481',
+          shellBg: 'rgba(255,255,255,0.975)',
+          glow: 'rgba(34, 139, 127, 0.09)',
+        });
+      case 'research-light':
+        return normalizeDocumentTheme({
+          name: 'research-light',
+          label: 'Research Summary',
+          bg: '#faf8f3',
+          surface: 'rgba(87, 72, 48, 0.04)',
+          surfaceAlt: 'rgba(184, 120, 57, 0.09)',
+          border: 'rgba(87, 72, 48, 0.10)',
+          primary: '#574830',
+          accent: '#b87839',
+          text: '#2a2218',
+          muted: '#74695e',
+          shellBg: 'rgba(255,255,255,0.975)',
+          glow: 'rgba(184, 120, 57, 0.08)',
+        });
+      case 'playbook-light':
+        return normalizeDocumentTheme({
+          name: 'playbook-light',
+          label: 'Process Playbook',
+          bg: '#f6faf8',
+          surface: 'rgba(30, 84, 69, 0.04)',
+          surfaceAlt: 'rgba(56, 161, 105, 0.08)',
+          border: 'rgba(30, 84, 69, 0.10)',
+          primary: '#1e5445',
+          accent: '#38a169',
+          text: '#193229',
+          muted: '#61776e',
+          shellBg: 'rgba(255,255,255,0.975)',
+          glow: 'rgba(56, 161, 105, 0.09)',
+        });
+      case 'infographic-light':
+        return normalizeDocumentTheme({
+          name: 'infographic-light',
+          label: 'Infographic Brief',
+          bg: '#f2f8fb',
+          surface: 'rgba(16, 111, 140, 0.04)',
+          surfaceAlt: 'rgba(22, 160, 133, 0.09)',
+          border: 'rgba(16, 111, 140, 0.10)',
+          primary: '#106f8c',
+          accent: '#16a085',
+          text: '#16313d',
+          muted: '#607984',
+          shellBg: 'rgba(255,255,255,0.975)',
+          glow: 'rgba(16, 111, 140, 0.09)',
+        });
+    }
+  }
 
   // --- Topic-based matching ---
 
@@ -813,7 +1019,11 @@ export async function runDocumentWorkflow(
   opts: RunDocumentWorkflowOptions,
 ): Promise<DocumentOutput> {
   const { input, llmConfig, onEvent, signal } = opts;
-  const isEdit = !!input.existingHtml;
+  const isEdit = !!input.existingHtml && input.templateGuidance?.intentFamily !== 'rewrite';
+  const providerProfile = getProviderCapabilityProfile({
+    id: llmConfig.providerEntry.id,
+    model: llmConfig.model,
+  });
 
   const baseModel: LanguageModel = await createModel(llmConfig);
   const model = withDefaults(baseModel);
@@ -834,7 +1044,13 @@ export async function runDocumentWorkflow(
     onEvent({ type: 'step-start', stepId: 'generate', label: isEdit ? 'Updating document…' : 'Writing document…' });
     onEvent({ type: 'progress', message: isEdit ? 'Applying changes…' : 'Crafting your document…', pct: 28 });
 
-    const systemPrompt = isEdit ? EDIT_DOCUMENT_SYSTEM_PROMPT : DOCUMENT_SYSTEM_PROMPT;
+    const systemPrompt = withTemplateGuidance(
+      withProjectRules(
+        isEdit ? EDIT_DOCUMENT_SYSTEM_PROMPT : DOCUMENT_SYSTEM_PROMPT,
+        input.projectRulesBlock,
+      ),
+      input.templateGuidance,
+    );
     const userPrompt = withMemoryContext(
       isEdit ? await buildEditPrompt(input, planResult) : await buildCreatePrompt(input, planResult),
       input.memoryContext,
@@ -879,11 +1095,31 @@ export async function runDocumentWorkflow(
       maxOutputTokens: 16384,
       abortSignal: signal,
     });
+    const stopHeartbeat = startProgressHeartbeat({
+      onEvent,
+      startPct: 28,
+      maxPct: 68,
+      messages: isEdit
+        ? [
+            'Still applying targeted document changes…',
+            'Refining the updated document layout…',
+            'Finishing the current document draft…',
+          ]
+        : [
+            'Still crafting the document structure…',
+            'Shaping the document layout and hierarchy…',
+            'Finishing the current document draft…',
+          ],
+    });
 
-    for await (const chunk of stream.textStream) {
-      if (signal?.aborted) break;
-      accumulated += chunk;
-      onEvent({ type: 'streaming', stepId: 'generate', chunk });
+    try {
+      for await (const chunk of stream.textStream) {
+        if (signal?.aborted) break;
+        accumulated += chunk;
+        onEvent({ type: 'streaming', stepId: 'generate', chunk });
+      }
+    } finally {
+      stopHeartbeat();
     }
 
     onEvent({ type: 'progress', message: 'Structuring document…', pct: 72 });
@@ -898,16 +1134,49 @@ export async function runDocumentWorkflow(
 
     onEvent({ type: 'progress', message: 'Sanitizing content…', pct: 84 });
 
+    let finalHtml = sanitizeHtml(renderedHtml);
+    const requestedTitle = extractRequestedDocumentTitle(input.prompt);
+    if (requestedTitle) {
+      finalHtml = enforceRequestedDocumentTitle(finalHtml, requestedTitle);
+    }
+    let editingTelemetry: EditingTelemetry | undefined;
+
+    if (isEdit && input.existingHtml && input.editing) {
+      const targetedEdit = applyDocumentTargetedEdit({
+        existingHtml: prepareDocumentHtmlForEditing(input.existingHtml).html,
+        generatedHtml: finalHtml,
+        targets: input.editing.resolvedTargets,
+        strategyHint: input.editing.allowFullRegeneration
+          ? 'full-regenerate'
+          : input.editing.strategyHint === 'style-token'
+            ? 'style-token'
+            : input.editing.strategyHint === 'search-replace'
+              ? 'search-replace'
+              : 'block-replace',
+        allowFullRegeneration: input.editing.allowFullRegeneration,
+      });
+      finalHtml = sanitizeHtml(targetedEdit.html);
+      editingTelemetry = {
+        strategyUsed: targetedEdit.strategyUsed,
+        fallbackUsed: targetedEdit.fallbackUsed,
+        targetSummary: input.editing.targetSummary,
+        dryRunFailures: targetedEdit.dryRunFailures,
+      };
+      logEditingMetrics('document', {
+        ...editingTelemetry,
+        regenerationAvoided: targetedEdit.strategyUsed !== 'full-regenerate',
+        promptCharsDelta: finalHtml.length - (input.existingHtml?.length ?? 0),
+      });
+    }
+
     const sourceMarkdown = looksLikeHtml(rawContent)
-      ? summarizeExistingDocument(renderedHtml)
+      ? summarizeExistingDocument(finalHtml)
       : rawContent.trim();
 
-    // Sanitize the HTML for security
-    const sanitized = sanitizeHtml(renderedHtml);
     onEvent({ type: 'step-done', stepId: 'generate', label: isEdit ? 'Updating document…' : 'Writing document…' });
 
     onEvent({ type: 'step-start', stepId: 'qa', label: 'Checking document quality…' });
-    const qaResult = validateDocument(sanitized);
+    const qaResult = validateDocument(finalHtml);
     aiDebugLog('document', 'document QA', {
       passed: qaResult.passed,
       score: qaResult.score,
@@ -922,16 +1191,23 @@ export async function runDocumentWorkflow(
     onEvent({ type: 'step-done', stepId: 'qa', label: 'Checking document quality…' });
 
     onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing document…' });
-    const title = extractDocumentTitle(sanitized) || extractTitleFromPrompt(input.prompt);
+    const title = requestedTitle || extractDocumentTitle(finalHtml) || extractTitleFromPrompt(input.prompt);
 
     const output: DocumentOutput = {
-      html: sanitized,
+      html: finalHtml,
       markdown: sourceMarkdown,
       title,
+      ...(editingTelemetry ? { editing: editingTelemetry } : {}),
     };
 
     onEvent({ type: 'step-done', stepId: 'finalize', label: 'Finalizing document…' });
-    onEvent({ type: 'progress', message: 'Done!', pct: 100 });
+    onEvent({
+      type: 'progress',
+      message: providerProfile.providerId === 'ollama'
+        ? 'Done! Local baseline run complete.'
+        : 'Done!',
+      pct: 100,
+    });
     onEvent({ type: 'complete', result: output });
     return output;
   } catch (err) {
@@ -1089,9 +1365,9 @@ function buildDocumentShellVars(theme: DocumentTheme): string {
   color-scheme: light;
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
-  max-width: 920px;
+  max-width: 960px;
   margin: 0 auto;
-  padding: clamp(20px, 3vw, 34px) clamp(18px, 3vw, 28px) clamp(28px, 4vw, 42px);
+  padding: clamp(22px, 3vw, 38px) clamp(20px, 3vw, 32px) clamp(30px, 4vw, 46px);
 }
 .doc-shell * { box-sizing: border-box; }
 .doc-shell .doc-title-row {
@@ -1259,13 +1535,13 @@ function buildDocumentShellVars(theme: DocumentTheme): string {
 }
 
 function extractDocumentStatus(value: string): 'draft' | 'review' | 'final' | 'archived' | undefined {
-  const match = value.match(/(?:\*\*)?status(?:\*\*)?\s*[:\-]\s*(draft|review|final|archived)\b/i);
+  const match = value.match(/(?:\*\*)?status(?:\*\*)?\s*[:-]\s*(draft|review|final|archived)\b/i);
   return match?.[1]?.toLowerCase() as 'draft' | 'review' | 'final' | 'archived' | undefined;
 }
 
 function stripDocumentStatus(value: string): string {
   return value
-    .replace(/^\s*(?:\*\*)?status(?:\*\*)?\s*[:\-]\s*(?:draft|review|final|archived)\s*$/gim, '')
+    .replace(/^\s*(?:\*\*)?status(?:\*\*)?\s*[:-]\s*(?:draft|review|final|archived)\s*$/gim, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -1365,7 +1641,7 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
 .doc-shell .module-card,
 .doc-shell .benefit-item,
 .doc-shell .callout {
-  padding: clamp(16px, 2vw, 24px) clamp(16px, 2.2vw, 26px);
+  padding: clamp(18px, 2vw, 28px) clamp(18px, 2.2vw, 30px);
   border-radius: clamp(14px, 1.5vw, 18px);
   border: 1px solid var(--doc-border);
   background: linear-gradient(180deg, rgba(255,255,255,0.92) 0%, var(--doc-surface) 100%);
@@ -1399,7 +1675,7 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
 }
 .doc-shell h1 {
   margin: 0;
-  font-size: clamp(2rem, 3.3vw, 2.45rem);
+  font-size: clamp(2.25rem, 3.6vw, 2.85rem);
   line-height: 1.04;
   letter-spacing: -0.035em;
   color: var(--doc-text);
@@ -1413,7 +1689,7 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
 }
 .doc-shell h2 {
   margin: 0 0 12px;
-  font-size: clamp(1.25rem, 2vw, 1.5rem);
+  font-size: clamp(1.38rem, 2.15vw, 1.68rem);
   line-height: 1.2;
   letter-spacing: -0.02em;
   color: var(--doc-text);
@@ -1421,14 +1697,14 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
 .doc-shell h3,
 .doc-shell h4 {
   margin: 18px 0 8px;
-  font-size: clamp(1rem, 1.6vw, 1.15rem);
+  font-size: clamp(1.08rem, 1.6vw, 1.22rem);
   line-height: 1.35;
   color: color-mix(in srgb, var(--doc-text) 88%, var(--doc-primary));
 }
 .doc-lead,
 .doc-shell .value-prop {
   margin: 0;
-  font-size: clamp(1rem, 1.5vw, 1.08rem);
+  font-size: clamp(1.04rem, 1.55vw, 1.16rem);
   line-height: 1.75;
   color: var(--doc-muted);
 }
@@ -1441,7 +1717,7 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
 }
 .doc-shell p {
   margin: 0 0 12px;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.72;
   color: var(--doc-text);
   text-wrap: pretty;
@@ -1539,7 +1815,7 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
 }
 .doc-shell .doc-kpi-value {
   margin: 0 0 4px;
-  font-size: clamp(1.35rem, 2.5vw, 1.85rem);
+  font-size: clamp(1.55rem, 2.65vw, 2.05rem);
   line-height: 1;
   font-weight: 800;
   color: var(--doc-primary);
@@ -1557,6 +1833,12 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
   display: grid;
   gap: 12px;
   background: linear-gradient(135deg, color-mix(in srgb, var(--doc-primary) 8%, white) 0%, color-mix(in srgb, var(--doc-accent) 10%, white) 100%);
+}
+@media (min-width: 760px) {
+  .doc-shell .doc-proof-strip {
+    grid-template-columns: minmax(160px, 0.35fr) minmax(0, 1fr);
+    align-items: center;
+  }
 }
 .doc-shell .doc-proof-strip strong,
 .doc-shell .doc-infographic-band strong {
@@ -1589,8 +1871,20 @@ function buildDocumentShellStyle(theme: DocumentTheme): string {
   align-items: flex-start;
   gap: 14px;
 }
-@media (max-width: 820px) {
+@media (max-width: 759px) {
+  .doc-shell {
+    padding-inline: clamp(16px, 5vw, 24px);
+  }
   .doc-shell .doc-sidebar-layout {
+    grid-template-columns: 1fr;
+  }
+  .doc-shell .module-grid,
+  .doc-shell .grid-benefits,
+  .doc-shell .stats-grid,
+  .doc-shell .doc-kpi-grid,
+  .doc-shell .doc-story-grid,
+  .doc-shell .doc-comparison,
+  .doc-shell .doc-check-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -1740,7 +2034,7 @@ function consumeStructuredMarkdownModule(lines: string[], startIndex: number): {
   while (timelineIndex < lines.length) {
     const raw = lines[timelineIndex]?.trim() ?? '';
     if (!raw) break;
-    const match = raw.match(/^(?:[-*]\s+)?(?:(?:step|phase|stage|milestone)\s*\d+|q[1-4]|week\s*\d+)\s*[:\-]\s+(.+)$/i);
+    const match = raw.match(/^(?:[-*]\s+)?(?:(?:step|phase|stage|milestone)\s*\d+|q[1-4]|week\s*\d+)\s*[:-]\s+(.+)$/i);
     if (!match) break;
     timelineItems.push(renderInlineMarkdown(match[1] ?? raw));
     timelineIndex += 1;
@@ -2064,6 +2358,38 @@ function extractDocumentTitle(html: string): string {
   if (title?.textContent?.trim()) return title.textContent.trim();
 
   return '';
+}
+
+export function extractRequestedDocumentTitle(prompt: string): string | undefined {
+  const match = prompt.match(/\b(?:called|titled|named)\s+["“]?([^"”.,\n]+?)["”]?(?=\s+(?:with|that|for|about|in)\b|[.!?]|$)/i);
+  return match?.[1]?.trim() || undefined;
+}
+
+export function enforceRequestedDocumentTitle(html: string, requestedTitle: string): string {
+  if (!html.trim() || !requestedTitle.trim()) return html;
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const h1 = doc.querySelector('h1');
+
+  if (h1) {
+    h1.textContent = requestedTitle;
+  } else if (doc.body.firstElementChild) {
+    const heading = doc.createElement('h1');
+    heading.textContent = requestedTitle;
+    doc.body.firstElementChild.prepend(heading);
+  } else {
+    const heading = doc.createElement('h1');
+    heading.textContent = requestedTitle;
+    doc.body.appendChild(heading);
+  }
+
+  const title = doc.querySelector('title');
+  if (title) {
+    title.textContent = requestedTitle;
+  }
+
+  return doc.body.innerHTML.trim() || html;
 }
 
 /** Fall back to extracting a title from the user prompt */

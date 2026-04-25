@@ -814,11 +814,11 @@ export function getPalette(style: TemplateStyle): TemplatePalette {
 
 const STYLE_DESCRIPTIONS: Record<TemplateStyle, string> = {
   keynote: 'High-impact keynote with Midnight Executive palette (navy + ice blue). Cinematic scene backgrounds, gradient text, bold typography.',
-  corporate: 'Professional corporate deck with Ocean Gradient palette (deep blue + teal). Clean layouts, structured data, authoritative tone.',
+  corporate: 'Professional executive deck with Ocean Gradient palette (deep blue + teal). Clean layouts, structured data, authoritative tone, routed toward the executive briefing light family.',
   tech: 'Modern tech presentation with Charcoal Minimal palette (light, monochrome). Clean shadows, Swiss-inspired, developer-friendly.',
   creative: 'Vibrant creative showcase with Coral Energy palette (coral + gold + navy). Playful typography, bold colors, expressive layouts.',
   minimal: 'Ultra-clean minimal design with Sage Calm palette (sage greens). Maximum whitespace, serene, organic feel.',
-  pitch: 'Bold investor pitch deck with Cherry Bold palette (cherry red + navy). High-stakes feeling, dramatic contrast, confident.',
+  pitch: 'Bold launch or investor narrative with Cherry Bold palette (cherry red + navy). High-stakes feeling, dramatic contrast, confident, routed toward the launch narrative light family when appropriate.',
   editorial: 'Elegant storytelling with Berry & Cream palette (berry + dusty rose + cream). Serif typography, magazine-quality feel.',
   scifi: 'Futuristic sci-fi theme with Teal Trust palette (teal + seafoam + mint). Neon accents, electric borders, digital aesthetic.',
   data: 'Data-driven dashboard with Forest & Moss palette (forest green + moss). Growth-oriented, natural, clean data visualizations.',
@@ -854,6 +854,10 @@ const STYLE_ANIM_LEVELS: Record<TemplateStyle, 1 | 2 | 3 | 4> = {
 
 export function detectTemplateStyle(prompt: string): TemplateStyle {
   const lower = prompt.toLowerCase();
+
+  // Starter-grade design families should resolve before broader legacy themes.
+  if (/\b(executive briefing|leadership review|board deck|board narrative|decision summary|executive deck)\b/.test(lower)) return 'corporate';
+  if (/\b(launch plan|launch deck|launch narrative|go-to-market|gtm|market launch)\b/.test(lower)) return 'pitch';
 
   // New palette styles (check before existing to avoid conflicts)
   if (/\b(ocean|marine|aqua|sea|coastal|water\s*theme)\b/.test(lower)) return 'ocean';

@@ -2,24 +2,15 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { RotateCcw, X } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
 import { useProjectStore } from '@/stores/projectStore';
-import type { ChatMessage as ChatMessageType } from '@/types';
 import ChatMessage from './ChatMessage';
 import { AIWorkingIndicator } from './AIWorkingIndicator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
+import { isMessageInChatScope } from '@/services/chat/routing';
 
 interface ChatPanelProps {
   open: boolean;
   onClose: () => void;
-}
-
-function isMessageVisible(
-  message: ChatMessageType,
-  activeDocumentId: string | null | undefined,
-  showAllMessages: boolean,
-): boolean {
-  if (showAllMessages || !activeDocumentId) return true;
-  return message.scope === 'project' || !message.documentId || message.documentId === activeDocumentId;
 }
 
 export function ChatPanel({ open, onClose }: ChatPanelProps) {
@@ -41,7 +32,7 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
   const prevGeneratingRef = useRef(false);
 
   const visibleMessages = useMemo(
-    () => messages.filter((message) => isMessageVisible(message, activeDocument?.id, showAllMessages)),
+    () => messages.filter((message) => isMessageInChatScope(message, activeDocument?.id, showAllMessages)),
     [messages, activeDocument?.id, showAllMessages],
   );
 

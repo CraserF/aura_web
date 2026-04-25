@@ -36,6 +36,101 @@ const EXEMPLAR_PACKS: Record<ExemplarPackId, ExemplarPack> = {
   </div>
 </section>`,
   },
+  'title-opening': {
+    id: 'title-opening',
+    name: 'Title Opening',
+    visualThesis: 'Open with a refined split-world or seam-led title scene that feels premium, light, and sharply composed.',
+    compositionRules: [
+      'Use one central hero lockup with a split background or connective seam.',
+      'Keep support content to a small eyebrow and one compact signal row.',
+      'Avoid opening with KPI walls or dense explanation.',
+    ],
+    componentRules: [
+      'Use one seam, bridge, or connector motif as the core visual anchor.',
+      'Keep typography bold and highly legible with a clean accent strategy.',
+    ],
+    motionRules: [
+      'Use slow background motion only.',
+      'Keep the title lockup stable and authoritative.',
+    ],
+    htmlExcerpt: `<section data-background-color="#eef7fa"><div class="world world-left"></div><div class="world world-right"></div><div class="world-seam"></div><div class="hero-lockup"><div class="eyebrow">Opening Frame</div><h1>One Clear<br>Starting Point</h1><p>Anchor the narrative with a refined title scene and compact support row.</p></div></section>`,
+  },
+  'launch-narrative': {
+    id: 'launch-narrative',
+    name: 'Launch Narrative',
+    visualThesis: 'Use an energetic split-scene title and a concise launch path that feels premium without becoming noisy.',
+    compositionRules: [
+      'Open with a large title, short one-liner, and a seam or pathway motif.',
+      'Use readiness cards and action cards with large numbering and short copy.',
+      'Keep the launch story optimistic, structured, and readable inside a scaled fixed stage.',
+    ],
+    componentRules: [
+      'Use launch chips, proof cards, readiness steps, and action cards as the reusable component family.',
+      'Use teal and green accents for movement, readiness, and signal rather than full-card fills.',
+    ],
+    motionRules: [
+      'Allow ambient seam glow, path sweeps, and chip pulses.',
+      'Keep all body copy static and ensure reduced-motion fallbacks exist.',
+    ],
+    htmlExcerpt: `<section data-background-color="#eef8fb"><div class="launch-seam"></div><div class="launch-lockup"><div class="eyebrow">Launch Narrative</div><h1>Make the Move Visible</h1><p>Use one clear path from audience insight to launch action.</p></div></section>`,
+  },
+  'executive-starter-deck': {
+    id: 'executive-starter-deck',
+    name: 'Executive Starter Deck',
+    visualThesis: 'Create a leadership-ready starter deck with strong type, clear decision framing, and premium light editorial modules.',
+    compositionRules: [
+      'Use a decisive title, a signal stack, and an evidence-to-action flow.',
+      'Keep metrics and recommendations large enough to read when the stage is scaled down.',
+      'Use asymmetry and whitespace rather than generic corporate card walls.',
+    ],
+    componentRules: [
+      'Use decision summaries, insight cards, metric rows, interpretation strips, and numbered next steps.',
+      'Express categories through accent edges, chips, and diagram strokes.',
+    ],
+    motionRules: [
+      'Use subtle line sweeps and diagram pulses only.',
+      'Avoid animating card geometry or long text blocks.',
+    ],
+    htmlExcerpt: `<section data-background-color="#eef7fa"><div class="exec-cover"><div class="eyebrow">Executive Briefing</div><h1>Decision Ready</h1><p>A premium starter frame with clear signals and next actions.</p></div><aside class="signal-stack"><div>Decision</div><div>Evidence</div><div>Action</div></aside></section>`,
+  },
+  'stage-setting-context': {
+    id: 'stage-setting-context',
+    name: 'Stage Setting',
+    visualThesis: 'Frame the problem or context with a clean scene panel, compact KPI strip, and editorial insight stack.',
+    compositionRules: [
+      'Use one visual panel and one structured insight stack.',
+      'Keep contextual metrics concise and supportive.',
+      'Favor polished editorial framing over dashboard clutter.',
+    ],
+    componentRules: [
+      'Use a top title rail, a slim KPI strip, and 3-5 parallel insight cards.',
+      'The supporting visual should feel atmospheric and purposeful, not decorative filler.',
+    ],
+    motionRules: [
+      'Limit movement to subtle scene animation or shimmer.',
+      'Keep insight cards steady after reveal.',
+    ],
+    htmlExcerpt: `<section data-background-color="#edf6f9"><header class="stage-header"><div class="eyebrow">Context</div><h2>Why This Shift Matters</h2></header><div class="stage-layout"><div class="scene-panel"></div><div class="stage-notes"><article>Constraint pressure is rising.</article><article>Execution needs tighter alignment.</article><article>Timing now matters more than scope growth.</article></div></div></section>`,
+  },
+  'finance-grid-light': {
+    id: 'finance-grid-light',
+    name: 'Finance Grid Light',
+    visualThesis: 'Use a light infographic system with embedded diagrams, big-number callouts, and refined editorial rhythm.',
+    compositionRules: [
+      'Lead with a header rail, then an asymmetric grid, then one summary strip or tapered stack.',
+      'Use embedded diagrams inside cards instead of generic icon + text blocks.',
+      'Keep the page light and structured, not crowded.',
+    ],
+    componentRules: [
+      'Cards should have small labels, one focused headline, and one visual explainer.',
+      'Use big numbers sparingly and only when the metric genuinely matters.',
+    ],
+    motionRules: [
+      'Use micro sweeps, pulses, and diagram-line movement.',
+      'Do not animate all cards equally.',
+    ],
+    htmlExcerpt: `<section data-background-color="#f0f8fc"><header class="report-rail"><h2>System Snapshot</h2><div class="meta">Light infographic rhythm</div></header><div class="mechanism-grid"><article class="mechanism-card accent-teal"><div class="card-label">Signal</div><h3>Support Layer</h3><p>Explain a mechanism with one compact narrative and one embedded visual.</p></article><article class="metric-card accent-green"><div class="big-number">Core</div><p>Use one large emphasis metric instead of a wall of KPIs.</p></article></div></section>`,
+  },
   'split-world-title': {
     id: 'split-world-title',
     name: 'Split-World Title Slide',

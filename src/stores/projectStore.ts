@@ -1,23 +1,9 @@
 import { create } from 'zustand';
 import type { ProjectData, ProjectDocument } from '@/types/project';
 import type { ChatMessage } from '@/types';
-import { createInitialMemoryTree } from '@/services/memory';
-
-function newProject(): ProjectData {
-  return {
-    id: crypto.randomUUID(),
-    title: 'Untitled Project',
-    description: '',
-    visibility: 'private',
-    documents: [],
-    activeDocumentId: null,
-    chatHistory: [],
-    memoryTree: createInitialMemoryTree(),
-    sections: { drafts: [], main: [], suggestions: [], issues: [] },
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  };
-}
+import { createBlankProject } from '@/services/bootstrap/projectStarter';
+import { normalizeProjectData } from '@/services/projectRules/load';
+import { applyDraftLifecycleOnContentUpdate } from '@/services/lifecycle/state';
 
 interface ProjectState {
   project: ProjectData;
@@ -50,7 +36,7 @@ interface ProjectState {
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
-  project: newProject(),
+  project: createBlankProject(),
 
   userLockedDocType: false,
   setUserLockedDocType: (locked) => set({ userLockedDocType: locked }),
@@ -63,16 +49,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   setProject: (project) =>
     set(() => {
+      const normalizedProject = normalizeProjectData(project);
       const hasActive =
-        !!project.activeDocumentId &&
-        project.documents.some((d) => d.id === project.activeDocumentId);
+        !!normalizedProject.activeDocumentId &&
+        normalizedProject.documents.some((d) => d.id === normalizedProject.activeDocumentId);
       const activeDocumentId = hasActive
-        ? project.activeDocumentId
-        : (project.documents[0]?.id ?? null);
+        ? normalizedProject.activeDocumentId
+        : (normalizedProject.documents[0]?.id ?? null);
 
       return {
         project: {
-          ...project,
+          ...normalizedProject,
           activeDocumentId,
         },
       };
@@ -96,7 +83,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       },
     })),
 
-  reset: () => set({ project: newProject(), userLockedDocType: false }),
+  reset: () => set({ project: createBlankProject(), userLockedDocType: false }),
 
   setActiveDocumentId: (id) =>
     set((s) => ({ project: { ...s.project, activeDocumentId: id } })),
@@ -117,7 +104,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       project: {
         ...s.project,
         documents: s.project.documents.map((d) =>
-          d.id === id ? { ...d, ...updates, updatedAt: Date.now() } : d,
+          d.id === id
+            ? { ...d, ...applyDraftLifecycleOnContentUpdate(d, updates), updatedAt: Date.now() }
+            : d,
         ),
         updatedAt: Date.now(),
       },

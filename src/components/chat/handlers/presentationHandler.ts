@@ -10,29 +10,27 @@
  */
 
 import type { ProjectDocument } from '@/types/project';
-import type { ChatMessage as ChatMessageType, GenerationStatus, WorkflowStep, ProviderId, ProviderConfig } from '@/types';
+import type { GenerationStatus, WorkflowStep } from '@/types';
 import type { AIMessage } from '@/services/ai/types';
 import type { LLMConfig } from '@/services/ai/workflow/types';
 import type { WorkflowEvent } from '@/services/ai/workflow';
+import { logContextMetrics } from '@/services/ai/debug';
+import { getCompressionBudget } from '@/services/context/compressionBudget';
 import { commitVersion } from '@/services/storage/versionHistory';
 import { extractChartSpecsFromHtml } from '@/services/charts';
 import { useProjectStore } from '@/stores/projectStore';
+import type { RunRequest } from '@/services/runs/types';
+import type { RunResult } from '@/services/contracts/runResult';
+import { resolveTargets } from '@/services/editing/resolveTargets';
+import { validateArtifactAgainstProfile } from '@/services/validation';
+import { summarizeValidationResult } from '@/services/validation/profiles';
+import { deriveLifecycleFromValidation } from '@/services/lifecycle/state';
 
 export interface PresentationHandlerContext {
-  prompt: string;
-  promptWithContext: string;
-  chatHistory: AIMessage[];
-  autoPrompt: string | null;
-  activeDocument: ProjectDocument | null;
-  project: { id: string; documents: ProjectDocument[] };
-  projectDocumentCount: number;
-  scopedDocumentId: string | undefined;
-  messageScope: 'project' | 'document';
-  providerId: ProviderId;
-  workflowStepsRef: React.MutableRefObject<WorkflowStep[]>;
-  abortControllerRef: React.MutableRefObject<AbortController | null>;
+  runRequest: RunRequest;
+  workflowStepsRef: { current: WorkflowStep[] };
+  abortControllerRef: { current: AbortController | null };
   // Store callbacks
-  addMessage: (msg: ChatMessageType) => void;
   addDocument: (doc: ProjectDocument) => void;
   updateDocument: (id: string, updates: Partial<ProjectDocument>) => void;
   setStatus: (s: GenerationStatus) => void;
@@ -47,38 +45,50 @@ export interface PresentationHandlerContext {
     artifactSummary: string,
     sourceRefs: string[],
   ) => Promise<void>;
-  buildWorkflowMemoryContext: (prompt: string) => Promise<string>;
-  getActiveProvider: () => ProviderConfig;
 }
 
-export async function handlePresentationWorkflow(ctx: PresentationHandlerContext): Promise<void> {
+export async function handlePresentationWorkflow(ctx: PresentationHandlerContext): Promise<RunResult> {
   const {
-    prompt, promptWithContext, chatHistory, autoPrompt, activeDocument,
-    project, scopedDocumentId, messageScope, providerId, workflowStepsRef, abortControllerRef,
-    addMessage, addDocument, updateDocument, setStatus, setStreamingContent, appendStreamingContent,
-    setSlides, setTitle, updateStepStatus, queueMemoryExtraction, buildWorkflowMemoryContext,
-    getActiveProvider,
+    runRequest, workflowStepsRef, abortControllerRef,
+    addDocument, updateDocument, setStatus, setStreamingContent, appendStreamingContent,
+    setSlides, setTitle, updateStepStatus, queueMemoryExtraction,
   } = ctx;
+  const { context, activeArtifacts, providerConfig, intent, runId } = runRequest;
+  const prompt = context.conversation.prompt;
+  const promptWithContext = context.conversation.promptWithContext;
+  const chatHistory = context.conversation.chatHistory;
+  const activeDocument = activeArtifacts.activeDocument;
+  const configWarnings = runRequest.projectRulesSnapshot.diagnostics.map((diagnostic) => ({
+    code: diagnostic.code,
+    message: diagnostic.message,
+  }));
+  const contextWarnings = [
+    ...(context.compaction.compactedSourceIds.length > 0
+      ? [{
+          code: 'context-compacted',
+          message: `Context compaction summarized ${context.compaction.compactedSourceIds.length} source(s) before generation.`,
+        }]
+      : []),
+    ...((context.compaction.afterTokens > getCompressionBudget())
+      && context.sources.some((source) => source.kind === 'memory' && source.pinned)
+      ? [{
+          code: 'pinned-context-over-budget',
+          message: 'Pinned memory exceeded the target context budget and was kept in the run.',
+        }]
+      : []),
+  ];
 
   const isEditFlow = !!activeDocument?.contentHtml && activeDocument.type === 'presentation';
-
-  // Ambiguity check: for new slides with short/vague prompts, ask for layout intent first
-  if (!isEditFlow && !autoPrompt) {
-    const { detectAmbiguity } = await import('@/services/ai/validation');
-    const clarifyOptions = detectAmbiguity(promptWithContext);
-    if (clarifyOptions) {
-      addMessage({
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: 'Quick question — which layout style works best for this?',
-        timestamp: Date.now(),
-        documentId: scopedDocumentId,
-        scope: messageScope,
-        clarifyOptions,
-      });
-      return;
-    }
-  }
+  const resolvedTargets = isEditFlow
+    ? resolveTargets({
+        prompt,
+        intent,
+        activeDocument,
+      })
+    : [];
+  const targetSummary = resolvedTargets.length > 0
+    ? resolvedTargets.map((target) => target.label)
+    : intent.targetSelectors.map((selector) => selector.label ?? selector.type);
 
   workflowStepsRef.current = isEditFlow
     ? [
@@ -107,12 +117,11 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
   abortControllerRef.current = abortController;
 
   try {
-    const config = getActiveProvider();
     const [{ getProviderEntry }, { runPresentationWorkflow }] = await Promise.all([
       import('@/services/ai/registry'),
       import('@/services/ai/workflow/presentation'),
     ]);
-    const providerEntry = getProviderEntry(providerId);
+    const providerEntry = getProviderEntry(providerConfig.id);
 
     const onEvent = (event: WorkflowEvent) => {
       switch (event.type) {
@@ -159,7 +168,9 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
     };
 
     const existingSlides = isEditFlow ? activeDocument?.contentHtml : undefined;
-    const memoryContext = await buildWorkflowMemoryContext(promptWithContext);
+    const memoryContext = context.memory.text;
+
+    logContextMetrics('presentation-handler', context.metrics);
 
     const result = await runPresentationWorkflow({
       input: {
@@ -167,23 +178,35 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         existingSlidesHtml: existingSlides,
         chatHistory,
         memoryContext,
+        projectRulesBlock: runRequest.projectRulesSnapshot.promptBlock || undefined,
+        templateGuidance: runRequest.workflowPlan?.templateGuidance,
+        ...(isEditFlow ? {
+          editing: {
+            resolvedTargets,
+            targetSummary,
+            strategyHint: intent.editStrategyHint,
+            allowFullRegeneration: intent.allowFullRegeneration,
+          },
+        } : {}),
       },
       llmConfig: {
         providerEntry,
-        apiKey: config.apiKey,
-        baseUrl: config.baseUrl ?? '',
-        model: config.model ?? '',
+        apiKey: providerConfig.apiKey,
+        baseUrl: providerConfig.baseUrl ?? '',
+        model: providerConfig.model ?? '',
       },
       onEvent,
       signal: abortController.signal,
     });
 
-    const llmConfig: LLMConfig = { providerEntry, apiKey: config.apiKey, baseUrl: config.baseUrl ?? '', model: config.model ?? '' };
+    const llmConfig: LLMConfig = { providerEntry, apiKey: providerConfig.apiKey, baseUrl: providerConfig.baseUrl ?? '', model: providerConfig.model ?? '' };
     const memoryConversation: AIMessage[] = [...chatHistory, { role: 'user', content: promptWithContext }];
-    let memorySourceRefs = [`project:${project.id}`];
+    let memorySourceRefs = [`project:${context.data.projectId}`];
     let memoryArtifactSummary = result.title
       ? `Generated presentation "${result.title}" with ${result.slideCount} slides.`
       : `Generated presentation with ${result.slideCount} slides.`;
+    let changedDocumentId = activeDocument?.id;
+    let changeAction: 'created' | 'updated' = activeDocument?.type === 'presentation' ? 'updated' : 'created';
 
     if (result.html) {
       if (activeDocument?.type === 'presentation') {
@@ -193,6 +216,7 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
           title: result.title || activeDocument.title,
           slideCount: result.slideCount,
           chartSpecs,
+          lastSuccessfulPresetId: runRequest.appliedPreset?.id,
         });
         memorySourceRefs = [...memorySourceRefs, `document:${activeDocument.id}`];
       } else {
@@ -205,12 +229,15 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
           themeCss: '',
           slideCount: result.slideCount,
           chartSpecs,
-          order: project.documents.length,
+          lifecycleState: 'draft',
+          lastSuccessfulPresetId: runRequest.appliedPreset?.id,
+          order: context.data.projectDocumentCount,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };
         addDocument(newDoc);
         memorySourceRefs = [...memorySourceRefs, `document:${newDoc.id}`];
+        changedDocumentId = newDoc.id;
       }
 
       if (result.title) setTitle(result.title);
@@ -220,37 +247,186 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         : memoryArtifactSummary;
     }
 
-    const reviewNote = result.reviewPassed ? '' : ' (QA flagged issues)';
-    addMessage({
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: result.html
-        ? `✅ Generated ${result.slideCount} slides${reviewNote}.`
-        : 'Generation completed but no slides were produced.',
-      timestamp: Date.now(),
-      documentId: scopedDocumentId,
-      scope: messageScope,
-    });
-
     const action = isEditFlow ? 'Edited' : 'Created';
     const slideInfo = result.slideCount > 0 ? ` (${result.slideCount} slide${result.slideCount !== 1 ? 's' : ''})` : '';
     const commitMsg = `${action} presentation${slideInfo}: ${prompt.slice(0, 50)}`;
     const updatedProject = useProjectStore.getState().project;
     commitVersion(updatedProject, commitMsg).catch((e) => console.warn('[VersionHistory] commit failed:', e));
     void queueMemoryExtraction(llmConfig, memoryConversation, memoryArtifactSummary, memorySourceRefs);
+    const persistedDocument = changedDocumentId
+      ? useProjectStore.getState().project.documents.find((document) => document.id === changedDocumentId)
+      : undefined;
+    const artifactValidation = persistedDocument
+      ? validateArtifactAgainstProfile(persistedDocument)
+      : undefined;
+    if (persistedDocument && artifactValidation) {
+      updateDocument(persistedDocument.id, {
+        ...deriveLifecycleFromValidation(artifactValidation),
+        ...(artifactValidation.passed ? { lastSuccessfulPresetId: runRequest.appliedPreset?.id } : {}),
+      });
+    }
+    const validationWarnings = artifactValidation
+      ? [...artifactValidation.blockingIssues, ...artifactValidation.warnings].map((issue) => ({
+          code: issue.code,
+          message: issue.message,
+        }))
+      : [];
 
-    setStatus({ state: 'idle' });
-    setStreamingContent('');
+    const reviewWarning = result.reviewPassed ? [] : [{ code: 'qa-warning', message: 'QA flagged issues on the final presentation output.' }];
+    const validation = artifactValidation
+      ? {
+          passed: artifactValidation.passed,
+          summary: summarizeValidationResult(artifactValidation),
+          profileId: artifactValidation.profileId,
+          score: artifactValidation.score,
+          blockingIssues: artifactValidation.blockingIssues,
+          warnings: artifactValidation.warnings,
+        }
+      : {
+          passed: result.reviewPassed,
+          summary: result.reviewPassed
+            ? 'Presentation QA passed.'
+            : 'Presentation QA completed with advisories.',
+        };
+    const changedTargets = [{
+      documentId: changedDocumentId,
+      action: changeAction,
+    }] as const;
+    const publish = artifactValidation
+      ? {
+          profileId: artifactValidation.profileId,
+          artifactValidation,
+          exportBlocked: !artifactValidation.passed,
+          overrideRequired: !artifactValidation.passed,
+        }
+      : undefined;
+
+    return {
+      runId,
+      status: 'completed',
+      intent,
+      outputs: {
+        envelope: {
+          artifactType: 'presentation',
+          mode: runRequest.mode,
+          targetSummary,
+          changedTargets: [...changedTargets],
+          validation,
+          workflowPlan: runRequest.workflowPlan,
+          presentation: {
+            artifactType: 'presentation',
+            title: result.title,
+            html: result.html,
+            slideCount: result.slideCount,
+            reviewPassed: result.reviewPassed,
+            ...(result.editing ? { editing: result.editing } : {}),
+            ...(publish ? { publish } : {}),
+          },
+        },
+        html: result.html,
+        title: result.title,
+        slideCount: result.slideCount,
+        reviewPassed: result.reviewPassed,
+        ...(result.editing ? { editing: result.editing } : {}),
+        ...(publish ? { publish } : {}),
+      },
+      assistantMessage: {
+        content: result.html
+          ? `Generated ${result.slideCount} slides${result.reviewPassed ? '.' : ' (QA flagged issues).' }`
+          : 'Generation completed but no slides were produced.',
+      },
+      validation,
+      warnings: [
+        ...configWarnings,
+        ...contextWarnings,
+        ...reviewWarning,
+        ...validationWarnings,
+        ...(result.editing?.dryRunFailures.length
+          ? [{
+              code: 'editing-dry-run-fallback',
+              message: `Targeted edit fell back after ${result.editing.dryRunFailures.length} unmatched target(s).`,
+            }]
+          : []),
+      ],
+      changedTargets: [...changedTargets],
+      structuredStatus: {
+        title: isEditFlow ? 'Presentation updated' : 'Presentation created',
+        detail: result.title
+          ? `Presentation "${result.title}" completed successfully.`
+          : 'Presentation workflow completed successfully.',
+      },
+    };
   } catch (err) {
     if (abortControllerRef.current?.signal.aborted) {
-      setStatus({ state: 'idle' });
-      setStreamingContent('');
-      addMessage({ id: crypto.randomUUID(), role: 'assistant', content: 'Generation cancelled.', timestamp: Date.now(), documentId: scopedDocumentId, scope: messageScope });
-      return;
+      return {
+        runId,
+        status: 'cancelled',
+        intent,
+        outputs: {
+          envelope: {
+            artifactType: 'presentation',
+            mode: runRequest.mode,
+            targetSummary,
+            changedTargets: [],
+            validation: {
+              passed: false,
+              summary: 'Run cancelled by user.',
+            },
+            workflowPlan: runRequest.workflowPlan,
+            presentation: {
+              artifactType: 'presentation',
+            },
+          },
+        },
+        assistantMessage: {
+          content: 'Generation cancelled.',
+        },
+        validation: {
+          passed: false,
+          summary: 'Run cancelled by user.',
+        },
+        warnings: [...configWarnings, ...contextWarnings],
+        changedTargets: [],
+        structuredStatus: {
+          title: 'Generation cancelled',
+          detail: 'Generation was cancelled before completion.',
+        },
+      };
     }
     const message = err instanceof Error ? err.message : 'Generation failed';
-    setStatus({ state: 'error', message });
-    setStreamingContent('');
-    addMessage({ id: crypto.randomUUID(), role: 'assistant', content: `Error: ${message}`, timestamp: Date.now(), documentId: scopedDocumentId, scope: messageScope });
+    return {
+      runId,
+      status: 'failed',
+      intent,
+      outputs: {
+        envelope: {
+          artifactType: 'presentation',
+          mode: runRequest.mode,
+          targetSummary,
+          changedTargets: [],
+          validation: {
+            passed: false,
+            summary: 'Presentation workflow failed.',
+          },
+          workflowPlan: runRequest.workflowPlan,
+          presentation: {
+            artifactType: 'presentation',
+          },
+        },
+      },
+      assistantMessage: {
+        content: `Error: ${message}`,
+      },
+      validation: {
+        passed: false,
+        summary: 'Presentation workflow failed.',
+      },
+      warnings: [...configWarnings, ...contextWarnings],
+      changedTargets: [],
+      structuredStatus: {
+        title: 'Presentation workflow failed',
+        detail: message,
+      },
+    };
   }
 }

@@ -24,6 +24,7 @@ import { getExemplarPack } from '../../templates';
 import { extractHtmlFromResponse, countSlides, extractTitle } from '../../utils/extractHtml';
 import { sanitizeSlideHtml } from '../../utils/sanitizeHtml';
 import { injectFonts } from '../../utils/injectFonts';
+import { ensureFontSourceDeclaration } from '../../utils/ensureFontSource';
 import { validateSlides } from './qa-validator';
 import { parsePatchBlocks, applyPatches } from '../patchUtils';
 import type { PlanResult } from './planner';
@@ -32,6 +33,9 @@ import type { EventListener } from '../types';
 import { toModelMessages, CACHE_CONTROL } from '../engine';
 import { aiDebugLog, logPromptMetrics } from '../../debug';
 import { withRetry } from '../../fallbackModel';
+import type { EditStrategy, EditingTelemetry } from '@/services/editing/types';
+import { applyPresentationPatchBlocks } from '@/services/editing/patchPresentation';
+import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
 
 export interface DesignResult {
   html: string;
@@ -39,12 +43,30 @@ export interface DesignResult {
   slideCount: number;
   /** True when the draft passed QA without the ToolLoopAgent correction loop. */
   fastPath: boolean;
+  editing?: EditingTelemetry;
 }
+
+// Single-slide presentation drafts are rich but still bounded artifacts.
+// Keeping the stream capped avoids local models dragging the design step out
+// with trailing chatter before fast-path QA can run.
+const PRESENTATION_STREAM_MAX_OUTPUT_TOKENS = 4096;
 
 interface ContinuityAssessment {
   score: number;
   passes: boolean;
   issues: string[];
+}
+
+interface StreamDraftOptions {
+  model: LanguageModel;
+  messages: ModelMessage[];
+  abortSignal?: AbortSignal;
+  onChunk: (chunk: string) => void;
+}
+
+interface EditCorrectionPolicy {
+  mode: 'full' | 'best-effort';
+  maxCorrectionSteps: number;
 }
 
 /**
@@ -231,6 +253,23 @@ function preserveExistingSlidesForAddIntent(existingHtml: string, candidateHtml:
   return `${existingHtml}\n${newSections.join('\n')}`;
 }
 
+async function streamDraft(opts: StreamDraftOptions): Promise<string> {
+  const { model, messages, abortSignal, onChunk } = opts;
+
+  let draftText = '';
+  const streamResult = streamText({
+    model,
+    messages,
+    maxOutputTokens: PRESENTATION_STREAM_MAX_OUTPUT_TOKENS,
+    abortSignal,
+  });
+  for await (const chunk of streamResult.textStream) {
+    draftText += chunk;
+    onChunk(chunk);
+  }
+  return draftText;
+}
+
 /**
  * Remove double-encoded attribute quote wrappers that arise from AI tool call
  * JSON serialization. Converts x="\"0\"" → x="0".
@@ -242,9 +281,9 @@ function normalizeAttributeQuotes(html: string): string {
 /**
  * Post-process raw LLM output into clean, validated slide HTML.
  */
-function postProcess(raw: string): { html: string; fontLinks: string[] } {
+function postProcess(raw: string, fontImport?: string): { html: string; fontLinks: string[] } {
   const { html: rawHtml, fontLinks } = extractHtmlFromResponse(raw);
-  const html = sanitizeSlideHtml(normalizeAttributeQuotes(rawHtml));
+  const html = sanitizeSlideHtml(ensureFontSourceDeclaration(normalizeAttributeQuotes(rawHtml), fontImport));
   return { html, fontLinks };
 }
 
@@ -255,6 +294,7 @@ function createDesignAgent(
   model: LanguageModel,
   systemPrompt: string,
   planResult: PlanResult,
+  maxCorrectionSteps = 5,
 ) {
   return new ToolLoopAgent({
     model,
@@ -271,7 +311,7 @@ function createDesignAgent(
         }),
         execute: async ({ html }) => {
           // Post-process before validation (same pipeline as final output)
-          const { html: processed } = postProcess(html);
+          const { html: processed } = postProcess(html, planResult.blueprint.palette.fontImport);
           const result = validateSlides(processed, {
             expectedBgColor: planResult.blueprint.palette.bg,
             isCreate: planResult.intent === 'create',
@@ -322,7 +362,7 @@ function createDesignAgent(
         execute: async ({ html }) => {
           // Pre-flight QA gate: reject submissions with blocking violations so the
           // model self-corrects before the result is accepted by the caller.
-          const { html: processed } = postProcess(html);
+          const { html: processed } = postProcess(html, planResult.blueprint.palette.fontImport);
           const result = validateSlides(processed, {
             expectedBgColor: planResult.blueprint.palette.bg,
             isCreate: planResult.intent === 'create',
@@ -361,7 +401,7 @@ Then call submitFinalSlide again with the corrected HTML.`,
       }),
     },
     stopWhen: [
-      stepCountIs(5), // 1 stream + 1 validate + 1-2 fix iterations + 1 final submit
+      stepCountIs(maxCorrectionSteps), // 1 stream + 1 validate + 1-2 fix iterations + 1 final submit
     ],
   });
 }
@@ -380,6 +420,8 @@ export async function design(
   chatHistory: AIMessage[],
   model: LanguageModel,
   onEvent: EventListener,
+  projectRulesBlock?: string,
+  guidanceProfile?: TemplateGuidanceProfile,
   signal?: AbortSignal,
 ): Promise<DesignResult> {
   const t0 = performance.now();
@@ -389,6 +431,9 @@ export async function design(
     planResult.selectedTemplate,
     planResult.exemplarPackId,
     planResult.animationLevel,
+    undefined,
+    projectRulesBlock,
+    guidanceProfile,
   );
 
   // Build conversation messages
@@ -445,20 +490,18 @@ After generating the slide HTML, call the validateSlideHtml tool to check for is
 
   let draftText = '';
   await withRetry(async () => {
-    draftText = '';
-    const streamResult = streamText({
+    draftText = await streamDraft({
       model,
       messages: requestMessages,
       abortSignal: signal,
+      onChunk: (chunk) => {
+        onEvent({ type: 'streaming', stepId: 'design', chunk });
+      },
     });
-    for await (const chunk of streamResult.textStream) {
-      draftText += chunk;
-      onEvent({ type: 'streaming', stepId: 'design', chunk });
-    }
   });
 
   // Show the draft immediately
-  const { html: draftHtml, fontLinks: draftFontLinks } = postProcess(draftText);
+  const { html: draftHtml, fontLinks: draftFontLinks } = postProcess(draftText, planResult.blueprint.palette.fontImport);
   const streamMs = (performance.now() - t0).toFixed(0);
   aiDebugLog('designer', `streaming complete in ${streamMs}ms`, { draftChars: draftText.length, slideCount: countSlides(draftHtml) });
   if (countSlides(draftHtml) > 0) {
@@ -517,7 +560,7 @@ After generating the slide HTML, call the validateSlideHtml tool to check for is
     for (const call of step.toolCalls) {
       if (call.toolName === 'submitFinalSlide') {
         const { html: submittedRaw, title } = call.input as { html: string; title: string };
-        const { html: submittedHtml, fontLinks } = postProcess(submittedRaw);
+        const { html: submittedHtml, fontLinks } = postProcess(submittedRaw, planResult.blueprint.palette.fontImport);
         if (countSlides(submittedHtml) > 0) {
           finalHtml = submittedHtml;
           finalTitle = title || finalTitle;
@@ -529,7 +572,7 @@ After generating the slide HTML, call the validateSlideHtml tool to check for is
 
   // Fallback: if agent didn't call submitFinalSlide, try to extract from last text
   if (finalHtml === draftHtml && agentResult.text) {
-    const { html: fallbackHtml, fontLinks } = postProcess(agentResult.text);
+    const { html: fallbackHtml, fontLinks } = postProcess(agentResult.text, planResult.blueprint.palette.fontImport);
     if (countSlides(fallbackHtml) > 0) {
       finalHtml = fallbackHtml;
       finalTitle = extractTitle(fallbackHtml) || finalTitle;
@@ -562,6 +605,17 @@ export async function designEdit(
   chatHistory: AIMessage[],
   model: LanguageModel,
   onEvent: EventListener,
+  projectRulesBlock?: string,
+  guidanceProfile?: TemplateGuidanceProfile,
+  editing?: {
+    targetSummary: string[];
+    strategyHint?: EditStrategy;
+    allowFullRegeneration: boolean;
+  },
+  correctionPolicy: EditCorrectionPolicy = {
+    mode: 'full',
+    maxCorrectionSteps: 5,
+  },
   signal?: AbortSignal,
 ): Promise<DesignResult> {
   const t0 = performance.now();
@@ -571,6 +625,8 @@ export async function designEdit(
   const systemPrompt = buildEditDesignerPrompt(
     planResult.blueprint.palette,
     planResult.animationLevel,
+    projectRulesBlock,
+    guidanceProfile,
   );
 
   const messages: ModelMessage[] = [];
@@ -582,7 +638,7 @@ export async function designEdit(
   // Build the user prompt — add_slides gets a focused "new slide only" prompt
   const userContent = isAddSlides
     ? buildAddSlidesPrompt(planResult, existingSlidesHtml, existingSlideCount)
-    : buildEditPrompt(planResult, existingSlidesHtml, existingSlideCount);
+    : buildEditPrompt(planResult, existingSlidesHtml, existingSlideCount, editing?.targetSummary);
 
   messages.push({ role: 'user', content: userContent });
 
@@ -600,37 +656,38 @@ export async function designEdit(
 
   let draftText = '';
   await withRetry(async () => {
-    draftText = '';
-    const streamResult = streamText({
+    draftText = await streamDraft({
       model,
       messages: requestMessages,
       abortSignal: signal,
+      onChunk: (chunk) => {
+        onEvent({ type: 'streaming', stepId: 'targeted-design', chunk });
+      },
     });
-    for await (const chunk of streamResult.textStream) {
-      draftText += chunk;
-      onEvent({ type: 'streaming', stepId: 'targeted-design', chunk });
-    }
   });
 
-  const { html: draftHtml, fontLinks: draftFontLinks } = postProcess(draftText);
+  const { html: draftHtml, fontLinks: draftFontLinks } = postProcess(draftText, planResult.blueprint.palette.fontImport);
   const streamMs = (performance.now() - t0).toFixed(0);
   aiDebugLog('designer:edit', `streaming complete in ${streamMs}ms`, { draftChars: draftText.length, slideCount: countSlides(draftHtml), isAddSlides });
   let processedDraft = draftHtml;
   let patchApplied = false;
+  let patchDryRunFailures: string[] = [];
+  let patchFallbackUsed = false;
   if (isAddSlides) {
     processedDraft = preserveExistingSlidesForAddIntent(existingSlidesHtml, draftHtml);
   } else if (draftText.includes('<<<<<<< FIND')) {
     // Patch mode: try to apply SEARCH/REPLACE blocks to the existing HTML
-    const patches = parsePatchBlocks(draftText);
-    if (patches.length > 0) {
-      const patchResult = applyPatches(existingSlidesHtml, patches);
+    const patchResult = applyPresentationPatchBlocks(existingSlidesHtml, draftText);
+    if (patchResult.patchCount > 0) {
       if (patchResult.success) {
         processedDraft = patchResult.html;
         patchApplied = true;
-        aiDebugLog('designer:edit', `patch mode: applied ${patches.length} patch(es) successfully`);
+        aiDebugLog('designer:edit', `patch mode: applied ${patchResult.patchCount} patch(es) successfully`);
       } else {
-        aiDebugLog('designer:edit', `patch pre-flight failed (${patchResult.failedPatches.length} unmatched), falling back to full HTML`);
-        console.warn('[designer:edit] patch pre-flight failed:', patchResult.failedPatches.map(p => p.find.slice(0, 80)));
+        patchDryRunFailures = patchResult.dryRunFailures;
+        patchFallbackUsed = true;
+        aiDebugLog('designer:edit', `patch pre-flight failed (${patchResult.dryRunFailures.length} unmatched), falling back to full HTML`);
+        console.warn('[designer:edit] patch pre-flight failed:', patchResult.dryRunFailures);
       }
     } else {
       aiDebugLog('designer:edit', 'patch markers found but parsed 0 patches — treating as full HTML');
@@ -681,6 +738,14 @@ export async function designEdit(
       title: extractTitle(processedDraft),
       slideCount: countSlides(processedDraft),
       fastPath: true,
+      ...(editing ? {
+        editing: {
+          strategyUsed: editing.allowFullRegeneration ? 'full-regenerate' : patchApplied ? 'search-replace' : editing.strategyHint ?? 'search-replace',
+          fallbackUsed: patchFallbackUsed,
+          targetSummary: editing.targetSummary,
+          dryRunFailures: patchDryRunFailures,
+        },
+      } : {}),
     };
   }
 
@@ -698,7 +763,12 @@ export async function designEdit(
     pct: 65,
   });
 
-  const agent = createDesignAgent(model, systemPrompt, planResult);
+  const agent = createDesignAgent(
+    model,
+    systemPrompt,
+    planResult,
+    correctionPolicy.maxCorrectionSteps,
+  );
 
   // For the agent loop, pass the raw draft (not the merged version) so it sees what it generated.
   // Exception: when patches were applied, pass the patched full HTML so the agent can validate it
@@ -735,7 +805,8 @@ export async function designEdit(
     for (const call of step.toolCalls) {
       if (call.toolName === 'submitFinalSlide') {
         const { html: submittedRaw, title } = call.input as { html: string; title: string };
-        let { html: submittedHtml, fontLinks } = postProcess(submittedRaw);
+        const { html: rawSubmittedHtml, fontLinks } = postProcess(submittedRaw, planResult.blueprint.palette.fontImport);
+        let submittedHtml = rawSubmittedHtml;
         if (isAddSlides) {
           submittedHtml = preserveExistingSlidesForAddIntent(existingSlidesHtml, submittedHtml);
         }
@@ -756,7 +827,7 @@ export async function designEdit(
       if (agentPatches.length > 0) {
         const agentPatchResult = applyPatches(existingSlidesHtml, agentPatches);
         if (agentPatchResult.success) {
-          const { fontLinks } = postProcess(agentResult.text);
+          const { fontLinks } = postProcess(agentResult.text, planResult.blueprint.palette.fontImport);
           finalHtml = agentPatchResult.html;
           finalTitle = extractTitle(finalHtml) || finalTitle;
           injectFonts(fontLinks);
@@ -768,7 +839,8 @@ export async function designEdit(
     }
     // If patches didn't apply, try extracting full HTML from the agent text
     if (finalHtml === processedDraft) {
-      let { html: fallbackHtml, fontLinks } = postProcess(agentResult.text);
+      const { html: rawFallbackHtml, fontLinks } = postProcess(agentResult.text, planResult.blueprint.palette.fontImport);
+      let fallbackHtml = rawFallbackHtml;
       if (isAddSlides) {
         fallbackHtml = preserveExistingSlidesForAddIntent(existingSlidesHtml, fallbackHtml);
       }
@@ -789,6 +861,14 @@ export async function designEdit(
     title: finalTitle,
     slideCount: countSlides(finalHtml),
     fastPath: false,
+    ...(editing ? {
+      editing: {
+        strategyUsed: editing.allowFullRegeneration ? 'full-regenerate' : patchApplied ? 'search-replace' : editing.strategyHint ?? 'search-replace',
+        fallbackUsed: patchFallbackUsed,
+        targetSummary: editing.targetSummary,
+        dryRunFailures: patchDryRunFailures,
+      },
+    } : {}),
   };
 }
 
@@ -819,7 +899,11 @@ function buildEditPrompt(
   planResult: PlanResult,
   existingSlidesHtml: string,
   existingSlideCount: number,
+  targetSummary?: string[],
 ): string {
+  const targetedScope = targetSummary && targetSummary.length > 0
+    ? `\n**Target only these areas unless the user explicitly asked for a full rewrite:**\n- ${targetSummary.join('\n- ')}\n`
+    : '';
   return `## EDIT MODE — Modify Existing Slide(s)
 
 Here are the current slides (${existingSlideCount} slide(s) total):
@@ -829,6 +913,7 @@ ${existingSlidesHtml}
 \`\`\`
 
 **User request:** ${planResult.enhancedPrompt}
+${targetedScope}
 
 **CRITICAL RULES:**
 - Output the COMPLETE deck: \`<style>\` block and ALL \`<section>\` elements.

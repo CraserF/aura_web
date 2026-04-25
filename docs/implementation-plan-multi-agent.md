@@ -4,15 +4,51 @@ This plan tracks the active execution scope for mobile UX, export/read-only arti
 
 Use this file as the source of truth for coordination across agents.
 
+## Phase Documents
+
+- [Backlog Phase B: Mobile-Adaptive Artifact Completion and Validation Sweep](./phases/backlog-phase-b-mobile-adaptive-and-validation-sweep.md)
+- [Phase 10: API, MCP, and Automation Alignment](./phases/phase-10-api-mcp-and-automation-alignment.md)
+- [Phase 9: Spreadsheet Workflow Deepening](./phases/phase-9-spreadsheet-workflow-deepening.md)
+- [Phase 8: Presets, Lifecycle, and Policy](./phases/phase-8-presets-lifecycle-and-policy.md)
+- [Phase 7: Validation Profiles and Publish](./phases/phase-7-validation-profiles-and-publish.md)
+- [Phase 6: Project Augmentation and Events](./phases/phase-6-project-augmentation-and-events.md)
+- [Phase 5: Template-First Bootstrapping](./phases/phase-5-template-first-bootstrapping.md)
+- [Backlog Phase A: Standalone Export Artifacts and Aura Media Packaging](./phases/backlog-phase-a-export-and-media.md)
+- [Phase 4: Unified Targeted Editing](./phases/phase-4-unified-targeted-editing.md)
+- [Phase 1: Explicit Workflow Contracts](./phases/phase-1-explicit-workflow-contracts.md)
+- [Phase 2: Runtime Project Rules and Diagnostics](./phases/phase-2-runtime-project-rules-and-diagnostics.md)
+- [Phase 3: Explicit Context Control and Context Compaction](./phases/phase-3-explicit-context-control-and-compaction.md)
+
+## Program Tracking
+
+- [Program Status](./program-status.md)
+
+## Validation Protocol
+
+- [Major Workflow Change Validation Protocol](./validation/major-change-protocol.md)
+- [Artifact Case Matrix](./validation/artifact-case-matrix.md)
+- [Major Change Validation Scorecard Template](./validation/scorecard-template.md)
+- [Workflow Quality Benchmark](./validation/workflow-quality-benchmark.md)
+- [Ollama Baseline Validation](./validation/ollama-gemma4-baseline.md)
+- [Ollama Validation Scorecard Template](./validation/ollama-scorecard-template.md)
+
+## Research References
+
+- [Agent Product Benchmark](./research/agent-product-benchmark.md)
+- [Dyad Teardown](./research/dyad-teardown.md)
+- [Aura Workflow Gap Analysis](./research/aura-workflow-gap-analysis.md)
+
 ## Mandatory Validation Gate
 
 No item, phase, or workstream may be marked complete without validation evidence captured in this document or the related phase doc.
 
 Required checks for any behavior change:
 
-- `bun run build`
-- `bun run test`
+- `npm run build`
+- `npm test`
 - Targeted manual checks for the changed UX path (desktop and mobile if UI changed)
+
+For workflow-affecting changes, manual validation must use the major workflow change protocol and the artifact case matrix instead of ad hoc spot-checks.
 
 Rules:
 
@@ -26,8 +62,8 @@ Evidence template:
 - Date:
 - Agent:
 - Scope:
-- Build (`bun run build`):
-- Tests (`bun run test`):
+- Build (`npm run build`):
+- Tests (`npm test`):
 - Manual validation:
 - Result:
 
@@ -37,6 +73,27 @@ Validation backfill note:
 
 - Items marked complete before the validation gate was introduced require manual-check backfill evidence.
 - Treat Workstream A as conditionally complete until that backfill is logged.
+- Backlog Phase A code is implemented, but its top-level checklist items remain unchecked until the documented manual validation debt is logged.
+- Phase 5 does not absorb Backlog Phase A manual validation debt, Phase 4 manual validation debt, or Workstream F delivery; keep those tracked separately.
+- Phase 6 does not absorb Backlog Phase A, Phase 4, or Phase 5 manual validation debt; keep those tracked separately.
+- Phase 7 does not absorb Backlog Phase A, Phase 4, Phase 5, or Phase 6 manual validation debt; keep those tracked separately.
+- Phase 7 does not absorb Backlog Phase A, Phase 4, Phase 5, or Phase 6 manual validation debt; keep those tracked separately.
+- Phase 8 does not absorb Backlog Phase A, Workstream F, or Phase 4-7 manual validation debt; keep those tracked separately.
+- Phase 9 does not absorb Backlog Phase A, Workstream F, or Phase 2/4/5/6/7/8 manual validation debt; keep those tracked separately.
+- Phase 10 does not absorb Backlog Phase A, Workstream F, or Phase 2/4/5/6/7/8/9 manual validation debt; keep those tracked separately.
+- Backlog Phase B is the current repo-execution focus for Workstream F F3/F4 and manual-validation backfill; it does not absorb the ESLint 9 migration or silently clear legacy manual checks without logged evidence.
+- Backlog Phase B code landed on 2026-04-23 with mobile-safe document/presentation generation guidance, lightweight mobile-hostile QA rules, and representative Workstream F fixtures.
+- Backlog Phase B now also carries the major workflow change validation protocol, scorecard template, and case registry used to gate workflow-affecting changes.
+- Backlog Phase B now also carries the research-first workflow redesign slice: external agent benchmarking, Dyad teardown notes, Aura workflow-gap analysis, a shared artifact workflow-plan contract, and a workflow-quality benchmark loop for future tuning.
+- Tracking reconciliation note (2026-04-23): stale unchecked top-level checklist items below have been converted into explicit status bullets where later phase docs already confirm implementation but protocol validation is still pending.
+- Manual Backlog Phase B viewport review is now partially logged for the seeded presentation shell, and a fresh-server rerun confirms the original presentation-scoped document-creation blocker is fixed; the broader legacy validation sweep still remains incomplete.
+- Backlog Phase B commit: `26fee79`
+- Phase 8 code landed on 2026-04-23 with preset services, artifact lifecycle metadata, run-history/policy plumbing, and compact preset/run UI surfaces.
+- Manual Phase 8 validation is still pending before any top-level lifecycle/preset workflow completion call.
+- Phase 8 commit: `5508683`
+- Phase 9 code landed on 2026-04-23 with structured spreadsheet planning, deterministic formula/query-view execution, spreadsheet-aware validation/graph integration, and richer spreadsheet run summaries.
+- Manual Phase 9 validation is still pending before any top-level spreadsheet workflow completion call.
+- Phase 9 commit: `52cca18`
 
 - [x] Add a persisted feature flag to hide the Pages UI without removing page logic
 - [x] Hide the current Pages button behind the feature flag
@@ -54,27 +111,36 @@ Validation backfill note:
 - [x] Add clearer visual separation between New Project action and New Document action (label or icon grouping)
 
 - [x] Run PDF preview spike and record decision (keep current stack vs replace)
-- [ ] Implement standalone read-only HTML export for documents
-- [ ] Implement standalone read-only HTML export for presentations
-- [ ] Add document email-optimized HTML export path
-- [ ] Add share/export affordances based on standalone artifacts
+- Implemented, pending protocol validation:
+  - standalone read-only HTML export for documents
+  - standalone read-only HTML export for presentations
+  - document email-optimized HTML export path
+  - share/export affordances based on standalone artifacts
 
-- [ ] Restrict formal Aura media storage to image-first model (while keeping text context attachments)
-- [ ] Add Aura media directory packaging to import/export format
-- [ ] Preserve safe relative media links through sanitization and export
-- [ ] Split attachment behavior into explicit render vs context channels
+- Implemented, pending protocol validation:
+  - image-first Aura media storage with explicit render vs context channels
+  - Aura media directory packaging in import/export
+  - safe relative media-link preservation through sanitization and export
 
-- [ ] Add document edit-intent routing (content-only vs style/hybrid/structural)
-- [ ] Add presentation edit-intent routing to preserve locked design on content-only changes
-- [ ] Add prompt-size/branch observability metrics for lean edit paths
+- Implemented, pending protocol validation:
+  - document edit-intent routing (content-only vs style, hybrid, structural)
+  - presentation edit-intent routing that preserves locked design on content-only changes
+  - prompt-size and branch observability for lean edit paths
 
-- [ ] Add planning and implementation for mobile-adaptive generated documents and presentations
-- [ ] Ensure generated documents consistently show a visible document boundary frame so users can recognize document edges
+- Implemented, pending protocol validation:
+  - mobile-adaptive generated document and presentation guidance
+  - visible framed document boundary treatment for generated documents
 
 Workstream F progress note:
 
 - Initial shared canvas-frame implementation landed for both document and presentation canvases.
-- Automated checks are passing; required manual viewport validation matrix is still pending before checkbox completion.
+- Backlog Phase B delivered the F3 generation-guidance slice plus F4 review fixtures and lightweight QA coverage.
+- Automated checks are passing; partial presentation-shell viewport evidence is logged, but the full matrix is still pending before checkbox completion.
+- Remaining Backlog Phase B closure work:
+  - Workstream F tablet portrait viewport check
+  - Workstream F desktop wide viewport check
+  - Backlog Phase A and Phase 4-10 manual protocol backfill
+  - Ollama local baseline pass for `gemma4:e2b`
 
 ## Workstreams
 
@@ -152,6 +218,11 @@ Blocking dependency:
 Validation requirement:
 - Must include artifact-open checks (offline/read-only) and sanitization safety checks.
 
+Status:
+- Implementation landed in Backlog Phase A on 2026-04-23.
+- Manual offline/open validation is still pending before top-level checklist completion.
+- Commit: `4215266`
+
 Workstream C regression checklist (required when touching document export rendering):
 - [ ] Run `example/pdf_preview_spike.html` and compare Current vs Candidate panes for all three corpus docs.
 - [ ] Validate desktop and mobile viewport modes in the harness.
@@ -184,6 +255,11 @@ Blocking dependency:
 Validation requirement:
 - Must include round-trip Aura import/export checks with media files.
 
+Status:
+- Implementation landed in Backlog Phase A on 2026-04-23.
+- Manual packaged-media round-trip validation is still pending before top-level checklist completion.
+- Commit: `4215266`
+
 ## Workstream E: Low-Token Edit Routing
 
 Owner: unassigned
@@ -205,6 +281,22 @@ Blocking dependency:
 
 Validation requirement:
 - Must include prompt-size comparison evidence for at least one content-only edit and one style edit.
+
+Status:
+- Phase 7 validation profiles and publish readiness are the current build focus.
+- Backlog Phase A remains implemented but not checklist-complete because manual validation is still pending.
+- Phase 4 code landed on 2026-04-23 with bounded target selectors, strategy hints, and editing telemetry.
+- Manual targeted-edit validation is still pending before top-level checklist completion.
+- Phase 5 code landed on 2026-04-23 with starter registries, idempotent init, and the new project dialog flow.
+- Manual Phase 5 bootstrap validation is still pending before any top-level starter-kit completion call.
+- Phase 6 code landed on 2026-04-23 with project-wide routing, dependency graph refresh/validation, project augmentation workflow, and typed run events.
+- Manual Phase 6 project-workflow validation is still pending before any top-level project-augmentation completion call.
+- Phase 7 code landed on 2026-04-23 with shared validation profiles, readiness panels, export gating, and clean-environment checks.
+- Manual Phase 7 publish/readiness validation is still pending before any top-level publish-workflow completion call.
+- Phase 4 commit: `a66f0b0`
+- Phase 5 commit: `acf61d6`
+- Phase 6 commit: `0301a74`
+- Phase 7 commit: `07b0a08`
 
 ## Workstream F: Mobile-Adaptive Artifact Design System
 

@@ -1,21 +1,22 @@
 /**
  * Spreadsheet workflow orchestrator — pure business logic with no React deps.
  *
- * Given typed inputs, runs one of three sub-paths and returns a typed result.
- * The handler (spreadsheetHandler.ts) applies the result to the React store.
- *
- * Three sub-paths (tried in order):
- *   1. Chart-from-spreadsheet  — user asks to visualize existing sheet data
- *   2. Sheet action             — deterministic operations (sort, filter, add col, etc.)
- *   3. Spreadsheet creation     — create/populate a sheet from a natural-language prompt
+ * Phase 9 keeps spreadsheet execution deterministic, but routes every request
+ * through explicit planning and validation before mutating workbook state.
  */
 
-import type { SheetMeta, WorkbookMeta } from '@/types/project';
-import { canCreateSpreadsheetFromPrompt, planSpreadsheetStarter } from '@/services/spreadsheet/starter';
-import { createDefaultSheet, replaceSheetData } from '@/services/spreadsheet/workbook';
-import { detectSheetAction, executeSheetAction } from '@/services/spreadsheet/actions';
+import type { FormulaEntry, QueryViewDefinition, SheetMeta, WorkbookMeta } from '@/types/project';
 
-const CHART_INTENT_RE = /\b(chart|graph|visuali[sz]e|plot|diagram)\b/i;
+import { describeTable } from '@/services/data';
+import { createDefaultSheet, materializeQueryViewSheet, refreshQueryViewSheets, replaceSheetData } from '@/services/spreadsheet/workbook';
+import { executeSheetAction } from '@/services/spreadsheet/actions';
+import type {
+  SpreadsheetExecutionSummary,
+  SpreadsheetPlan,
+  SpreadsheetValidationResult,
+} from '@/services/spreadsheet/plans';
+import { planSpreadsheetWorkflow } from '@/services/ai/workflow/agents/spreadsheet-planner';
+import { validateSpreadsheetPlan } from '@/services/ai/workflow/agents/spreadsheet-validator';
 
 export interface SpreadsheetInput {
   prompt: string;
@@ -25,126 +26,334 @@ export interface SpreadsheetInput {
   isDefaultSheet: boolean;
 }
 
+type SpreadsheetBaseResult = {
+  plan?: SpreadsheetPlan;
+  planSummary?: SpreadsheetExecutionSummary;
+  planValidation?: SpreadsheetValidationResult;
+};
+
 export type SpreadsheetOutput =
-  | { kind: 'chart-created'; chartHtml: string; chartType: string; rowCount: number; message: string }
-  | { kind: 'action-executed'; updatedSheets: SheetMeta[]; message: string }
-  | { kind: 'spreadsheet-created'; workbookTitle: string; sheetName: string; updatedSheets: SheetMeta[]; newActiveSheetIndex: number; shouldRenameDocument: boolean; summary: string }
-  | { kind: 'no-intent'; message: string };
+  | (SpreadsheetBaseResult & { kind: 'chart-created'; chartHtml: string; chartType: string; rowCount: number; message: string })
+  | (SpreadsheetBaseResult & { kind: 'action-executed'; updatedSheets: SheetMeta[]; refreshedSheetIds?: string[]; message: string })
+  | (SpreadsheetBaseResult & { kind: 'formula-column-created'; updatedSheets: SheetMeta[]; refreshedSheetIds?: string[]; message: string })
+  | (SpreadsheetBaseResult & { kind: 'query-view-created'; updatedSheets: SheetMeta[]; targetSheetId: string; message: string })
+  | (SpreadsheetBaseResult & { kind: 'spreadsheet-created'; workbookTitle: string; sheetName: string; updatedSheets: SheetMeta[]; newActiveSheetIndex: number; shouldRenameDocument: boolean; summary: string })
+  | (SpreadsheetBaseResult & { kind: 'sheet-summarized'; message: string })
+  | (SpreadsheetBaseResult & { kind: 'clarification-needed'; message: string })
+  | (SpreadsheetBaseResult & { kind: 'blocked'; message: string })
+  | (SpreadsheetBaseResult & { kind: 'no-intent'; message: string });
+
+function buildPlanSummary(
+  plan: SpreadsheetPlan,
+  downstreamAugmentationImpact: string[],
+  refreshedSheetIds?: string[],
+): SpreadsheetExecutionSummary {
+  return {
+    planKind: plan.kind,
+    targetSummary: plan.targets.map((target) => [target.sheetName, target.columnName].filter(Boolean).join(' → ')).filter(Boolean),
+    downstreamAugmentationImpact,
+    ...(refreshedSheetIds?.length ? { refreshedSheetIds } : {}),
+  };
+}
+
+function getActiveSheet(workbook: WorkbookMeta | null): SheetMeta | null {
+  if (!workbook) return null;
+  return workbook.sheets[workbook.activeSheetIndex] ?? null;
+}
+
+function applySheetAtIndex(
+  workbook: WorkbookMeta,
+  sheetIndex: number,
+  sheet: SheetMeta,
+): SheetMeta[] {
+  return workbook.sheets.map((entry, index) => (index === sheetIndex ? sheet : entry));
+}
+
+function computeAugmentationImpact(plan: SpreadsheetPlan, refreshedSheetIds?: string[]): string[] {
+  const impacts = [];
+  if (plan.canAugmentProject) {
+    impacts.push('Spreadsheet changes can refresh linked tables, chart sources, and project summaries.');
+  } else {
+    impacts.push('This spreadsheet request does not change project dependencies.');
+  }
+  if (refreshedSheetIds?.length) {
+    impacts.push(`Refreshed ${refreshedSheetIds.length} derived query view sheet(s).`);
+  }
+  return impacts;
+}
 
 export async function runSpreadsheetWorkflow(input: SpreadsheetInput): Promise<SpreadsheetOutput> {
-  const { prompt, activeWorkbook, isDefaultSheet } = input;
-  const isChartIntent = CHART_INTENT_RE.test(prompt);
-  const activeSheetIsPopulated = !!activeWorkbook && !isDefaultSheet;
+  const { prompt, activeWorkbook, activeDocumentId, isDefaultSheet } = input;
+  const plan = planSpreadsheetWorkflow(input);
 
-  // ─── 1. Chart-from-spreadsheet ──────────────────────────────────────────────
-  if (isChartIntent && activeSheetIsPopulated && activeWorkbook) {
-    const sheet = activeWorkbook.sheets[activeWorkbook.activeSheetIndex];
-    if (!sheet) throw new Error('No active sheet found.');
+  if (!plan) {
+    return {
+      kind: 'no-intent',
+      message: 'I can create new sheets, add computed columns, build query views, chart existing data, and run deterministic workbook actions. Try: "create a budget tracker", "add a margin column as revenue minus cost", "create a query view by region with total revenue", or "sort by Amount descending".',
+    };
+  }
 
-    const { describeTable, buildChartSpecFromTable, suggestChartConfig } = await import('@/services/data');
-    const tableDesc = await describeTable(sheet.tableName);
+  const planValidation = validateSpreadsheetPlan({
+    prompt,
+    plan,
+    workbook: activeWorkbook,
+    activeDocumentId,
+  });
+
+  if (plan.requiresClarification || planValidation.clarification) {
+    return {
+      kind: 'clarification-needed',
+      message: planValidation.clarification ?? plan.clarification ?? 'I need a bit more detail before I can change the spreadsheet safely.',
+      plan,
+      planValidation,
+      planSummary: buildPlanSummary(plan, computeAugmentationImpact(plan)),
+    };
+  }
+
+  if (!planValidation.passed) {
+    return {
+      kind: 'blocked',
+      message: planValidation.issues[0]?.message ?? 'This spreadsheet request is blocked until the workbook issues are fixed.',
+      plan,
+      planValidation,
+      planSummary: buildPlanSummary(plan, computeAugmentationImpact(plan)),
+    };
+  }
+
+  if (plan.kind === 'create-chart-pack') {
+    const activeSheet = getActiveSheet(activeWorkbook);
+    if (!activeWorkbook || !activeSheet) {
+      return {
+        kind: 'blocked',
+        message: 'I need an active populated sheet before I can create a chart.',
+        plan,
+        planValidation,
+        planSummary: buildPlanSummary(plan, computeAugmentationImpact(plan)),
+      };
+    }
+
+    const { buildChartSpecFromTable, suggestChartConfig } = await import('@/services/data');
+    const tableDesc = await describeTable(activeSheet.tableName);
 
     if (tableDesc.rowCount === 0) {
       return {
-        kind: 'no-intent',
+        kind: 'blocked',
         message: 'The sheet has no rows yet. Add some data first, then ask me to create a chart.',
+        plan,
+        planValidation,
+        planSummary: buildPlanSummary(plan, computeAugmentationImpact(plan)),
       };
     }
 
     const chartConfig = suggestChartConfig(tableDesc);
     if (!chartConfig) {
       return {
-        kind: 'no-intent',
-        message: 'I couldn\'t auto-detect chartable columns in this sheet. Ensure you have at least one text column (for labels) and one numeric column (for values).',
+        kind: 'blocked',
+        message: 'I could not auto-detect chartable columns in this sheet. Use at least one text column and one numeric column.',
+        plan,
+        planValidation,
+        planSummary: buildPlanSummary(plan, computeAugmentationImpact(plan)),
       };
     }
 
     const { spec } = await buildChartSpecFromTable({
-      tableName: sheet.tableName,
+      tableName: activeSheet.tableName,
       sqlFragment: chartConfig.sqlFragment,
       labelColumn: chartConfig.labelColumn,
       valueColumns: chartConfig.valueColumns,
-      title: `${sheet.name} Chart`,
-      sourceDocumentId: input.activeDocumentId ?? '',
+      title: `${activeSheet.name} Chart`,
+      sourceDocumentId: activeDocumentId ?? '',
     });
 
-    const chartHtml = `<script type="application/json" data-aura-chart-spec>${JSON.stringify(spec)}<\/script>\n<div data-aura-chart="${spec.id}" style="width:100%; max-width:720px; aspect-ratio:2; margin:24px auto;"></div>`;
     return {
       kind: 'chart-created',
-      chartHtml,
+      chartHtml: `<script type="application/json" data-aura-chart-spec>${JSON.stringify(spec)}<\/script>\n<div data-aura-chart="${spec.id}" style="width:100%; max-width:720px; aspect-ratio:2; margin:24px auto;"></div>`,
       chartType: spec.type ?? 'chart',
       rowCount: tableDesc.rowCount,
-      message: `Created a ${spec.type ?? 'chart'} from "${sheet.name}" with ${tableDesc.rowCount} rows.`,
+      message: `Created a ${spec.type ?? 'chart'} from "${activeSheet.name}" with ${tableDesc.rowCount} rows.`,
+      plan,
+      planValidation,
+      planSummary: buildPlanSummary(plan, computeAugmentationImpact(plan)),
     };
   }
 
-  // ─── 2. Sheet action (sort / filter / add-col / rename / remove) ─────────────
-  if (activeSheetIsPopulated && activeWorkbook) {
-    const sheet = activeWorkbook.sheets[activeWorkbook.activeSheetIndex];
-    if (sheet) {
-      const detectedAction = detectSheetAction(prompt, sheet.schema);
-      if (detectedAction) {
-        const result = await executeSheetAction(detectedAction, sheet);
-        const updatedSheets = activeWorkbook.sheets.map((s, i) => {
-          if (i !== activeWorkbook.activeSheetIndex) return s;
-          return {
-            ...s,
-            ...(result.updatedSchema ? { schema: result.updatedSchema } : {}),
-            ...(Object.prototype.hasOwnProperty.call(result, 'sortState') ? { sortState: result.sortState } : {}),
-            ...(Object.prototype.hasOwnProperty.call(result, 'filterState') ? { filterState: result.filterState } : {}),
-          };
-        });
-        return { kind: 'action-executed', updatedSheets, message: result.userMessage };
-      }
+  if (plan.kind === 'sheet-action') {
+    const workbook = activeWorkbook!;
+    const activeSheetIndex = workbook.activeSheetIndex;
+    const targetSheet = workbook.sheets[activeSheetIndex];
+    if (!targetSheet) {
+      return {
+        kind: 'blocked',
+        message: 'The active sheet is unavailable for this workbook action.',
+        plan,
+        planValidation,
+        planSummary: buildPlanSummary(plan, computeAugmentationImpact(plan)),
+      };
     }
-  }
-
-  // ─── 3. Spreadsheet creation ──────────────────────────────────────────────────
-  if (!canCreateSpreadsheetFromPrompt(prompt)) {
+    const result = await executeSheetAction(plan.action!, targetSheet);
+    let updatedSheets = applySheetAtIndex(workbook, activeSheetIndex, {
+      ...targetSheet,
+      ...(result.updatedSchema ? { schema: result.updatedSchema } : {}),
+      ...(Object.prototype.hasOwnProperty.call(result, 'sortState') ? { sortState: result.sortState } : {}),
+      ...(Object.prototype.hasOwnProperty.call(result, 'filterState') ? { filterState: result.filterState } : {}),
+    });
+    const refreshed = await refreshQueryViewSheets(updatedSheets, [targetSheet.id]);
+    updatedSheets = refreshed.sheets;
     return {
-      kind: 'no-intent',
-      message: 'I can create new sheets and seed them with data. Try: "create a budget tracker", "make a sales table with sample data", or "design a table with columns name, amount, status". To chart existing data, try "graph this" or "create a chart". Or try editing your active sheet: "sort by Amount", "add a column called Notes", "rename Status to Stage", "remove the Notes column", "filter where country = France".',
+      kind: 'action-executed',
+      updatedSheets,
+      refreshedSheetIds: refreshed.refreshedSheetIds,
+      message: result.userMessage,
+      plan,
+      planValidation,
+      planSummary: buildPlanSummary(plan, computeAugmentationImpact(plan, refreshed.refreshedSheetIds), refreshed.refreshedSheetIds),
     };
   }
 
-  const plan = planSpreadsheetStarter(prompt);
+  if (plan.kind === 'summarize-sheet') {
+    const workbook = activeWorkbook!;
+    const targetSheet = workbook.sheets[workbook.activeSheetIndex];
+    if (!targetSheet) {
+      return {
+        kind: 'blocked',
+        message: 'The active sheet is unavailable for this summary request.',
+        plan,
+        planValidation,
+        planSummary: buildPlanSummary(plan, computeAugmentationImpact(plan)),
+      };
+    }
+    const result = await executeSheetAction(plan.action!, targetSheet);
+    return {
+      kind: 'sheet-summarized',
+      message: result.userMessage,
+      plan,
+      planValidation,
+      planSummary: buildPlanSummary(plan, computeAugmentationImpact(plan)),
+    };
+  }
+
+  if (plan.kind === 'create-formula-column') {
+    const workbook = activeWorkbook!;
+    const activeSheetIndex = workbook.activeSheetIndex;
+    const targetSheet = workbook.sheets[activeSheetIndex];
+    if (!targetSheet) {
+      return {
+        kind: 'blocked',
+        message: 'The active sheet is unavailable for this formula request.',
+        plan,
+        planValidation,
+        planSummary: buildPlanSummary(plan, computeAugmentationImpact(plan)),
+      };
+    }
+    const formula = plan.formula!;
+    const result = await executeSheetAction({
+      type: 'addComputedColumn',
+      name: formula.outputColumnName,
+      expression: formula.expression,
+    }, targetSheet);
+    const nextFormula: FormulaEntry = {
+      id: crypto.randomUUID(),
+      column: formula.outputColumnName,
+      expression: formula.expression,
+      dependsOn: formula.dependsOn,
+    };
+    let updatedSheets = applySheetAtIndex(workbook, activeSheetIndex, {
+      ...targetSheet,
+      schema: result.updatedSchema ?? targetSheet.schema,
+      formulas: [...targetSheet.formulas, nextFormula],
+    });
+    const refreshed = await refreshQueryViewSheets(updatedSheets, [targetSheet.id]);
+    updatedSheets = refreshed.sheets;
+    return {
+      kind: 'formula-column-created',
+      updatedSheets,
+      refreshedSheetIds: refreshed.refreshedSheetIds,
+      message: `Added computed column "${formula.outputColumnName}" using ${formula.expressionLabel}.`,
+      plan,
+      planValidation,
+      planSummary: buildPlanSummary(plan, computeAugmentationImpact(plan, refreshed.refreshedSheetIds), refreshed.refreshedSheetIds),
+    };
+  }
+
+  if (plan.kind === 'create-query-view') {
+    const workbook = activeWorkbook!;
+    const queryView = plan.queryView!;
+    const sourceSheet = workbook.sheets.find((sheet) => sheet.id === queryView.sourceSheetId)!;
+    if (!sourceSheet) {
+      return {
+        kind: 'blocked',
+        message: `The source sheet "${queryView.sourceSheetName}" is no longer available.`,
+        plan,
+        planValidation,
+        planSummary: buildPlanSummary(plan, computeAugmentationImpact(plan)),
+      };
+    }
+    const existingTarget = workbook.sheets.find((sheet) => (
+      sheet.queryView?.sourceSheetId === queryView.sourceSheetId
+      && sheet.queryView?.outputSheetName === queryView.outputSheetName
+    ) || sheet.name === queryView.outputSheetName);
+    const targetSheet = existingTarget ?? createDefaultSheet(queryView.outputSheetName);
+    const nextQueryView: QueryViewDefinition = {
+      ...queryView,
+      generatedAt: Date.now(),
+    };
+    const schema = await materializeQueryViewSheet(sourceSheet, targetSheet, nextQueryView);
+    const nextSheet: SheetMeta = {
+      ...targetSheet,
+      name: queryView.outputSheetName,
+      schema,
+      queryView: nextQueryView,
+    };
+    const updatedSheets = existingTarget
+      ? workbook.sheets.map((sheet) => (sheet.id === existingTarget.id ? nextSheet : sheet))
+      : [...workbook.sheets, nextSheet];
+
+    return {
+      kind: 'query-view-created',
+      updatedSheets,
+      targetSheetId: nextSheet.id,
+      message: `Created query view "${queryView.outputSheetName}" from "${queryView.sourceSheetName}".`,
+      plan,
+      planValidation,
+      planSummary: buildPlanSummary(plan, computeAugmentationImpact(plan)),
+    };
+  }
+
+  const starterPlan = plan.starterPlan!;
   const existingWorkbook = activeWorkbook;
-
   const targetSheet = (existingWorkbook && isDefaultSheet)
-    ? existingWorkbook.sheets[existingWorkbook.activeSheetIndex] ?? createDefaultSheet(plan.sheetName)
-    : createDefaultSheet(plan.sheetName);
+    ? existingWorkbook.sheets[existingWorkbook.activeSheetIndex] ?? createDefaultSheet(starterPlan.sheetName)
+    : createDefaultSheet(starterPlan.sheetName);
 
-  if (!targetSheet) throw new Error('Spreadsheet sheet is unavailable.');
-
-  const appliedSchema = await replaceSheetData(targetSheet, plan.schema, plan.rows);
-  const nextSheet: SheetMeta = { ...targetSheet, name: plan.sheetName, schema: appliedSchema };
+  const appliedSchema = await replaceSheetData(targetSheet, starterPlan.schema, starterPlan.rows);
+  const nextSheet: SheetMeta = { ...targetSheet, name: starterPlan.sheetName, schema: appliedSchema };
 
   let updatedSheets: SheetMeta[];
   let newActiveSheetIndex: number;
 
   if (existingWorkbook && isDefaultSheet) {
-    // Reuse the existing default sheet
-    updatedSheets = existingWorkbook.sheets.map((s, i) =>
-      i === existingWorkbook.activeSheetIndex ? nextSheet : s,
-    );
+    updatedSheets = existingWorkbook.sheets.map((sheet, index) => (
+      index === existingWorkbook.activeSheetIndex ? nextSheet : sheet
+    ));
     newActiveSheetIndex = existingWorkbook.activeSheetIndex;
   } else if (existingWorkbook) {
-    // Append a new sheet to the existing workbook
     updatedSheets = [...existingWorkbook.sheets, nextSheet];
     newActiveSheetIndex = updatedSheets.length - 1;
   } else {
-    // Brand new workbook
     updatedSheets = [nextSheet];
     newActiveSheetIndex = 0;
   }
 
   return {
     kind: 'spreadsheet-created',
-    workbookTitle: plan.workbookTitle,
-    sheetName: plan.sheetName,
+    workbookTitle: starterPlan.workbookTitle,
+    sheetName: starterPlan.sheetName,
     updatedSheets,
     newActiveSheetIndex,
     shouldRenameDocument: true,
-    summary: plan.chartHint ? `${plan.summary} ${plan.chartHint}` : plan.summary,
+    summary: starterPlan.chartHint ? `${starterPlan.summary} ${starterPlan.chartHint}` : starterPlan.summary,
+    plan,
+    planValidation,
+    planSummary: buildPlanSummary(plan, computeAugmentationImpact(plan)),
   };
 }

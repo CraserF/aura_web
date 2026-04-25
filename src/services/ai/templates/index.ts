@@ -36,3 +36,20 @@ export {
   getExemplarPack,
   type ExemplarPack,
 } from './exemplar-packs';
+
+export {
+  getReferenceStylePack,
+  listReferenceStylePacks,
+  type ReferenceStylePack,
+  type ReferenceStylePackId,
+} from './reference-style-packs';
+
+export {
+  PRESENTATION_LAYOUT_RECIPES,
+  PRESENTATION_MOTION_BUDGETS,
+  PRESENTATION_TYPE_SCALE,
+  buildPresentationDesignSystemPrompt,
+  type PresentationLayoutRecipe,
+  type PresentationMotionBudget,
+  type PresentationTypeScale,
+} from './design-system';

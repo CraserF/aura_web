@@ -31,12 +31,13 @@ This document defines the detailed implementation plan for mobile-adaptive rende
 
 ## Phased Execution
 
-Status snapshot (2026-04-12):
+Status snapshot (2026-04-23):
 
 - Phase F0: baseline contract documented (in progress, continue refining docs as behavior evolves).
 - Phase F1: initial implementation landed (shared presentation frame + 16:9 fit/contain behavior).
 - Phase F2: initial implementation landed (document canvas frame/boundary consistency in app shell).
-- Phase F3-F4: pending.
+- Phase F3: implemented via mobile-safe generation guidance in document/presentation prompt surfaces plus lightweight QA guards.
+- Phase F4: partially implemented via representative fixtures and checklist hardening; presentation shell spot-checks are logged for desktop standard, mobile narrow portrait, and mobile landscape, while tablet portrait, desktop wide, and document-side validation remain pending.
 
 ## Phase F0: UX and Architecture Baseline
 
@@ -102,6 +103,11 @@ Files:
 
 Acceptance:
 - Newly generated artifacts show better mobile readability without desktop regression.
+- Prompt guidance should prefer:
+  - single-column or gracefully collapsing narrative layouts unless the prompt clearly asks for side-by-side comparison
+  - fluid media sizing and wrap-safe KPI or metadata bands
+  - limited slide density for fixed 16:9 stages viewed inside smaller framed viewports
+- Presentation rules must preserve the fixed stage model; do not introduce responsive stretch logic inside slide HTML.
 
 ## Phase F4: Regression and Quality Hardening
 
@@ -117,6 +123,12 @@ Files:
 
 Acceptance:
 - Validation evidence captured and linked before marking Workstream F complete.
+
+Representative fixture set:
+- one long-form document fixture
+- one visually dense document fixture
+- one presentation fixture with cards, media framing, and metrics
+- Current fixture file: `src/test/fixtures/workstream-f.ts`
 
 ## Cross-Workstream Dependencies
 
@@ -145,8 +157,13 @@ Manual checks per artifact type:
 - Background gutter behavior
 
 Automated checks:
-- bun run build
-- bun run test
+- npm run build
+- npm test
+
+Workflow-change validation protocol:
+- Use `docs/validation/major-change-protocol.md` for the full gate.
+- Use `docs/validation/artifact-case-matrix.md` for the broader document/presentation/spreadsheet regression families.
+- Use `docs/validation/scorecard-template.md` when recording viewport and quality evidence.
 
 Evidence log template:
 - Date
@@ -157,6 +174,22 @@ Evidence log template:
 - Test result
 - Manual findings
 - Regressions and actions
+
+Evidence note (2026-04-23):
+- Agent: Codex
+- Artifact type: seeded presentation shell (`Strategy & Execution`)
+- Viewports tested: desktop standard, mobile narrow portrait (`390x844`), mobile landscape (`844x390`)
+- Build result: pass
+- Test result: pass
+- Manual findings: frame boundary remained visible, the contained stage stayed legible, and controls stayed reachable after closing the sidebar in Responsive Design Mode
+- Regressions and actions: document-side viewport validation is blocked in the same session because creating a new long-form document stalled at `Applying changes…` around 30% until manually cancelled
+
+Viewport review checklist:
+- document frame remains visibly bounded with readable gutters
+- presentation stage remains proportionally contained and legible
+- dense modules stack or wrap cleanly instead of clipping
+- controls and overlays stay usable
+- desktop rendering stays visually ambitious rather than collapsing into bland single-column output
 
 ## Risks and Mitigations
 

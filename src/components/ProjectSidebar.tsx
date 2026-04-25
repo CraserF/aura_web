@@ -40,6 +40,22 @@ function getDocColor(index: number): string {
   return color ?? DOC_COLORS[0]!;
 }
 
+function getLifecycleBadgeClass(state: ProjectDocument['lifecycleState']): string {
+  switch (state) {
+    case 'published':
+      return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
+    case 'approved':
+      return 'border-blue-500/30 bg-blue-500/10 text-blue-300';
+    case 'reviewing':
+      return 'border-amber-500/30 bg-amber-500/10 text-amber-300';
+    case 'stale':
+      return 'border-destructive/30 bg-destructive/10 text-destructive';
+    case 'draft':
+    default:
+      return 'border-border/60 bg-muted/40 text-muted-foreground';
+  }
+}
+
 interface NewDocMenuProps {
   onAdd: (type: 'document' | 'presentation' | 'spreadsheet') => void;
 }
@@ -204,9 +220,17 @@ function DocItem({
             <p className="truncate text-xs font-medium leading-tight">
               {doc.title || 'Untitled'}
             </p>
-            <p className="truncate text-[10px] capitalize text-muted-foreground/70">
-              {doc.type}
-            </p>
+            <div className="flex items-center gap-1.5">
+              <p className="truncate text-[10px] capitalize text-muted-foreground/70">
+                {doc.type}
+              </p>
+              <span className={cn(
+                'rounded-full border px-1.5 py-0.5 text-[9px] font-medium capitalize',
+                getLifecycleBadgeClass(doc.lifecycleState),
+              )}>
+                {doc.lifecycleState}
+              </span>
+            </div>
           </>
         )}
       </div>
@@ -351,9 +375,17 @@ interface ProjectSidebarProps {
   open: boolean;
   onClose?: () => void;
   onRequestAddDocument?: (type: 'document' | 'presentation' | 'spreadsheet', parentId?: string) => void;
+  onOpenProjectRules?: () => void;
+  onOpenDoctor?: () => void;
 }
 
-export function ProjectSidebar({ open, onClose, onRequestAddDocument }: ProjectSidebarProps) {
+export function ProjectSidebar({
+  open,
+  onClose,
+  onRequestAddDocument,
+  onOpenProjectRules,
+  onOpenDoctor,
+}: ProjectSidebarProps) {
   const project = useProjectStore((s) => s.project);
   const activeDocumentId = useProjectStore((s) => s.project.activeDocumentId);
   const setActiveDocumentId = useProjectStore((s) => s.setActiveDocumentId);
@@ -476,7 +508,15 @@ export function ProjectSidebar({ open, onClose, onRequestAddDocument }: ProjectS
         </div>
 
         {/* Footer stats */}
-        <div className="border-t border-border px-3 py-2">
+        <div className="space-y-2 border-t border-border px-3 py-2">
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="h-7 flex-1 text-[11px]" onClick={onOpenProjectRules}>
+              Project Rules
+            </Button>
+            <Button variant="outline" size="sm" className="h-7 flex-1 text-[11px]" onClick={onOpenDoctor}>
+              Doctor
+            </Button>
+          </div>
           <p className="text-[10px] text-muted-foreground/60">
             {sortedDocs.length} document{sortedDocs.length !== 1 ? 's' : ''}
           </p>

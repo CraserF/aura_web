@@ -93,6 +93,9 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
 
   // ── <style> block check (standalone slide architecture) ────
   const hasStyleBlock = /<style[\s>][\s\S]*?<\/style>/i.test(html);
+  const styleText = (html.match(/<style[\s>][\s\S]*?<\/style>/gi) ?? [])
+    .map((block) => block.replace(/<\/?style[^>]*>/gi, ''))
+    .join('\n');
   if (!hasStyleBlock) {
     violations.push({
       slide: 0,
@@ -110,6 +113,50 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
       rule: 'animations',
       severity: 'warning',
       detail: 'No @keyframes animations found in <style> block. Every slide should include at least 2-3 CSS animations.',
+    });
+  }
+
+  if (hasStyleBlock && /\b(?:width|height|min-width|min-height|max-width|max-height|inset|top|right|bottom|left|padding|margin|gap|font-size)\s*:[^;{}]*(?:\d|\))\s*(?:vw|vh|dvw|dvh|vmin|vmax)\b/i.test(styleText)) {
+    violations.push({
+      slide: 0,
+      rule: 'viewport-unit-layout',
+      severity: 'warning',
+      detail: 'Slide CSS uses viewport units for layout or type. Aura scales a fixed 16:9 stage, so use stage-relative percentages, grid/flex, rem/em, or fixed source-space sizing instead.',
+    });
+  }
+
+  const tinyFontSizes = Array.from(styleText.matchAll(/font-size\s*:\s*(\d+(?:\.\d+)?)px/gi))
+    .map(([, size]) => Number.parseFloat(size ?? '0'))
+    .filter((size) => size > 0 && size < 16);
+  const tinyClampMinimums = Array.from(styleText.matchAll(/font-size\s*:\s*clamp\(\s*(\d+(?:\.\d+)?)px/gi))
+    .map(([, size]) => Number.parseFloat(size ?? '0'))
+    .filter((size) => size > 0 && size < 16);
+  if (tinyFontSizes.length > 0 || tinyClampMinimums.length > 0) {
+    violations.push({
+      slide: 0,
+      rule: 'tiny-essential-text',
+      severity: 'warning',
+      detail: 'Essential slide text appears to use source font sizes below 16px; starter and generated slides should stay readable when the fixed stage is scaled down.',
+    });
+  }
+
+  const hasCssAnimation = /\banimation\s*:/i.test(styleText);
+  if (hasCssAnimation && !/prefers-reduced-motion/i.test(styleText)) {
+    violations.push({
+      slide: 0,
+      rule: 'reduced-motion',
+      severity: 'warning',
+      detail: 'Animated slide CSS should include a prefers-reduced-motion fallback.',
+    });
+  }
+
+  const keyframeCount = (styleText.match(/@keyframes\s+[\w-]+/gi) ?? []).length;
+  if (keyframeCount > 10) {
+    violations.push({
+      slide: 0,
+      rule: 'animation-budget',
+      severity: 'warning',
+      detail: `Slide CSS defines ${keyframeCount} keyframe animations. Keep motion focused so canvas rendering remains smooth and readable.`,
     });
   }
 
@@ -269,6 +316,27 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
         rule: 'copy-density',
         severity: 'warning',
         detail: `Slide copy appears dense (${wordCount} words). Keep slides visual-first with shorter labels, tighter headings, and less paragraph text.`,
+      });
+    }
+
+    const cardLikeCount = (section.match(/class=["'][^"']*(?:card|metric|kpi|panel|tile|stat|browser|frame|window)[^"']*["']/gi) ?? []).length;
+    const hasDenseGridHints = /grid-template-columns\s*:\s*repeat\(\s*[3-9]\s*,|class=["'][^"']*(?:cols-3|cols-4|three-col|four-col)[^"']*["']/i.test(section);
+    if (cardLikeCount >= 6 || (cardLikeCount >= 5 && hasDenseGridHints)) {
+      violations.push({
+        slide: slideNum,
+        rule: 'mobile-stage-density',
+        severity: 'warning',
+        detail: 'Slide packs too many card or metric modules for a fixed 16:9 stage that will be viewed inside smaller framed mobile viewports.',
+      });
+    }
+
+    const hasBrowserFrame = /class=["'][^"']*(?:browser|screenshot|device-frame|window-frame)[^"']*["']/i.test(section);
+    if (hasBrowserFrame && (wordCount > 70 || cardLikeCount > 4)) {
+      violations.push({
+        slide: slideNum,
+        rule: 'mobile-frame-density',
+        severity: 'warning',
+        detail: 'Browser or screenshot frame content looks dense for a scaled-down mobile viewport; simplify adjacent copy or panels.',
       });
     }
 

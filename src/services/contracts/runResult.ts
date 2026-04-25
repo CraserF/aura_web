@@ -1,0 +1,83 @@
+import type { ClarifyOption } from '@/types';
+
+import type { ResolvedIntent } from '@/services/ai/intent/types';
+import type { RunOutputsEnvelope } from '@/services/contracts/outputEnvelope';
+import type { EditingTelemetry } from '@/services/editing/types';
+import type { RunStatus } from '@/services/runs/status';
+import type { SpreadsheetExecutionSummary, SpreadsheetIntentKind } from '@/services/spreadsheet/plans';
+import type { PublishReadinessResult, ValidationIssue, ValidationProfileId } from '@/services/validation/types';
+
+export interface RunResultAssistantMessage {
+  content: string;
+  clarifyOptions?: ClarifyOption[];
+}
+
+export interface RunResultValidationSummary {
+  passed: boolean;
+  summary: string;
+  profileId?: ValidationProfileId;
+  score?: number;
+  blockingIssues?: ValidationIssue[];
+  warnings?: ValidationIssue[];
+}
+
+export interface RunResultWarning {
+  code: string;
+  message: string;
+}
+
+export interface RunResultChangedTarget {
+  documentId?: string;
+  sheetId?: string;
+  action: 'created' | 'updated' | 'none';
+}
+
+export interface RunResultStructuredStatus {
+  title: string;
+  detail: string;
+}
+
+export interface RunResultDependencyChange {
+  edgeId: string;
+  kind: string;
+  status: 'valid' | 'broken' | 'stale';
+  sourceDocumentId?: string;
+  targetDocumentId?: string;
+  sheetId?: string;
+  message: string;
+}
+
+export interface RunResultProjectOutputs {
+  operation: string;
+  updatedDocumentIds: string[];
+  dependencyChanges: RunResultDependencyChange[];
+  reviewSummary?: string;
+  linkSummary?: string;
+}
+
+export interface RunResultSpreadsheetOutputs {
+  planKind: SpreadsheetIntentKind;
+  targetSummary: string[];
+  downstreamAugmentationImpact: string[];
+  refreshedSheetIds?: string[];
+}
+
+export interface RunResultOutputs extends Record<string, unknown> {
+  envelope: RunOutputsEnvelope;
+  editing?: EditingTelemetry;
+  project?: RunResultProjectOutputs;
+  publish?: PublishReadinessResult;
+  spreadsheet?: SpreadsheetExecutionSummary | RunResultSpreadsheetOutputs;
+}
+
+export interface RunResult {
+  runId: string;
+  status: RunStatus;
+  intent: ResolvedIntent;
+  outputs: RunResultOutputs;
+  assistantMessage: RunResultAssistantMessage;
+  validation: RunResultValidationSummary;
+  warnings: RunResultWarning[];
+  changedTargets: RunResultChangedTarget[];
+  structuredStatus: RunResultStructuredStatus;
+}

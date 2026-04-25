@@ -22,7 +22,8 @@ import { validateSlides } from './agents/qa-validator';
 import { evaluateAndRevise } from './agents/evaluator';
 import { sanitizeInnerHtml } from '@/services/html/sanitizer';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { aiDebugLog, toErrorInfo } from '../debug';
+import { aiDebugLog, logEditingMetrics, toErrorInfo } from '../debug';
+import { getProviderCapabilityProfile } from '../providerCapabilities';
 import type {
   PresentationInput,
   PresentationOutput,
@@ -37,6 +38,25 @@ export interface RunWorkflowOptions {
   llmConfig: LLMConfig;
   onEvent: EventListener;
   signal?: AbortSignal;
+}
+
+function startProgressHeartbeat(opts: {
+  onEvent: EventListener;
+  startPct: number;
+  maxPct: number;
+  intervalMs?: number;
+  messages: string[];
+}): () => void {
+  const { onEvent, startPct, maxPct, intervalMs = 8000, messages } = opts;
+  let tick = 0;
+  const timer = setInterval(() => {
+    tick += 1;
+    const pct = Math.min(maxPct, startPct + (tick * 6));
+    const message = messages[Math.min(tick - 1, messages.length - 1)] ?? messages[messages.length - 1] ?? 'Working…';
+    onEvent({ type: 'progress', message, pct });
+  }, intervalMs);
+
+  return () => clearInterval(timer);
 }
 
 /**
@@ -62,6 +82,14 @@ export async function runPresentationWorkflow(
   // Create the AI SDK model with shared defaults (temperature, maxOutputTokens)
   const baseModel: LanguageModel = await createModel(llmConfig);
   const model = withDefaults(baseModel);
+  const providerProfile = getProviderCapabilityProfile({
+    id: llmConfig.providerEntry.id,
+    model: llmConfig.model,
+  });
+  const editCorrectionPolicy = {
+    mode: providerProfile.editCorrectionMode,
+    maxCorrectionSteps: providerProfile.maxEditCorrectionSteps,
+  } as const;
   aiDebugLog('workflow', `starting ${isEdit ? 'edit' : 'create'} workflow`, { model: llmConfig.model });
 
   try {
@@ -86,10 +114,24 @@ export async function runPresentationWorkflow(
     // Check for abort between phases
     if (signal?.aborted) throw new DOMException('Workflow aborted', 'AbortError');
 
-    // ── Batch create flow ────────────────────────────────────────
-    if (planResult.intent === 'batch_create' && planResult.slideBriefs && planResult.slideBriefs.length > 0) {
-      onEvent({ type: 'step-start', stepId: 'design', label: `Designing ${planResult.slideBriefs.length} slides…` });
-      onEvent({ type: 'progress', message: `Planning ${planResult.slideBriefs.length} slides…`, pct: 25 });
+    // ── Queued multi-slide flow ─────────────────────────────────
+    if (
+      (planResult.intent === 'batch_create' || planResult.intent === 'add_slides')
+      && planResult.slideBriefs
+      && planResult.slideBriefs.length > 0
+    ) {
+      const queuedStepId = isEdit ? 'targeted-design' : 'design';
+      const queuedLabel = isEdit
+        ? `Queueing ${planResult.slideBriefs.length} new slides…`
+        : `Designing ${planResult.slideBriefs.length} slides…`;
+      onEvent({ type: 'step-start', stepId: queuedStepId, label: queuedLabel });
+      onEvent({
+        type: 'progress',
+        message: isEdit
+          ? `Queueing ${planResult.slideBriefs.length} new slides one at a time…`
+          : `Planning ${planResult.slideBriefs.length} slides…`,
+        pct: 25,
+      });
 
       const { runBatchQueue } = await import('./batchQueue');
 
@@ -97,13 +139,15 @@ export async function runPresentationWorkflow(
         planResult,
         model,
         onEvent,
+        ...(isEdit && input.existingSlidesHtml ? { initialHtml: input.existingSlidesHtml } : {}),
+        ...(input.templateGuidance ? { guidanceProfile: input.templateGuidance } : {}),
         onSlideComplete: (combinedHtml, slideIndex, totalSlides) => {
           onEvent({ type: 'batch-slide-complete', html: combinedHtml, slideIndex, totalSlides });
         },
         signal,
       });
 
-      onEvent({ type: 'step-done', stepId: 'design', label: `Designing ${planResult.slideBriefs.length} slides…` });
+      onEvent({ type: 'step-done', stepId: queuedStepId, label: queuedLabel });
       onEvent({ type: 'step-skipped', stepId: 'evaluate', label: 'Evaluating quality…' });
       onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing presentation…' });
 
@@ -125,24 +169,52 @@ export async function runPresentationWorkflow(
     const designLabel = isEdit ? 'Editing slides…' : 'Designing your slide…';
     onEvent({ type: 'step-start', stepId: designStepId, label: designLabel });
     onEvent({ type: 'progress', message: isEdit ? 'Applying changes…' : 'Designing a stunning slide…', pct: 30 });
+    const stopDesignHeartbeat = startProgressHeartbeat({
+      onEvent,
+      startPct: 30,
+      maxPct: 60,
+      messages: isEdit
+        ? [
+            'Still applying slide changes…',
+            'Refining the updated slide composition…',
+            'Finishing the current slide draft…',
+          ]
+        : [
+            'Still designing the slide composition…',
+            'Refining hierarchy, layout, and visual balance…',
+            'Finishing the current slide draft…',
+          ],
+    });
 
-    const designResult = isEdit
-      ? await designEdit(
-          planResult,
-          input.existingSlidesHtml!,
-          effectiveChatHistory,
-          model,
-          onEvent,
-          signal,
-        )
-      : await design(
-          planResult,
-          input.existingSlidesHtml,
-          effectiveChatHistory,
-          model,
-          onEvent,
-          signal,
-        );
+    const designResult = await (async () => {
+      try {
+        return isEdit
+          ? await designEdit(
+              planResult,
+              input.existingSlidesHtml!,
+              effectiveChatHistory,
+              model,
+              onEvent,
+              input.projectRulesBlock,
+              input.templateGuidance,
+              input.editing,
+              editCorrectionPolicy,
+              signal,
+            )
+          : await design(
+              planResult,
+              input.existingSlidesHtml,
+              effectiveChatHistory,
+              model,
+              onEvent,
+              input.projectRulesBlock,
+              input.templateGuidance,
+              signal,
+            );
+      } finally {
+        stopDesignHeartbeat();
+      }
+    })();
 
     onEvent({
       type: 'progress',
@@ -184,7 +256,12 @@ export async function runPresentationWorkflow(
     // 3. alwaysRunEvaluation is enabled OR QA somehow failed on the fast-path output
     // When fastPath=false (agent loop ran), the agent already self-corrected — don't pile on.
     const canEvaluate = planResult.intent !== 'add_slides';
-    const shouldEvaluate = canEvaluate && designResult.fastPath && (alwaysRunEvaluation || !qaResult.passed);
+    const localModelSkipsSecondaryEvaluation = providerProfile.secondaryEvaluation === 'skip';
+    const shouldEvaluate =
+      canEvaluate &&
+      designResult.fastPath &&
+      (alwaysRunEvaluation || !qaResult.passed) &&
+      !localModelSkipsSecondaryEvaluation;
     aiDebugLog('workflow', `phase 3 decision`, {
       intent: planResult.intent,
       fastPath: designResult.fastPath,
@@ -193,6 +270,7 @@ export async function runPresentationWorkflow(
       advisoryCount: qaResult.advisoryCount,
       alwaysRunEvaluation,
       canEvaluate,
+      localModelSkipsSecondaryEvaluation,
       shouldEvaluate,
     });
 
@@ -204,6 +282,7 @@ export async function runPresentationWorkflow(
           designResult.html,
           planResult,
           onEvent,
+          input.projectRulesBlock,
           signal,
         );
         onEvent({ type: 'step-done', stepId: 'evaluate', label: 'Evaluating quality…' });
@@ -215,7 +294,13 @@ export async function runPresentationWorkflow(
       }
     } else {
       onEvent({ type: 'step-skipped', stepId: 'evaluate', label: 'Evaluating quality…' });
-      onEvent({ type: 'progress', message: 'QA passed — skipping evaluation', pct: 85 });
+      onEvent({
+        type: 'progress',
+        message: localModelSkipsSecondaryEvaluation
+          ? 'Local model safe path — skipping secondary evaluation'
+          : 'QA passed — skipping evaluation',
+        pct: 85,
+      });
     }
 
     // For add_slides the merged deck's QA mixes old slides with new; use the designer's
@@ -232,7 +317,15 @@ export async function runPresentationWorkflow(
       title: designResult.title,
       slideCount: designResult.slideCount,
       reviewPassed,
+      ...(designResult.editing ? { editing: designResult.editing } : {}),
     };
+
+    if (designResult.editing) {
+      logEditingMetrics('presentation', {
+        ...designResult.editing,
+        regenerationAvoided: designResult.editing.strategyUsed !== 'full-regenerate',
+      });
+    }
 
     onEvent({ type: 'step-done', stepId: 'finalize', label: 'Finalizing slide…' });
     onEvent({ type: 'complete', result: output });

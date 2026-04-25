@@ -20,6 +20,8 @@ export interface FileAttachment {
    * For text files: the raw text content.
    */
   content: string;
+  /** Context-only attachments stay ephemeral; render attachments are durable project media. */
+  channel?: 'context' | 'render';
 }
 
 /** A layout/style choice offered to the user before generation */

@@ -5,6 +5,7 @@
  * based on the template, animation level, and generation context.
  */
 import type { ExemplarPackId, TemplateId, TemplatePalette, TemplateBlueprint } from '../templates';
+import { buildPresentationDesignSystemPrompt, getReferenceStylePack } from '../templates';
 import { buildBaseSection } from './sections/base';
 import { buildTypographySection } from './sections/typography';
 import { buildLayoutSection } from './sections/layout';
@@ -17,6 +18,7 @@ import { buildAntiPatternsSection, buildCondensedAntiPatterns } from './sections
 import { buildTemplateExamplesSection } from './sections/template-examples';
 import { buildModernPatternsSection } from './sections/modern-patterns';
 import { buildChartGuidanceSection } from './sections/charts';
+import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
 
 export class PromptComposer {
   private sections: string[] = [];
@@ -138,6 +140,58 @@ These rules are repeated here because recency matters. Violating any of them pro
   }
 }
 
+function buildMobileStageSection(): string {
+  return `## MOBILE-STAGE READABILITY
+
+These slides keep a fixed 16:9 stage and will often be viewed inside a smaller framed mobile viewport. Design for graceful scale-down, not responsive stretch.
+
+Rules:
+- keep each slide to 1-3 major zones with clear hierarchy; do not pack the stage edge-to-edge with equal-weight panels
+- headlines must stay short and bold enough to read when the full stage is scaled down
+- KPI or metric rows should stay to a small set of strong numbers; avoid sprawling six-card dashboards unless the prompt explicitly demands density
+- browser, screenshot, and device-frame treatments must live inside clear bounded panes with enough breathing room around them
+- multi-panel layouts should privilege comparison clarity over raw card count; if a slide feels crowded, collapse to fewer modules rather than thinner text
+- do not add responsive stretch logic inside slide HTML; preserve the fixed stage model and rely on clean composition instead`;
+} 
+
+function buildGuidanceProfileSection(guidanceProfile?: TemplateGuidanceProfile): string {
+  if (!guidanceProfile) return '';
+
+  const stylePack = guidanceProfile.referenceStylePackId
+    ? getReferenceStylePack(guidanceProfile.referenceStylePackId)
+    : null;
+
+  return `## WORKFLOW GUIDANCE PROFILE
+
+Intent family: ${guidanceProfile.intentFamily}
+Provider tier: ${guidanceProfile.providerTier}
+${guidanceProfile.presentationRecipeId ? `Presentation recipe: ${guidanceProfile.presentationRecipeId}` : ''}
+${guidanceProfile.documentThemeFamily ? `Document family: ${guidanceProfile.documentThemeFamily}` : ''}
+${guidanceProfile.selectedTemplateId ? `Selected template: ${guidanceProfile.selectedTemplateId}` : ''}
+${guidanceProfile.exemplarPackId ? `Recipe anchor: ${guidanceProfile.exemplarPackId}` : ''}
+${stylePack ? `Reference pack: ${stylePack.label}` : ''}
+
+Design constraints:
+${guidanceProfile.designConstraints.map((constraint) => `- ${constraint}`).join('\n')}
+
+Must avoid:
+${guidanceProfile.antiPatterns.map((pattern) => `- ${pattern}`).join('\n')}
+${stylePack ? `
+
+Reference style traits:
+- Summary: ${stylePack.summary}
+- Typography: ${stylePack.typography.join(' ')}
+- Palette: ${stylePack.paletteRules.join(' ')}
+- Layout: ${stylePack.layoutRules.join(' ')}
+- Motion: ${stylePack.motionRules.join(' ')}
+- Confidentiality: ${stylePack.confidentialityRules.join(' ')}
+
+Synthetic style example:
+\`\`\`html
+${stylePack.syntheticExample}
+\`\`\`` : ''}`;
+}
+
 /**
  * Build the full designer prompt for single-slide generation.
  * This is the primary entry point for creating a new slide.
@@ -148,6 +202,8 @@ export async function buildDesignerPrompt(
   exemplarPackId: ExemplarPackId,
   animLevel: 1 | 2 | 3 | 4,
   _slideCount?: number,
+  projectRulesBlock?: string,
+  guidanceProfile?: TemplateGuidanceProfile,
 ): Promise<string> {
   const composer = new PromptComposer()
     .addBase(blueprint.palette)
@@ -156,6 +212,7 @@ export async function buildDesignerPrompt(
     .addAnimation(animLevel)
     .addSvg()
     .addCharts()
+    .addCustom(buildPresentationDesignSystemPrompt())
     .addCustom(buildCondensedAntiPatterns())
     .addCustom(`## DECK SYSTEM FOUNDATION
 
@@ -176,6 +233,9 @@ Requirements:
 
   return composer
     .addTemplateExamples(templateExamplesSection)
+    .addCustom(buildMobileStageSection())
+    .addCustom(buildGuidanceProfileSection(guidanceProfile))
+    .addCustom(projectRulesBlock ?? '')
     .addQuality()
     .addPostRules()
     .build();
@@ -189,10 +249,12 @@ Requirements:
 export function buildRevisionSystemPrompt(
   palette: TemplatePalette | undefined,
   _animLevel: 1 | 2 | 3 | 4,
+  projectRulesBlock?: string,
 ): string {
   return new PromptComposer()
     .addBase(palette)
     .addAntiPatterns()
+    .addCustom(projectRulesBlock ?? '')
     .addCustom(`## YOUR TASK — SURGICAL REVISION
 
 You are making MINIMAL, TARGETED fixes to a specific list of design errors in an existing slide.
@@ -217,6 +279,8 @@ You are making MINIMAL, TARGETED fixes to a specific list of design errors in an
 export function buildEditDesignerPrompt(
   palette: TemplatePalette | undefined,
   animLevel: 1 | 2 | 3 | 4,
+  projectRulesBlock?: string,
+  guidanceProfile?: TemplateGuidanceProfile,
 ): string {
   return new PromptComposer()
     .addBase(palette)
@@ -224,6 +288,21 @@ export function buildEditDesignerPrompt(
     .addSvg()
     .addCharts()
     .addCustom(buildCondensedAntiPatterns())
+    .addCustom(buildMobileStageSection())
+    .addCustom(buildGuidanceProfileSection(guidanceProfile))
+    .addCustom(guidanceProfile?.intentFamily === 'restyle'
+      ? `## RESTYLE MODE — VISUAL CHANGES ONLY
+
+This is a RESTYLE request. Your ONLY task is to modify the visual appearance.
+
+**RESTYLE RULES — these take priority over all other instructions:**
+- ONLY modify CSS variables, color values, font families, and spacing tokens in the <style> block.
+- Do NOT change any text content, heading labels, data values, or structural layout.
+- Do NOT add, remove, or reorder any HTML elements.
+- Prefer a SEARCH/REPLACE patch targeting only CSS variable declarations and color values in the <style> block.
+- If regenerating the full style block is unavoidable, output ONLY the <style> block changes — not a full HTML rewrite.`
+      : '')
+    .addCustom(projectRulesBlock ?? '')
     .addCustom(`## YOUR TASK — EDIT MODE
 
 You are modifying existing slide(s) based on a user request.
@@ -234,6 +313,9 @@ You are modifying existing slide(s) based on a user request.
 - Do NOT add \`font-size\` to wrapper elements (e.g. \`.slide-wrap\`) unless the user explicitly asked to change font size.
 - Do NOT change \`padding\` on the wrapper unless the user explicitly asked to change padding.
 - Keep the exact same CSS architecture, palette, fonts, animation patterns, and variable definitions.
+- Replace all template placeholders with real, topic-matching copy. Never leave tokens like \`{{COMPANY}}\`, \`{{DATE}}\`, \`[INSERT ...]\`, \`[YOUR ...]\`, or \`Lorem ipsum\` in the final slide.
+- If the slide uses custom font families, preserve or add the required Google Fonts \`<link>\` or \`@font-face\` source declaration in the final output.
+- Preserve contained-stage readability when the slide is scaled down into smaller framed mobile viewports.
 - If the request is to add slides, treat existing slides as immutable unless the user explicitly requested edits to specific existing slides.
 - For add-slide requests, append new slide sections and keep existing \`<style>\` and \`<section>\` elements unchanged.
 - No external image URLs. Use Bootstrap Icons, emoji, or inline SVG.

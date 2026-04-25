@@ -1,18 +1,25 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { ArrowUp, Paperclip, Sparkles, Square, X } from 'lucide-react';
+import { ArrowUp, History, Paperclip, Sparkles, Square, X } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
 import { usePresentationStore } from '@/stores/presentationStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { AIMessage } from '@/services/ai/types';
 import type { LLMConfig } from '@/services/ai/workflow/types';
-import type { ChatMessage as ChatMessageType, FileAttachment, WorkflowStep } from '@/types';
-import { readFileAsAttachment, buildAttachmentContext } from '@/lib/fileAttachment';
-import { detectWorkflowType } from '@/lib/workflowType';
+import type { ContextBundle } from '@/services/context/types';
+import type { MemoryContextBuildResult, MemoryContextDetailMode } from '@/services/memory';
+import type { FileAttachment, WorkflowStep } from '@/types';
+import { materializeRenderAttachments, readFileAsAttachment } from '@/lib/fileAttachment';
 import { cn } from '@/lib/utils';
-import { handleSpreadsheetWorkflow } from '@/components/chat/handlers/spreadsheetHandler';
-import { handlePresentationWorkflow } from '@/components/chat/handlers/presentationHandler';
-import { handleDocumentWorkflow } from '@/components/chat/handlers/documentHandler';
+import { submitPrompt } from '@/services/chat/submitPrompt';
+import { ContextChips } from '@/components/ContextChips';
+import { ContextPanel } from '@/components/ContextPanel';
+import { RunHistoryPanel } from '@/components/RunHistoryPanel';
+import { resolveWorkflowPresetState, diffContextPolicyOverride } from '@/services/presets/apply';
+import { loadPresetCollection } from '@/services/presets/storage';
+import { resolveProjectRulesSnapshot } from '@/services/projectRules/resolve';
+import { loadContextPolicy } from '@/services/projectRules/load';
+import { mergeContextPolicy } from '@/services/projectRules/merge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +38,10 @@ const DOCUMENT_STYLE_OPTIONS = [
   { value: 'proposal', label: 'Proposal' },
 ] as const;
 
+function capitalizeArtifactType(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 function progressWidthClass(pct?: number): string {
   if (!pct || pct <= 0) return 'w-0';
   if (pct >= 100) return 'w-full';
@@ -47,20 +58,14 @@ function progressWidthClass(pct?: number): string {
   return 'w-[95%]';
 }
 
-function isMessageInScope(
-  message: ChatMessageType,
-  activeDocumentId: string | undefined,
-  showAllMessages: boolean,
-): boolean {
-  if (showAllMessages || !activeDocumentId) return true;
-  return message.scope === 'project' || !message.documentId || message.documentId === activeDocumentId;
-}
-
 export function ChatBar() {
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [contextPanelOpen, setContextPanelOpen] = useState(false);
+  const [runHistoryOpen, setRunHistoryOpen] = useState(false);
+  const [lastContext, setLastContext] = useState<ContextBundle | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -76,8 +81,18 @@ export function ChatBar() {
   const setPendingRetryPrompt = useChatStore((s) => s.setPendingRetryPrompt);
   const pendingAutoSubmitPrompt = useChatStore((s) => s.pendingAutoSubmitPrompt);
   const setPendingAutoSubmitPrompt = useChatStore((s) => s.setPendingAutoSubmitPrompt);
+  const selectedPresetId = useChatStore((s) => s.selectedPresetId);
+  const setSelectedPresetId = useChatStore((s) => s.setSelectedPresetId);
+  const contextSelection = useChatStore((s) => s.contextSelection);
+  const setContextScopeMode = useChatStore((s) => s.setContextScopeMode);
+  const setCompactionMode = useChatStore((s) => s.setCompactionMode);
+  const setRecentMessageCount = useChatStore((s) => s.setRecentMessageCount);
+  const togglePinnedDocumentId = useChatStore((s) => s.togglePinnedDocumentId);
+  const togglePinnedMemoryPath = useChatStore((s) => s.togglePinnedMemoryPath);
+  const togglePinnedSheetRef = useChatStore((s) => s.togglePinnedSheetRef);
+  const toggleExcludedSourceId = useChatStore((s) => s.toggleExcludedSourceId);
+  const resetContextSelection = useChatStore((s) => s.resetContextSelection);
 
-  const slidesHtml = usePresentationStore((s) => s.slidesHtml);
   const setSlides = usePresentationStore((s) => s.setSlides);
   const setTitle = usePresentationStore((s) => s.setTitle);
 
@@ -89,7 +104,6 @@ export function ChatBar() {
   const setProject = useProjectStore((s) => s.setProject);
   const setActiveDocumentId = useProjectStore((s) => s.setActiveDocumentId);
 
-  const providerId = useSettingsStore((s) => s.providerId);
   const getActiveProvider = useSettingsStore((s) => s.getActiveProvider);
   const hasApiKey = useSettingsStore((s) => s.hasApiKey);
   const setShowSettings = useSettingsStore((s) => s.setShowSettings);
@@ -97,6 +111,13 @@ export function ChatBar() {
   const setDocumentStylePreset = useSettingsStore((s) => s.setDocumentStylePreset);
 
   const isGenerating = status.state === 'generating';
+  const workflowArtifactType = activeDocument?.type ?? 'document';
+  const presetState = resolveWorkflowPresetState(
+    project.workflowPresets,
+    workflowArtifactType,
+    selectedPresetId ?? undefined,
+  );
+  const presetLabel = presetState.appliedPreset?.name ?? 'Project default';
 
   const workflowStepsRef = useRef<WorkflowStep[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -171,18 +192,33 @@ export function ChatBar() {
     }
   }, [project.id, setProject]);
 
-  const buildWorkflowMemoryContext = useCallback(async (prompt: string): Promise<string> => {
+  const buildWorkflowMemoryContext = useCallback(async (
+    prompt: string,
+    options?: {
+      detailMode?: MemoryContextDetailMode;
+      pinnedPaths?: string[];
+      maxTokens?: number;
+    },
+  ): Promise<MemoryContextBuildResult> => {
     const currentProject = useProjectStore.getState().project;
     if (!currentProject.memoryTree) {
-      return '';
+      return {
+        text: '',
+        tokenCount: 0,
+        budgetExceeded: false,
+        trimmedMemories: [],
+        items: [],
+      };
     }
 
-    const { buildMemoryContext } = await import('@/services/memory');
-    return buildMemoryContext(currentProject.memoryTree, prompt, {
+    const { buildMemoryContextResult } = await import('@/services/memory');
+    return buildMemoryContextResult(currentProject.memoryTree, prompt, {
       scope: `project:${currentProject.id}`,
       topK: 5,
       maxDirectories: 3,
-      maxTokens: 1200,
+      maxTokens: options?.maxTokens ?? 1200,
+      detailMode: options?.detailMode ?? 'overview',
+      pinnedPaths: options?.pinnedPaths ?? [],
     });
   }, []);
 
@@ -200,114 +236,30 @@ export function ChatBar() {
       return;
     }
 
-    const activeArtifactId = activeDocument?.id;
-    const messageScope = applyToAllDocuments || !activeArtifactId ? 'project' : 'document';
-    const scopedDocumentId = messageScope === 'document' ? activeArtifactId : undefined;
-
     // Snapshot and clear attachments before async work
     const currentAttachments = attachments;
     setAttachments([]);
     setAttachmentError(null);
-
-    const userMsg: ChatMessageType = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: prompt,
-      timestamp: Date.now(),
-      documentId: scopedDocumentId,
-      scope: messageScope,
-      attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
-    };
-    addMessage(userMsg);
     setInput('');
-
-    // Build text context from text-kind attachments
-    const attachmentContext = buildAttachmentContext(currentAttachments);
-    const promptWithContext = (attachmentContext
-      ? `${prompt}${attachmentContext}`
-      : prompt
-    ).trim();
-
-    // Build image parts for multi-modal messages
-    const imageParts = currentAttachments
-      .filter((a) => a.kind === 'image')
-      .map((a) => ({ type: 'image' as const, image: a.content, mimeType: a.mimeType }));
-
-    const chatHistory: AIMessage[] = messages
-      .filter((message) => isMessageInScope(message, activeArtifactId, showAllMessages))
-      .map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
-
-    // Route to the correct workflow. If a document is already active, its type
-    // is always authoritative — no keyword detection needed. Keywords are only
-    // used as a fallback when creating from scratch with no document context.
-    const workflowType = activeDocument
-      ? activeDocument.type
-      : detectWorkflowType(prompt);
-    const isEdit = !!activeDocument?.contentHtml;
-
-    if (workflowType === 'spreadsheet') {
-      await handleSpreadsheetWorkflow({
-        prompt,
-        promptWithContext,
-        activeDocument,
-        projectDocumentCount: project.documents.length,
-        projectId: project.id,
-        scopedDocumentId,
-        messageScope,
-        addMessage,
-        addDocument,
-        updateDocument,
-        setStatus,
-        setStreamingContent,
-      });
-      return;
+    const { project: nextProject } = materializeRenderAttachments(project, currentAttachments);
+    if (nextProject !== project) {
+      setProject(nextProject);
     }
 
-    if (workflowType === 'presentation') {
-      await handlePresentationWorkflow({
-        prompt,
-        promptWithContext,
-        chatHistory,
-        autoPrompt,
-        activeDocument,
-        project,
-        projectDocumentCount: project.documents.length,
-        scopedDocumentId,
-        messageScope,
-        providerId,
-        workflowStepsRef,
-        abortControllerRef,
-        addMessage,
-        addDocument,
-        updateDocument,
-        setStatus,
-        setStreamingContent,
-        appendStreamingContent,
-        setSlides,
-        setTitle,
-        updateStepStatus,
-        queueMemoryExtraction,
-        buildWorkflowMemoryContext,
-        getActiveProvider,
-      });
-      return;
-    }
-
-    await handleDocumentWorkflow({
+    await submitPrompt({
       prompt,
-      promptWithContext,
-      chatHistory,
-      imageParts,
-      isEdit,
+      attachments: currentAttachments,
+      messages,
+      project: nextProject,
       activeDocument,
-      project,
-      scopedDocumentId,
-      messageScope,
-      providerId,
+      showAllMessages,
+      applyToAllDocuments,
+      selectionState: contextSelection,
+      providerConfig: getActiveProvider(),
       documentStylePreset,
+      selectedPresetId: selectedPresetId ?? undefined,
+      allowClarification: !autoPrompt,
+    }, {
       workflowStepsRef,
       abortControllerRef,
       addMessage,
@@ -316,18 +268,105 @@ export function ChatBar() {
       setStatus,
       setStreamingContent,
       appendStreamingContent,
+      setSlides,
+      setTitle,
       updateStepStatus,
       queueMemoryExtraction,
       buildWorkflowMemoryContext,
-      getActiveProvider,
+      onRunRequestBuilt: (runRequest) => setLastContext(runRequest.context),
     });
   }, [
     input, attachments, isGenerating, hasApiKey, setShowSettings, addMessage, messages,
-    slidesHtml, setStatus, setStreamingContent, appendStreamingContent,
-    providerId, getActiveProvider, setSlides, setTitle, updateStepStatus,
-    activeDocument, addDocument, updateDocument, project, showAllMessages, applyToAllDocuments,
-    documentStylePreset, queueMemoryExtraction, buildWorkflowMemoryContext,
+    setStatus, setStreamingContent, appendStreamingContent,
+    getActiveProvider, setSlides, setTitle, updateStepStatus,
+    activeDocument, addDocument, updateDocument, project, setProject, showAllMessages, applyToAllDocuments,
+    contextSelection, documentStylePreset, queueMemoryExtraction, buildWorkflowMemoryContext,
+    selectedPresetId,
   ]);
+
+  const persistWorkflowPresets = useCallback((workflowPresets: typeof project.workflowPresets) => {
+    setProject({
+      ...project,
+      workflowPresets,
+      updatedAt: Date.now(),
+    });
+  }, [project, setProject]);
+
+  const buildPresetPayload = useCallback((existingPresetName?: string) => {
+    const snapshot = resolveProjectRulesSnapshot(project, workflowArtifactType, selectedPresetId ?? undefined);
+    const baseContextPolicy = loadContextPolicy(project.contextPolicy);
+    const artifactContextPolicy = mergeContextPolicy(
+      baseContextPolicy,
+      baseContextPolicy.artifactOverrides?.[workflowArtifactType],
+    );
+
+    return {
+      artifactType: workflowArtifactType,
+      name: existingPresetName ?? `${capitalizeArtifactType(workflowArtifactType)} preset`,
+      rulesAppendix: snapshot.appliedPreset?.rulesAppendix ?? '',
+      contextPolicyOverrides: diffContextPolicyOverride(artifactContextPolicy, snapshot.contextPolicy),
+      documentStylePreset: workflowArtifactType === 'document' ? documentStylePreset : undefined,
+      enabled: true,
+    };
+  }, [documentStylePreset, project, selectedPresetId, workflowArtifactType]);
+
+  const handleSavePreset = useCallback(() => {
+    const collection = loadPresetCollection(project.workflowPresets);
+    const selectedPreset = selectedPresetId
+      ? collection.presets.find((preset) => preset.id === selectedPresetId)
+      : undefined;
+
+    if (selectedPreset) {
+      persistWorkflowPresets({
+        ...collection,
+        presets: collection.presets.map((preset) => (
+          preset.id === selectedPreset.id
+            ? { ...preset, ...buildPresetPayload(selectedPreset.name) }
+            : preset
+        )),
+      });
+      return;
+    }
+
+    const nextPresetId = `preset-${crypto.randomUUID().slice(0, 8)}`;
+    persistWorkflowPresets({
+      ...collection,
+      presets: [
+        ...collection.presets,
+        {
+          id: nextPresetId,
+          ...buildPresetPayload(
+            `${capitalizeArtifactType(workflowArtifactType)} preset ${collection.presets.length + 1}`,
+          ),
+        },
+      ],
+    });
+    setSelectedPresetId(nextPresetId);
+  }, [buildPresetPayload, persistWorkflowPresets, project.workflowPresets, selectedPresetId, setSelectedPresetId, workflowArtifactType]);
+
+  const handleDuplicatePreset = useCallback(() => {
+    const collection = loadPresetCollection(project.workflowPresets);
+    const sourcePreset = (selectedPresetId
+      ? collection.presets.find((preset) => preset.id === selectedPresetId)
+      : undefined)
+      ?? presetState.selectedPreset
+      ?? presetState.defaultPreset;
+    if (!sourcePreset) return;
+
+    const duplicateId = `preset-${crypto.randomUUID().slice(0, 8)}`;
+    persistWorkflowPresets({
+      ...collection,
+      presets: [
+        ...collection.presets,
+        {
+          ...sourcePreset,
+          id: duplicateId,
+          name: `${sourcePreset.name} Copy`,
+        },
+      ],
+    });
+    setSelectedPresetId(duplicateId);
+  }, [persistWorkflowPresets, presetState.defaultPreset, presetState.selectedPreset, project.workflowPresets, selectedPresetId, setSelectedPresetId]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -467,6 +506,14 @@ export function ChatBar() {
           </div>
         )}
 
+        <div className="mb-2">
+          <ContextChips
+            selectionState={contextSelection}
+            lastContext={lastContext}
+            onOpen={() => setContextPanelOpen(true)}
+          />
+        </div>
+
         {/* Attachment previews */}
         {attachments.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-2">
@@ -557,6 +604,49 @@ export function ChatBar() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border/70 bg-background/80 px-2 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label="Choose workflow preset"
+                >
+                  <Sparkles size={12} strokeWidth={2} />
+                  <span className="max-w-[120px] truncate">{presetLabel}</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="top">
+                <DropdownMenuItem onSelect={() => setSelectedPresetId(null)}>
+                  {selectedPresetId === null ? '✓ ' : ''}Project default
+                </DropdownMenuItem>
+                {presetState.presets.presets
+                  .filter((preset) => !preset.artifactType || preset.artifactType === workflowArtifactType)
+                  .map((preset) => (
+                    <DropdownMenuItem key={preset.id} onSelect={() => setSelectedPresetId(preset.id)}>
+                      {selectedPresetId === preset.id ? '✓ ' : ''}{preset.name}
+                    </DropdownMenuItem>
+                  ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={handleSavePreset}>
+                  {selectedPresetId ? 'Update selected preset' : 'Save current as preset'}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={handleDuplicatePreset}
+                  disabled={!presetState.appliedPreset}
+                >
+                  Duplicate preset
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <button
+              type="button"
+              onClick={() => setRunHistoryOpen(true)}
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border/70 bg-background/80 px-2 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Open recent runs"
+            >
+              <History size={12} strokeWidth={2} />
+              <span>Runs</span>
+            </button>
             <span className="truncate text-[11px] text-muted-foreground/50">
               {isGenerating ? 'Generating\u2026' : 'Enter to send · Shift+Enter for new line'}
             </span>
@@ -607,6 +697,28 @@ export function ChatBar() {
       {status.state === 'error' && (
         <p className="mt-2 text-center text-xs text-destructive">{status.message}</p>
       )}
+
+      <ContextPanel
+        open={contextPanelOpen}
+        onOpenChange={setContextPanelOpen}
+        selectionState={contextSelection}
+        activeDocument={activeDocument}
+        projectDocuments={project.documents}
+        memoryTree={project.memoryTree}
+        lastContext={lastContext}
+        onSetScopeMode={setContextScopeMode}
+        onSetCompactionMode={setCompactionMode}
+        onSetRecentMessageCount={setRecentMessageCount}
+        onTogglePinnedDocumentId={togglePinnedDocumentId}
+        onTogglePinnedMemoryPath={togglePinnedMemoryPath}
+        onTogglePinnedSheetRef={togglePinnedSheetRef}
+        onToggleExcludedSourceId={toggleExcludedSourceId}
+        onReset={resetContextSelection}
+      />
+      <RunHistoryPanel
+        open={runHistoryOpen}
+        onOpenChange={setRunHistoryOpen}
+      />
     </div>
   );
 }

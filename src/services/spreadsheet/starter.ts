@@ -1,6 +1,16 @@
 import type { ColumnSchema } from '@/types/project';
 
+export type SpreadsheetStarterKind =
+  | 'budget'
+  | 'sales'
+  | 'inventory'
+  | 'pipeline'
+  | 'project-tracker'
+  | 'custom-columns'
+  | 'blank';
+
 export interface SpreadsheetStarterPlan {
+  starterKind: SpreadsheetStarterKind;
   workbookTitle: string;
   sheetName: string;
   schema: ColumnSchema[];
@@ -47,6 +57,7 @@ function extractColumnList(prompt: string): string[] {
 
 function buildBudgetPlan(): SpreadsheetStarterPlan {
   return {
+    starterKind: 'budget',
     workbookTitle: 'Budget Tracker',
     sheetName: 'Budget',
     schema: [
@@ -69,6 +80,7 @@ function buildBudgetPlan(): SpreadsheetStarterPlan {
 
 function buildSalesPlan(): SpreadsheetStarterPlan {
   return {
+    starterKind: 'sales',
     workbookTitle: 'Sales Overview',
     sheetName: 'Sales Data',
     schema: [
@@ -92,6 +104,7 @@ function buildSalesPlan(): SpreadsheetStarterPlan {
 
 function buildInventoryPlan(): SpreadsheetStarterPlan {
   return {
+    starterKind: 'inventory',
     workbookTitle: 'Inventory Tracker',
     sheetName: 'Inventory',
     schema: [
@@ -114,6 +127,7 @@ function buildInventoryPlan(): SpreadsheetStarterPlan {
 
 function buildPipelinePlan(): SpreadsheetStarterPlan {
   return {
+    starterKind: 'pipeline',
     workbookTitle: 'Lead Pipeline',
     sheetName: 'Pipeline',
     schema: [
@@ -135,6 +149,7 @@ function buildPipelinePlan(): SpreadsheetStarterPlan {
 
 function buildProjectPlan(): SpreadsheetStarterPlan {
   return {
+    starterKind: 'project-tracker',
     workbookTitle: 'Project Tracker',
     sheetName: 'Tasks',
     schema: [
@@ -170,6 +185,7 @@ function buildCustomColumnPlan(columns: string[], wantsExampleData: boolean): Sp
     : [];
 
   return {
+    starterKind: 'custom-columns',
     workbookTitle: `${schema[0]?.name ?? 'Custom'} Table`,
     sheetName: 'Sheet Design',
     schema,
@@ -182,6 +198,7 @@ function buildCustomColumnPlan(columns: string[], wantsExampleData: boolean): Sp
 
 function buildBlankPlan(): SpreadsheetStarterPlan {
   return {
+    starterKind: 'blank',
     workbookTitle: 'Starter Spreadsheet',
     sheetName: 'Starter Sheet',
     schema: DEFAULT_BLANK_SCHEMA,

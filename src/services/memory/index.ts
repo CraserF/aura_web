@@ -103,7 +103,12 @@ export {
   estimateTokenCount,
   formatMemoryContext,
   buildMemoryContext,
+  buildMemoryContextResult,
   type BuildMemoryContextOptions,
+  type BuildStructuredMemoryContextOptions,
+  type MemoryContextBuildResult,
+  type MemoryContextDetailMode,
+  type MemoryContextItem,
 } from './retrieval';
 
 // Extraction

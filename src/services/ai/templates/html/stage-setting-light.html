@@ -1,0 +1,309 @@
+<style>
+  :root {
+    --stage-bg: #edf7fa;
+    --stage-sky: #d7ebf2;
+    --stage-surface: #ffffff;
+    --stage-border: rgba(7, 93, 119, 0.16);
+    --stage-primary: #1193b5;
+    --stage-accent: #d88e2e;
+    --stage-green: #18a477;
+    --stage-ink: #14313f;
+    --stage-body: #466775;
+    --stage-muted: #7194a1;
+    --stage-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --stage-condensed: "Arial Narrow", "Roboto Condensed", Arial, sans-serif;
+  }
+
+  .stage-slide {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 32px;
+    padding: 62px 76px;
+    background:
+      linear-gradient(145deg, rgba(17, 147, 181, 0.12), transparent 45%),
+      var(--stage-bg);
+    color: var(--stage-body);
+    font-family: var(--stage-font);
+  }
+
+  .stage-header {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 36px;
+    align-items: end;
+    padding-bottom: 22px;
+    border-bottom: 3px solid var(--stage-primary);
+  }
+
+  .stage-eyebrow,
+  .stage-label {
+    margin: 0;
+    color: var(--stage-primary);
+    font-size: 17px;
+    font-weight: 850;
+    letter-spacing: 0.16em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .stage-header h1,
+  .stage-header h2 {
+    max-width: 1130px;
+    margin: 8px 0 0;
+    color: var(--stage-ink);
+    font-family: var(--stage-condensed);
+    font-size: 76px;
+    font-weight: 900;
+    letter-spacing: 0;
+    line-height: 0.94;
+    text-transform: uppercase;
+  }
+
+  .stage-kpis {
+    display: grid;
+    grid-template-columns: repeat(3, 104px);
+    gap: 16px;
+  }
+
+  .stage-kpi {
+    min-height: 106px;
+    padding: 16px 12px;
+    border: 1px solid var(--stage-border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.82);
+    text-align: center;
+  }
+
+  .stage-kpi strong {
+    display: block;
+    color: var(--stage-primary);
+    font-family: var(--stage-condensed);
+    font-size: 40px;
+    font-weight: 900;
+    line-height: 0.9;
+  }
+
+  .stage-kpi span {
+    display: block;
+    margin-top: 8px;
+    color: var(--stage-muted);
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .stage-layout {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1.08fr 0.92fr;
+    gap: 30px;
+    min-height: 0;
+  }
+
+  .stage-scene,
+  .stage-card,
+  .stage-context {
+    border: 1px solid var(--stage-border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 22px 46px rgba(17, 85, 110, 0.08);
+  }
+
+  .stage-scene {
+    position: relative;
+    overflow: hidden;
+    min-height: 570px;
+    background:
+      linear-gradient(180deg, var(--stage-sky) 0%, #c7e2ed 62%, #b6d6e4 100%);
+  }
+
+  .stage-horizon {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 33%;
+    background: linear-gradient(180deg, rgba(17, 147, 181, 0.08), rgba(17, 147, 181, 0.22));
+  }
+
+  .stage-orbit {
+    position: absolute;
+    width: 470px;
+    height: 470px;
+    border: 2px solid rgba(17, 147, 181, 0.28);
+    border-radius: 999px;
+    right: -94px;
+    top: 82px;
+    animation: stageOrbit 9s linear infinite;
+  }
+
+  .stage-orbit::before,
+  .stage-orbit::after {
+    content: "";
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: var(--stage-primary);
+    box-shadow: 0 0 28px rgba(17, 147, 181, 0.42);
+  }
+
+  .stage-orbit::before {
+    top: 40px;
+    left: 82px;
+  }
+
+  .stage-orbit::after {
+    right: 54px;
+    bottom: 72px;
+    background: var(--stage-accent);
+  }
+
+  .stage-scene-title {
+    position: absolute;
+    left: 38px;
+    bottom: 38px;
+    width: 64%;
+    color: var(--stage-ink);
+    font-size: 38px;
+    font-weight: 850;
+    line-height: 1.08;
+  }
+
+  .stage-stack {
+    display: grid;
+    gap: 20px;
+  }
+
+  .stage-card {
+    padding: 28px 30px;
+    border-left: 7px solid var(--stage-primary);
+  }
+
+  .stage-card:nth-child(2) {
+    border-left-color: var(--stage-accent);
+  }
+
+  .stage-card:nth-child(3) {
+    border-left-color: var(--stage-green);
+  }
+
+  .stage-card h3,
+  .stage-context h3 {
+    margin: 8px 0 10px;
+    color: var(--stage-ink);
+    font-size: 30px;
+    line-height: 1.12;
+  }
+
+  .stage-card p,
+  .stage-context p {
+    margin: 0;
+    font-size: 24px;
+    line-height: 1.4;
+  }
+
+  .stage-context-grid {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px;
+  }
+
+  .stage-context {
+    min-height: 284px;
+    padding: 30px;
+  }
+
+  .stage-context-marker {
+    width: 64px;
+    height: 9px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--stage-primary), var(--stage-green));
+  }
+
+  @keyframes stageOrbit {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stage-orbit {
+      animation: none;
+    }
+  }
+</style>
+
+<section class="stage-slide" data-background-color="#edf7fa">
+  <header class="stage-header">
+    <div>
+      <p class="stage-eyebrow">Setting The Stage</p>
+      <h1>{{TITLE}}</h1>
+    </div>
+    <div class="stage-kpis">
+      <div class="stage-kpi"><strong>01</strong><span>Signal</span></div>
+      <div class="stage-kpi"><strong>02</strong><span>Pressure</span></div>
+      <div class="stage-kpi"><strong>03</strong><span>Action</span></div>
+    </div>
+  </header>
+  <div class="stage-layout">
+    <div class="stage-scene" aria-hidden="true">
+      <div class="stage-orbit"></div>
+      <div class="stage-horizon"></div>
+      <div class="stage-scene-title">{{SCENE_TITLE}}</div>
+    </div>
+    <div class="stage-stack">
+      <article class="stage-card">
+        <p class="stage-label">Context</p>
+        <h3>{{INSIGHT_1_TITLE}}</h3>
+        <p>{{SUBTITLE}}</p>
+      </article>
+      <article class="stage-card">
+        <p class="stage-label">Tension</p>
+        <h3>{{INSIGHT_2_TITLE}}</h3>
+        <p>{{INSIGHT_2_BODY}}</p>
+      </article>
+      <article class="stage-card">
+        <p class="stage-label">Decision</p>
+        <h3>{{INSIGHT_3_TITLE}}</h3>
+        <p>{{INSIGHT_3_BODY}}</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="stage-slide" data-background-color="#edf7fa">
+  <header class="stage-header">
+    <div>
+      <p class="stage-eyebrow">Context Map</p>
+      <h2>{{CONTEXT_TITLE}}</h2>
+    </div>
+  </header>
+  <div class="stage-context-grid">
+    <article class="stage-context">
+      <div class="stage-context-marker"></div>
+      <h3>{{CONTEXT_1_TITLE}}</h3>
+      <p>{{CONTEXT_1_BODY}}</p>
+    </article>
+    <article class="stage-context">
+      <div class="stage-context-marker"></div>
+      <h3>{{CONTEXT_2_TITLE}}</h3>
+      <p>{{CONTEXT_2_BODY}}</p>
+    </article>
+    <article class="stage-context">
+      <div class="stage-context-marker"></div>
+      <h3>{{CONTEXT_3_TITLE}}</h3>
+      <p>{{CONTEXT_3_BODY}}</p>
+    </article>
+  </div>
+</section>

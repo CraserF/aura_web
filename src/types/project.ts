@@ -8,6 +8,7 @@ import type { MemoryDirectory } from '@/services/memory';
 
 /** Document type within a project */
 export type DocumentType = 'document' | 'presentation' | 'spreadsheet';
+export type ArtifactLifecycleState = 'draft' | 'reviewing' | 'approved' | 'published' | 'stale';
 
 export interface WorkbookMeta {
   sheets: SheetMeta[];
@@ -25,6 +26,7 @@ export interface SheetMeta {
   formulas: FormulaEntry[];
   sortState?: SortState;
   filterState?: FilterState;
+  queryView?: QueryViewDefinition;
 }
 
 export interface ColumnSchema {
@@ -39,6 +41,30 @@ export interface FormulaEntry {
   column: string;
   expression: string;
   dependsOn: string[];
+}
+
+export interface QueryViewFilter {
+  column: string;
+  operator: '=' | '!=' | '>' | '>=' | '<' | '<=' | 'contains';
+  value: string | number | boolean;
+}
+
+export interface QueryViewAggregate {
+  operation: 'sum' | 'avg' | 'count' | 'min' | 'max';
+  column?: string;
+  alias: string;
+}
+
+export interface QueryViewDefinition {
+  sourceSheetId: string;
+  sourceSheetName: string;
+  outputSheetName: string;
+  selectColumns: string[];
+  filters: QueryViewFilter[];
+  groupBy?: string[];
+  aggregates?: QueryViewAggregate[];
+  sort?: SortState;
+  generatedAt: number;
 }
 
 export interface SortState {
@@ -65,6 +91,58 @@ export interface LinkedTableRef {
 /** Visibility level for a project */
 export type ProjectVisibility = 'private' | 'public';
 
+export interface ProjectRulesDocument {
+  markdown: string;
+  updatedAt: number;
+}
+
+export interface ContextPolicyOverride {
+  includeProjectChat?: boolean;
+  includeMemory?: boolean;
+  includeAttachments?: boolean;
+  includeRelatedDocuments?: boolean;
+  maxChatMessages?: number;
+  maxMemoryTokens?: number;
+  maxRelatedDocuments?: number;
+  maxAttachmentChars?: number;
+}
+
+export interface ContextPolicy extends ContextPolicyOverride {
+  version: number;
+  artifactOverrides?: Partial<Record<DocumentType, ContextPolicyOverride>>;
+}
+
+export interface WorkflowPreset {
+  id: string;
+  name: string;
+  artifactType?: DocumentType;
+  rulesAppendix?: string;
+  contextPolicyOverrides?: ContextPolicyOverride;
+  documentStylePreset?: string;
+  enabled: boolean;
+}
+
+export interface WorkflowPresetCollection {
+  version: number;
+  presets: WorkflowPreset[];
+  defaultPresetByArtifact: Partial<Record<DocumentType, string>>;
+}
+
+export interface ProjectMediaAsset {
+  id: string;
+  filename: string;
+  mimeType: string;
+  relativePath: string;
+  dataUrl: string;
+}
+
+export interface ProjectDocumentStarterRef {
+  artifactKey: string;
+  starterId: string;
+  starterType: DocumentType;
+  starterKitId?: string;
+}
+
 /** A single document in a project */
 export interface ProjectDocument {
   id: string;
@@ -80,6 +158,8 @@ export interface ProjectDocument {
   slideCount: number;
   /** Short description shown in sidebar */
   description?: string;
+  /** Starter metadata used to re-run deterministic bootstrap without duplicating artifacts */
+  starterRef?: ProjectDocumentStarterRef;
   /** Parent document ID for nesting */
   parentId?: string;
   /** Whether paginated A4-style view is enabled (documents only) */
@@ -90,6 +170,10 @@ export interface ProjectDocument {
   workbook?: WorkbookMeta;
   /** References to spreadsheet sheets embedded as linked tables in this document */
   linkedTableRefs?: LinkedTableRef[];
+  lifecycleState?: ArtifactLifecycleState;
+  lastValidationProfileId?: string;
+  lastSuccessfulPresetId?: string;
+  staleReason?: string;
   createdAt: number;
   updatedAt: number;
   order: number;
@@ -117,6 +201,10 @@ export interface ProjectData {
   activeDocumentId: string | null;
   chatHistory: ChatMessage[];
   memoryTree?: MemoryDirectory;
+  media?: ProjectMediaAsset[];
+  projectRules?: ProjectRulesDocument;
+  contextPolicy?: ContextPolicy;
+  workflowPresets?: WorkflowPresetCollection;
   sections: ProjectSections;
   createdAt: number;
   updatedAt: number;

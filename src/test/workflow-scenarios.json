@@ -1,0 +1,147 @@
+{
+  "version": 1,
+  "description": "Phase 0 baseline workflow scenarios for parity-style regression coverage.",
+  "scenarios": [
+    {
+      "id": "presentation-create-from-prompt",
+      "artifactType": "presentation",
+      "operation": "create",
+      "prompt": "Create a six-slide keynote about grid-scale batteries",
+      "expects": {
+        "route": "presentation",
+        "createsArtifact": true
+      }
+    },
+    {
+      "id": "document-create-from-prompt",
+      "artifactType": "document",
+      "operation": "create",
+      "prompt": "Write a project brief for a fintech onboarding redesign",
+      "expects": {
+        "route": "document",
+        "createsArtifact": true
+      }
+    },
+    {
+      "id": "spreadsheet-create-from-prompt",
+      "artifactType": "spreadsheet",
+      "operation": "create",
+      "prompt": "Create a spreadsheet for monthly burn tracking",
+      "expects": {
+        "route": "spreadsheet",
+        "createsArtifact": true
+      }
+    },
+    {
+      "id": "presentation-refine-active-document",
+      "artifactType": "presentation",
+      "operation": "edit",
+      "activeDocumentType": "presentation",
+      "prompt": "Make the title slide more dramatic",
+      "expects": {
+        "route": "presentation",
+        "usesActiveArtifactType": true
+      }
+    },
+    {
+      "id": "document-refine-active-document",
+      "artifactType": "document",
+      "operation": "edit",
+      "activeDocumentType": "document",
+      "prompt": "Condense this into an executive summary",
+      "expects": {
+        "route": "document",
+        "usesActiveArtifactType": true,
+        "targetSelectorType": "paragraph-cluster",
+        "editStrategyHint": "block-replace"
+      }
+    },
+    {
+      "id": "spreadsheet-action-flow",
+      "artifactType": "spreadsheet",
+      "operation": "action",
+      "activeDocumentType": "spreadsheet",
+      "prompt": "Sort the table by amount descending",
+      "expects": {
+        "route": "spreadsheet",
+        "requiresActiveWorkbook": true,
+        "targetSelectorType": "sort-state",
+        "editStrategyHint": "sheet-action"
+      }
+    },
+    {
+      "id": "spreadsheet-formula-flow",
+      "artifactType": "spreadsheet",
+      "operation": "action",
+      "activeDocumentType": "spreadsheet",
+      "prompt": "Update formula column Margin to use Revenue minus Cost",
+      "expects": {
+        "route": "spreadsheet",
+        "requiresActiveWorkbook": true,
+        "targetSelectorType": "formula-column",
+        "editStrategyHint": "sheet-action"
+      }
+    },
+    {
+      "id": "spreadsheet-query-view-flow",
+      "artifactType": "spreadsheet",
+      "operation": "action",
+      "activeDocumentType": "spreadsheet",
+      "prompt": "Create a query view by region from this sheet",
+      "expects": {
+        "route": "spreadsheet",
+        "requiresActiveWorkbook": true,
+        "editStrategyHint": "sheet-action"
+      }
+    },
+    {
+      "id": "presentation-title-slide-tweak",
+      "artifactType": "presentation",
+      "operation": "edit",
+      "activeDocumentType": "presentation",
+      "prompt": "Update the title slide heading to feel more urgent",
+      "expects": {
+        "route": "presentation",
+        "usesActiveArtifactType": true,
+        "targetSelectorType": "slide-number",
+        "editStrategyHint": "search-replace"
+      }
+    },
+    {
+      "id": "document-explicit-full-rewrite",
+      "artifactType": "document",
+      "operation": "edit",
+      "activeDocumentType": "document",
+      "prompt": "Rewrite this document from scratch as a concise investor memo",
+      "expects": {
+        "route": "document",
+        "usesActiveArtifactType": true,
+        "allowFullRegeneration": true
+      }
+    },
+    {
+      "id": "project-summary-routing",
+      "artifactType": "document",
+      "operation": "create",
+      "projectDocumentTypes": ["document", "presentation", "spreadsheet"],
+      "prompt": "Summarize the project into one overview",
+      "expects": {
+        "route": "document",
+        "projectOperation": "summarize-project",
+        "messageScope": "project"
+      }
+    },
+    {
+      "id": "project-refresh-dependencies-routing",
+      "artifactType": "document",
+      "operation": "action",
+      "projectDocumentTypes": ["document", "spreadsheet"],
+      "prompt": "Refresh project dependencies and linked tables",
+      "expects": {
+        "route": "document",
+        "projectOperation": "refresh-dependencies",
+        "messageScope": "project"
+      }
+    }
+  ]
+}

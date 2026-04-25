@@ -57,6 +57,20 @@ export function validateDocument(html: string): DocumentQAResult {
     });
   }
 
+  const readableTextRules = Array.from(styleText.matchAll(/(?:^|})\s*(body|\.doc-shell|\.doc-body|\.doc-content|p|li|td|th)\b[^{]*\{[^}]*font-size\s*:\s*(\d+(?:\.\d+)?)px/gi))
+    .map(([, selector, size]) => ({
+      selector: selector ?? 'text',
+      size: Number.parseFloat(size ?? '0'),
+    }))
+    .filter((entry) => entry.size > 0 && entry.size < 16);
+  if (readableTextRules.length > 0) {
+    violations.push({
+      rule: 'weak-typography-scale',
+      severity: 'warning',
+      detail: `Document body text uses source sizes below 16px (${readableTextRules[0]?.selector}: ${readableTextRules[0]?.size}px).`,
+    });
+  }
+
   const rawText = body.textContent ?? '';
   if (/\*\*[^*\n]+\*\*|\[[^\]]+\]\([^)]+\)|(^|\s)\*[^*\n]+\*(?=\s|[.,;:!?]|$)/m.test(rawText)) {
     violations.push({
@@ -148,6 +162,50 @@ export function validateDocument(html: string): DocumentQAResult {
       rule: 'text-density',
       severity: 'warning',
       detail: 'The document is still text-heavy for its length — add more visual breaks or structured summary modules.',
+    });
+  }
+
+  const hasSingleColumnFallback = /@media[\s\S]{0,320}grid-template-columns\s*:\s*1fr/i.test(styleText);
+  const hasRiskyFixedGrid = /grid-template-columns\s*:\s*(?:repeat\(\s*[3-9]\s*,|minmax\([^)]*\)\s+minmax\([^)]*\)\s+minmax\()/i.test(styleText);
+  if (hasRiskyFixedGrid && !hasSingleColumnFallback) {
+    violations.push({
+      rule: 'mobile-grid-density',
+      severity: 'warning',
+      detail: 'Multi-column grid rules do not show a narrow-screen single-column fallback.',
+    });
+  }
+
+  const hasFixedGridTrack = /grid-template-columns\s*:[^;{}]*(?:\b(?:4[0-9]{2}|[5-9][0-9]{2,}|[1-9][0-9]{3,})px\b|minmax\(\s*(?:3[6-9][0-9]|[4-9][0-9]{2,})px)/i.test(styleText);
+  if (hasFixedGridTrack && !hasSingleColumnFallback) {
+    violations.push({
+      rule: 'fixed-grid-clipping',
+      severity: 'warning',
+      detail: 'Fixed-width grid tracks may clip inside the document iframe unless a narrow-screen fallback collapses the layout.',
+    });
+  }
+
+  const fixedWidthMediaNodes = Array.from(body.querySelectorAll('img, video, iframe, svg, canvas')).filter((node) => {
+    const widthAttr = Number.parseInt(node.getAttribute('width') ?? '', 10);
+    const styleAttr = node.getAttribute('style') ?? '';
+    return widthAttr >= 420 || /\b(?:width|min-width)\s*:\s*(?:4[2-9]\d|[5-9]\d\d)px/i.test(styleAttr);
+  });
+  const fixedWidthMediaInCss = /(?:img|video|iframe|svg|canvas|\.doc-visual|\.doc-media)[^{]*\{[^}]*\b(?:width|min-width)\s*:\s*(?:4[2-9]\d|[5-9]\d\d)px/si.test(styleText);
+  if (fixedWidthMediaNodes.length > 0 || fixedWidthMediaInCss) {
+    violations.push({
+      rule: 'mobile-media-clipping',
+      severity: 'warning',
+      detail: 'Fixed-width media may clip inside the framed mobile document viewport; prefer fluid media sizing.',
+    });
+  }
+
+  const header = body.querySelector('.doc-header, header');
+  const headerWordCount = (header?.textContent ?? '').split(/\s+/).filter(Boolean).length;
+  const headerModuleCount = header?.querySelectorAll('.doc-kpi, .doc-compare-card, .doc-story-card, .doc-meta-grid > *, .doc-kpi-grid > *').length ?? 0;
+  if (header && (headerWordCount > 90 || headerModuleCount > 6)) {
+    violations.push({
+      rule: 'mobile-hero-density',
+      severity: 'warning',
+      detail: 'The opening hero/header is dense enough that it may dominate smaller framed viewports.',
     });
   }
 

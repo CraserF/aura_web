@@ -4,6 +4,8 @@ const TEMPLATE_HTML_MODULES = import.meta.glob('./html/*.html', {
 }) as Record<string, () => Promise<string>>;
 
 export type TemplateId =
+  | 'editorial-light' | 'finance-grid-light' | 'stage-setting-light'
+  | 'executive-briefing-light' | 'launch-narrative-light'
   | 'keynote' | 'corporate' | 'tech-architecture' | 'data-dashboard'
   | 'sci-fi' | 'creative-portfolio' | 'storytelling' | 'educational'
   | 'minimal' | 'cinematic' | 'pitch-deck' | 'workshop'
@@ -22,6 +24,11 @@ export interface TemplateEntry {
 }
 
 const TEMPLATE_HTML_PATHS: Record<TemplateId, string> = {
+  'editorial-light': './html/editorial-light.html',
+  'finance-grid-light': './html/finance-grid-light.html',
+  'stage-setting-light': './html/stage-setting-light.html',
+  'executive-briefing-light': './html/executive-briefing-light.html',
+  'launch-narrative-light': './html/launch-narrative-light.html',
   keynote: './html/keynote.html',
   corporate: './html/corporate.html',
   'tech-architecture': './html/tech-architecture.html',
@@ -48,6 +55,46 @@ const TEMPLATE_HTML_PATHS: Record<TemplateId, string> = {
 };
 
 export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
+  'editorial-light': {
+    id: 'editorial-light',
+    htmlPath: TEMPLATE_HTML_PATHS['editorial-light'],
+    animationLevel: 2,
+    description: 'Light editorial presentation with refined typography, asymmetry, and premium business polish',
+    bestFor: ['executive brief', 'board narrative', 'editorial explainer'],
+    slideCount: { min: 6, max: 12 },
+  },
+  'finance-grid-light': {
+    id: 'finance-grid-light',
+    htmlPath: TEMPLATE_HTML_PATHS['finance-grid-light'],
+    animationLevel: 3,
+    description: 'Light finance and infographic grid for mechanisms, scorecards, and structured storytelling',
+    bestFor: ['finance mechanism', 'scorecard', 'infographic', 'strategy model'],
+    slideCount: { min: 5, max: 10 },
+  },
+  'stage-setting-light': {
+    id: 'stage-setting-light',
+    htmlPath: TEMPLATE_HTML_PATHS['stage-setting-light'],
+    animationLevel: 2,
+    description: 'Context-setting slide system with scene panel, KPI rail, and editorial insight stack',
+    bestFor: ['setting the stage', 'context slide', 'problem framing'],
+    slideCount: { min: 4, max: 8 },
+  },
+  'executive-briefing-light': {
+    id: 'executive-briefing-light',
+    htmlPath: TEMPLATE_HTML_PATHS['executive-briefing-light'],
+    animationLevel: 2,
+    description: 'Premium light executive briefing system with large readable type, decision modules, and subtle diagram motion',
+    bestFor: ['executive briefing', 'leadership review', 'board narrative', 'starter deck'],
+    slideCount: { min: 4, max: 8 },
+  },
+  'launch-narrative-light': {
+    id: 'launch-narrative-light',
+    htmlPath: TEMPLATE_HTML_PATHS['launch-narrative-light'],
+    animationLevel: 3,
+    description: 'Energetic launch narrative deck with split-scene title, readiness modules, and bounded motion',
+    bestFor: ['launch plan', 'pitch opening', 'go-to-market', 'starter deck'],
+    slideCount: { min: 4, max: 8 },
+  },
   keynote: {
     id: 'keynote',
     htmlPath: TEMPLATE_HTML_PATHS.keynote,

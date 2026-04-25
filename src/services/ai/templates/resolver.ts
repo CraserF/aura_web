@@ -1,6 +1,7 @@
 import { detectTemplateStyle, type TemplateStyle } from './palettes';
 import { selectTemplate } from './selector';
 import type { TemplateId } from './registry';
+import type { PresentationRecipeId } from '@/services/workflowPlanner/types';
 
 export interface StyleManifest {
   compositionMode:
@@ -45,6 +46,11 @@ export interface StyleManifest {
 
 export type ExemplarPackId =
   | 'default-template'
+  | 'title-opening'
+  | 'executive-starter-deck'
+  | 'launch-narrative'
+  | 'stage-setting-context'
+  | 'finance-grid-light'
   | 'split-world-title'
   | 'editorial-infographic'
   | 'agenda-overview'
@@ -66,23 +72,28 @@ export interface TemplatePlan {
 
 const STYLE_DEFAULT_TEMPLATE: Record<TemplateStyle, TemplateId> = {
   keynote: 'keynote',
-  corporate: 'corporate',
+  corporate: 'executive-briefing-light',
   tech: 'tech-architecture',
   creative: 'creative-portfolio',
   minimal: 'minimal',
-  pitch: 'pitch-deck',
-  editorial: 'editorial-magazine',
+  pitch: 'launch-narrative-light',
+  editorial: 'editorial-light',
   scifi: 'sci-fi',
-  data: 'infographic-grid',
+  data: 'finance-grid-light',
   educational: 'educational',
-  ocean: 'infographic-grid',
+  ocean: 'finance-grid-light',
   luxury: 'sidebar-cards',
   nature: 'landscape-illustration',
   neon: 'split-world',
-  dashboard: 'multi-panel-dashboard',
+  dashboard: 'finance-grid-light',
 };
 
 const TEMPLATE_STYLE_COMPATIBILITY: Partial<Record<TemplateId, TemplateStyle[]>> = {
+  'executive-briefing-light': ['corporate', 'editorial', 'dashboard', 'pitch'],
+  'launch-narrative-light': ['pitch', 'keynote', 'creative', 'corporate'],
+  'editorial-light': ['editorial', 'corporate', 'pitch', 'keynote'],
+  'finance-grid-light': ['data', 'ocean', 'dashboard', 'corporate'],
+  'stage-setting-light': ['corporate', 'editorial', 'ocean', 'minimal'],
   'editorial-magazine': ['editorial', 'luxury'],
   'infographic-grid': ['data', 'ocean', 'dashboard', 'corporate'],
   'split-world': ['neon', 'scifi', 'creative', 'keynote'],
@@ -100,22 +111,47 @@ const TEMPLATE_STYLE_COMPATIBILITY: Partial<Record<TemplateId, TemplateStyle[]>>
 
 export function resolveTemplatePlan(
   prompt: string,
-  context?: { audience?: string; purpose?: string },
+  context?: { audience?: string; purpose?: string; recipeHint?: PresentationRecipeId },
 ): TemplatePlan {
   const style = detectTemplateStyle(prompt);
-  const selected = selectTemplate(prompt, context);
+  const recipeTemplate = context?.recipeHint ? getRecipeTemplate(context.recipeHint) : undefined;
+  const selected = recipeTemplate ?? selectTemplate(prompt, context);
   const compatibleStyles = TEMPLATE_STYLE_COMPATIBILITY[selected];
-  const templateId = compatibleStyles && !compatibleStyles.includes(style)
+  const templateId = recipeTemplate
+    ? selected
+    : compatibleStyles && !compatibleStyles.includes(style)
     ? STYLE_DEFAULT_TEMPLATE[style]
     : selected;
 
-  const exemplarPackId = getExemplarPackId(templateId, prompt, style);
+  const exemplarPackId = getExemplarPackId(templateId, prompt, style, context?.recipeHint);
   return {
     style,
     templateId,
     exemplarPackId,
     styleManifest: buildStyleManifest(style, templateId, exemplarPackId),
   };
+}
+
+function getRecipeTemplate(recipeHint: PresentationRecipeId): TemplateId | undefined {
+  switch (recipeHint) {
+    case 'title-opening':
+      return 'launch-narrative-light';
+    case 'stage-setting':
+      return 'stage-setting-light';
+    case 'editorial-explainer':
+      return 'editorial-light';
+    case 'finance-grid':
+    case 'metrics-summary':
+      return 'finance-grid-light';
+    case 'quiz-reveal':
+      return 'interactive-quiz';
+    case 'comparison':
+      return 'comparison';
+    case 'closing-action':
+      return 'launch-narrative-light';
+    default:
+      return 'executive-briefing-light';
+  }
 }
 
 function promptMatches(prompt: string, patterns: RegExp[]): boolean {
@@ -126,9 +162,35 @@ function getExemplarPackId(
   templateId: TemplateId,
   prompt: string,
   style: TemplateStyle,
+  recipeHint?: PresentationRecipeId,
 ): ExemplarPackId {
+  switch (recipeHint) {
+    case 'title-opening':
+      return templateId === 'launch-narrative-light' ? 'launch-narrative' : 'title-opening';
+    case 'stage-setting':
+      return 'stage-setting-context';
+    case 'finance-grid':
+      return 'finance-grid-light';
+    case 'metrics-summary':
+      return 'metrics-dashboard';
+    case 'comparison':
+      return 'comparison';
+    case 'quiz-reveal':
+      return 'quiz-interstitial';
+    case 'closing-action':
+      return 'closing-cta';
+    case 'editorial-explainer':
+      return 'editorial-infographic';
+    default:
+      break;
+  }
+
   if (promptMatches(prompt, [/\bquiz\b/i, /\bpoll\b/i, /\bcheckpoint\b/i, /\binterstitial\b/i])) {
     return 'quiz-interstitial';
+  }
+
+  if (promptMatches(prompt, [/\bsetting(?: |-)?the(?: |-)?stage\b/i, /\bwhy it matters\b/i, /\bcontext slide\b/i, /\bbackground slide\b/i])) {
+    return 'stage-setting-context';
   }
 
   if (promptMatches(prompt, [/\bagenda\b/i, /\boverview\b/i, /\btable of contents\b/i, /\bcontents\b/i])) {
@@ -164,7 +226,15 @@ function getExemplarPackId(
   }
 
   if (promptMatches(prompt, [/\btitle slide\b/i, /\bhero slide\b/i, /\bcover slide\b/i, /\bopening slide\b/i])) {
-    return 'split-world-title';
+    return templateId === 'launch-narrative-light' ? 'launch-narrative' : 'title-opening';
+  }
+
+  if (templateId === 'launch-narrative-light') {
+    return 'launch-narrative';
+  }
+
+  if (templateId === 'executive-briefing-light') {
+    return 'executive-starter-deck';
   }
 
   if (templateId === 'split-world' || templateId === 'keynote' || templateId === 'cinematic') {
@@ -172,7 +242,10 @@ function getExemplarPackId(
   }
 
   if (
-    templateId === 'editorial-magazine'
+    templateId === 'finance-grid-light'
+    || templateId === 'stage-setting-light'
+    || templateId === 'editorial-light'
+    || templateId === 'editorial-magazine'
     || templateId === 'infographic-grid'
     || templateId === 'multi-panel-dashboard'
     || style === 'editorial'
@@ -192,6 +265,47 @@ function buildStyleManifest(
   exemplarPackId: ExemplarPackId,
 ): StyleManifest {
   switch (exemplarPackId) {
+    case 'launch-narrative':
+      return {
+        compositionMode: 'hero-scene',
+        backgroundTreatment: 'split-gradient',
+        typographyMood: 'condensed-display',
+        motionLanguage: 'scene-continuous',
+        svgStrategy: 'hybrid-diagrams',
+        density: 'balanced',
+        cardGrammar: 'Use one energetic split-scene title system, then compact launch thesis, readiness, and action modules with large readable type.',
+        accentStrategy: 'Use teal and green accents for seams, chips, pathway nodes, and readiness signals; avoid full-card rainbow fills.',
+        heroPattern: 'Open with a full-stage launch scene, animated seam or pathway, dominant title, short subtitle, and compact support chips.',
+        componentPatterns: [
+          'split or angled title worlds with a central seam',
+          'readiness cards with large step numbers',
+          'short proof stacks with colored accent edges',
+          'CTA/action cards with icon-number blocks',
+        ],
+        exemplarPackId,
+      };
+
+    case 'executive-starter-deck':
+      return {
+        compositionMode: 'editorial-grid',
+        backgroundTreatment: 'light-infographic',
+        typographyMood: 'condensed-display',
+        motionLanguage: 'diagram-micro',
+        svgStrategy: 'inline-diagrams',
+        density: 'balanced',
+        cardGrammar: 'Use premium executive modules: decision summary, evidence strip, metric row, and recommendation cards with enough whitespace for scaled canvas viewing.',
+        accentStrategy: 'Use blue, teal, and one warm caution accent through borders, chips, and SVG strokes only.',
+        heroPattern: 'Open with a decisive title lockup, presenter/date chips, and a structured signal stack rather than a blank hero.',
+        componentPatterns: [
+          'large leadership title lockup',
+          'three-signal decision stack',
+          'scene panel plus insight cards',
+          'metric row plus interpretation strip',
+          'numbered next-step cards',
+        ],
+        exemplarPackId,
+      };
+
     case 'split-world-title':
       return {
         compositionMode: templateId === 'split-world' ? 'split-world' : 'hero-scene',

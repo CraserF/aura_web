@@ -8,8 +8,12 @@ import { ChatBar } from '@/components/ChatBar';
 import { ChatPanel } from '@/components/ChatPanel';
 import { ProviderModal } from '@/components/ProviderModal';
 import { ProjectSidebar } from '@/components/ProjectSidebar';
+import { ProjectRulesPanel } from '@/components/ProjectRulesPanel';
 import { VersionHistoryPanel } from '@/components/VersionHistoryPanel';
 import { SpreadsheetCanvas } from '@/components/SpreadsheetCanvas';
+import { DoctorPanel } from '@/components/DoctorPanel';
+import { ValidationPanel } from '@/components/ValidationPanel';
+import { PublishPanel } from '@/components/PublishPanel';
 import { useProjectStore } from '@/stores/projectStore';
 import { usePresentationStore } from '@/stores/presentationStore';
 import { useChatStore } from '@/stores/chatStore';
@@ -18,7 +22,10 @@ import {
   autosaveProject,
   getProjectAutosave,
 } from '@/services/storage/projectAutosave';
+import { runDoctor } from '@/services/diagnostics/runDoctor';
+import type { DoctorReport } from '@/services/diagnostics/types';
 import type { LinkedTableRef, ProjectDocument, WorkbookMeta } from '@/types/project';
+import type { ValidationResult } from '@/services/validation/types';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
@@ -30,6 +37,9 @@ import {
 import { DocumentPdfPreview } from '@/components/DocumentPdfPreview';
 import { sanitizeFilename } from '@/lib/sanitizeFilename';
 import { extractChartSpecsFromHtml } from '@/services/charts';
+import { validateArtifactAgainstProfile } from '@/services/validation';
+import { validateProjectAgainstProfile } from '@/services/validation/projectValidation';
+import { deriveLifecycleFromValidation, markDocumentPublished } from '@/services/lifecycle/state';
 import { BookOpen, ChevronDown, Eye, FileDown, Link2, Loader2, PenSquare, Printer } from 'lucide-react';
 
 function createEmptyWorkbook(): WorkbookMeta {
@@ -54,6 +64,14 @@ const LazyDocumentTextEditor = lazy(async () => {
   const mod = await import('@/components/DocumentTextEditor');
   return { default: mod.DocumentTextEditor };
 });
+
+type PendingPublishAction =
+  | 'document-html'
+  | 'document-email'
+  | 'document-pdf'
+  | 'document-docx'
+  | 'presentation-html'
+  | 'presentation-pdf';
 
 function normalizeEditorMarkdown(value: string): string {
   return value
@@ -133,18 +151,40 @@ export default function App() {
   const messages = useChatStore((s) => s.messages);
   const setMessages = useChatStore((s) => s.setMessages);
   const showDocumentPagesView = useSettingsStore((s) => s.showDocumentPagesView);
+  const providerId = useSettingsStore((s) => s.providerId);
+  const providers = useSettingsStore((s) => s.providers);
 
   const [chatPanelOpen, setChatPanelOpen] = useState(false);
   const chatPanelRef = useRef<PanelImperativeHandle>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
+  const [projectRulesOpen, setProjectRulesOpen] = useState(false);
+  const [doctorOpen, setDoctorOpen] = useState(false);
+  const [doctorReport, setDoctorReport] = useState<DoctorReport | null>(null);
+  const [validationOpen, setValidationOpen] = useState(false);
+  const [validationRunning, setValidationRunning] = useState(false);
+  const [artifactValidationResult, setArtifactValidationResult] = useState<ValidationResult | null>(null);
+  const [projectValidationResult, setProjectValidationResult] = useState<ValidationResult | null>(null);
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [pendingPublishAction, setPendingPublishAction] = useState<PendingPublishAction | null>(null);
+  const [pendingPublishLabel, setPendingPublishLabel] = useState('');
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [textEditorOpen, setTextEditorOpen] = useState(false);
   const [editorInitialMarkdown, setEditorInitialMarkdown] = useState('');
   const [editorContentSource, setEditorContentSource] = useState<'original' | 'derived'>('original');
   const [textEditorMode, setTextEditorMode] = useState<'edit' | 'link'>('edit');
-  const [documentAction, setDocumentAction] = useState<'preview-pdf' | 'export-pdf' | 'export-word' | 'save-text' | 'export-presentation-pdf' | null>(null);
+  const [documentAction, setDocumentAction] = useState<
+    | 'preview-pdf'
+    | 'export-pdf'
+    | 'export-word'
+    | 'save-text'
+    | 'export-presentation-pdf'
+    | 'export-document-html'
+    | 'export-document-email'
+    | 'export-presentation-html'
+    | null
+  >(null);
   const [documentError, setDocumentError] = useState<string | null>(null);
 
   // Restore autosaved project on mount
@@ -229,6 +269,7 @@ export default function App() {
         slideCount: 0,
         chartSpecs: {},
         workbook: type === 'spreadsheet' ? createEmptyWorkbook() : undefined,
+        lifecycleState: 'draft',
         order: project.documents.length,
         parentId,
         createdAt: Date.now(),
@@ -238,6 +279,54 @@ export default function App() {
     },
     [addDocument, project.documents.length],
   );
+
+  const handleSaveProjectRules = useCallback((updates: Pick<typeof project, 'projectRules' | 'contextPolicy' | 'workflowPresets'>) => {
+    setProject({
+      ...project,
+      ...updates,
+      updatedAt: Date.now(),
+    });
+  }, [project, setProject]);
+
+  const handleRunDoctor = useCallback(() => {
+    setDoctorReport(runDoctor({
+      project,
+      providerConfig: providers[providerId],
+    }));
+  }, [project, providerId, providers]);
+
+  const runReadinessChecks = useCallback(async (document: ProjectDocument | null) => {
+    const artifactValidation = document ? validateArtifactAgainstProfile(document, 'publish-ready') : null;
+    const projectValidation = await validateProjectAgainstProfile({
+      project,
+      profileId: 'publish-ready',
+    });
+
+    setArtifactValidationResult(artifactValidation);
+    setProjectValidationResult(projectValidation);
+    if (document && artifactValidation) {
+      updateDocument(document.id, deriveLifecycleFromValidation(artifactValidation));
+    }
+
+    return {
+      artifactValidation,
+      projectValidation,
+    };
+  }, [project, updateDocument]);
+
+  const handleOpenValidationPanel = useCallback(async () => {
+    setValidationRunning(true);
+    setDocumentError(null);
+    try {
+      await runReadinessChecks(activeDocument);
+      setValidationOpen(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to run validation.';
+      setDocumentError(message);
+    } finally {
+      setValidationRunning(false);
+    }
+  }, [activeDocument, runReadinessChecks]);
 
   const showPresentation = activeDocument?.type === 'presentation';
   const showDocument = activeDocument?.type === 'document';
@@ -287,6 +376,10 @@ export default function App() {
         html: activeDocument.contentHtml,
         title: activeDocument.title,
       });
+      updateDocument(
+        activeDocument.id,
+        markDocumentPublished(artifactValidationResult?.profileId ?? 'publish-ready', activeDocument.lastSuccessfulPresetId),
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to export PDF.';
       setDocumentError(message);
@@ -294,7 +387,7 @@ export default function App() {
     } finally {
       setDocumentAction(null);
     }
-  }, [activeDocument]);
+  }, [activeDocument, artifactValidationResult?.profileId, updateDocument]);
 
   const handleExportWord = useCallback(async () => {
     if (!activeDocument || activeDocument.type !== 'document') return;
@@ -309,13 +402,17 @@ export default function App() {
         markdown: activeDocument.sourceMarkdown,
         html: activeDocument.contentHtml,
       });
+      updateDocument(
+        activeDocument.id,
+        markDocumentPublished(artifactValidationResult?.profileId ?? 'publish-ready', activeDocument.lastSuccessfulPresetId),
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to export Word document.';
       setDocumentError(message);
     } finally {
       setDocumentAction(null);
     }
-  }, [activeDocument]);
+  }, [activeDocument, artifactValidationResult?.profileId, updateDocument]);
 
   const handleOpenTextEditor = useCallback(async (mode: 'edit' | 'link' = 'edit') => {
     if (!activeDocument || activeDocument.type !== 'document') return;
@@ -421,13 +518,158 @@ export default function App() {
     try {
       const { exportPresentationPdf } = await import('@/services/export/pdf');
       await exportPresentationPdf(activeDocument.contentHtml, activeDocument.title);
+      updateDocument(
+        activeDocument.id,
+        markDocumentPublished(artifactValidationResult?.profileId ?? 'publish-ready', activeDocument.lastSuccessfulPresetId),
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to export presentation PDF.';
       setDocumentError(message);
     } finally {
       setDocumentAction(null);
     }
-  }, [activeDocument]);
+  }, [activeDocument, artifactValidationResult?.profileId, updateDocument]);
+
+  const handleExportDocumentStandaloneHtml = useCallback(async () => {
+    if (!activeDocument || activeDocument.type !== 'document') return;
+
+    setDocumentError(null);
+    setDocumentAction('export-document-html');
+
+    try {
+      const [{ exportDocumentStandaloneHtml }, { downloadStandaloneArtifact }] = await Promise.all([
+        import('@/services/export/documentHtml'),
+        import('@/services/export/standalone'),
+      ]);
+      const artifact = await exportDocumentStandaloneHtml({
+        project,
+        document: activeDocument,
+      });
+      await downloadStandaloneArtifact(artifact);
+      updateDocument(
+        activeDocument.id,
+        markDocumentPublished(artifactValidationResult?.profileId ?? 'publish-ready', activeDocument.lastSuccessfulPresetId),
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to export standalone document HTML.';
+      setDocumentError(message);
+    } finally {
+      setDocumentAction(null);
+    }
+  }, [activeDocument, artifactValidationResult?.profileId, project, updateDocument]);
+
+  const handleExportDocumentEmailHtml = useCallback(async () => {
+    if (!activeDocument || activeDocument.type !== 'document') return;
+
+    setDocumentError(null);
+    setDocumentAction('export-document-email');
+
+    try {
+      const [{ exportDocumentEmailHtml }, { downloadStandaloneArtifact }] = await Promise.all([
+        import('@/services/export/emailHtml'),
+        import('@/services/export/standalone'),
+      ]);
+      const artifact = await exportDocumentEmailHtml({
+        project,
+        document: activeDocument,
+      });
+      await downloadStandaloneArtifact(artifact);
+      updateDocument(
+        activeDocument.id,
+        markDocumentPublished(artifactValidationResult?.profileId ?? 'publish-ready', activeDocument.lastSuccessfulPresetId),
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to export email HTML.';
+      setDocumentError(message);
+    } finally {
+      setDocumentAction(null);
+    }
+  }, [activeDocument, artifactValidationResult?.profileId, project, updateDocument]);
+
+  const handleExportPresentationStandaloneHtml = useCallback(async () => {
+    if (!activeDocument || activeDocument.type !== 'presentation') return;
+
+    setDocumentError(null);
+    setDocumentAction('export-presentation-html');
+
+    try {
+      const [{ exportPresentationStandaloneHtml }, { downloadStandaloneArtifact }] = await Promise.all([
+        import('@/services/export/presentationHtml'),
+        import('@/services/export/standalone'),
+      ]);
+      const artifact = await exportPresentationStandaloneHtml({
+        project,
+        document: activeDocument,
+      });
+      await downloadStandaloneArtifact(artifact);
+      updateDocument(
+        activeDocument.id,
+        markDocumentPublished(artifactValidationResult?.profileId ?? 'publish-ready', activeDocument.lastSuccessfulPresetId),
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to export standalone presentation HTML.';
+      setDocumentError(message);
+    } finally {
+      setDocumentAction(null);
+    }
+  }, [activeDocument, artifactValidationResult?.profileId, project, updateDocument]);
+
+  const executePublishAction = useCallback(async (action: PendingPublishAction) => {
+    switch (action) {
+      case 'document-html':
+        await handleExportDocumentStandaloneHtml();
+        break;
+      case 'document-email':
+        await handleExportDocumentEmailHtml();
+        break;
+      case 'document-pdf':
+        await handleExportPdf();
+        break;
+      case 'document-docx':
+        await handleExportWord();
+        break;
+      case 'presentation-html':
+        await handleExportPresentationStandaloneHtml();
+        break;
+      case 'presentation-pdf':
+        await handleExportPresentationPdf();
+        break;
+    }
+  }, [
+    handleExportDocumentEmailHtml,
+    handleExportDocumentStandaloneHtml,
+    handleExportPdf,
+    handleExportPresentationPdf,
+    handleExportPresentationStandaloneHtml,
+    handleExportWord,
+  ]);
+
+  const requestPublishAction = useCallback(async (action: PendingPublishAction, label: string) => {
+    setDocumentError(null);
+    try {
+      await runReadinessChecks(activeDocument);
+      setPendingPublishAction(action);
+      setPendingPublishLabel(label);
+      setPublishOpen(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to prepare export readiness.';
+      setDocumentError(message);
+    }
+  }, [activeDocument, runReadinessChecks]);
+
+  const artifactExportActions = activeDocument?.type === 'document'
+    ? [
+        { id: 'document-html', label: 'Standalone HTML', onSelect: () => void requestPublishAction('document-html', 'Export standalone HTML') },
+        { id: 'document-email', label: 'Email HTML', onSelect: () => void requestPublishAction('document-email', 'Export email HTML') },
+        { id: 'document-pdf', label: 'PDF', onSelect: () => void requestPublishAction('document-pdf', 'Export PDF') },
+        { id: 'document-docx', label: 'DOCX', onSelect: () => void requestPublishAction('document-docx', 'Export DOCX') },
+      ]
+    : activeDocument?.type === 'presentation'
+      ? [
+          { id: 'presentation-html', label: 'Standalone HTML', onSelect: () => void requestPublishAction('presentation-html', 'Export standalone HTML') },
+          { id: 'presentation-pdf', label: 'PDF', onSelect: () => void requestPublishAction('presentation-pdf', 'Export presentation PDF') },
+        ]
+      : [];
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -438,12 +680,21 @@ export default function App() {
         onToggleSidebar={() => setSidebarOpen((v) => !v)}
         historyPanelOpen={historyPanelOpen}
         onToggleHistoryPanel={() => setHistoryPanelOpen((v) => !v)}
+        artifactExportActions={artifactExportActions}
+        artifactValidationAction={project.documents.length > 0 ? {
+          label: 'Readiness',
+          onSelect: () => void handleOpenValidationPanel(),
+          disabled: validationRunning,
+        } : null}
+        artifactExportBusy={documentAction !== null || validationRunning}
       />
       <div className="flex min-h-0 flex-1">
         <ProjectSidebar
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           onRequestAddDocument={handleAddDocument}
+          onOpenProjectRules={() => setProjectRulesOpen(true)}
+          onOpenDoctor={() => setDoctorOpen(true)}
         />
 
         <Group
@@ -461,25 +712,38 @@ export default function App() {
             <div className="flex flex-1 flex-col overflow-hidden">
               {activeDocument?.contentHtml && (
                 <div className="hidden shrink-0 items-center gap-1 border-b border-border px-3 py-1.5 sm:flex">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
                         size="sm"
                         className="h-7 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
-                        onClick={() => void handleExportPresentationPdf()}
-                        disabled={documentAction === 'export-presentation-pdf'}
+                        disabled={documentAction === 'export-presentation-pdf' || documentAction === 'export-presentation-html'}
                       >
-                        {documentAction === 'export-presentation-pdf' ? (
+                        {documentAction === 'export-presentation-pdf' || documentAction === 'export-presentation-html' ? (
                           <Loader2 className="size-3.5 animate-spin" />
                         ) : (
                           <FileDown className="size-3.5" />
                         )}
-                        Export PDF
+                        Export
+                        <ChevronDown className="size-3.5" />
                       </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Export slides as PDF (one page per slide)</TooltipContent>
-                  </Tooltip>
+                    </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem onSelect={(event) => {
+                          event.preventDefault();
+                          void requestPublishAction('presentation-html', 'Export standalone HTML');
+                        }}>
+                          Standalone HTML
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={(event) => {
+                          event.preventDefault();
+                          void requestPublishAction('presentation-pdf', 'Export presentation PDF');
+                        }}>
+                          PDF
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   {documentError && showPresentation && (
                     <p className="ml-2 truncate text-xs text-destructive">{documentError}</p>
                   )}
@@ -576,7 +840,7 @@ export default function App() {
                           className="h-7 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
                           disabled={isDocumentBusy}
                         >
-                          {documentAction === 'export-pdf' || documentAction === 'export-word' ? (
+                          {documentAction === 'export-pdf' || documentAction === 'export-word' || documentAction === 'export-document-html' || documentAction === 'export-document-email' ? (
                             <Loader2 className="size-3.5 animate-spin" />
                           ) : (
                             <FileDown className="size-3.5" />
@@ -588,6 +852,18 @@ export default function App() {
                       <DropdownMenuContent align="start">
                         <DropdownMenuItem onSelect={(event) => {
                           event.preventDefault();
+                          void requestPublishAction('document-html', 'Export standalone HTML');
+                        }}>
+                          Standalone HTML
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={(event) => {
+                          event.preventDefault();
+                          void requestPublishAction('document-email', 'Export email HTML');
+                        }}>
+                          Email HTML
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={(event) => {
+                          event.preventDefault();
                           void handlePreviewPdf();
                         }}>
                           <Eye className="mr-2 size-3.5" />
@@ -595,13 +871,13 @@ export default function App() {
                         </DropdownMenuItem>
                         <DropdownMenuItem onSelect={(event) => {
                           event.preventDefault();
-                          void handleExportPdf();
+                          void requestPublishAction('document-pdf', 'Export PDF');
                         }}>
                           Export PDF
                         </DropdownMenuItem>
                         <DropdownMenuItem onSelect={(event) => {
                           event.preventDefault();
-                          void handleExportWord();
+                          void requestPublishAction('document-docx', 'Export DOCX');
                         }}>
                           Export Word (.docx)
                         </DropdownMenuItem>
@@ -675,7 +951,7 @@ export default function App() {
                       className="h-7 shrink-0 gap-1.5 rounded-md px-2 text-xs"
                       disabled={isDocumentBusy}
                     >
-                      {documentAction === 'preview-pdf' || documentAction === 'export-pdf' || documentAction === 'export-word' ? (
+                      {documentAction === 'preview-pdf' || documentAction === 'export-pdf' || documentAction === 'export-word' || documentAction === 'export-document-html' || documentAction === 'export-document-email' ? (
                         <Loader2 className="size-3.5 animate-spin" />
                       ) : (
                         <FileDown className="size-3.5" />
@@ -687,6 +963,18 @@ export default function App() {
                   <DropdownMenuContent align="start">
                     <DropdownMenuItem onSelect={(event) => {
                       event.preventDefault();
+                      void requestPublishAction('document-html', 'Export standalone HTML');
+                    }}>
+                      Standalone HTML
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={(event) => {
+                      event.preventDefault();
+                      void requestPublishAction('document-email', 'Export email HTML');
+                    }}>
+                      Email HTML
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={(event) => {
+                      event.preventDefault();
                       void handlePreviewPdf();
                     }}>
                       <Eye className="mr-2 size-3.5" />
@@ -694,13 +982,13 @@ export default function App() {
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={(event) => {
                       event.preventDefault();
-                      void handleExportPdf();
+                      void requestPublishAction('document-pdf', 'Export PDF');
                     }}>
                       Export PDF
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={(event) => {
                       event.preventDefault();
-                      void handleExportWord();
+                      void requestPublishAction('document-docx', 'Export DOCX');
                     }}>
                       Export Word (.docx)
                     </DropdownMenuItem>
@@ -744,6 +1032,41 @@ export default function App() {
         />
       </div>
       <ProviderModal />
+      <ProjectRulesPanel
+        open={projectRulesOpen}
+        onOpenChange={setProjectRulesOpen}
+        project={project}
+        onSave={handleSaveProjectRules}
+      />
+      <DoctorPanel
+        open={doctorOpen}
+        onOpenChange={setDoctorOpen}
+        report={doctorReport}
+        onRun={handleRunDoctor}
+      />
+      <ValidationPanel
+        open={validationOpen}
+        onOpenChange={setValidationOpen}
+        artifactLabel={activeDocument ? activeDocument.title : undefined}
+        artifactValidation={artifactValidationResult}
+        projectValidation={projectValidationResult}
+        isRunning={validationRunning}
+        onRun={() => {
+          void handleOpenValidationPanel();
+        }}
+      />
+      <PublishPanel
+        open={publishOpen}
+        onOpenChange={setPublishOpen}
+        actionLabel={pendingPublishLabel || 'Export'}
+        artifactValidation={artifactValidationResult}
+        projectValidation={projectValidationResult}
+        onConfirm={() => {
+          if (!pendingPublishAction) return;
+          void executePublishAction(pendingPublishAction);
+          setPendingPublishAction(null);
+        }}
+      />
       <DocumentPdfPreview
         open={pdfPreviewOpen}
         onOpenChange={setPdfPreviewOpen}

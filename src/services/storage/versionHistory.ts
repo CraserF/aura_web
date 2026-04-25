@@ -73,8 +73,20 @@ async function writeProjectFiles(project: ProjectData): Promise<void> {
       title: doc.title,
       type: doc.type,
       contentHtml: doc.contentHtml,
+      sourceMarkdown: doc.sourceMarkdown,
       themeCss: doc.themeCss,
       slideCount: doc.slideCount,
+      description: doc.description,
+      starterRef: doc.starterRef,
+      parentId: doc.parentId,
+      pagesEnabled: doc.pagesEnabled,
+      chartSpecs: doc.chartSpecs,
+      workbook: doc.workbook,
+      linkedTableRefs: doc.linkedTableRefs,
+      lifecycleState: doc.lifecycleState,
+      lastValidationProfileId: doc.lastValidationProfileId,
+      lastSuccessfulPresetId: doc.lastSuccessfulPresetId,
+      staleReason: doc.staleReason,
       order: doc.order,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
@@ -89,6 +101,23 @@ async function writeProjectFiles(project: ProjectData): Promise<void> {
   await fs.promises.writeFile(
     `${REPO_DIR}/chat-history.json`,
     JSON.stringify(project.chatHistory, null, 2),
+  );
+
+  await fs.promises.writeFile(
+    `${REPO_DIR}/project-rules.md`,
+    project.projectRules?.markdown ?? '',
+  );
+  await fs.promises.writeFile(
+    `${REPO_DIR}/context-policy.json`,
+    JSON.stringify(project.contextPolicy ?? {}, null, 2),
+  );
+  await fs.promises.writeFile(
+    `${REPO_DIR}/workflow-presets.json`,
+    JSON.stringify(project.workflowPresets ?? {}, null, 2),
+  );
+  await fs.promises.writeFile(
+    `${REPO_DIR}/media.json`,
+    JSON.stringify(project.media ?? [], null, 2),
   );
 }
 
@@ -154,6 +183,10 @@ export async function readVersionSnapshot(hash: string): Promise<{
   manifest: string;
   documents: Record<string, string>;
   chatHistory: string;
+  projectRules: string;
+  contextPolicy: string;
+  workflowPresets: string;
+  media: string;
 } | null> {
   try {
     const fs = getFs();
@@ -177,6 +210,10 @@ export async function readVersionSnapshot(hash: string): Promise<{
       manifest: await readBlob('manifest.json'),
       documents: documentEntries,
       chatHistory: await readBlob('chat-history.json').catch(() => '[]'),
+      projectRules: await readBlob('project-rules.md').catch(() => ''),
+      contextPolicy: await readBlob('context-policy.json').catch(() => 'null'),
+      workflowPresets: await readBlob('workflow-presets.json').catch(() => 'null'),
+      media: await readBlob('media.json').catch(() => '[]'),
     };
   } catch (err) {
     console.warn('[VersionHistory] readSnapshot failed:', err);

@@ -14,6 +14,7 @@ Before you answer, verify all of the following:
 - All sizing uses fixed \`px\` only — never \`vw\`, \`vh\`, or viewport-based \`clamp()\`
 - The slide has one dominant focal area, clear contrast, and enough breathing room without looking sparse
 - Copy is concise and visual-first: short headings, short labels, minimal paragraph text
+- Every visible label is fully resolved for the requested topic — no raw placeholders such as \`{{COMPANY}}\`, \`{{DATE}}\`, \`[INSERT ...]\`, or \`Lorem ipsum\`
 - Colors come only from the provided palette; no invented hex values
 - No example/template names or brand references leak into the output
 - No external images, scripts, or \`<img>\` tags are used
