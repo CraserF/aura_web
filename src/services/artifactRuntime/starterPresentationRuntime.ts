@@ -83,7 +83,7 @@ function cleanupEmptyOptionalStarterElements(section: HTMLElement): void {
   const candidates = Array.from(section.querySelectorAll<HTMLElement>('p, div'));
 
   for (const element of candidates) {
-    if (!element.isConnected || isStructuralElement(element)) continue;
+    if (isStructuralElement(element)) continue;
     if (element.textContent?.trim()) continue;
     if (hasMediaOrIconChild(element)) continue;
 
@@ -128,10 +128,12 @@ function buildStarterRuntimePlan(input: {
     providerModel: 'starter-runtime',
     allowFullRegeneration: false,
   });
-  const recipeId: PresentationRecipeId = runtimePlan.workflow.presentationRecipeId ?? 'general-polished';
+  const recipeId: PresentationRecipeId = runtimePlan.presentationRecipeId ?? 'general-polished';
 
   runtimePlan.userIntent = prompt;
   runtimePlan.intentSummary = `Starter runtime deck for ${input.starterLabel} using ${input.templateId}.`;
+  runtimePlan.requestKind = 'batch';
+  runtimePlan.queueMode = 'sequential';
   runtimePlan.workflow.summary = runtimePlan.intentSummary;
   runtimePlan.workflow.queueMode = 'sequential';
   runtimePlan.workflow.queuedWorkItems = sectionTitles.map((sectionTitle, index) => ({
@@ -151,6 +153,7 @@ function buildStarterRuntimePlan(input: {
     `Starter artifact key: ${input.artifactKey}; starter id: ${input.starterId}.`,
     ...runtimePlan.workflow.templateGuidance.designConstraints,
   ];
+  runtimePlan.templateGuidance = runtimePlan.workflow.templateGuidance;
   runtimePlan.designManifest.family = input.templateId;
   runtimePlan.designManifest.templateId = input.templateId;
   runtimePlan.workQueue = runtimePlan.workflow.queuedWorkItems.map((item) => ({

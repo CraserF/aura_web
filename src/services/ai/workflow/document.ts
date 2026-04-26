@@ -29,6 +29,8 @@ import {
 import { getReferenceStylePack } from '../templates';
 import { applyDocumentTargetedEdit, prepareDocumentHtmlForEditing } from '@/services/editing/patchDocument';
 import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
+import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
+import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
 
 export interface DocumentProjectLink {
   id: string;
@@ -50,6 +52,7 @@ export interface DocumentInput {
   /** Image parts for multi-modal document requests */
   imageParts?: Array<{ type: 'image'; image: string; mimeType: string }>;
   templateGuidance?: TemplateGuidanceProfile;
+  artifactRunPlan?: ArtifactRunPlan;
   editing?: {
     resolvedTargets: ResolvedTarget[];
     targetSummary: string[];
@@ -1020,6 +1023,7 @@ export async function runDocumentWorkflow(
 ): Promise<DocumentOutput> {
   const { input, llmConfig, onEvent, signal } = opts;
   const isEdit = !!input.existingHtml && input.templateGuidance?.intentFamily !== 'rewrite';
+  const runtimeRunId = input.artifactRunPlan?.runId ?? 'document-runtime';
   const providerProfile = getProviderCapabilityProfile({
     id: llmConfig.providerEntry.id,
     model: llmConfig.model,
@@ -1033,6 +1037,15 @@ export async function runDocumentWorkflow(
     onEvent({ type: 'progress', message: 'Understanding the document request…', pct: 8 });
 
     const planResult = planDocumentRequest(input);
+    emitArtifactRunEvent(onEvent, {
+      runId: runtimeRunId,
+      type: 'runtime.plan-created',
+      role: 'planner',
+      message: input.artifactRunPlan
+        ? `Document runtime plan ready: ${input.artifactRunPlan.intentSummary}`
+        : `Document plan ready: ${planResult.blueprint.label}`,
+      pct: 12,
+    });
 
     onEvent({
       type: 'progress',
@@ -1042,6 +1055,14 @@ export async function runDocumentWorkflow(
     onEvent({ type: 'step-done', stepId: 'plan', label: 'Planning document…' });
 
     onEvent({ type: 'step-start', stepId: 'generate', label: isEdit ? 'Updating document…' : 'Writing document…' });
+    emitArtifactRunEvent(onEvent, {
+      runId: runtimeRunId,
+      type: 'runtime.part-started',
+      role: 'generator',
+      message: isEdit ? 'Updating document part' : 'Writing document part',
+      partId: 'generate',
+      pct: 24,
+    });
     onEvent({ type: 'progress', message: isEdit ? 'Applying changes…' : 'Crafting your document…', pct: 28 });
 
     const systemPrompt = withTemplateGuidance(
@@ -1174,8 +1195,24 @@ export async function runDocumentWorkflow(
       : rawContent.trim();
 
     onEvent({ type: 'step-done', stepId: 'generate', label: isEdit ? 'Updating document…' : 'Writing document…' });
+    emitArtifactRunEvent(onEvent, {
+      runId: runtimeRunId,
+      type: 'runtime.part-completed',
+      role: 'generator',
+      message: isEdit ? 'Updated document part' : 'Wrote document part',
+      partId: 'generate',
+      pct: 80,
+    });
 
     onEvent({ type: 'step-start', stepId: 'qa', label: 'Checking document quality…' });
+    emitArtifactRunEvent(onEvent, {
+      runId: runtimeRunId,
+      type: 'runtime.validation-started',
+      role: 'validator',
+      message: 'Checking document quality...',
+      partId: 'qa',
+      pct: 84,
+    });
     const qaResult = validateDocument(finalHtml);
     aiDebugLog('document', 'document QA', {
       passed: qaResult.passed,
@@ -1189,6 +1226,14 @@ export async function runDocumentWorkflow(
       pct: 88,
     });
     onEvent({ type: 'step-done', stepId: 'qa', label: 'Checking document quality…' });
+    emitArtifactRunEvent(onEvent, {
+      runId: runtimeRunId,
+      type: 'runtime.validation-completed',
+      role: 'validator',
+      message: 'Checking document quality...',
+      partId: 'qa',
+      pct: 90,
+    });
 
     onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing document…' });
     const title = requestedTitle || extractDocumentTitle(finalHtml) || extractTitleFromPrompt(input.prompt);
@@ -1201,6 +1246,14 @@ export async function runDocumentWorkflow(
     };
 
     onEvent({ type: 'step-done', stepId: 'finalize', label: 'Finalizing document…' });
+    emitArtifactRunEvent(onEvent, {
+      runId: runtimeRunId,
+      type: 'runtime.finalized',
+      role: 'finalizer',
+      message: 'Finalizing document...',
+      partId: 'finalize',
+      pct: 100,
+    });
     onEvent({
       type: 'progress',
       message: providerProfile.providerId === 'ollama'

@@ -4,7 +4,7 @@ import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
 function shouldUseQueuedSlides(runPlan: ArtifactRunPlan): boolean {
   return (
     runPlan.artifactType === 'presentation' &&
-    runPlan.workflow.queueMode === 'sequential' &&
+    runPlan.queueMode === 'sequential' &&
     runPlan.workQueue.some((part) => part.kind === 'slide')
   );
 }

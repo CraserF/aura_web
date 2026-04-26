@@ -85,7 +85,7 @@ export async function runPresentationWorkflow(
     }
 
     planResult = applyArtifactRunPlanToPresentationPlan(planResult, input.artifactRunPlan, isEdit);
-    const guidanceProfile = input.templateGuidance ?? input.artifactRunPlan?.workflow.templateGuidance;
+    const guidanceProfile = input.templateGuidance ?? input.artifactRunPlan?.templateGuidance;
 
     onEvent({
       type: 'progress',

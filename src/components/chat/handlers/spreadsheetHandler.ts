@@ -21,6 +21,8 @@ import { resolveTargets } from '@/services/editing/resolveTargets';
 import { validateArtifactAgainstProfile } from '@/services/validation';
 import { summarizeValidationResult } from '@/services/validation/profiles';
 import { deriveLifecycleFromValidation } from '@/services/lifecycle/state';
+import { emitSpreadsheetRuntimeResultEvents } from '@/services/artifactRuntime';
+import type { WorkflowEvent } from '@/services/ai/workflow/types';
 
 function isDefaultSheet(doc: ProjectDocument | null): boolean {
   const sheet = doc?.workbook?.sheets[doc.workbook?.activeSheetIndex ?? 0];
@@ -100,6 +102,21 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
 
   setStatus({ state: 'generating', startedAt: Date.now(), step: 'Working on spreadsheet…', pct: 20 });
   setStreamingContent('');
+  const onRuntimeEvent = (event: WorkflowEvent) => {
+    switch (event.type) {
+      case 'progress':
+        setStatus({ state: 'generating', startedAt: Date.now(), step: event.message, pct: event.pct });
+        break;
+      case 'step-start':
+      case 'step-done':
+      case 'step-update':
+        setStatus({ state: 'generating', startedAt: Date.now(), step: event.label });
+        break;
+      case 'step-error':
+        setStatus({ state: 'generating', startedAt: Date.now(), step: event.error });
+        break;
+    }
+  };
 
   const buildValidationState = (documentId?: string) => {
     const persistedDocument = documentId
@@ -146,6 +163,11 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
       activeDocumentId: activeDocument?.id ?? null,
       projectDocumentCount: context.data.projectDocumentCount,
       isDefaultSheet: docIsDefaultSheet,
+    });
+    emitSpreadsheetRuntimeResultEvents({
+      runPlan: runRequest.artifactRunPlan,
+      result,
+      onEvent: onRuntimeEvent,
     });
 
     if (result.kind === 'clarification-needed') {

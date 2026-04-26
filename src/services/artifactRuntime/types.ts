@@ -1,8 +1,12 @@
 import type { DocumentType } from '@/types/project';
 import type {
+  ArtifactWorkflowRequestKind,
   ArtifactWorkflowPlan,
+  DocumentThemeFamily,
   PresentationRecipeId,
   QueuedWorkItem,
+  TemplateGuidanceProfile,
+  WorkflowPreservationIntent,
   WorkflowProviderTier,
 } from '@/services/workflowPlanner/types';
 
@@ -100,6 +104,13 @@ export interface ArtifactRunPlan {
   operation: 'create' | 'edit' | 'action';
   userIntent: string;
   intentSummary: string;
+  requestKind: ArtifactWorkflowRequestKind;
+  preservationIntent: WorkflowPreservationIntent;
+  presentationRecipeId?: PresentationRecipeId;
+  documentThemeFamily?: DocumentThemeFamily;
+  queueMode: 'none' | 'sequential';
+  templateGuidance: TemplateGuidanceProfile;
+  /** Compatibility field for older workflow consumers while ArtifactRunPlan becomes primary. */
   workflow: ArtifactWorkflowPlan;
   roles: ArtifactRuntimeRole[];
   providerPolicy: ArtifactProviderPolicy;

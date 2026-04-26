@@ -34,4 +34,20 @@ describe('presentation runtime policy', () => {
     expect(presentationRuntimeSource).toMatch(/repairPresentationRuntimeOutput/);
     expect(designerSource).not.toMatch(/softTimeoutMs|Draft stream soft timeout|Edit correction soft timeout/);
   });
+
+  it('keeps external execution-spec adapters out of active generation paths', () => {
+    const activeSources = [
+      'services/chat/buildRunRequest.ts',
+      'services/chat/submitPrompt.ts',
+      'components/chat/handlers/presentationHandler.ts',
+      'components/chat/handlers/documentHandler.ts',
+      'components/chat/handlers/spreadsheetHandler.ts',
+      'services/ai/workflow/presentation.ts',
+      'services/ai/workflow/document.ts',
+      'services/ai/workflow/spreadsheet.ts',
+    ].map(readSource).join('\n');
+
+    expect(activeSources).not.toMatch(/services\/executionSpec|@\/services\/executionSpec/);
+    expect(activeSources).not.toMatch(/run\.spec-built|run\.explained/);
+  });
 });

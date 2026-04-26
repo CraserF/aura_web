@@ -180,7 +180,7 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         memoryContext,
         projectRulesBlock: runRequest.projectRulesSnapshot.promptBlock || undefined,
         artifactRunPlan: runRequest.artifactRunPlan,
-        templateGuidance: runRequest.workflowPlan?.templateGuidance,
+        templateGuidance: runRequest.artifactRunPlan.templateGuidance,
         ...(isEditFlow ? {
           editing: {
             resolvedTargets,

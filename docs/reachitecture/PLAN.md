@@ -96,6 +96,30 @@ Last updated: 2026-04-26.
   - old presentation workflow no longer owning designer/evaluator imports or queued batch execution;
   - runtime-owned presentation generation functions.
 
+### Completed In Fourth Runtime Slice
+- Promoted the core workflow decisions onto `ArtifactRunPlan` itself:
+  - request kind;
+  - preservation intent;
+  - presentation recipe;
+  - document theme family;
+  - queue mode;
+  - template guidance.
+- Kept the older nested `workflow` object as a compatibility field while active consumers move to the runtime plan as the primary source of truth.
+- Updated presentation routing and chat runtime metrics to read from top-level runtime plan fields where possible.
+- Replaced the presentation repair placeholder with a deterministic repair pass that:
+  - unwraps accidental `<html>` / `<body>` / Reveal wrapper shells;
+  - strips scripts, links, metadata, iframes, embeds, and external media/assets;
+  - removes external CSS `url(http...)` references;
+  - adds concrete `data-background-color` values when missing;
+  - adds a reduced-motion fallback when animated CSS lacks one;
+  - removes only empty optional `<p>` and leaf `<div>` shells while preserving structural/decorative containers.
+- Fixed detached template-clone cleanup so starter/runtime repair cleanup works on cloned sections that are not connected to the document.
+- Added prompt contract coverage for the compact artifact/presentation prompt packs.
+- Tightened final designer prompt rules so the final required format is `<style>` plus `<section>` elements only, with no `<link>` allowance.
+- Added active-generation import boundary coverage proving execution-spec adapters stay out of current chat generation paths.
+- Started document runtime V1 by passing the active `ArtifactRunPlan` into document generation and emitting runtime plan/part/validation/finalization events through the shared event adapter.
+- Added a spreadsheet runtime bridge that maps deterministic spreadsheet results into shared validation, part-completion, and finalization events without changing workbook execution.
+
 ### Validation Completed
 - `npm test -- artifact-runtime workflow-planner run-request run-dry-run run-explain structured-run-outputs external-adapter-contracts run-events workflow-benchmark-cases`
   - Passed: 9 files, 23 tests.
@@ -122,13 +146,25 @@ Last updated: 2026-04-26.
     - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
   - Changed-file ESLint
     - Passed.
+- Current fourth-slice focused validation:
+  - `npm test -- artifact-runtime prompt-contracts presentation-runtime-policy project-starter-kits init-project run-request`
+    - Passed: 6 files, 18 tests.
+  - `npm run typecheck`
+    - Passed.
+  - `npm test`
+    - Passed: 94 files, 514 tests.
+  - `npm run build`
+    - Passed.
+    - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
+  - Changed-file ESLint
+    - Passed.
 
 ### Current Open State
 - The active runtime now has an internal plan object, and queued plus single-slide presentation generation are controlled by the runtime layer.
-- `ArtifactRunPlan` currently wraps the existing `ArtifactWorkflowPlan`; the next slice should make the runtime plan the primary planner output rather than an adapter around the older plan.
+- `ArtifactRunPlan` now exposes the primary planning decisions directly. The nested `workflow` object remains as compatibility scaffolding and should be removed after document/spreadsheet handlers no longer need it.
 - Legacy external execution-spec files still exist in the repository as quarantined code, but active chat generation no longer imports them.
 - Starter presentation generation now creates runtime plans and uses runtime-owned template parsing, token replacement, section assembly, sanitize/validate/finalize behavior, and telemetry.
-- The current repair stage records the handoff point and validation summary, but it does not yet perform targeted deterministic or LLM repair.
+- The current presentation repair stage performs a first deterministic fragment repair pass. It does not yet perform targeted LLM repair for semantic/layout failures that deterministic repair cannot fix.
 - Documents and spreadsheets still use their current handlers, though they now receive run requests that include `artifactRunPlan`.
 - Workflow presets still exist in the advanced UI and storage model. They are hidden from the default user surface but not removed yet.
 - Production templates are still mixed with legacy templates; routing has not yet been fully reduced to production families only.
@@ -352,17 +388,12 @@ Last updated: 2026-04-26.
 - Start with presentations, then extend to documents and spreadsheets.
 
 ## Immediate Next Implementation Slice
-- Make `ArtifactRunPlan` the primary planner product instead of an adapter over `ArtifactWorkflowPlan`.
-- Replace the repair placeholder with a first deterministic repair pass for presentation fragments:
-  - remove wrappers;
-  - strip scripts/external assets;
-  - resolve empty optional shells;
-  - preserve structural containers;
-  - re-run validation after repair.
-- Add prompt contract tests around compact prompt packs and the presentation fragment contract.
-- Add active-generation import boundary tests proving external execution-spec adapters stay quarantined.
-- Start document runtime V1 with outline/section/module parts and the same runtime event adapter.
-- Map spreadsheet starter/execution summaries into runtime events without changing deterministic workbook execution.
+- Remove remaining active reliance on `runRequest.workflowPlan` where `runRequest.artifactRunPlan` now has the same primary fields.
+- Move runtime planning logic fully out of `workflowPlanner/build.ts`, leaving `workflowPlanner` as a temporary compatibility adapter only.
+- Add deterministic repair follow-up coverage that re-runs validation after repair and records the repaired validation summary.
+- Add the first LLM repair handoff for presentation failures that deterministic repair cannot resolve, bounded by provider policy.
+- Expand document runtime V1 from event emission into outline/section/module runtime parts.
+- Add spreadsheet runtime tests for result-to-event mapping and deterministic workbook-event summaries.
 
 ## Test Plan
 - Add planner tests proving each user prompt produces exactly one authoritative `ArtifactRunPlan`.

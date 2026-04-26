@@ -7,12 +7,14 @@ export {
 export {
   canRunQueuedPresentationRuntime,
   finalizeStaticPresentationRuntime,
+  repairPresentationFragmentHtml,
   repairPresentationRuntimeOutput,
   runQueuedPresentationRuntime,
   runSinglePresentationRuntime,
   validatePresentationRuntimeOutput,
 } from './presentationRuntime';
 export { buildStaticPresentationStarterRuntime } from './starterPresentationRuntime';
+export { emitSpreadsheetRuntimeResultEvents } from './spreadsheetRuntime';
 export type { BuildArtifactRunPlanInput } from './build';
 export type { CreateArtifactRunEventInput } from './events';
 export type {

@@ -126,6 +126,10 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
           updateStepStatus(event.stepId, 'error');
           setStatus({ state: 'generating', startedAt: Date.now(), step: `Issue in ${event.stepId}`, steps: [...workflowStepsRef.current] });
           break;
+        case 'step-update':
+          updateStepStatus(event.stepId, event.status);
+          setStatus({ state: 'generating', startedAt: Date.now(), step: event.label, steps: [...workflowStepsRef.current] });
+          break;
       }
     };
 
@@ -149,7 +153,8 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
         chatHistory,
         memoryContext,
         projectRulesBlock: runRequest.projectRulesSnapshot.promptBlock || undefined,
-        templateGuidance: runRequest.workflowPlan?.templateGuidance,
+        templateGuidance: runRequest.artifactRunPlan.templateGuidance,
+        artifactRunPlan: runRequest.artifactRunPlan,
         styleHint: documentStylePreset,
         projectLinks: projectLinks.length > 0 ? projectLinks : undefined,
         imageParts: imageParts.length > 0 ? imageParts : undefined,
@@ -179,7 +184,7 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
       ? `Generated document "${result.title}".`
       : 'Generated document.';
     let changedDocumentId = activeDocument?.id;
-    let changeAction: 'created' | 'updated' = activeDocument?.type === 'document' ? 'updated' : 'created';
+    const changeAction: 'created' | 'updated' = activeDocument?.type === 'document' ? 'updated' : 'created';
 
     if (result.html) {
       if (activeDocument?.type === 'document') {

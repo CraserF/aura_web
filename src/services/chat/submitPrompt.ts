@@ -290,7 +290,7 @@ export async function submitPrompt(
       mode: runRequest.mode,
       runtimePlanVersion: runRequest.artifactRunPlan.version,
       artifactType: runRequest.artifactRunPlan.artifactType,
-      requestKind: runRequest.artifactRunPlan.workflow.requestKind,
+      requestKind: runRequest.artifactRunPlan.requestKind,
       queuedPartCount: runRequest.artifactRunPlan.workQueue.length,
       selectedPresetId: runRequest.selectedPresetId,
     },

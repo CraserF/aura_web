@@ -134,7 +134,7 @@ These rules are repeated here because recency matters. Violating any of them pro
 2. **\`submitFinalSlide\` is the ONLY valid completion signal.** Never stop, truncate, or output a code block without calling \`submitFinalSlide\`. Every generation MUST end with a \`submitFinalSlide\` tool call.
 3. **\`data-background-color\` must be a concrete hex value.** Never set it to a CSS variable like \`var(--bg)\` or a CSS color name — always a literal \`#rrggbb\` hex code.
 4. **No external image URLs.** Do not use \`src="https://…"\` on \`<img>\` elements or \`background-image: url(https://…)\` in CSS. Use Bootstrap Icons, emoji, or inline \`<svg>\` only.
-5. **Output structure is exactly: \`<link>\` (if fonts needed) + \`<style>\` block + \`<section>\` element(s) — nothing else.** No \`<!DOCTYPE>\`, no \`<html>\`, no \`<body>\`, no markdown prose outside the code block.`);
+5. **Output structure is exactly: \`<style>\` block + \`<section>\` element(s) — nothing else.** No \`<link>\`, no \`<!DOCTYPE>\`, no \`<html>\`, no \`<body>\`, no markdown prose outside the code block.`);
     return this;
   }
 
@@ -274,7 +274,7 @@ You are making MINIMAL, TARGETED fixes to a specific list of design errors in an
 6. Do NOT remove or alter \`@keyframes\`, background SVG layers, z-index layering, or CSS custom-property definitions.
 7. Do NOT alter \`<section style="padding:0; overflow:hidden;">\` unless a layout error on that element is explicitly listed.
 8. Copy the existing \`<style>\` block AS-IS and change ONLY the specific property values that fix the listed errors.
-9. Output the COMPLETE corrected HTML — \`<link>\` (if present), \`<style>\`, and all \`<section>\` elements.`)
+9. Output the COMPLETE corrected HTML — \`<style>\` and all \`<section>\` elements only.`)
     .build();
 }
 
@@ -322,7 +322,7 @@ You are modifying existing slide(s) based on a user request.
 - Do NOT change \`padding\` on the wrapper unless the user explicitly asked to change padding.
 - Keep the exact same CSS architecture, palette, fonts, animation patterns, and variable definitions.
 - Replace all template placeholders with real, topic-matching copy. Never leave tokens like \`{{COMPANY}}\`, \`{{DATE}}\`, \`[INSERT ...]\`, \`[YOUR ...]\`, or \`Lorem ipsum\` in the final slide.
-- If the slide uses custom font families, preserve or add the required Google Fonts \`<link>\` or \`@font-face\` source declaration in the final output.
+- If the slide uses custom font families, preserve existing local font-family CSS declarations, but do not add external font links or remote font assets.
 - Preserve contained-stage readability when the slide is scaled down into smaller framed mobile viewports.
 - If the request is to add slides, treat existing slides as immutable unless the user explicitly requested edits to specific existing slides.
 - For add-slide requests, append new slide sections and keep existing \`<style>\` and \`<section>\` elements unchanged.

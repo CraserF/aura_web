@@ -7,6 +7,7 @@ import {
 } from '@/services/artifactRuntime/events';
 import {
   finalizeStaticPresentationRuntime,
+  repairPresentationFragmentHtml,
   validatePresentationRuntimeOutput,
 } from '@/services/artifactRuntime/presentationRuntime';
 import { buildSlideBriefsFromRunPlan } from '@/services/artifactRuntime/presentation';
@@ -27,6 +28,9 @@ describe('ArtifactRuntime plan', () => {
     });
 
     expect(plan.version).toBe(1);
+    expect(plan.requestKind).toBe('batch');
+    expect(plan.queueMode).toBe('sequential');
+    expect(plan.templateGuidance).toBe(plan.workflow.templateGuidance);
     expect(plan.workflow.requestKind).toBe('batch');
     expect(plan.roles).toEqual(['planner', 'design-director', 'generator', 'validator', 'repairer', 'finalizer']);
     expect(plan.providerPolicy.mode).toBe('frontier-quality');
@@ -125,5 +129,39 @@ describe('ArtifactRuntime plan', () => {
       label: 'Creating slide part',
       status: 'active',
     });
+  });
+
+  it('repairs presentation fragments without preserving unsafe wrappers or assets', () => {
+    const repaired = repairPresentationFragmentHtml(`
+      <!doctype html>
+      <html>
+        <head>
+          <link rel="stylesheet" href="https://example.com/fonts.css">
+          <style>
+            .hero { animation: glow 1s ease; background-image: url("https://example.com/bg.png"); }
+            @keyframes glow { from { opacity: .8; } to { opacity: 1; } }
+          </style>
+        </head>
+        <body>
+          <div class="reveal">
+            <div class="slides">
+              <section>
+                <div class="slide-content"><div></div><h1>Runtime repair</h1><p></p></div>
+                <img src="https://example.com/photo.png" alt="">
+              </section>
+            </div>
+          </div>
+          <script>window.bad = true;</script>
+        </body>
+      </html>
+    `);
+
+    expect(repaired.changed).toBe(true);
+    expect(repaired.html).toContain('<style>');
+    expect(repaired.html).toContain('<section data-background-color="#ffffff">');
+    expect(repaired.html).toContain('prefers-reduced-motion');
+    expect(repaired.html).toContain('class="slide-content"');
+    expect(repaired.html).not.toMatch(/<html|<body|<script|<link|https?:\/\//i);
+    expect(repaired.html).not.toContain('<p></p>');
   });
 });

@@ -30,6 +30,7 @@ export interface PresentationRuntimeRepairResult {
   repairCount: number;
   repaired: boolean;
   summary: string;
+  validation?: PresentationRuntimeValidationResult;
 }
 
 export interface QueuedPresentationRuntimeOptions {
@@ -86,6 +87,149 @@ function startProgressHeartbeat(opts: {
   return () => clearInterval(timer);
 }
 
+const STRUCTURAL_EMPTY_CLASSES = [
+  'slide-content',
+  'layout',
+  'scene-particles',
+  'particle',
+  'slides',
+  'reveal',
+];
+
+function extractPresentationSections(doc: Document): HTMLElement[] {
+  const slideSections = Array.from(doc.querySelectorAll<HTMLElement>('.slides > section'));
+  return slideSections.length > 0 ? slideSections : Array.from(doc.querySelectorAll<HTMLElement>('section'));
+}
+
+function hasExternalUrl(value: string): boolean {
+  return /https?:\/\//i.test(value);
+}
+
+function repairStyleText(value: string): string {
+  return value
+    .replace(/@import\s+url\(\s*["']?https?:\/\/[^"')]+["']?\s*\)\s*;?/gi, '')
+    .replace(/url\(\s*["']?https?:\/\/[^"')]+["']?\s*\)/gi, 'none');
+}
+
+function isStructuralElement(element: HTMLElement): boolean {
+  return STRUCTURAL_EMPTY_CLASSES.some((className) =>
+    Array.from(element.classList).some((candidate) =>
+      candidate === className || candidate.startsWith(`${className}-`)));
+}
+
+function hasMediaOrIconChild(element: HTMLElement): boolean {
+  return Boolean(element.querySelector('img, svg, canvas, video, picture, icon, [data-icon]'));
+}
+
+function isSeparatorElement(element: Element | null): element is HTMLElement {
+  return element instanceof HTMLElement && (
+    element.tagName.toLowerCase() === 'hr' ||
+    element.classList.contains('separator') ||
+    element.classList.contains('heading-divider')
+  );
+}
+
+function cleanupEmptyOptionalElements(section: HTMLElement): void {
+  const candidates = Array.from(section.querySelectorAll<HTMLElement>('p, div'));
+
+  for (const element of candidates) {
+    if (isStructuralElement(element)) continue;
+    if (element.textContent?.trim()) continue;
+    if (hasMediaOrIconChild(element)) continue;
+
+    const isParagraph = element.tagName.toLowerCase() === 'p';
+    const isLeafDiv = element.tagName.toLowerCase() === 'div' && element.children.length === 0;
+    if (!isParagraph && !isLeafDiv) continue;
+
+    const nextElement = element.nextElementSibling;
+    element.remove();
+    if (isSeparatorElement(nextElement)) {
+      nextElement.remove();
+    }
+  }
+}
+
+function stripUnsupportedAssets(doc: Document): void {
+  doc.querySelectorAll('script, iframe, object, embed, link, meta, title').forEach((node) => node.remove());
+
+  for (const style of Array.from(doc.querySelectorAll<HTMLStyleElement>('style'))) {
+    style.textContent = repairStyleText(style.textContent ?? '');
+  }
+
+  for (const element of Array.from(doc.querySelectorAll<HTMLElement>('*'))) {
+    for (const attribute of Array.from(element.attributes)) {
+      const value = attribute.value;
+      const lowerName = attribute.name.toLowerCase();
+      const isExternalAssetAttribute = ['src', 'href', 'xlink:href', 'poster'].includes(lowerName) && hasExternalUrl(value);
+      const hasExternalCssAsset = lowerName === 'style' && /url\(\s*["']?https?:\/\//i.test(value);
+
+      if (isExternalAssetAttribute) {
+        if (['img', 'image', 'source', 'video', 'audio', 'picture'].includes(element.tagName.toLowerCase())) {
+          element.remove();
+          break;
+        }
+        element.removeAttribute(attribute.name);
+      } else if (hasExternalCssAsset) {
+        element.setAttribute(attribute.name, repairStyleText(value));
+      }
+    }
+  }
+}
+
+function ensureConcreteSectionBackgrounds(sections: HTMLElement[]): void {
+  for (const section of sections) {
+    const current = section.getAttribute('data-background-color')?.trim();
+    if (!current || current.startsWith('var(')) {
+      section.setAttribute('data-background-color', '#ffffff');
+    }
+  }
+}
+
+function buildStyleFragment(doc: Document): string {
+  const styleText = Array.from(doc.querySelectorAll<HTMLStyleElement>('style'))
+    .map((style) => style.textContent?.trim() ?? '')
+    .filter(Boolean)
+    .join('\n\n');
+  if (!styleText) {
+    return '<style>\n</style>';
+  }
+
+  const needsReducedMotion = /\b(?:animation\s*:|@keyframes\b)/i.test(styleText) && !/prefers-reduced-motion/i.test(styleText);
+  const repairedStyleText = needsReducedMotion
+    ? `${styleText}\n\n@media (prefers-reduced-motion: reduce) {\n  *, *::before, *::after { animation: none !important; transition: none !important; }\n}`
+    : styleText;
+
+  return `<style>\n${repairedStyleText}\n</style>`;
+}
+
+export function repairPresentationFragmentHtml(html: string): { html: string; changed: boolean } {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  stripUnsupportedAssets(doc);
+  const sections = extractPresentationSections(doc)
+    .map((section) => section.cloneNode(true) as HTMLElement);
+
+  if (sections.length === 0) {
+    return { html, changed: false };
+  }
+
+  ensureConcreteSectionBackgrounds(sections);
+  for (const section of sections) {
+    cleanupEmptyOptionalElements(section);
+  }
+
+  const repairedHtml = [
+    buildStyleFragment(doc),
+    ...sections.map((section) => section.outerHTML),
+  ].join('\n');
+
+  return {
+    html: repairedHtml,
+    changed: repairedHtml.trim() !== html.trim(),
+  };
+}
+
 export function canRunQueuedPresentationRuntime(planResult: PlanResult): boolean {
   return (
     (planResult.intent === 'batch_create' || planResult.intent === 'add_slides') &&
@@ -121,6 +265,8 @@ export function validatePresentationRuntimeOutput(
 export async function repairPresentationRuntimeOutput(
   html: string,
   validation: PresentationRuntimeValidationResult,
+  planResult: PlanResult,
+  expectedSlideCount: number,
   runPlan: ArtifactRunPlan | undefined,
   onEvent: EventListener,
 ): Promise<PresentationRuntimeRepairResult> {
@@ -147,15 +293,34 @@ export async function repairPresentationRuntimeOutput(
     runId: runPlan?.runId ?? 'presentation-runtime',
     type: 'runtime.repair-started',
     role: 'repairer',
-    message: 'Runtime repair is queued for a later slice; keeping validated draft unchanged.',
+    message: 'Applying deterministic presentation repair.',
     pct: 88,
   });
+
+  const repaired = repairPresentationFragmentHtml(html);
+  if (repaired.changed) {
+    const repairedValidation = validatePresentationRuntimeOutput(
+      repaired.html,
+      planResult,
+      expectedSlideCount,
+    );
+
+    return {
+      html: repaired.html,
+      repairCount: 1,
+      repaired: true,
+      validation: repairedValidation,
+      summary: repairedValidation.passed
+        ? 'Deterministic presentation repair passed validation.'
+        : `Deterministic presentation repair completed with ${repairedValidation.blockingCount} blocking issue(s) and ${repairedValidation.advisoryCount} advisory issue(s) remaining.`,
+    };
+  }
 
   return {
     html,
     repairCount: 0,
     repaired: false,
-    summary: 'Repair stub recorded; deterministic repair implementation is pending.',
+    summary: 'No deterministic presentation repair was available for the remaining issues.',
   };
 }
 
@@ -246,6 +411,8 @@ export async function runQueuedPresentationRuntime(
   const repair = await repairPresentationRuntimeOutput(
     batchResult.html,
     validation,
+    planResult,
+    batchResult.slideCount,
     runPlan,
     onEvent,
   );
@@ -262,18 +429,19 @@ export async function runQueuedPresentationRuntime(
   }
 
   onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing presentation…' });
+  const finalValidation = repair.validation ?? validation;
 
   const output: PresentationOutput = {
     html: sanitizeInnerHtml(repair.html),
     title: batchResult.title,
     slideCount: batchResult.slideCount,
-    reviewPassed: validation.passed,
+    reviewPassed: finalValidation.passed,
     runtime: {
       ...(firstPreviewAt ? { timeToFirstPreviewMs: Math.round(firstPreviewAt - runtimeStart) } : {}),
       totalRuntimeMs: Math.round(performance.now() - runtimeStart),
-      validationPassed: validation.passed,
-      validationBlockingCount: validation.blockingCount,
-      validationAdvisoryCount: validation.advisoryCount,
+      validationPassed: finalValidation.passed,
+      validationBlockingCount: finalValidation.blockingCount,
+      validationAdvisoryCount: finalValidation.advisoryCount,
       repairCount: repair.repairCount,
     },
   };
