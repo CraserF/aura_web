@@ -133,6 +133,9 @@ describe('document runtime workflow orchestration', () => {
     expect(result.runtime?.queuedPartCount).toBeGreaterThan(0);
     expect(result.runtime?.completedPartCount).toBe(result.runtime?.queuedPartCount);
     expect(result.runtime?.timeToFirstPreviewMs).toBeGreaterThanOrEqual(0);
+    expect(events.some((event) => event.type === 'streaming' && event.stepId === 'generate')).toBe(true);
+    expect(events.some((event) => event.type === 'step-update' && event.stepId === 'document-outline' && event.status === 'active')).toBe(true);
+    expect(events.some((event) => event.type === 'step-update' && event.stepId === 'document-module-1' && event.status === 'done')).toBe(true);
     expect(events.some((event) => event.type === 'progress' && event.message === 'Creating document outline and modules…')).toBe(true);
   });
 

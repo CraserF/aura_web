@@ -15,7 +15,7 @@ import type {
   PresentationInput,
   PresentationOutput,
 } from '@/services/ai/workflow/types';
-import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
+import type { TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
 
 export interface PresentationRuntimeValidationResult {

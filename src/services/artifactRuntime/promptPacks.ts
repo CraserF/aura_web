@@ -1,4 +1,4 @@
-import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
+import type { TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
 
 export function buildCoreArtifactContractPack(): string {
   return `## ARTIFACT RUNTIME CONTRACT
@@ -34,6 +34,18 @@ ${guidanceProfile?.presentationRecipeId ? `- Slide recipe: ${guidanceProfile.pre
 ${guidanceProfile?.referenceStylePackId ? `- Reference style pack: ${guidanceProfile.referenceStylePackId}` : '- Reference style pack: one selected pack only'}
 
 Keep the result canvas-safe for the fixed 16:9 Reveal stage inside Aura.`;
+}
+
+export function buildDocumentModuleContractPack(input: { partId: string; repair?: boolean }): string {
+  return `## DOCUMENT MODULE CONTRACT
+
+Return only one semantic HTML module:
+- use exactly one wrapper: <section class="doc-section doc-runtime-module" data-runtime-part="${input.partId}">
+- include one clear <h2>
+- include useful body content with <p>, <ul>, <ol>, <table>, or simple nested <div> blocks only when useful
+- use shared classes when helpful: doc-kpi-row, doc-kpi, doc-comparison, doc-compare-card, doc-proof-strip, doc-proof-item, doc-timeline, doc-timeline-item, doc-sidebar-layout, doc-main, doc-aside
+- ${input.repair ? 'fix only the failed module issues and preserve useful existing structure' : 'do not repeat the document shell'}
+- do not include <style>, <script>, <html>, <head>, <body>, remote assets, or JavaScript`;
 }
 
 export function buildValidatorFeedbackPack(feedback: string[]): string {

@@ -1,7 +1,7 @@
 import { detectTemplateStyle, type TemplateStyle } from './palettes';
 import { selectTemplate } from './selector';
 import type { TemplateId } from './registry';
-import type { PresentationRecipeId } from '@/services/workflowPlanner/types';
+import type { PresentationRecipeId } from '@/services/artifactRuntime/types';
 
 export interface StyleManifest {
   compositionMode:

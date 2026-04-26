@@ -8,7 +8,7 @@ import type { EventListener } from './types';
 import { design } from './agents/designer';
 import { buildBatchSlidePrompt } from '../prompts/composer';
 import { sanitizeInnerHtml } from '@/services/html/sanitizer';
-import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
+import type { TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
 
 export interface BatchQueueOptions {
   planResult: PlanResult;

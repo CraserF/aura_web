@@ -1,5 +1,5 @@
 import { buildArtifactWorkflowPlan } from '@/services/artifactRuntime/planner';
-import type { BuildArtifactWorkflowPlanInput, PresentationRecipeId } from '@/services/workflowPlanner/types';
+import type { BuildArtifactWorkflowPlanInput, PresentationRecipeId } from '@/services/artifactRuntime/types';
 import type {
   ArtifactPart,
   ArtifactProviderPolicy,

@@ -18,7 +18,7 @@ import { buildAntiPatternsSection, buildCondensedAntiPatterns } from './sections
 import { buildTemplateExamplesSection } from './sections/template-examples';
 import { buildModernPatternsSection } from './sections/modern-patterns';
 import { buildChartGuidanceSection } from './sections/charts';
-import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
+import type { TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
 import {
   buildCoreArtifactContractPack,
   buildPresentationFragmentContractPack,

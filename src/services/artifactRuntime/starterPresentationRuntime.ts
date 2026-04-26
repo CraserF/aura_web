@@ -3,7 +3,7 @@ import { finalizeStaticPresentationRuntime } from '@/services/artifactRuntime/pr
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
 import type { TemplateId } from '@/services/ai/templates';
 import type { PresentationOutput } from '@/services/ai/workflow/types';
-import type { PresentationRecipeId } from '@/services/workflowPlanner/types';
+import type { PresentationRecipeId } from '@/services/artifactRuntime/types';
 
 export type StarterTokenValues = Record<string, string>;
 

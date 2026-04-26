@@ -1,4 +1,5 @@
 import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
+import { buildDocumentModuleContractPack } from '@/services/artifactRuntime/promptPacks';
 import type { ArtifactPart, ArtifactRunPlan } from '@/services/artifactRuntime/types';
 import { validateDocument } from '@/services/ai/workflow/agents/document-qa';
 import type { ArtifactRuntimeTelemetry, EventListener } from '@/services/ai/workflow/types';
@@ -248,14 +249,14 @@ Runtime part brief: ${input.part.brief}
 Outline:
 ${input.outline}
 
-Return only one semantic HTML module:
-- use a single wrapper: <section class="doc-section doc-runtime-module" data-runtime-part="${input.part.id}">
-- include one clear <h2>
-- include concise body content using <p>, <ul>, <ol>, <table>, or simple nested <div> blocks only when useful
-- when appropriate, use reusable classes: doc-kpi-row, doc-kpi, doc-comparison, doc-compare-card, doc-proof-strip, doc-proof-item, doc-timeline, doc-timeline-item, doc-sidebar-layout, doc-main, doc-aside
-- ${input.existingModuleHtml ? `preserve the useful structure of this existing module while applying the requested edit:\n\`\`\`html\n${input.existingModuleHtml}\n\`\`\`` : 'create the module from the outline and task brief'}
-- do not include <style>, <script>, <html>, <head>, <body>, remote assets, or JavaScript
-- do not repeat the document shell`;
+${input.existingModuleHtml ? `Existing module to edit:
+\`\`\`html
+${input.existingModuleHtml}
+\`\`\`
+
+preserve the useful structure of this existing module while applying the requested edit.` : 'Create the module from the outline and task brief.'}
+
+${buildDocumentModuleContractPack({ partId: input.part.id })}`;
 }
 
 export function buildDocumentRuntimeModuleRepairPrompt(input: BuildDocumentRuntimeModuleRepairPromptInput): string {
@@ -278,12 +279,7 @@ ${input.existingModuleHtml ? `Existing module:
 ${input.existingModuleHtml}
 \`\`\`` : 'The module is missing and must be created from the runtime part brief.'}
 
-Return only the repaired module:
-- use exactly one wrapper: <section class="doc-section doc-runtime-module" data-runtime-part="${input.part.id}">
-- include a clear <h2>
-- include useful body content; do not leave placeholder or empty prose
-- use shared classes when helpful: doc-kpi-row, doc-kpi, doc-comparison, doc-compare-card, doc-proof-strip, doc-proof-item, doc-timeline, doc-timeline-item, doc-sidebar-layout, doc-main, doc-aside
-- do not include <style>, <script>, <html>, <head>, <body>, remote assets, or JavaScript`;
+${buildDocumentModuleContractPack({ partId: input.part.id, repair: true })}`;
 }
 
 function normalizeText(value: string): string {

@@ -35,7 +35,7 @@ import { aiDebugLog, logPromptMetrics } from '../../debug';
 import { withRetry } from '../../fallbackModel';
 import type { EditStrategy, EditingTelemetry } from '@/services/editing/types';
 import { applyPresentationPatchBlocks } from '@/services/editing/patchPresentation';
-import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
+import type { TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
 
 export interface DesignResult {
   html: string;

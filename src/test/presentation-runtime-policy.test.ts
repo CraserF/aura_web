@@ -50,13 +50,16 @@ describe('presentation runtime policy', () => {
     expect(activeSources).not.toMatch(/services\/executionSpec|@\/services\/executionSpec/);
     expect(activeSources).not.toMatch(/run\.spec-built|run\.explained/);
     expect(activeSources).not.toMatch(/runRequest\.workflowPlan|workflowPlan:\s*runRequest/);
+    expect(activeSources).not.toMatch(/@\/services\/workflowPlanner/);
   });
 
   it('keeps workflow planner build as a compatibility export for runtime-owned planning', () => {
     const artifactRuntimeBuildSource = readSource('services/artifactRuntime/build.ts');
     const workflowPlannerBuildSource = readSource('services/workflowPlanner/build.ts');
+    const workflowPlannerTypesSource = readSource('services/workflowPlanner/types.ts');
 
     expect(artifactRuntimeBuildSource).toMatch(/artifactRuntime\/planner/);
     expect(workflowPlannerBuildSource.trim()).toBe("export { buildArtifactWorkflowPlan } from '@/services/artifactRuntime/planner';");
+    expect(workflowPlannerTypesSource).toMatch(/from '@\/services\/artifactRuntime\/types';/);
   });
 });

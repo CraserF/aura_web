@@ -19,6 +19,10 @@ export {
   validateDocumentRuntimeOutput,
 } from './documentRuntime';
 export {
+  estimateRuntimePromptTokens,
+  summarizeRuntimeDiagnostics,
+} from './diagnostics';
+export {
   artifactRunEventToWorkflowEvent,
   createArtifactRunEvent,
   emitArtifactRunEvent,
@@ -55,6 +59,11 @@ export type {
   DocumentRuntimeRepairResult,
   DocumentRuntimeValidationResult,
 } from './documentRuntime';
+export type {
+  RuntimeArtifactDiagnosticSummary,
+  RuntimeDiagnosticSample,
+  RuntimeDiagnosticSummary,
+} from './diagnostics';
 export type {
   PresentationRuntimeRepairResult,
   PresentationRuntimeValidationResult,

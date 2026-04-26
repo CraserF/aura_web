@@ -28,7 +28,7 @@ import {
 } from '../templates/document-blueprints';
 import { getReferenceStylePack } from '../templates';
 import { applyDocumentTargetedEdit, prepareDocumentHtmlForEditing } from '@/services/editing/patchDocument';
-import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
+import type { TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
 import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
 import {
   attachDocumentRuntimeParts,

@@ -1,0 +1,90 @@
+import type { DocumentType } from '@/types/project';
+import type { ArtifactRuntimeTelemetry } from '@/services/ai/workflow/types';
+
+export interface RuntimeDiagnosticSample {
+  artifactType: DocumentType;
+  telemetry: ArtifactRuntimeTelemetry;
+  promptText?: string;
+  promptChars?: number;
+}
+
+export interface RuntimeArtifactDiagnosticSummary {
+  sampleCount: number;
+  firstPreviewCount: number;
+  averageFirstPreviewMs?: number;
+  averageTotalRuntimeMs: number;
+  validationPassRate: number;
+  totalRepairCount: number;
+  totalQueuedPartCount: number;
+  totalRepairedPartCount: number;
+  estimatedPromptTokens: number;
+}
+
+export interface RuntimeDiagnosticSummary extends RuntimeArtifactDiagnosticSummary {
+  artifactTypes: DocumentType[];
+  byArtifactType: Partial<Record<DocumentType, RuntimeArtifactDiagnosticSummary>>;
+}
+
+function roundMetric(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function estimateTokensFromChars(charCount: number): number {
+  if (charCount <= 0) return 0;
+  return Math.max(1, Math.round(charCount / 4));
+}
+
+export function estimateRuntimePromptTokens(input: string | { text?: string; chars?: number }): number {
+  if (typeof input === 'string') return estimateTokensFromChars(input.length);
+  return estimateTokensFromChars(input.chars ?? input.text?.length ?? 0);
+}
+
+function summarizeRuntimeDiagnosticGroup(samples: RuntimeDiagnosticSample[]): RuntimeArtifactDiagnosticSummary {
+  const firstPreviewValues = samples
+    .map((sample) => sample.telemetry.timeToFirstPreviewMs)
+    .filter((value): value is number => typeof value === 'number');
+  const totalRuntimeMs = samples.reduce((sum, sample) => sum + sample.telemetry.totalRuntimeMs, 0);
+  const validationPassCount = samples.filter((sample) => sample.telemetry.validationPassed).length;
+  const estimatedPromptTokens = samples.reduce(
+    (sum, sample) => sum + estimateRuntimePromptTokens({
+      text: sample.promptText,
+      chars: sample.promptChars,
+    }),
+    0,
+  );
+
+  return {
+    sampleCount: samples.length,
+    firstPreviewCount: firstPreviewValues.length,
+    ...(firstPreviewValues.length > 0
+      ? {
+          averageFirstPreviewMs: roundMetric(
+            firstPreviewValues.reduce((sum, value) => sum + value, 0) / firstPreviewValues.length,
+          ),
+        }
+      : {}),
+    averageTotalRuntimeMs: samples.length > 0 ? roundMetric(totalRuntimeMs / samples.length) : 0,
+    validationPassRate: samples.length > 0 ? roundMetric(validationPassCount / samples.length) : 0,
+    totalRepairCount: samples.reduce((sum, sample) => sum + sample.telemetry.repairCount, 0),
+    totalQueuedPartCount: samples.reduce((sum, sample) => sum + (sample.telemetry.queuedPartCount ?? 0), 0),
+    totalRepairedPartCount: samples.reduce((sum, sample) => sum + (sample.telemetry.repairedPartCount ?? 0), 0),
+    estimatedPromptTokens,
+  };
+}
+
+export function summarizeRuntimeDiagnostics(samples: RuntimeDiagnosticSample[]): RuntimeDiagnosticSummary {
+  const byArtifactType: Partial<Record<DocumentType, RuntimeArtifactDiagnosticSummary>> = {};
+  const artifactTypes = Array.from(new Set(samples.map((sample) => sample.artifactType))).sort();
+
+  for (const artifactType of artifactTypes) {
+    byArtifactType[artifactType] = summarizeRuntimeDiagnosticGroup(
+      samples.filter((sample) => sample.artifactType === artifactType),
+    );
+  }
+
+  return {
+    ...summarizeRuntimeDiagnosticGroup(samples),
+    artifactTypes,
+    byArtifactType,
+  };
+}

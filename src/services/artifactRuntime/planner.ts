@@ -9,7 +9,7 @@ import type {
   WorkflowPreservationIntent,
   PresentationRecipeId,
   DocumentThemeFamily,
-} from '@/services/workflowPlanner/types';
+} from '@/services/artifactRuntime/types';
 import { parseSlideBriefs } from '@/services/ai/workflow/agents/planner';
 
 const STYLE_CHANGE_RE = /\b(style|theme|palette|color|font|typography|spacing|visual|design|look)\b/i;

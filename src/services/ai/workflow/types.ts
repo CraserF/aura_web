@@ -5,7 +5,7 @@
 import type { AIMessage, ProviderEntry } from '../types';
 import type { EditStrategy, EditingTelemetry, ResolvedTarget } from '@/services/editing/types';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
-import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
+import type { TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
 
 export type { AIMessage };
 

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildDocumentRuntimeTelemetry } from '@/services/artifactRuntime';
+import {
+  buildDocumentRuntimeTelemetry,
+  estimateRuntimePromptTokens,
+  summarizeRuntimeDiagnostics,
+} from '@/services/artifactRuntime';
 import type { DocumentRuntimeValidationResult } from '@/services/artifactRuntime';
 
 const passingValidation: DocumentRuntimeValidationResult = {
@@ -95,5 +99,82 @@ describe('runtime telemetry diagnostics', () => {
       completedPartCount: 3,
       repairedPartCount: 1,
     });
+  });
+
+  it('summarizes benchmark diagnostics by artifact type', () => {
+    const summary = summarizeRuntimeDiagnostics([
+      {
+        artifactType: 'document',
+        promptText: 'Create an executive document from the supplied source material.',
+        telemetry: buildDocumentRuntimeTelemetry({
+          runtimeStartMs: 0,
+          firstPreviewAtMs: 24,
+          nowMs: 120,
+          validation: passingValidation,
+          repairCount: 0,
+          runMode: 'queued-create',
+          queuedPartCount: 3,
+          completedPartCount: 3,
+        }),
+      },
+      {
+        artifactType: 'document',
+        promptChars: 400,
+        telemetry: buildDocumentRuntimeTelemetry({
+          runtimeStartMs: 0,
+          nowMs: 200,
+          validation: {
+            passed: false,
+            score: 72,
+            blockingCount: 1,
+            advisoryCount: 1,
+            summary: 'Needs repair.',
+          },
+          repairCount: 2,
+          runMode: 'single-stream',
+          repairedPartCount: 1,
+        }),
+      },
+      {
+        artifactType: 'presentation',
+        promptChars: 800,
+        telemetry: {
+          timeToFirstPreviewMs: 40,
+          totalRuntimeMs: 160,
+          validationPassed: true,
+          validationBlockingCount: 0,
+          validationAdvisoryCount: 0,
+          repairCount: 1,
+          runMode: 'queued-create',
+          queuedPartCount: 4,
+          completedPartCount: 4,
+        },
+      },
+    ]);
+
+    expect(summary.artifactTypes).toEqual(['document', 'presentation']);
+    expect(summary.sampleCount).toBe(3);
+    expect(summary.firstPreviewCount).toBe(2);
+    expect(summary.validationPassRate).toBe(0.67);
+    expect(summary.totalRepairCount).toBe(3);
+    expect(summary.totalQueuedPartCount).toBe(7);
+    expect(summary.totalRepairedPartCount).toBe(1);
+    expect(summary.estimatedPromptTokens).toBe(
+      estimateRuntimePromptTokens('Create an executive document from the supplied source material.') + 100 + 200,
+    );
+    expect(summary.byArtifactType.document).toEqual(expect.objectContaining({
+      sampleCount: 2,
+      validationPassRate: 0.5,
+      totalRepairCount: 2,
+      totalQueuedPartCount: 3,
+      totalRepairedPartCount: 1,
+    }));
+    expect(summary.byArtifactType.presentation).toEqual(expect.objectContaining({
+      sampleCount: 1,
+      validationPassRate: 1,
+      averageFirstPreviewMs: 40,
+      totalRepairCount: 1,
+      totalQueuedPartCount: 4,
+    }));
   });
 });
