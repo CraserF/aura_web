@@ -160,7 +160,6 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
       appliedPreset: projectRulesSnapshot.appliedPreset,
       projectSnapshot: buildProjectSnapshot(project),
       artifactRunPlan,
-      workflowPlan: artifactRunPlan.workflow,
       mode,
       createdAt: Date.now(),
     };

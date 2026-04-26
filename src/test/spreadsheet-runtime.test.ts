@@ -54,6 +54,97 @@ describe('spreadsheet runtime bridge', () => {
     ]);
   });
 
+  it.each([
+    {
+      kind: 'action-executed' as const,
+      expectedStepId: 'workbook-action',
+      message: 'Sorted Sheet 1 by Amount descending.',
+      extra: { updatedSheets: [] },
+    },
+    {
+      kind: 'query-view-created' as const,
+      expectedStepId: 'query',
+      message: 'Created query view "Revenue by Region" from "Sales".',
+      extra: { updatedSheets: [], targetSheetId: 'sheet-query' },
+    },
+    {
+      kind: 'chart-created' as const,
+      expectedStepId: 'chart',
+      message: 'Created a bar chart from "Sales" with 12 rows.',
+      extra: { chartHtml: '<div data-aura-chart="chart-1"></div>', chartType: 'bar', rowCount: 12 },
+    },
+  ])('maps $kind spreadsheet results to the expected runtime part', ({ kind, expectedStepId, message, extra }) => {
+    const runPlan = buildArtifactRunPlan({
+      runId: `${kind}-run`,
+      prompt: message,
+      artifactType: 'spreadsheet',
+      operation: 'action',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    const result = {
+      kind,
+      message,
+      planValidation: {
+        passed: true,
+        issues: [],
+      },
+      ...extra,
+    } as SpreadsheetOutput;
+    const events: WorkflowEvent[] = [];
+
+    emitSpreadsheetRuntimeResultEvents({
+      runPlan,
+      result,
+      onEvent: (event) => events.push(event),
+    });
+
+    expect(events[1]).toEqual({
+      type: 'step-update',
+      stepId: expectedStepId,
+      label: message,
+      status: 'done',
+    });
+  });
+
+  it('maps clarification results into runtime cancellation events', () => {
+    const runPlan = buildArtifactRunPlan({
+      runId: 'clarify-sheet-run',
+      prompt: 'Add a formula',
+      artifactType: 'spreadsheet',
+      operation: 'action',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    const result: SpreadsheetOutput = {
+      kind: 'clarification-needed',
+      message: 'Which column should the formula use?',
+      planValidation: {
+        passed: false,
+        issues: [],
+      },
+    };
+    const events: WorkflowEvent[] = [];
+
+    emitSpreadsheetRuntimeResultEvents({
+      runPlan,
+      result,
+      onEvent: (event) => events.push(event),
+    });
+
+    expect(events[1]).toEqual({
+      type: 'step-error',
+      stepId: 'workbook-action',
+      error: 'Which column should the formula use?',
+    });
+  });
+
   it('maps blocked spreadsheet results into runtime cancellation events', () => {
     const runPlan = buildArtifactRunPlan({
       runId: 'blocked-sheet-run',

@@ -22,7 +22,7 @@ import { validateArtifactAgainstProfile } from '@/services/validation';
 import { summarizeValidationResult } from '@/services/validation/profiles';
 import { deriveLifecycleFromValidation } from '@/services/lifecycle/state';
 import { emitSpreadsheetRuntimeResultEvents } from '@/services/artifactRuntime';
-import type { WorkflowEvent } from '@/services/ai/workflow/types';
+import type { ArtifactRuntimeTelemetry, WorkflowEvent } from '@/services/ai/workflow/types';
 
 function isDefaultSheet(doc: ProjectDocument | null): boolean {
   const sheet = doc?.workbook?.sheets[doc.workbook?.activeSheetIndex ?? 0];
@@ -139,6 +139,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
       : [];
     return { artifactValidation, validationWarnings };
   };
+  let runtimeTelemetry: ArtifactRuntimeTelemetry | undefined;
   const buildEnvelope = (
     changedTargets: RunResult['changedTargets'],
     validation: RunResult['validation'],
@@ -153,11 +154,13 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
     workflowPlan: runRequest.artifactRunPlan.workflow,
     spreadsheet: {
       artifactType: 'spreadsheet' as const,
+      ...(runtimeTelemetry ? { runtime: runtimeTelemetry } : {}),
       ...spreadsheet,
     },
   });
 
   try {
+    const workflowStart = performance.now();
     const result = await runSpreadsheetWorkflow({
       prompt: promptWithContext,
       activeWorkbook,
@@ -165,6 +168,14 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
       projectDocumentCount: context.data.projectDocumentCount,
       isDefaultSheet: docIsDefaultSheet,
     });
+    runtimeTelemetry = {
+      timeToFirstPreviewMs: 0,
+      totalRuntimeMs: Math.round(performance.now() - workflowStart),
+      validationPassed: result.planValidation?.passed ?? !['blocked', 'clarification-needed', 'no-intent'].includes(result.kind),
+      validationBlockingCount: result.planValidation?.issues.length ?? (['blocked', 'clarification-needed', 'no-intent'].includes(result.kind) ? 1 : 0),
+      validationAdvisoryCount: 0,
+      repairCount: 0,
+    };
     emitSpreadsheetRuntimeResultEvents({
       runPlan: runRequest.artifactRunPlan,
       result,

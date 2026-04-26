@@ -16,6 +16,7 @@ import { aiDebugLog, logEditingMetrics, logPromptMetrics } from '../debug';
 import { validateDocument } from './agents/document-qa';
 import { getProviderCapabilityProfile } from '../providerCapabilities';
 import type {
+  ArtifactRuntimeTelemetry,
   LLMConfig,
   EventListener,
 } from './types';
@@ -66,6 +67,7 @@ export interface DocumentOutput {
   html: string;
   markdown: string;
   title: string;
+  runtime?: ArtifactRuntimeTelemetry;
   editing?: EditingTelemetry;
 }
 
@@ -1023,6 +1025,8 @@ export async function runDocumentWorkflow(
   opts: RunDocumentWorkflowOptions,
 ): Promise<DocumentOutput> {
   const { input, llmConfig, onEvent, signal } = opts;
+  const runtimeStart = performance.now();
+  let firstPreviewAt: number | undefined;
   const isEdit = !!input.existingHtml && input.templateGuidance?.intentFamily !== 'rewrite';
   const runtimeRunId = input.artifactRunPlan?.runId ?? 'document-runtime';
   const providerProfile = getProviderCapabilityProfile({
@@ -1146,6 +1150,7 @@ export async function runDocumentWorkflow(
     try {
       for await (const chunk of stream.textStream) {
         if (signal?.aborted) break;
+        firstPreviewAt ??= performance.now();
         accumulated += chunk;
         onEvent({ type: 'streaming', stepId: 'generate', chunk });
       }
@@ -1252,6 +1257,14 @@ export async function runDocumentWorkflow(
       html: finalHtml,
       markdown: sourceMarkdown,
       title,
+      runtime: {
+        ...(firstPreviewAt ? { timeToFirstPreviewMs: Math.round(firstPreviewAt - runtimeStart) } : {}),
+        totalRuntimeMs: Math.round(performance.now() - runtimeStart),
+        validationPassed: qaResult.passed,
+        validationBlockingCount: qaResult.violations.filter((violation) => violation.severity === 'error').length,
+        validationAdvisoryCount: qaResult.violations.filter((violation) => violation.severity !== 'error').length,
+        repairCount: editingTelemetry?.fallbackUsed ? 1 : 0,
+      },
       ...(editingTelemetry ? { editing: editingTelemetry } : {}),
     };
 

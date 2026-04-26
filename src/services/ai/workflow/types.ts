@@ -51,8 +51,8 @@ export interface PresentationInput {
   };
 }
 
-/** Output from the presentation workflow */
-export interface PresentationRuntimeTelemetry {
+/** Runtime telemetry shared by artifact workflows as they move onto ArtifactRuntime. */
+export interface ArtifactRuntimeTelemetry {
   timeToFirstPreviewMs?: number;
   totalRuntimeMs: number;
   validationPassed: boolean;
@@ -60,6 +60,9 @@ export interface PresentationRuntimeTelemetry {
   validationAdvisoryCount: number;
   repairCount: number;
 }
+
+/** Output from the presentation workflow */
+export type PresentationRuntimeTelemetry = ArtifactRuntimeTelemetry;
 
 export interface PresentationOutput {
   html: string;

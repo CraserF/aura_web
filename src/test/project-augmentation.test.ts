@@ -139,7 +139,6 @@ function makeRunRequest(
       ),
     },
     artifactRunPlan,
-    workflowPlan: overrides.workflowPlan ?? artifactRunPlan.workflow,
     mode: overrides.mode ?? 'execute',
     createdAt: overrides.createdAt ?? 1,
   };

@@ -150,7 +150,8 @@ function buildBaseEnvelope(
     targetSummary,
     changedTargets,
     validation,
-    workflowPlan: runRequest.workflowPlan,
+    runtimePlan: runRequest.artifactRunPlan,
+    workflowPlan: runRequest.artifactRunPlan.workflow,
     explain,
   };
 }

@@ -13,13 +13,14 @@ import type { PublishReadinessResult } from '@/services/validation/types';
 import type { SpreadsheetExecutionSummary } from '@/services/spreadsheet/plans';
 import type { ArtifactWorkflowPlan } from '@/services/workflowPlanner/types';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
-import type { PresentationRuntimeTelemetry } from '@/services/ai/workflow/types';
+import type { ArtifactRuntimeTelemetry, PresentationRuntimeTelemetry } from '@/services/ai/workflow/types';
 
 export interface DocumentRunOutputs {
   artifactType: 'document';
   title?: string;
   html?: string;
   markdown?: string;
+  runtime?: ArtifactRuntimeTelemetry;
   editing?: EditingTelemetry;
   publish?: PublishReadinessResult;
 }
@@ -45,6 +46,7 @@ export interface SpreadsheetRunOutputs {
   rowCount?: number;
   updatedSheets?: unknown;
   spreadsheet?: SpreadsheetExecutionSummary | RunResultSpreadsheetOutputs;
+  runtime?: ArtifactRuntimeTelemetry;
   editing?: EditingTelemetry;
   publish?: PublishReadinessResult;
 }

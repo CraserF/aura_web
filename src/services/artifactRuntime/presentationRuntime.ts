@@ -32,6 +32,7 @@ export interface PresentationRuntimeRepairResult {
   summary: string;
   validation?: PresentationRuntimeValidationResult;
   llmRepairRequested?: boolean;
+  llmRepairExecuted?: boolean;
 }
 
 export interface QueuedPresentationRuntimeOptions {
@@ -212,6 +213,76 @@ function canRequestLlmRepair(input: {
   return !input.validation.passed && input.repairCount < maxRepairPasses;
 }
 
+async function runBoundedLlmPresentationRepair(input: {
+  html: string;
+  deterministicRepairCount: number;
+  validation: PresentationRuntimeValidationResult;
+  planResult: PlanResult;
+  expectedSlideCount: number;
+  runPlan?: ArtifactRunPlan;
+  model?: LanguageModel;
+  projectRulesBlock?: string;
+  signal?: AbortSignal;
+  onEvent: EventListener;
+}): Promise<PresentationRuntimeRepairResult | null> {
+  if (!canRequestLlmRepair({
+    runPlan: input.runPlan,
+    validation: input.validation,
+    repairCount: input.deterministicRepairCount,
+  })) {
+    return null;
+  }
+
+  if (!input.model) {
+    return {
+      html: input.html,
+      repairCount: input.deterministicRepairCount,
+      repaired: input.deterministicRepairCount > 0,
+      validation: input.validation,
+      llmRepairRequested: true,
+      summary: input.deterministicRepairCount > 0
+        ? `Deterministic presentation repair completed with ${input.validation.blockingCount} blocking issue(s) and ${input.validation.advisoryCount} advisory issue(s) remaining; bounded LLM repair handoff requested.`
+        : 'Deterministic repair could not resolve the remaining blocking issues; bounded LLM repair handoff requested.',
+    };
+  }
+
+  const remainingPasses = Math.max(1, (input.runPlan?.providerPolicy.maxRepairPasses ?? 1) - input.deterministicRepairCount);
+  emitArtifactRunEvent(input.onEvent, {
+    runId: input.runPlan?.runId ?? 'presentation-runtime',
+    type: 'runtime.repair-started',
+    role: 'repairer',
+    message: `Running bounded LLM presentation repair (${remainingPasses} pass${remainingPasses === 1 ? '' : 'es'}).`,
+    pct: 90,
+  });
+
+  const repairedHtml = await evaluateAndRevise(
+    input.model,
+    input.html,
+    input.planResult,
+    input.onEvent,
+    input.projectRulesBlock,
+    input.signal,
+    remainingPasses,
+  );
+  const repairedValidation = validatePresentationRuntimeOutput(
+    repairedHtml,
+    input.planResult,
+    input.expectedSlideCount,
+  );
+
+  return {
+    html: repairedHtml,
+    repairCount: input.deterministicRepairCount + 1,
+    repaired: true,
+    validation: repairedValidation,
+    llmRepairRequested: true,
+    llmRepairExecuted: true,
+    summary: repairedValidation.passed
+      ? 'Bounded LLM presentation repair passed validation.'
+      : `Bounded LLM presentation repair completed with ${repairedValidation.blockingCount} blocking issue(s) and ${repairedValidation.advisoryCount} advisory issue(s) remaining.`,
+  };
+}
+
 export function repairPresentationFragmentHtml(html: string): { html: string; changed: boolean } {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
@@ -279,6 +350,11 @@ export async function repairPresentationRuntimeOutput(
   expectedSlideCount: number,
   runPlan: ArtifactRunPlan | undefined,
   onEvent: EventListener,
+  options: {
+    model?: LanguageModel;
+    projectRulesBlock?: string;
+    signal?: AbortSignal;
+  } = {},
 ): Promise<PresentationRuntimeRepairResult> {
   if (validation.passed) {
     return {
@@ -320,6 +396,23 @@ export async function repairPresentationRuntimeOutput(
       repairCount: 1,
     });
 
+    const llmRepair = await runBoundedLlmPresentationRepair({
+      html: repaired.html,
+      deterministicRepairCount: 1,
+      validation: repairedValidation,
+      planResult,
+      expectedSlideCount,
+      runPlan,
+      model: options.model,
+      projectRulesBlock: options.projectRulesBlock,
+      signal: options.signal,
+      onEvent,
+    });
+
+    if (llmRepair) {
+      return llmRepair;
+    }
+
     return {
       html: repaired.html,
       repairCount: 1,
@@ -343,7 +436,20 @@ export async function repairPresentationRuntimeOutput(
       pct: 90,
     });
 
-    return {
+    const llmRepair = await runBoundedLlmPresentationRepair({
+      html,
+      deterministicRepairCount: 0,
+      validation,
+      planResult,
+      expectedSlideCount,
+      runPlan,
+      model: options.model,
+      projectRulesBlock: options.projectRulesBlock,
+      signal: options.signal,
+      onEvent,
+    });
+
+    return llmRepair ?? {
       html,
       repairCount: 0,
       repaired: false,
@@ -451,6 +557,11 @@ export async function runQueuedPresentationRuntime(
     batchResult.slideCount,
     runPlan,
     onEvent,
+    {
+      model,
+      projectRulesBlock: input.projectRulesBlock,
+      signal,
+    },
   );
 
   if (validation.passed || !repair.repaired) {

@@ -85,7 +85,7 @@ describe('buildRunRequest', () => {
     expect(result.runRequest.artifactRunPlan.artifactType).toBe('document');
     expect(result.runRequest.artifactRunPlan.requestKind).toBe('edit');
     expect(result.runRequest.artifactRunPlan.templateGuidance.intentFamily).toBe('edit');
-    expect(result.runRequest.workflowPlan).toBe(result.runRequest.artifactRunPlan.workflow);
+    expect('workflowPlan' in result.runRequest).toBe(false);
     expect(result.runRequest.mode).toBe('execute');
     expect(result.runRequest.serializableSpec).toBeUndefined();
   });
