@@ -17,6 +17,7 @@ import {
   applyDocumentRuntimeModuleEdits,
   assembleDocumentRuntimeHtml,
   buildDocumentRuntimeModulePrompt,
+  buildDocumentRuntimeModuleRepairPrompt,
   buildDocumentRuntimeOutlinePrompt,
   buildDocumentRuntimePartPrompt,
   buildDocumentRuntimeTelemetry,
@@ -231,6 +232,18 @@ describe('ArtifactRuntime plan', () => {
         severity: 'blocking',
       }),
     ]));
+
+    const repairPrompt = buildDocumentRuntimeModuleRepairPrompt({
+      taskBrief: 'Create an executive briefing document',
+      documentType: 'brief',
+      part: parts[1]!,
+      issues: validation.moduleIssues?.filter((issue) => issue.partId === 'document-module-1') ?? [],
+      designFamily: 'executive-light',
+      existingModuleHtml: '<section data-runtime-part="document-module-1"><p>tiny</p></section>',
+    });
+    expect(repairPrompt).toContain('Repair one failed document module fragment');
+    expect(repairPrompt).toContain('empty');
+    expect(repairPrompt).toContain('data-runtime-part="document-module-1"');
   });
 
   it('resolves targeted document edits to runtime modules and applies module-local replacements', () => {
@@ -282,6 +295,42 @@ describe('ArtifactRuntime plan', () => {
     expect(editedHtml).toContain('Updated risk language with clearer owners.');
     expect(editedHtml).not.toContain('Old risk language');
     expect(validateDocumentRuntimeModules(editedHtml, parts).passed).toBe(true);
+  });
+
+  it('applies queued module repair fragments by appending missing modules', () => {
+    const plan = buildArtifactRunPlan({
+      runId: 'doc-repair-append-run',
+      prompt: 'Repair the missing module',
+      artifactType: 'document',
+      operation: 'edit',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    const parts = attachDocumentRuntimeParts({
+      runPlan: plan,
+      documentType: 'brief',
+      blueprintLabel: 'Executive Brief',
+      recommendedModules: ['executive summary', 'risk section'],
+      isEdit: true,
+    });
+    const existingHtml = '<main class="doc-shell"><section data-runtime-part="document-module-1"><h2>Executive summary</h2><p>Existing summary stays.</p></section></main>';
+
+    const repairedHtml = applyDocumentRuntimeModuleEdits({
+      existingHtml,
+      parts,
+      modules: [{
+        partId: 'document-module-2',
+        html: '<section><h2>Risk section</h2><p>Repaired risk section with owners and timing.</p></section>',
+      }],
+    });
+
+    expect(repairedHtml).toContain('Existing summary stays.');
+    expect(repairedHtml).toContain('data-runtime-part="document-module-2"');
+    expect(repairedHtml).toContain('Repaired risk section with owners and timing.');
+    expect(validateDocumentRuntimeModules(repairedHtml, parts).passed).toBe(true);
   });
 
   it('repairs missing document runtime module wrappers before final QA', () => {

@@ -35,6 +35,7 @@ import {
   applyDocumentRuntimeModuleEdits,
   assembleDocumentRuntimeHtml,
   buildDocumentRuntimeModulePrompt,
+  buildDocumentRuntimeModuleRepairPrompt,
   buildDocumentRuntimeOutlinePrompt,
   buildDocumentRuntimePartPrompt,
   buildDocumentRuntimeTelemetry,
@@ -949,6 +950,120 @@ async function runQueuedDocumentRuntimeEditDraft(input: {
   };
 }
 
+function findRuntimePartHtml(html: string, partId: string): string | undefined {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const element = Array.from(doc.body.querySelectorAll<HTMLElement>('[data-runtime-part]'))
+    .find((node) => node.getAttribute('data-runtime-part') === partId);
+  return element?.outerHTML;
+}
+
+async function runQueuedDocumentRuntimeModuleRepair(input: {
+  model: LanguageModel;
+  html: string;
+  workflowInput: DocumentInput;
+  plan: DocumentPlan;
+  runtimeParts: ArtifactPart[];
+  validation: ReturnType<typeof validateDocumentRuntimeModules>;
+  systemPrompt: string;
+  onEvent: EventListener;
+  signal?: AbortSignal;
+  runId: string;
+}): Promise<{
+  html: string;
+  repairCount: number;
+  repaired: boolean;
+  validation: ReturnType<typeof validateDocumentRuntimeModules>;
+  summary: string;
+}> {
+  const issues = input.validation.moduleIssues ?? [];
+  const maxRepairPasses = input.workflowInput.artifactRunPlan?.providerPolicy.maxRepairPasses ?? 0;
+  if (issues.length === 0 || maxRepairPasses <= 0) {
+    return {
+      html: input.html,
+      repairCount: 0,
+      repaired: false,
+      validation: input.validation,
+      summary: 'No queued document module repair available.',
+    };
+  }
+
+  const partsById = new Map(input.runtimeParts.map((part) => [part.id, part]));
+  const issueGroups = new Map<string, typeof issues>();
+  for (const issue of issues) {
+    issueGroups.set(issue.partId, [...(issueGroups.get(issue.partId) ?? []), issue]);
+  }
+
+  const designFamily = input.workflowInput.artifactRunPlan?.designManifest.family;
+  const modules = [];
+  const selectedGroups = Array.from(issueGroups.entries()).slice(0, maxRepairPasses);
+
+  for (const [partId, partIssues] of selectedGroups) {
+    const part = partsById.get(partId);
+    if (!part) continue;
+
+    emitArtifactRunEvent(input.onEvent, {
+      runId: input.runId,
+      type: 'runtime.repair-started',
+      role: 'repairer',
+      message: `Repairing ${part.title}`,
+      partId,
+      pct: 84,
+    });
+    const repairedModule = await streamDocumentRuntimeText({
+      model: input.model,
+      messages: [
+        { role: 'system', content: input.systemPrompt, providerOptions: CACHE_CONTROL } as ModelMessage,
+        {
+          role: 'user',
+          content: buildDocumentRuntimeModuleRepairPrompt({
+            taskBrief: input.workflowInput.prompt,
+            documentType: input.plan.documentType,
+            part,
+            issues: partIssues,
+            designFamily,
+            existingModuleHtml: findRuntimePartHtml(input.html, partId),
+          }),
+        },
+      ],
+      maxOutputTokens: input.workflowInput.artifactRunPlan?.providerPolicy.mode === 'local-constrained' ? 2048 : 3072,
+      ...(input.signal ? { signal: input.signal } : {}),
+      onChunk: (chunk) => input.onEvent({ type: 'streaming', stepId: 'qa', chunk }),
+    });
+    modules.push({
+      partId,
+      html: extractDocumentSource(repairedModule),
+    });
+  }
+
+  if (modules.length === 0) {
+    return {
+      html: input.html,
+      repairCount: 0,
+      repaired: false,
+      validation: input.validation,
+      summary: 'Queued document module repair skipped because no matching runtime parts were found.',
+    };
+  }
+
+  const repairedHtml = applyDocumentRuntimeModuleEdits({
+    existingHtml: input.html,
+    parts: input.runtimeParts,
+    modules,
+  });
+  const repairedValidation = validateDocumentRuntimeModules(repairedHtml, input.runtimeParts);
+
+  return {
+    html: repairedHtml,
+    repairCount: 1,
+    repaired: repairedHtml.trim() !== input.html.trim(),
+    validation: repairedValidation,
+    summary: repairedValidation.passed
+      ? 'Queued document module repair passed validation.'
+      : `Queued document module repair completed with ${repairedValidation.blockingCount} blocking issue(s) and ${repairedValidation.advisoryCount} advisory issue(s) remaining.`,
+  };
+}
+
 function getDocumentStructureGuide(documentType: ResolvedDocumentType): string {
   switch (documentType) {
     case 'report':
@@ -1574,20 +1689,42 @@ export async function runDocumentWorkflow(
     }
 
     let moduleRepairCount = 0;
-    const moduleValidation = validateDocumentRuntimeModules(finalHtml, runtimeParts);
+    let moduleValidation = validateDocumentRuntimeModules(finalHtml, runtimeParts);
     if (!moduleValidation.passed) {
       onEvent({ type: 'progress', message: moduleValidation.summary, pct: 82 });
-      const moduleRepair = repairDocumentRuntimeModules({
+      const queuedModuleRepair = await runQueuedDocumentRuntimeModuleRepair({
+        model,
         html: finalHtml,
-        parts: runtimeParts,
+        workflowInput: input,
+        plan: planResult,
+        runtimeParts,
         validation: moduleValidation,
-        runPlan: input.artifactRunPlan,
+        systemPrompt,
         onEvent,
+        ...(signal ? { signal } : {}),
+        runId: runtimeRunId,
       });
-      if (moduleRepair.repaired) {
-        finalHtml = sanitizeHtml(moduleRepair.html);
-        moduleRepairCount = moduleRepair.repairCount;
-        onEvent({ type: 'progress', message: moduleRepair.summary, pct: 84 });
+      if (queuedModuleRepair.repaired) {
+        finalHtml = sanitizeHtml(queuedModuleRepair.html);
+        moduleRepairCount += queuedModuleRepair.repairCount;
+        moduleValidation = queuedModuleRepair.validation;
+        onEvent({ type: 'progress', message: queuedModuleRepair.summary, pct: 84 });
+      }
+
+      if (!moduleValidation.passed) {
+        const moduleRepair = repairDocumentRuntimeModules({
+          html: finalHtml,
+          parts: runtimeParts,
+          validation: moduleValidation,
+          runPlan: input.artifactRunPlan,
+          onEvent,
+        });
+        if (moduleRepair.repaired) {
+          finalHtml = sanitizeHtml(moduleRepair.html);
+          moduleRepairCount += moduleRepair.repairCount;
+          moduleValidation = moduleRepair.validation;
+          onEvent({ type: 'progress', message: moduleRepair.summary, pct: 84 });
+        }
       }
     }
 

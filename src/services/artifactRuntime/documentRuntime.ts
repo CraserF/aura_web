@@ -85,6 +85,15 @@ export interface BuildDocumentRuntimeModulePromptInput {
   existingModuleHtml?: string;
 }
 
+export interface BuildDocumentRuntimeModuleRepairPromptInput {
+  taskBrief: string;
+  documentType: string;
+  part: ArtifactPart;
+  issues: DocumentRuntimeModuleIssue[];
+  designFamily?: string;
+  existingModuleHtml?: string;
+}
+
 export interface AssembleDocumentRuntimeHtmlInput {
   title: string;
   outline: string;
@@ -243,6 +252,34 @@ Return only one semantic HTML module:
 - ${input.existingModuleHtml ? `preserve the useful structure of this existing module while applying the requested edit:\n\`\`\`html\n${input.existingModuleHtml}\n\`\`\`` : 'create the module from the outline and task brief'}
 - do not include <style>, <script>, <html>, <head>, <body>, remote assets, or JavaScript
 - do not repeat the document shell`;
+}
+
+export function buildDocumentRuntimeModuleRepairPrompt(input: BuildDocumentRuntimeModuleRepairPromptInput): string {
+  return `Repair one failed document module fragment.
+
+Task:
+${input.taskBrief}
+
+Document type: ${input.documentType}
+Design family: ${input.designFamily ?? 'document-default'}
+Runtime part id: ${input.part.id}
+Runtime part title: ${input.part.title}
+Runtime part brief: ${input.part.brief}
+
+Validation issues:
+${input.issues.map((issue) => `- ${issue.severity}: ${issue.summary}`).join('\n')}
+
+${input.existingModuleHtml ? `Existing module:
+\`\`\`html
+${input.existingModuleHtml}
+\`\`\`` : 'The module is missing and must be created from the runtime part brief.'}
+
+Return only the repaired module:
+- use exactly one wrapper: <section class="doc-section doc-runtime-module" data-runtime-part="${input.part.id}">
+- include a clear <h2>
+- include useful body content; do not leave placeholder or empty prose
+- use shared classes when helpful: doc-kpi-row, doc-kpi, doc-comparison, doc-compare-card, doc-proof-strip, doc-proof-item, doc-timeline, doc-timeline-item, doc-sidebar-layout, doc-main, doc-aside
+- do not include <style>, <script>, <html>, <head>, <body>, remote assets, or JavaScript`;
 }
 
 function normalizeText(value: string): string {
@@ -703,19 +740,22 @@ export function applyDocumentRuntimeModuleEdits(input: ApplyDocumentRuntimeModul
   const parser = new DOMParser();
   const doc = parser.parseFromString(input.existingHtml, 'text/html');
   const moduleMap = new Map(input.modules.map((module) => [module.partId, module.html]));
+  const root = getDocumentModuleRoot(doc);
 
   for (const part of getDocumentModuleParts(input.parts)) {
     const moduleHtml = moduleMap.get(part.id);
     if (!moduleHtml) continue;
 
     const existingElement = findRuntimePartElement(doc, part.id);
-    if (!existingElement) continue;
-
     const template = doc.createElement('template');
     template.innerHTML = normalizeDocumentRuntimeModuleHtml(moduleHtml, part);
     const replacement = template.content.firstElementChild;
     if (replacement instanceof HTMLElement) {
-      existingElement.replaceWith(replacement);
+      if (existingElement) {
+        existingElement.replaceWith(replacement);
+      } else {
+        root.append(replacement);
+      }
     }
   }
 
