@@ -26,7 +26,10 @@ describe('presentation runtime policy', () => {
 
     expect(presentationSource).not.toMatch(/streamSoftTimeoutMs|60_000/);
     expect(presentationSource).not.toMatch(/runBatchQueue/);
+    expect(presentationSource).not.toMatch(/from '\.\/agents\/designer'/);
+    expect(presentationSource).not.toMatch(/from '\.\/agents\/evaluator'/);
     expect(presentationRuntimeSource).toMatch(/runBatchQueue/);
+    expect(presentationRuntimeSource).toMatch(/runSinglePresentationRuntime/);
     expect(presentationRuntimeSource).toMatch(/validatePresentationRuntimeOutput/);
     expect(presentationRuntimeSource).toMatch(/repairPresentationRuntimeOutput/);
     expect(designerSource).not.toMatch(/softTimeoutMs|Draft stream soft timeout|Edit correction soft timeout/);

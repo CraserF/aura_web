@@ -9,16 +9,12 @@ import {
   getTemplateHtml,
   type TemplateId,
 } from '@/services/ai/templates';
-import { sanitizeSlideHtml } from '@/services/ai/utils/sanitizeHtml';
 import { listDocumentBlueprints } from '@/services/ai/templates/document-blueprints';
 import { createDefaultSheet, replaceSheetData } from '@/services/spreadsheet/workbook';
 import { planSpreadsheetStarter } from '@/services/spreadsheet/starter';
 import { extractChartSpecsFromHtml } from '@/services/charts';
-import {
-  buildArtifactRunPlan,
-  finalizeStaticPresentationRuntime,
-} from '@/services/artifactRuntime';
-import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
+import { buildStaticPresentationStarterRuntime } from '@/services/artifactRuntime';
+import type { StarterTokenValues } from '@/services/artifactRuntime';
 import type { ProjectData, ProjectDocument } from '@/types/project';
 import { getDocumentStarter } from './documentStarters';
 import { getSpreadsheetStarter } from './spreadsheetStarters';
@@ -110,13 +106,6 @@ function buildDocumentStarterResult(
     },
   };
 }
-
-function extractTemplateSections(doc: Document): HTMLElement[] {
-  const slideSections = Array.from(doc.querySelectorAll<HTMLElement>('.slides > section'));
-  return slideSections.length > 0 ? slideSections : Array.from(doc.querySelectorAll<HTMLElement>('section'));
-}
-
-type StarterTokenValues = Record<string, string>;
 
 type StarterContentFactory = (input: { title: string; today: string }) => StarterTokenValues;
 
@@ -213,143 +202,6 @@ const TEMPLATE_STARTER_CONTENT: Partial<Record<TemplateId, StarterContentFactory
   }),
 };
 
-function replaceTokens(value: string, tokens: StarterTokenValues): string {
-  return value.replace(/\{\{([A-Z0-9_]+)\}\}/g, (_match, token: string) => tokens[token] ?? '');
-}
-
-function replaceTokensInElement(element: HTMLElement, tokens: StarterTokenValues): void {
-  const walker = element.ownerDocument.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-  const textNodes: Text[] = [];
-  while (walker.nextNode()) {
-    textNodes.push(walker.currentNode as Text);
-  }
-  for (const textNode of textNodes) {
-    textNode.nodeValue = replaceTokens(textNode.nodeValue ?? '', tokens);
-  }
-
-  const elements = [element, ...Array.from(element.querySelectorAll<HTMLElement>('*'))];
-  for (const node of elements) {
-    for (const attribute of Array.from(node.attributes)) {
-      if (attribute.value.includes('{{')) {
-        node.setAttribute(attribute.name, replaceTokens(attribute.value, tokens));
-      }
-    }
-  }
-}
-
-const STRUCTURAL_EMPTY_CLASSES = [
-  'slide-content',
-  'layout',
-  'scene-particles',
-  'particle',
-  'slides',
-  'reveal',
-];
-
-function isStructuralElement(element: HTMLElement): boolean {
-  return STRUCTURAL_EMPTY_CLASSES.some((className) =>
-    Array.from(element.classList).some((candidate) =>
-      candidate === className || candidate.startsWith(`${className}-`)));
-}
-
-function hasMediaOrIconChild(element: HTMLElement): boolean {
-  return Boolean(element.querySelector('img, svg, canvas, video, picture, icon, [data-icon]'));
-}
-
-function isSeparatorElement(element: Element | null): element is HTMLElement {
-  return element instanceof HTMLElement && (
-    element.tagName.toLowerCase() === 'hr' ||
-    element.classList.contains('separator') ||
-    element.classList.contains('heading-divider')
-  );
-}
-
-function cleanupEmptyOptionalStarterElements(section: HTMLElement): void {
-  const candidates = Array.from(section.querySelectorAll<HTMLElement>('p, div'));
-
-  for (const element of candidates) {
-    if (!element.isConnected || isStructuralElement(element)) continue;
-    if (element.textContent?.trim()) continue;
-    if (hasMediaOrIconChild(element)) continue;
-
-    const isParagraph = element.tagName.toLowerCase() === 'p';
-    const isLeafDiv = element.tagName.toLowerCase() === 'div' && element.children.length === 0;
-    if (!isParagraph && !isLeafDiv) continue;
-
-    const nextElement = element.nextElementSibling;
-    element.remove();
-    if (isSeparatorElement(nextElement)) {
-      nextElement.remove();
-    }
-  }
-}
-
-function getStarterSectionTitle(section: HTMLElement, index: number, deckTitle: string): string {
-  const heading = section.querySelector<HTMLElement>('h1, h2, h3, .slide-title, .eyebrow');
-  const text = heading?.textContent?.replace(/\s+/g, ' ').trim();
-  return text || (index === 0 ? deckTitle : `Slide ${index + 1}`);
-}
-
-function buildPresentationStarterRuntimePlan(input: {
-  artifact: ProjectStarterArtifact;
-  starter: PresentationStarterTemplate;
-  title: string;
-  sections: HTMLElement[];
-}): ArtifactRunPlan {
-  const sectionTitles = input.sections.map((section, index) =>
-    getStarterSectionTitle(section, index, input.title));
-  const prompt = `Create ${sectionTitles.length} slides: ${sectionTitles.join(', ')}`;
-  const runtimePlan = buildArtifactRunPlan({
-    runId: crypto.randomUUID(),
-    prompt,
-    artifactType: 'presentation',
-    operation: 'create',
-    activeDocument: null,
-    mode: 'execute',
-    providerId: 'openai',
-    providerModel: 'starter-runtime',
-    allowFullRegeneration: false,
-  });
-  const templateId = input.starter.templateId as TemplateId;
-  const recipeId = runtimePlan.workflow.presentationRecipeId ?? 'general-polished';
-
-  runtimePlan.userIntent = prompt;
-  runtimePlan.intentSummary = `Starter runtime deck for ${input.starter.label} using ${templateId}.`;
-  runtimePlan.workflow.summary = runtimePlan.intentSummary;
-  runtimePlan.workflow.queueMode = 'sequential';
-  runtimePlan.workflow.queuedWorkItems = sectionTitles.map((sectionTitle, index) => ({
-    id: `starter-slide-${index + 1}`,
-    orderIndex: index,
-    targetType: 'slide',
-    targetLabel: sectionTitle,
-    operationKind: 'create',
-    status: 'done',
-    promptSummary: `${input.starter.description} Starter slide ${index + 1}: ${sectionTitle}.`,
-    recipeId,
-  }));
-  runtimePlan.workflow.templateGuidance.selectedTemplateId = templateId;
-  runtimePlan.workflow.templateGuidance.intentFamily = 'batch';
-  runtimePlan.workflow.templateGuidance.designConstraints = [
-    `Use the ${templateId} production starter design family.`,
-    ...runtimePlan.workflow.templateGuidance.designConstraints,
-  ];
-  runtimePlan.designManifest.family = templateId;
-  runtimePlan.designManifest.templateId = templateId;
-  runtimePlan.workQueue = runtimePlan.workflow.queuedWorkItems.map((item) => ({
-    id: item.id,
-    artifactType: 'presentation',
-    kind: 'slide',
-    orderIndex: item.orderIndex,
-    title: item.targetLabel,
-    brief: item.promptSummary,
-    status: 'done',
-    sourceWorkItemId: item.id,
-    ...(item.recipeId ? { recipeId: item.recipeId } : {}),
-  }));
-
-  return runtimePlan;
-}
-
 async function buildPresentationStarterResult(
   artifact: ProjectStarterArtifact,
   starterKitId?: string,
@@ -359,48 +211,8 @@ async function buildPresentationStarterResult(
     throw new Error(`Unknown presentation starter: ${artifact.starterId}`);
   }
 
-  const html = await getTemplateHtml(starter.templateId as TemplateId);
-  const parser = new DOMParser();
-  const parsed = parser.parseFromString(html, 'text/html');
-  const sections = extractTemplateSections(parsed);
-  const clonedSections = sections
-    .map((entry) => entry.cloneNode(true) as HTMLElement)
-    .filter(Boolean);
-
-  if (clonedSections.length === 0) {
-    const fallbackTitle = artifact.initialTitle ?? starter.initialTitle ?? starter.label;
-    const contentHtml = sanitizeSlideHtml(`<section><h1>${fallbackTitle}</h1><p>${starter.description}</p></section>`);
-    return {
-      title: fallbackTitle,
-      type: 'presentation',
-      contentHtml,
-      themeCss: '',
-      slideCount: 1,
-      description: starter.description,
-      starterRef: {
-        artifactKey: artifact.key,
-        starterId: starter.id,
-        starterType: 'presentation',
-        starterKitId,
-      },
-    };
-  }
-
   const title = artifact.initialTitle ?? starter.initialTitle ?? starter.label;
-  const firstHeading = clonedSections[0]?.querySelector<HTMLElement>('h1, h2, h3');
-  if (firstHeading) {
-    firstHeading.textContent = title;
-  } else {
-    const heading = parsed.createElement('h1');
-    heading.textContent = title;
-    clonedSections[0]?.prepend(heading);
-  }
-
-  const styles = Array.from(parsed.querySelectorAll('style'))
-    .map((node) => node.textContent?.trim() ?? '')
-    .filter(Boolean)
-    .join('\n\n');
-
+  const html = await getTemplateHtml(starter.templateId as TemplateId);
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const templateId = starter.templateId as TemplateId;
   const knownTokens = TEMPLATE_STARTER_CONTENT[templateId]?.({ title, today }) ?? {
@@ -408,34 +220,26 @@ async function buildPresentationStarterResult(
     COMPANY: title,
     DATE: today,
   };
-  for (const section of clonedSections) {
-    replaceTokensInElement(section, knownTokens);
-    cleanupEmptyOptionalStarterElements(section);
-  }
-  const runtimePlan = buildPresentationStarterRuntimePlan({
-    artifact,
-    starter,
-    title,
-    sections: clonedSections,
-  });
 
-  const sectionHtml = clonedSections.map((section) => section.outerHTML).join('\n');
-  const rawHtml = styles ? `<style>\n${styles}\n</style>\n${sectionHtml}` : sectionHtml;
-  const finalized = finalizeStaticPresentationRuntime({
-    rawHtml,
+  const runtimeResult = buildStaticPresentationStarterRuntime({
+    artifactKey: artifact.key,
+    starterId: starter.id,
+    starterLabel: starter.label,
+    starterDescription: starter.description,
+    templateId,
     title,
-    slideCount: clonedSections.length,
-    runPlan: runtimePlan,
+    templateHtml: html,
+    tokens: knownTokens,
   });
 
   return {
     title,
     type: 'presentation',
-    contentHtml: finalized.html,
+    contentHtml: runtimeResult.output.html,
     themeCss: '',
-    slideCount: finalized.slideCount,
+    slideCount: runtimeResult.output.slideCount,
     description: starter.description,
-    runtimePlan,
+    runtimePlan: runtimeResult.runtimePlan,
     starterRef: {
       artifactKey: artifact.key,
       starterId: starter.id,

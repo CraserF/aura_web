@@ -1,9 +1,14 @@
 import type { LanguageModel } from 'ai';
 
 import { runBatchQueue } from '@/services/ai/workflow/batchQueue';
+import { design, designEdit } from '@/services/ai/workflow/agents/designer';
 import { validateSlides } from '@/services/ai/workflow/agents/qa-validator';
+import { evaluateAndRevise } from '@/services/ai/workflow/agents/evaluator';
 import { sanitizeSlideHtml } from '@/services/ai/utils/sanitizeHtml';
 import { sanitizeInnerHtml } from '@/services/html/sanitizer';
+import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
+import { useSettingsStore } from '@/stores/settingsStore';
+import { aiDebugLog, logEditingMetrics, toErrorInfo } from '@/services/ai/debug';
 import type { PlanResult } from '@/services/ai/workflow/agents/planner';
 import type {
   EventListener,
@@ -43,6 +48,42 @@ export interface StaticPresentationRuntimeFinalizeInput {
   title: string;
   slideCount: number;
   runPlan?: ArtifactRunPlan;
+}
+
+export interface SinglePresentationRuntimeOptions {
+  runPlan?: ArtifactRunPlan;
+  planResult: PlanResult;
+  model: LanguageModel;
+  input: PresentationInput;
+  onEvent: EventListener;
+  isEdit: boolean;
+  effectiveChatHistory: PresentationInput['chatHistory'];
+  guidanceProfile?: TemplateGuidanceProfile;
+  editCorrectionPolicy: {
+    mode: 'full' | 'best-effort';
+    maxCorrectionSteps: number;
+  };
+  skipSecondaryEvaluation: boolean;
+  signal?: AbortSignal;
+}
+
+function startProgressHeartbeat(opts: {
+  onEvent: EventListener;
+  startPct: number;
+  maxPct: number;
+  intervalMs?: number;
+  messages: string[];
+}): () => void {
+  const { onEvent, startPct, maxPct, intervalMs = 8000, messages } = opts;
+  let tick = 0;
+  const timer = setInterval(() => {
+    tick += 1;
+    const pct = Math.min(maxPct, startPct + (tick * 6));
+    const message = messages[Math.min(tick - 1, messages.length - 1)] ?? messages[messages.length - 1] ?? 'Working...';
+    onEvent({ type: 'progress', message, pct });
+  }, intervalMs);
+
+  return () => clearInterval(timer);
 }
 
 export function canRunQueuedPresentationRuntime(planResult: PlanResult): boolean {
@@ -102,8 +143,10 @@ export async function repairPresentationRuntimeOutput(
     };
   }
 
-  onEvent({
-    type: 'progress',
+  emitArtifactRunEvent(onEvent, {
+    runId: runPlan?.runId ?? 'presentation-runtime',
+    type: 'runtime.repair-started',
+    role: 'repairer',
     message: 'Runtime repair is queued for a later slice; keeping validated draft unchanged.',
     pct: 88,
   });
@@ -132,6 +175,7 @@ export async function runQueuedPresentationRuntime(
 
   const runtimeStart = performance.now();
   let firstPreviewAt: number | undefined;
+  const runtimeRunId = runPlan?.runId ?? 'presentation-runtime';
   const slideBriefs = planResult.slideBriefs ?? [];
   if (slideBriefs.length === 0) {
     throw new Error('Queued presentation runtime requires slide briefs.');
@@ -142,7 +186,14 @@ export async function runQueuedPresentationRuntime(
     ? `Creating ${slideBriefs.length} new slide${slideBriefs.length === 1 ? '' : 's'}…`
     : `Creating ${slideBriefs.length} slide${slideBriefs.length === 1 ? '' : 's'}…`;
 
-  onEvent({ type: 'step-start', stepId: queuedStepId, label: queuedLabel });
+  emitArtifactRunEvent(onEvent, {
+    runId: runtimeRunId,
+    type: 'runtime.part-started',
+    role: 'generator',
+    message: queuedLabel,
+    partId: queuedStepId,
+    pct: 25,
+  });
   onEvent({
     type: 'progress',
     message: runPlan
@@ -164,8 +215,22 @@ export async function runQueuedPresentationRuntime(
     ...(signal ? { signal } : {}),
   });
 
-  onEvent({ type: 'step-done', stepId: queuedStepId, label: queuedLabel });
-  onEvent({ type: 'step-start', stepId: 'evaluate', label: 'Checking queued slides…' });
+  emitArtifactRunEvent(onEvent, {
+    runId: runtimeRunId,
+    type: 'runtime.part-completed',
+    role: 'generator',
+    message: queuedLabel,
+    partId: queuedStepId,
+    pct: 80,
+  });
+  emitArtifactRunEvent(onEvent, {
+    runId: runtimeRunId,
+    type: 'runtime.validation-started',
+    role: 'validator',
+    message: 'Checking queued slides…',
+    partId: 'evaluate',
+    pct: 82,
+  });
 
   const validation = validatePresentationRuntimeOutput(
     batchResult.html,
@@ -186,7 +251,14 @@ export async function runQueuedPresentationRuntime(
   );
 
   if (validation.passed || !repair.repaired) {
-    onEvent({ type: 'step-done', stepId: 'evaluate', label: 'Checking queued slides…' });
+    emitArtifactRunEvent(onEvent, {
+      runId: runtimeRunId,
+      type: 'runtime.validation-completed',
+      role: 'validator',
+      message: 'Checking queued slides…',
+      partId: 'evaluate',
+      pct: 88,
+    });
   }
 
   onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing presentation…' });
@@ -213,7 +285,240 @@ export async function runQueuedPresentationRuntime(
       : 'Presentation finalized from queued runtime output.',
     pct: 96,
   });
-  onEvent({ type: 'step-done', stepId: 'finalize', label: 'Finalizing presentation…' });
+  emitArtifactRunEvent(onEvent, {
+    runId: runtimeRunId,
+    type: 'runtime.finalized',
+    role: 'finalizer',
+    message: 'Finalizing presentation…',
+    partId: 'finalize',
+    pct: 100,
+  });
+  onEvent({ type: 'complete', result: output });
+
+  return output;
+}
+
+export async function runSinglePresentationRuntime(
+  opts: SinglePresentationRuntimeOptions,
+): Promise<PresentationOutput> {
+  const {
+    runPlan,
+    planResult,
+    model,
+    input,
+    onEvent,
+    isEdit,
+    effectiveChatHistory,
+    guidanceProfile,
+    editCorrectionPolicy,
+    skipSecondaryEvaluation,
+    signal,
+  } = opts;
+  const runtimeRunId = runPlan?.runId ?? 'presentation-runtime';
+  const runtimeStart = performance.now();
+  let firstPreviewAt: number | undefined;
+  const runtimeOnEvent: EventListener = (event) => {
+    if (!firstPreviewAt && (event.type === 'draft-complete' || event.type === 'streaming')) {
+      firstPreviewAt = performance.now();
+    }
+    onEvent(event);
+  };
+
+  const designStepId = isEdit ? 'targeted-design' : 'design';
+  const designLabel = isEdit ? 'Editing slides...' : 'Designing your slide...';
+  emitArtifactRunEvent(onEvent, {
+    runId: runtimeRunId,
+    type: 'runtime.part-started',
+    role: 'generator',
+    message: designLabel,
+    partId: designStepId,
+    pct: 30,
+  });
+  onEvent({ type: 'progress', message: isEdit ? 'Applying changes...' : 'Designing a polished slide...', pct: 30 });
+  const stopDesignHeartbeat = startProgressHeartbeat({
+    onEvent,
+    startPct: 30,
+    maxPct: 60,
+    messages: isEdit
+      ? [
+          'Still applying slide changes...',
+          'Refining the updated slide composition...',
+          'Finishing the current slide draft...',
+        ]
+      : [
+          'Still designing the slide composition...',
+          'Refining hierarchy, layout, and visual balance...',
+          'Finishing the current slide draft...',
+        ],
+  });
+
+  const designResult = await (async () => {
+    try {
+      return isEdit
+        ? await designEdit(
+            planResult,
+            input.existingSlidesHtml!,
+            effectiveChatHistory,
+            model,
+            runtimeOnEvent,
+            input.projectRulesBlock,
+            guidanceProfile,
+            input.editing,
+            editCorrectionPolicy,
+            signal,
+          )
+        : await design(
+            planResult,
+            input.existingSlidesHtml,
+            effectiveChatHistory,
+            model,
+            runtimeOnEvent,
+            input.projectRulesBlock,
+            guidanceProfile,
+            signal,
+          );
+    } finally {
+      stopDesignHeartbeat();
+    }
+  })();
+
+  onEvent({
+    type: 'progress',
+    message: isEdit
+      ? `Updated ${designResult.slideCount} slide(s)`
+      : `Slide designed${designResult.title ? `: ${designResult.title}` : ''}`,
+    pct: 70,
+  });
+  emitArtifactRunEvent(onEvent, {
+    runId: runtimeRunId,
+    type: 'runtime.part-completed',
+    role: 'generator',
+    message: designLabel,
+    partId: designStepId,
+    pct: 70,
+  });
+
+  if (signal?.aborted) throw new DOMException('Workflow aborted', 'AbortError');
+
+  let finalHtml = designResult.html;
+  let reviewPassed = true;
+
+  const alwaysRunEvaluation = useSettingsStore.getState().alwaysRunEvaluation;
+  const qaResult = validateSlides(designResult.html, {
+    expectedBgColor: planResult.blueprint.palette.bg,
+    isCreate: planResult.intent === 'create',
+    styleManifest: planResult.styleManifest,
+    exemplarPackId: planResult.exemplarPackId,
+  });
+
+  if (qaResult.violations.length > 0) {
+    const blockingIssues = qaResult.violations.filter((violation) => violation.tier === 'blocking');
+    const advisories = qaResult.violations.filter((violation) => violation.tier === 'advisory');
+    aiDebugLog('workflow', qaResult.passed ? 'QA advisories on final output' : 'QA blocking issues on final output', {
+      blockingCount: qaResult.blockingCount,
+      advisoryCount: qaResult.advisoryCount,
+      blockingIssues: blockingIssues.map((violation) => `[${violation.rule}] slide ${violation.slide}: ${violation.detail}`),
+      advisories: advisories.map((violation) => `[${violation.rule}] slide ${violation.slide}: ${violation.detail}`),
+    });
+  }
+
+  const canEvaluate = planResult.intent !== 'add_slides';
+  const shouldEvaluate =
+    canEvaluate &&
+    designResult.fastPath &&
+    (alwaysRunEvaluation || !qaResult.passed) &&
+    !skipSecondaryEvaluation;
+  aiDebugLog('workflow', 'phase 3 decision', {
+    intent: planResult.intent,
+    fastPath: designResult.fastPath,
+    qaPassed: qaResult.passed,
+    blockingCount: qaResult.blockingCount,
+    advisoryCount: qaResult.advisoryCount,
+    alwaysRunEvaluation,
+    canEvaluate,
+    skipSecondaryEvaluation,
+    shouldEvaluate,
+  });
+
+  if (shouldEvaluate) {
+    emitArtifactRunEvent(onEvent, {
+      runId: runtimeRunId,
+      type: 'runtime.validation-started',
+      role: 'validator',
+      message: 'Evaluating quality...',
+      partId: 'evaluate',
+      pct: 74,
+    });
+    try {
+      finalHtml = await evaluateAndRevise(
+        model,
+        designResult.html,
+        planResult,
+        runtimeOnEvent,
+        input.projectRulesBlock,
+        signal,
+      );
+      emitArtifactRunEvent(onEvent, {
+        runId: runtimeRunId,
+        type: 'runtime.validation-completed',
+        role: 'validator',
+        message: 'Evaluating quality...',
+        partId: 'evaluate',
+        pct: 86,
+      });
+    } catch (evalErr) {
+      aiDebugLog('workflow', 'evaluator error, using designer output', toErrorInfo(evalErr));
+      console.warn('[Workflow] evaluator error, using designer output:', evalErr);
+      onEvent({ type: 'step-skipped', stepId: 'evaluate', label: 'Evaluating quality...' });
+    }
+  } else {
+    onEvent({ type: 'step-skipped', stepId: 'evaluate', label: 'Evaluating quality...' });
+    onEvent({
+      type: 'progress',
+      message: skipSecondaryEvaluation
+        ? 'Local model safe path - skipping secondary evaluation'
+        : 'QA passed - skipping evaluation',
+      pct: 85,
+    });
+  }
+
+  reviewPassed = planResult.intent === 'add_slides' ? designResult.fastPath : qaResult.passed;
+
+  if (signal?.aborted) throw new DOMException('Workflow aborted', 'AbortError');
+
+  onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing slide...' });
+
+  const output: PresentationOutput = {
+    html: sanitizeInnerHtml(finalHtml),
+    title: designResult.title,
+    slideCount: designResult.slideCount,
+    reviewPassed,
+    runtime: {
+      ...(firstPreviewAt ? { timeToFirstPreviewMs: Math.round(firstPreviewAt - runtimeStart) } : {}),
+      totalRuntimeMs: Math.round(performance.now() - runtimeStart),
+      validationPassed: qaResult.passed,
+      validationBlockingCount: qaResult.blockingCount,
+      validationAdvisoryCount: qaResult.advisoryCount,
+      repairCount: shouldEvaluate ? 1 : 0,
+    },
+    ...(designResult.editing ? { editing: designResult.editing } : {}),
+  };
+
+  if (designResult.editing) {
+    logEditingMetrics('presentation', {
+      ...designResult.editing,
+      regenerationAvoided: designResult.editing.strategyUsed !== 'full-regenerate',
+    });
+  }
+
+  emitArtifactRunEvent(onEvent, {
+    runId: runtimeRunId,
+    type: 'runtime.finalized',
+    role: 'finalizer',
+    message: 'Finalizing slide...',
+    partId: 'finalize',
+    pct: 100,
+  });
   onEvent({ type: 'complete', result: output });
 
   return output;

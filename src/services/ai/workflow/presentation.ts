@@ -17,17 +17,13 @@ import type { LanguageModel } from 'ai';
 import { createModel } from './engine';
 import { withDefaults } from '../middleware';
 import { plan } from './agents/planner';
-import { design, designEdit } from './agents/designer';
-import { validateSlides } from './agents/qa-validator';
-import { evaluateAndRevise } from './agents/evaluator';
-import { sanitizeInnerHtml } from '@/services/html/sanitizer';
-import { useSettingsStore } from '@/stores/settingsStore';
-import { aiDebugLog, logEditingMetrics, toErrorInfo } from '../debug';
+import { aiDebugLog } from '../debug';
 import { getProviderCapabilityProfile } from '../providerCapabilities';
 import { applyArtifactRunPlanToPresentationPlan } from '@/services/artifactRuntime/presentation';
 import {
   canRunQueuedPresentationRuntime,
   runQueuedPresentationRuntime,
+  runSinglePresentationRuntime,
 } from '@/services/artifactRuntime/presentationRuntime';
 import type {
   PresentationInput,
@@ -43,25 +39,6 @@ export interface RunWorkflowOptions {
   llmConfig: LLMConfig;
   onEvent: EventListener;
   signal?: AbortSignal;
-}
-
-function startProgressHeartbeat(opts: {
-  onEvent: EventListener;
-  startPct: number;
-  maxPct: number;
-  intervalMs?: number;
-  messages: string[];
-}): () => void {
-  const { onEvent, startPct, maxPct, intervalMs = 8000, messages } = opts;
-  let tick = 0;
-  const timer = setInterval(() => {
-    tick += 1;
-    const pct = Math.min(maxPct, startPct + (tick * 6));
-    const message = messages[Math.min(tick - 1, messages.length - 1)] ?? messages[messages.length - 1] ?? 'Working…';
-    onEvent({ type: 'progress', message, pct });
-  }, intervalMs);
-
-  return () => clearInterval(timer);
 }
 
 /**
@@ -82,8 +59,6 @@ export async function runPresentationWorkflow(
         },
       ]
     : input.chatHistory;
-  const workflowStart = performance.now();
-
   // Create the AI SDK model with shared defaults (temperature, maxOutputTokens)
   const baseModel: LanguageModel = await createModel(llmConfig);
   const model = withDefaults(baseModel);
@@ -138,180 +113,19 @@ export async function runPresentationWorkflow(
       });
     }
 
-    // ── Phase 2: Design (ToolLoopAgent with self-validation) ─────
-    const designStepId = isEdit ? 'targeted-design' : 'design';
-    const designLabel = isEdit ? 'Editing slides…' : 'Designing your slide…';
-    onEvent({ type: 'step-start', stepId: designStepId, label: designLabel });
-    onEvent({ type: 'progress', message: isEdit ? 'Applying changes…' : 'Designing a stunning slide…', pct: 30 });
-    const stopDesignHeartbeat = startProgressHeartbeat({
+    return runSinglePresentationRuntime({
+      ...(input.artifactRunPlan ? { runPlan: input.artifactRunPlan } : {}),
+      planResult,
+      model,
+      input,
       onEvent,
-      startPct: 30,
-      maxPct: 60,
-      messages: isEdit
-        ? [
-            'Still applying slide changes…',
-            'Refining the updated slide composition…',
-            'Finishing the current slide draft…',
-          ]
-        : [
-            'Still designing the slide composition…',
-            'Refining hierarchy, layout, and visual balance…',
-            'Finishing the current slide draft…',
-          ],
+      isEdit,
+      effectiveChatHistory,
+      ...(guidanceProfile ? { guidanceProfile } : {}),
+      editCorrectionPolicy,
+      skipSecondaryEvaluation: providerProfile.secondaryEvaluation === 'skip',
+      ...(signal ? { signal } : {}),
     });
-
-    const designResult = await (async () => {
-      try {
-        return isEdit
-          ? await designEdit(
-              planResult,
-              input.existingSlidesHtml!,
-              effectiveChatHistory,
-              model,
-              onEvent,
-              input.projectRulesBlock,
-              guidanceProfile,
-              input.editing,
-              editCorrectionPolicy,
-              signal,
-            )
-          : await design(
-              planResult,
-              input.existingSlidesHtml,
-              effectiveChatHistory,
-              model,
-              onEvent,
-              input.projectRulesBlock,
-              guidanceProfile,
-              signal,
-            );
-      } finally {
-        stopDesignHeartbeat();
-      }
-    })();
-
-    onEvent({
-      type: 'progress',
-      message: isEdit
-        ? `Updated ${designResult.slideCount} slide(s)`
-        : `Slide designed${designResult.title ? `: ${designResult.title}` : ''}`,
-      pct: 70,
-    });
-    onEvent({ type: 'step-done', stepId: designStepId, label: designLabel });
-
-    if (signal?.aborted) throw new DOMException('Workflow aborted', 'AbortError');
-
-    // ── Phase 3: Evaluate + Revise (configurable) ────────────────
-    let finalHtml = designResult.html;
-    let reviewPassed = true;
-
-    const alwaysRunEvaluation = useSettingsStore.getState().alwaysRunEvaluation;
-    const qaResult = validateSlides(designResult.html, {
-      expectedBgColor: planResult.blueprint.palette.bg,
-      isCreate: planResult.intent === 'create',
-      styleManifest: planResult.styleManifest,
-      exemplarPackId: planResult.exemplarPackId,
-    });
-
-    if (qaResult.violations.length > 0) {
-      const blockingIssues = qaResult.violations.filter((v) => v.tier === 'blocking');
-      const advisories = qaResult.violations.filter((v) => v.tier === 'advisory');
-      aiDebugLog('workflow', qaResult.passed ? 'QA advisories on final output' : 'QA blocking issues on final output', {
-        blockingCount: qaResult.blockingCount,
-        advisoryCount: qaResult.advisoryCount,
-        blockingIssues: blockingIssues.map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
-        advisories: advisories.map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
-      });
-    }
-
-    // Evaluator runs only when:
-    // 1. The designer took the fast path (QA passed on draft, no agent loop ran)
-    // 2. The intent supports LLM evaluation (add_slides validates new-slide-only internally)
-    // 3. alwaysRunEvaluation is enabled OR QA somehow failed on the fast-path output
-    // When fastPath=false (agent loop ran), the agent already self-corrected — don't pile on.
-    const canEvaluate = planResult.intent !== 'add_slides';
-    const localModelSkipsSecondaryEvaluation = providerProfile.secondaryEvaluation === 'skip';
-    const shouldEvaluate =
-      canEvaluate &&
-      designResult.fastPath &&
-      (alwaysRunEvaluation || !qaResult.passed) &&
-      !localModelSkipsSecondaryEvaluation;
-    aiDebugLog('workflow', `phase 3 decision`, {
-      intent: planResult.intent,
-      fastPath: designResult.fastPath,
-      qaPassed: qaResult.passed,
-      blockingCount: qaResult.blockingCount,
-      advisoryCount: qaResult.advisoryCount,
-      alwaysRunEvaluation,
-      canEvaluate,
-      localModelSkipsSecondaryEvaluation,
-      shouldEvaluate,
-    });
-
-    if (shouldEvaluate) {
-      onEvent({ type: 'step-start', stepId: 'evaluate', label: 'Evaluating quality…' });
-      try {
-        finalHtml = await evaluateAndRevise(
-          model,
-          designResult.html,
-          planResult,
-          onEvent,
-          input.projectRulesBlock,
-          signal,
-        );
-        onEvent({ type: 'step-done', stepId: 'evaluate', label: 'Evaluating quality…' });
-      } catch (evalErr) {
-        // Evaluation failed — log and continue with designer output unchanged
-        aiDebugLog('workflow', 'evaluator error, using designer output', toErrorInfo(evalErr));
-        console.warn('[Workflow] evaluator error, using designer output:', evalErr);
-        onEvent({ type: 'step-skipped', stepId: 'evaluate', label: 'Evaluating quality…' });
-      }
-    } else {
-      onEvent({ type: 'step-skipped', stepId: 'evaluate', label: 'Evaluating quality…' });
-      onEvent({
-        type: 'progress',
-        message: localModelSkipsSecondaryEvaluation
-          ? 'Local model safe path — skipping secondary evaluation'
-          : 'QA passed — skipping evaluation',
-        pct: 85,
-      });
-    }
-
-    // For add_slides the merged deck's QA mixes old slides with new; use the designer's
-    // result (fastPath = new slide passed, agent ran = agent corrected it) instead.
-    reviewPassed = planResult.intent === 'add_slides' ? designResult.fastPath : qaResult.passed;
-
-    if (signal?.aborted) throw new DOMException('Workflow aborted', 'AbortError');
-
-    // ── Phase 4: Finalize ────────────────────────────────────────
-    onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing slide…' });
-
-    const output: PresentationOutput = {
-      html: sanitizeInnerHtml(finalHtml),
-      title: designResult.title,
-      slideCount: designResult.slideCount,
-      reviewPassed,
-      ...(designResult.editing ? { editing: designResult.editing } : {}),
-    };
-
-    if (designResult.editing) {
-      logEditingMetrics('presentation', {
-        ...designResult.editing,
-        regenerationAvoided: designResult.editing.strategyUsed !== 'full-regenerate',
-      });
-    }
-
-    onEvent({ type: 'step-done', stepId: 'finalize', label: 'Finalizing slide…' });
-    onEvent({ type: 'complete', result: output });
-
-    aiDebugLog('workflow', `workflow complete in ${(performance.now() - workflowStart).toFixed(0)}ms`, {
-      slideCount: output.slideCount,
-      reviewPassed,
-      fastPath: designResult.fastPath,
-      evaluationRan: shouldEvaluate,
-    });
-
-    return output;
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
       throw err;

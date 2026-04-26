@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import { buildArtifactRunPlan } from '@/services/artifactRuntime';
 import {
+  artifactRunEventToWorkflowEvent,
+  createArtifactRunEvent,
+} from '@/services/artifactRuntime/events';
+import {
   finalizeStaticPresentationRuntime,
   validatePresentationRuntimeOutput,
 } from '@/services/artifactRuntime/presentationRuntime';
@@ -102,5 +106,24 @@ describe('ArtifactRuntime plan', () => {
     expect(finalized.slideCount).toBe(1);
     expect(finalized.runtime?.timeToFirstPreviewMs).toBe(0);
     expect(finalized.runtime?.repairCount).toBe(0);
+  });
+
+  it('adapts runtime part events into current workflow step updates', () => {
+    const runtimeEvent = createArtifactRunEvent({
+      runId: 'run-1',
+      type: 'runtime.part-started',
+      role: 'generator',
+      message: 'Creating slide part',
+      partId: 'design',
+      pct: 25,
+    });
+
+    expect(runtimeEvent.id).toBeTruthy();
+    expect(artifactRunEventToWorkflowEvent(runtimeEvent)).toEqual({
+      type: 'step-update',
+      stepId: 'design',
+      label: 'Creating slide part',
+      status: 'active',
+    });
   });
 });
