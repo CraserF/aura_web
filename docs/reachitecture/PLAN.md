@@ -280,6 +280,28 @@ Last updated: 2026-04-27.
 - Expanded workflow-level document tests to assert queued create emits streaming/first-preview-related workflow events and runtime part progress.
 - Moved duplicated document module output guidance into a compact `buildDocumentModuleContractPack()` prompt pack used by both module creation and module repair prompts.
 
+### Completed In Fifteenth Runtime Slice
+- Added a production presentation template family list in the template registry:
+  - `executive-briefing-light`;
+  - `launch-narrative-light`;
+  - `editorial-light`;
+  - `finance-grid-light`;
+  - `stage-setting-light`;
+  - `interactive-quiz`;
+  - `split-world`.
+- Added production-template helpers for routing checks and legacy-template normalization.
+- Updated presentation template selection and resolver defaults so generated presentation plans route through production families instead of older legacy template ids.
+- Mapped comparison recipe routing to `split-world` and launch-style prompts to `launch-narrative-light`.
+- Updated runtime plan application so an authoritative `ArtifactRunPlan` overrides the older presentation planner's selected template and exemplar pack.
+- Added production routing tests proving generated presentation planner output, runtime plans, and recipe-hinted template plans use production templates.
+- Added runtime fragment-contract coverage for all routed production templates.
+- Extended presentation runtime telemetry:
+  - `runMode` for single-stream, queued create/edit, and deterministic starter outputs;
+  - queued/completed slide counts;
+  - per-slide/deck validation summaries in `validationByPart`.
+- Starter presentation build results now expose runtime telemetry for diagnostics, while still writing starter artifacts with `themeCss: ''`.
+- Added starter runtime diagnostics coverage using the shared benchmark helper to summarize first-preview coverage, queued slide counts, and validation pass rate.
+
 ### Validation Completed
 - `npm test -- artifact-runtime workflow-planner run-request run-dry-run run-explain structured-run-outputs external-adapter-contracts run-events workflow-benchmark-cases`
   - Passed: 9 files, 23 tests.
@@ -440,6 +462,18 @@ Last updated: 2026-04-27.
     - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
   - Changed-file ESLint across modified runtime, workflow, prompt, compatibility, and test files
     - Passed.
+- Current fifteenth-slice focused validation:
+  - `npm run typecheck`
+    - Passed.
+  - `npm test -- presentation-template-design-system project-starter-kits artifact-runtime runtime-telemetry presentation-runtime-policy workflow-planner`
+    - Passed: 6 files, 42 tests.
+  - `npm test`
+    - Passed: 97 files, 541 tests.
+  - `npm run build`
+    - Passed.
+    - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
+  - Changed-file ESLint across modified template, runtime, starter, and test files
+    - Passed.
 
 ### Current Open State
 - The active runtime now has an internal plan object, and queued plus single-slide presentation generation are controlled by the runtime layer.
@@ -448,12 +482,13 @@ Last updated: 2026-04-27.
 - Active generation paths no longer import `@/services/workflowPlanner`.
 - Legacy external execution-spec files still exist in the repository as quarantined code, but active chat generation no longer imports them.
 - Starter presentation generation now creates runtime plans and uses runtime-owned template parsing, token replacement, section assembly, sanitize/validate/finalize behavior, and telemetry.
-- The current presentation repair stage performs a first deterministic fragment repair pass and executes a bounded LLM repair pass when deterministic repair cannot recover the fragment and a model is available.
+- Active generated presentation routing now normalizes onto the production template family list. Legacy template files still exist in the registry/build output, but generated and starter routing should no longer select them directly.
+- The current presentation repair stage performs a first deterministic fragment repair pass and executes a bounded LLM repair pass when deterministic repair cannot recover the fragment and a model is available. Presentation runtime telemetry now includes run mode, queued/completed slide counts, and deck/slide validation summaries.
 - Create-mode documents with runtime plans now use queued outline/module generation, runtime shell assembly, module validation/repair, document QA, and runtime telemetry. Image-based create requests also use the queued path by planning from images in the outline step. Targeted edit requests use queued module-local regeneration when existing runtime module wrappers can be resolved, with fallback to the existing targeted patcher when they cannot. Module validation failures now attempt queued per-module repair before deterministic module repair. Runtime telemetry now reports document run mode plus queued, completed, and repaired module counts. Document module create/repair prompts now share a compact module contract pack.
 - Runtime benchmark diagnostics can now summarize prompt token estimates, first-preview coverage, validation pass rates, repair totals, and queued/repaired part counts by artifact type.
 - Spreadsheets still use deterministic workbook execution, but result summaries now map into shared runtime events.
 - Workflow presets still exist in the advanced UI and storage model. They are hidden from the default user surface but not removed yet.
-- Production templates are still mixed with legacy templates; routing has not yet been fully reduced to production families only.
+- Legacy templates are still present as files/registry entries for now; deletion or archival remains a later cleanup step after production routing has soaked.
 
 ## Key Architecture Changes
 - Replace today’s scattered workflow path with a single internal `ArtifactRuntime`.
@@ -674,11 +709,11 @@ Last updated: 2026-04-27.
 - Start with presentations, then extend to documents and spreadsheets.
 
 ## Immediate Next Implementation Slice
-- Start presentation runtime hardening now that the document telemetry/import cleanup is stable:
-  - add production-template routing coverage for generated and starter presentations;
-  - assert routed production templates satisfy the runtime fragment contract;
-  - add first-preview benchmark diagnostics for starter and queued/generated decks;
-  - begin per-slide validation diagnostic summaries in runtime telemetry where straightforward.
+- Continue presentation runtime hardening beyond routing:
+  - add queued/generated deck workflow tests with mocked slide generation so first-preview and queued slide telemetry are covered outside starter decks;
+  - start a per-slide validation/repair path for queued decks rather than only whole-deck validation after assembly;
+  - decide whether legacy template files should be archived out of active bundles or kept as hidden references until conversion;
+  - add production routing assertions for any remaining prompt paths that bypass `buildArtifactRunPlan`.
 - Continue compatibility cleanup without deleting compatibility files yet:
   - keep `workflowPlanner` re-exports until older tests and legacy surfaces are migrated;
   - move any remaining active runtime helper names that still read like workflow-planner ownership.

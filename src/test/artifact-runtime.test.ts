@@ -468,6 +468,8 @@ describe('ArtifactRuntime plan', () => {
 
     expect(validation.passed).toBe(true);
     expect(validation.blockingCount).toBe(0);
+    expect(validation.validationByPart).toHaveLength(2);
+    expect(validation.validationByPart.every((part) => part.validationPassed)).toBe(true);
     expect(validation.summary).toContain('Queued presentation runtime');
   });
 
@@ -487,6 +489,13 @@ describe('ArtifactRuntime plan', () => {
     expect(finalized.slideCount).toBe(1);
     expect(finalized.runtime?.timeToFirstPreviewMs).toBe(0);
     expect(finalized.runtime?.repairCount).toBe(0);
+    expect(finalized.runtime?.runMode).toBe('deterministic-action');
+    expect(finalized.runtime?.queuedPartCount).toBe(1);
+    expect(finalized.runtime?.completedPartCount).toBe(1);
+    expect(finalized.runtime?.validationByPart).toContainEqual(expect.objectContaining({
+      partId: 'slide-1',
+      validationPassed: true,
+    }));
   });
 
   it('adapts runtime part events into current workflow step updates', () => {

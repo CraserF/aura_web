@@ -14,6 +14,60 @@ export type TemplateId =
   | 'split-world' | 'landscape-illustration' | 'multi-panel-dashboard'
   | 'sidebar-cards';
 
+export const PRODUCTION_PRESENTATION_TEMPLATE_IDS = [
+  'executive-briefing-light',
+  'launch-narrative-light',
+  'editorial-light',
+  'finance-grid-light',
+  'stage-setting-light',
+  'interactive-quiz',
+  'split-world',
+] as const satisfies readonly TemplateId[];
+
+export type ProductionPresentationTemplateId = typeof PRODUCTION_PRESENTATION_TEMPLATE_IDS[number];
+
+const PRODUCTION_PRESENTATION_TEMPLATE_SET = new Set<TemplateId>(PRODUCTION_PRESENTATION_TEMPLATE_IDS);
+
+export function isProductionPresentationTemplate(
+  templateId: TemplateId,
+): templateId is ProductionPresentationTemplateId {
+  return PRODUCTION_PRESENTATION_TEMPLATE_SET.has(templateId);
+}
+
+export function toProductionPresentationTemplate(templateId: TemplateId): ProductionPresentationTemplateId {
+  if (isProductionPresentationTemplate(templateId)) return templateId;
+
+  switch (templateId) {
+    case 'pitch-deck':
+    case 'keynote':
+    case 'product-demo':
+    case 'creative-portfolio':
+    case 'cinematic':
+      return 'launch-narrative-light';
+    case 'corporate':
+    case 'minimal':
+    case 'sidebar-cards':
+      return 'executive-briefing-light';
+    case 'data-dashboard':
+    case 'infographic-grid':
+    case 'multi-panel-dashboard':
+      return 'finance-grid-light';
+    case 'comparison':
+    case 'sci-fi':
+      return 'split-world';
+    case 'timeline':
+    case 'workshop':
+    case 'educational':
+    case 'tech-architecture':
+      return 'stage-setting-light';
+    case 'editorial-magazine':
+    case 'storytelling':
+    case 'landscape-illustration':
+    default:
+      return 'editorial-light';
+  }
+}
+
 export interface TemplateEntry {
   id: TemplateId;
   htmlPath: string;

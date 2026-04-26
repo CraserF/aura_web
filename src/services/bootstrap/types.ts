@@ -5,6 +5,7 @@ import type {
   WorkflowPresetCollection,
 } from '@/types/project';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
+import type { ArtifactRuntimeTelemetry } from '@/services/ai/workflow/types';
 
 export type StarterArtifactType = DocumentType;
 
@@ -91,5 +92,6 @@ export interface StarterArtifactBuildResult {
   sourceMarkdown?: string;
   workbook?: import('@/types/project').WorkbookMeta;
   runtimePlan?: ArtifactRunPlan;
+  runtime?: ArtifactRuntimeTelemetry;
   starterRef: ProjectDocumentStarterRef;
 }

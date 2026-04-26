@@ -3,6 +3,8 @@ import { listDocumentStarters } from '@/services/bootstrap/documentStarters';
 import { buildStarterArtifact, listPresentationStarters } from '@/services/bootstrap/projectStarter';
 import { listSpreadsheetStarters } from '@/services/bootstrap/spreadsheetStarters';
 import { listProjectStarterKits } from '@/services/bootstrap/starterKits';
+import { summarizeRuntimeDiagnostics } from '@/services/artifactRuntime';
+import type { RuntimeDiagnosticSample } from '@/services/artifactRuntime';
 
 describe('project starter kits', () => {
   it('exposes only curated presentation quick-starts', () => {
@@ -65,6 +67,7 @@ describe('project starter kits', () => {
           .map((artifact) => ({ artifact, starterKitId: kit.id })));
 
     expect(presentationArtifacts.length).toBeGreaterThan(0);
+    const runtimeSamples: RuntimeDiagnosticSample[] = [];
 
     for (const { artifact, starterKitId } of presentationArtifacts) {
       const result = await buildStarterArtifact(artifact, starterKitId);
@@ -85,6 +88,11 @@ describe('project starter kits', () => {
       expect(result.runtimePlan?.workQueue).toHaveLength(result.slideCount);
       expect(result.runtimePlan?.workQueue.every((part) => part.kind === 'slide')).toBe(true);
       expect(result.runtimePlan?.validationGates[0]?.id).toBe('presentation-fragment-contract');
+      expect(result.runtime?.runMode).toBe('deterministic-action');
+      expect(result.runtime?.timeToFirstPreviewMs).toBe(0);
+      expect(result.runtime?.queuedPartCount).toBe(result.slideCount);
+      expect(result.runtime?.completedPartCount).toBe(result.slideCount);
+      expect(result.runtime?.validationByPart?.filter((part) => part.partId.startsWith('slide-'))).toHaveLength(result.slideCount);
       expect(sectionCount).toBeGreaterThanOrEqual(3);
       expect(sectionCount).toBeLessThanOrEqual(5);
       expect(result.contentHtml).not.toMatch(/\{\{[A-Z0-9_]+\}\}/);
@@ -92,6 +100,20 @@ describe('project starter kits', () => {
       expect(result.contentHtml).not.toMatch(/\sstyle=/i);
       expect(result.contentHtml).not.toMatch(/https?:\/\/|mailto:|presented by|[$€£]\s?\d/i);
       expect(result.contentHtml).not.toMatch(/<p\b[^>]*>\s*<\/p>/i);
+
+      if (result.runtime) {
+        runtimeSamples.push({
+          artifactType: 'presentation' as const,
+          telemetry: result.runtime,
+          promptText: artifact.initialTitle ?? artifact.starterId,
+        });
+      }
     }
+
+    const diagnostics = summarizeRuntimeDiagnostics(runtimeSamples);
+    expect(diagnostics.artifactTypes).toEqual(['presentation']);
+    expect(diagnostics.firstPreviewCount).toBe(presentationArtifacts.length);
+    expect(diagnostics.totalQueuedPartCount).toBeGreaterThanOrEqual(presentationArtifacts.length * 3);
+    expect(diagnostics.validationPassRate).toBe(1);
   });
 });

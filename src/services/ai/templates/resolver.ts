@@ -71,32 +71,32 @@ export interface TemplatePlan {
 }
 
 const STYLE_DEFAULT_TEMPLATE: Record<TemplateStyle, TemplateId> = {
-  keynote: 'keynote',
+  keynote: 'launch-narrative-light',
   corporate: 'executive-briefing-light',
-  tech: 'tech-architecture',
-  creative: 'creative-portfolio',
-  minimal: 'minimal',
+  tech: 'stage-setting-light',
+  creative: 'launch-narrative-light',
+  minimal: 'executive-briefing-light',
   pitch: 'launch-narrative-light',
   editorial: 'editorial-light',
-  scifi: 'sci-fi',
+  scifi: 'split-world',
   data: 'finance-grid-light',
-  educational: 'educational',
+  educational: 'stage-setting-light',
   ocean: 'finance-grid-light',
-  luxury: 'sidebar-cards',
-  nature: 'landscape-illustration',
+  luxury: 'executive-briefing-light',
+  nature: 'editorial-light',
   neon: 'split-world',
   dashboard: 'finance-grid-light',
 };
 
 const TEMPLATE_STYLE_COMPATIBILITY: Partial<Record<TemplateId, TemplateStyle[]>> = {
-  'executive-briefing-light': ['corporate', 'editorial', 'dashboard', 'pitch'],
-  'launch-narrative-light': ['pitch', 'keynote', 'creative', 'corporate'],
+  'executive-briefing-light': ['corporate', 'editorial', 'dashboard', 'pitch', 'minimal', 'luxury'],
+  'launch-narrative-light': ['pitch', 'keynote', 'creative', 'corporate', 'minimal'],
   'editorial-light': ['editorial', 'corporate', 'pitch', 'keynote'],
-  'finance-grid-light': ['data', 'ocean', 'dashboard', 'corporate'],
-  'stage-setting-light': ['corporate', 'editorial', 'ocean', 'minimal'],
+  'finance-grid-light': ['data', 'ocean', 'dashboard', 'corporate', 'tech'],
+  'stage-setting-light': ['corporate', 'editorial', 'ocean', 'minimal', 'tech', 'educational'],
   'editorial-magazine': ['editorial', 'luxury'],
   'infographic-grid': ['data', 'ocean', 'dashboard', 'corporate'],
-  'split-world': ['neon', 'scifi', 'creative', 'keynote'],
+  'split-world': ['neon', 'scifi', 'creative', 'keynote', 'corporate', 'editorial', 'data', 'dashboard', 'tech'],
   'multi-panel-dashboard': ['dashboard', 'data', 'corporate'],
   'sidebar-cards': ['luxury', 'creative', 'corporate'],
   'landscape-illustration': ['nature', 'ocean', 'creative'],
@@ -146,7 +146,7 @@ function getRecipeTemplate(recipeHint: PresentationRecipeId): TemplateId | undef
     case 'quiz-reveal':
       return 'interactive-quiz';
     case 'comparison':
-      return 'comparison';
+      return 'split-world';
     case 'closing-action':
       return 'launch-narrative-light';
     default:

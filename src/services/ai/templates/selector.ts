@@ -1,4 +1,7 @@
-import type { TemplateId } from './registry';
+import {
+  toProductionPresentationTemplate,
+  type TemplateId,
+} from './registry';
 
 interface SelectionPattern {
   templateId: TemplateId;
@@ -129,7 +132,7 @@ const SELECTION_PATTERNS: SelectionPattern[] = [
   },
   {
     templateId: 'comparison',
-    patterns: [/\b(compar|vs\.?|versus|pros?\s*(and|&)\s*cons?|evaluat|benchmark)\b/i],
+    patterns: [/\b(compare|comparison|comparative|vs\.?|versus|pros?\s*(and|&)\s*cons?|evaluat|benchmark)\b/i],
     weight: 8,
   },
   {
@@ -174,5 +177,5 @@ export function selectTemplate(
     }
   }
 
-  return bestMatch;
+  return toProductionPresentationTemplate(bestMatch);
 }

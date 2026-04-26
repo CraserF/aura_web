@@ -2,7 +2,7 @@ import type { LanguageModel } from 'ai';
 
 import { runBatchQueue } from '@/services/ai/workflow/batchQueue';
 import { design, designEdit } from '@/services/ai/workflow/agents/designer';
-import { validateSlides } from '@/services/ai/workflow/agents/qa-validator';
+import { validateSlides, type QAViolation } from '@/services/ai/workflow/agents/qa-validator';
 import { evaluateAndRevise } from '@/services/ai/workflow/agents/evaluator';
 import { sanitizeSlideHtml } from '@/services/ai/utils/sanitizeHtml';
 import { sanitizeInnerHtml } from '@/services/html/sanitizer';
@@ -11,6 +11,7 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { aiDebugLog, logEditingMetrics, toErrorInfo } from '@/services/ai/debug';
 import type { PlanResult } from '@/services/ai/workflow/agents/planner';
 import type {
+  ArtifactRuntimeTelemetry,
   EventListener,
   PresentationInput,
   PresentationOutput,
@@ -23,6 +24,7 @@ export interface PresentationRuntimeValidationResult {
   blockingCount: number;
   advisoryCount: number;
   summary: string;
+  validationByPart: NonNullable<ArtifactRuntimeTelemetry['validationByPart']>;
 }
 
 export interface PresentationRuntimeRepairResult {
@@ -213,6 +215,58 @@ function canRequestLlmRepair(input: {
   return !input.validation.passed && input.repairCount < maxRepairPasses;
 }
 
+function summarizePresentationValidationByPart(
+  violations: QAViolation[],
+  slideCount: number,
+): NonNullable<ArtifactRuntimeTelemetry['validationByPart']> {
+  const summaries = new Map<string, NonNullable<ArtifactRuntimeTelemetry['validationByPart']>[number]>();
+
+  const ensureSummary = (partId: string, label: string) => {
+    const existing = summaries.get(partId);
+    if (existing) return existing;
+    const next = {
+      partId,
+      label,
+      validationPassed: true,
+      blockingCount: 0,
+      advisoryCount: 0,
+      rules: [] as string[],
+    };
+    summaries.set(partId, next);
+    return next;
+  };
+
+  for (let index = 1; index <= slideCount; index += 1) {
+    ensureSummary(`slide-${index}`, `Slide ${index}`);
+  }
+
+  for (const violation of violations) {
+    const partId = violation.slide > 0 ? `slide-${violation.slide}` : 'deck';
+    const summary = ensureSummary(partId, violation.slide > 0 ? `Slide ${violation.slide}` : 'Deck');
+    if (violation.tier === 'blocking') {
+      summary.blockingCount += 1;
+    } else {
+      summary.advisoryCount += 1;
+    }
+    summary.validationPassed = summary.blockingCount === 0;
+    if (!summary.rules.includes(violation.rule)) {
+      summary.rules.push(violation.rule);
+    }
+  }
+
+  return Array.from(summaries.values())
+    .map((summary) => ({
+      ...summary,
+      validationPassed: summary.blockingCount === 0,
+      rules: summary.rules.sort(),
+    }))
+    .sort((a, b) => {
+      if (a.partId === 'deck') return -1;
+      if (b.partId === 'deck') return 1;
+      return a.partId.localeCompare(b.partId, undefined, { numeric: true });
+    });
+}
+
 async function runBoundedLlmPresentationRepair(input: {
   html: string;
   deterministicRepairCount: number;
@@ -337,6 +391,7 @@ export function validatePresentationRuntimeOutput(
     passed: blockingCount === 0,
     blockingCount,
     advisoryCount,
+    validationByPart: summarizePresentationValidationByPart(qaResult.violations, expectedSlideCount),
     summary: qaResult.violations.length === 0
       ? 'Queued presentation runtime validation passed.'
       : `Queued presentation runtime found ${blockingCount} blocking issue(s) and ${advisoryCount} advisory issue(s).`,
@@ -590,6 +645,10 @@ export async function runQueuedPresentationRuntime(
       validationBlockingCount: finalValidation.blockingCount,
       validationAdvisoryCount: finalValidation.advisoryCount,
       repairCount: repair.repairCount,
+      runMode: isEdit ? 'queued-edit' : 'queued-create',
+      queuedPartCount: slideBriefs.length,
+      completedPartCount: batchResult.slideCount,
+      validationByPart: finalValidation.validationByPart,
     },
   };
 
@@ -815,6 +874,10 @@ export async function runSinglePresentationRuntime(
       validationBlockingCount: qaResult.blockingCount,
       validationAdvisoryCount: qaResult.advisoryCount,
       repairCount: shouldEvaluate ? 1 : 0,
+      runMode: 'single-stream',
+      queuedPartCount: 1,
+      completedPartCount: designResult.slideCount,
+      validationByPart: summarizePresentationValidationByPart(qaResult.violations, designResult.slideCount),
     },
     ...(designResult.editing ? { editing: designResult.editing } : {}),
   };
@@ -850,6 +913,7 @@ export function finalizeStaticPresentationRuntime(
   });
   const blockingCount = qaResult.violations.filter((violation) => violation.tier === 'blocking').length;
   const advisoryCount = qaResult.violations.length - blockingCount;
+  const validationByPart = summarizePresentationValidationByPart(qaResult.violations, input.slideCount);
 
   return {
     html,
@@ -863,6 +927,11 @@ export function finalizeStaticPresentationRuntime(
       validationBlockingCount: blockingCount,
       validationAdvisoryCount: advisoryCount,
       repairCount: 0,
+      runMode: 'deterministic-action',
+      queuedPartCount: input.slideCount,
+      completedPartCount: input.slideCount,
+      repairedPartCount: 0,
+      validationByPart,
     },
   };
 }

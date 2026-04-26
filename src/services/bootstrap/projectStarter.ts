@@ -240,6 +240,7 @@ async function buildPresentationStarterResult(
     slideCount: runtimeResult.output.slideCount,
     description: starter.description,
     runtimePlan: runtimeResult.runtimePlan,
+    runtime: runtimeResult.output.runtime,
     starterRef: {
       artifactKey: artifact.key,
       starterId: starter.id,

@@ -15,10 +15,14 @@ export {
 
 export {
   TEMPLATE_REGISTRY,
+  PRODUCTION_PRESENTATION_TEMPLATE_IDS,
   getTemplateHtml,
   getTemplateEntry,
+  isProductionPresentationTemplate,
+  toProductionPresentationTemplate,
   type TemplateId,
   type TemplateEntry,
+  type ProductionPresentationTemplateId,
 } from './registry';
 
 export {

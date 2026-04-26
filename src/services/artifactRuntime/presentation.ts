@@ -43,11 +43,15 @@ export function applyArtifactRunPlanToPresentationPlan(
     `Provider mode: ${runPlan.providerPolicy.mode}`,
     `Validation gate: ${runPlan.validationGates[0]?.label ?? 'presentation quality'}`,
   ].join('\n');
+  const selectedTemplate = runPlan.templateGuidance.selectedTemplateId ?? planResult.selectedTemplate;
+  const exemplarPackId = runPlan.templateGuidance.exemplarPackId ?? planResult.exemplarPackId;
 
   if (slideBriefs.length > 0) {
     return {
       ...planResult,
       intent: isEdit ? 'add_slides' : 'batch_create',
+      selectedTemplate,
+      exemplarPackId,
       slideBriefs,
       enhancedPrompt: `${planResult.enhancedPrompt}\n\n${runtimeNotes}`,
     };
@@ -55,6 +59,8 @@ export function applyArtifactRunPlanToPresentationPlan(
 
   return {
     ...planResult,
+    selectedTemplate,
+    exemplarPackId,
     enhancedPrompt: `${planResult.enhancedPrompt}\n\n${runtimeNotes}`,
   };
 }

@@ -16,6 +16,7 @@ const STYLE_CHANGE_RE = /\b(style|theme|palette|color|font|typography|spacing|vi
 const STRUCTURE_CHANGE_RE = /\b(reorder|reorganize|restructure|re-layout|relayout|move section|insert section|add subsection|convert layout)\b/i;
 const MULTI_ARTIFACT_RE = /\b(?:create|make|build|generate|add)\b[\s\S]*\b(\d+|several|multiple|few)\s+(?:slides?|sections?|artifacts?)\b/i;
 const TITLE_RE = /\b(title slide|hero slide|cover slide|opening slide|opening statement)\b/i;
+const LAUNCH_RE = /\b(launch plan|launch narrative|launch deck|go-to-market|gtm|market rollout|pitch opening)\b/i;
 const STAGE_SETTING_RE = /\b(setting(?: |-)?the(?: |-)?stage|why it matters|context slide|framing slide|background slide|problem framing)\b/i;
 const FINANCE_GRID_RE = /\b(finance|financial|blended|mechanism|capital stack|allocation|funding structure|grid)\b/i;
 const METRICS_RE = /\b(kpi|metric|scorecard|dashboard|stats?|performance)\b/i;
@@ -59,7 +60,7 @@ function resolveRequestKind(input: BuildArtifactWorkflowPlanInput): ArtifactWork
 
 function resolvePresentationRecipe(prompt: string): PresentationRecipeId {
   if (QUIZ_RE.test(prompt)) return 'quiz-reveal';
-  if (TITLE_RE.test(prompt)) return 'title-opening';
+  if (TITLE_RE.test(prompt) || LAUNCH_RE.test(prompt)) return 'title-opening';
   if (STAGE_SETTING_RE.test(prompt)) return 'stage-setting';
   if (COMPARISON_RE.test(prompt)) return 'comparison';
   if (FINANCE_GRID_RE.test(prompt)) return 'finance-grid';
