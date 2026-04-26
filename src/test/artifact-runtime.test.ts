@@ -8,6 +8,7 @@ import {
 import {
   finalizeStaticPresentationRuntime,
   repairPresentationFragmentHtml,
+  repairQueuedPresentationSlideFragments,
   repairPresentationRuntimeOutput,
   validatePresentationRuntimeOutput,
 } from '@/services/artifactRuntime/presentationRuntime';
@@ -596,6 +597,57 @@ describe('ArtifactRuntime plan', () => {
     expect(repair.validation?.blockingCount).toBe(0);
     expect(repair.summary).toContain('passed validation');
     expect(events).toContainEqual(expect.objectContaining({ type: 'progress' }));
+  });
+
+  it('repairs queued presentation slides before whole-deck validation', () => {
+    const plan = buildArtifactRunPlan({
+      runId: 'queued-slide-repair-run',
+      prompt: 'Create 2 slides: opening thesis, next step',
+      artifactType: 'presentation',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    const planResult = {
+      intent: 'batch_create',
+      blueprint: {
+        palette: {
+          bg: '#ffffff',
+        },
+      },
+    } as PlanResult;
+    const html = `<style>
+      :root { --bg: #ffffff; --accent: #245c5f; }
+      @keyframes fade { from { opacity: .9; } to { opacity: 1; } }
+      @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+      .title { font-size: 84px; animation: fade 1s ease both; }
+    </style>
+    <section><h1 class="title">Opening Thesis</h1></section>
+    <section data-background-color="#ffffff"><h2>Next Step</h2></section>`;
+    const events: unknown[] = [];
+
+    const repair = repairQueuedPresentationSlideFragments({
+      html,
+      planResult,
+      runPlan: plan,
+      onEvent: (event) => events.push(event),
+    });
+
+    expect(repair.repaired).toBe(true);
+    expect(repair.repairCount).toBe(1);
+    expect(repair.repairedPartCount).toBe(1);
+    expect(repair.html).toContain('<section data-background-color="#ffffff"><h1 class="title">Opening Thesis</h1></section>');
+    expect(repair.validationByPart).toContainEqual(expect.objectContaining({
+      partId: 'slide-1',
+      validationPassed: true,
+    }));
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'progress',
+      message: 'Repairing slide 1 fragment.',
+    }));
   });
 
   it('requests bounded LLM repair handoff when deterministic repair cannot recover structure', async () => {

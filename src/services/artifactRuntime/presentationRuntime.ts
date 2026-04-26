@@ -30,11 +30,20 @@ export interface PresentationRuntimeValidationResult {
 export interface PresentationRuntimeRepairResult {
   html: string;
   repairCount: number;
+  repairedPartCount?: number;
   repaired: boolean;
   summary: string;
   validation?: PresentationRuntimeValidationResult;
   llmRepairRequested?: boolean;
   llmRepairExecuted?: boolean;
+}
+
+export interface QueuedPresentationSlideRepairResult {
+  html: string;
+  repairCount: number;
+  repairedPartCount: number;
+  repaired: boolean;
+  validationByPart: NonNullable<ArtifactRuntimeTelemetry['validationByPart']>;
 }
 
 export interface QueuedPresentationRuntimeOptions {
@@ -215,6 +224,19 @@ function canRequestLlmRepair(input: {
   return !input.validation.passed && input.repairCount < maxRepairPasses;
 }
 
+function extractPresentationPrefixBlocks(html: string): string[] {
+  const blocks = html.match(/<style\b[\s\S]*?<\/style>|<link\b[^>]*>/gi) ?? [];
+  return Array.from(new Set(blocks.map((block) => block.trim()).filter(Boolean)));
+}
+
+function extractPresentationSectionFragments(html: string): string[] {
+  return html.match(/<section\b[\s\S]*?<\/section>/gi) ?? [];
+}
+
+function assemblePresentationFragments(prefixBlocks: string[], sections: string[]): string {
+  return [...prefixBlocks, ...sections].filter(Boolean).join('\n');
+}
+
 function summarizePresentationValidationByPart(
   violations: QAViolation[],
   slideCount: number,
@@ -362,6 +384,98 @@ export function repairPresentationFragmentHtml(html: string): { html: string; ch
   return {
     html: repairedHtml,
     changed: repairedHtml.trim() !== html.trim(),
+  };
+}
+
+export function repairQueuedPresentationSlideFragments(input: {
+  html: string;
+  planResult: PlanResult;
+  runPlan?: ArtifactRunPlan;
+  onEvent: EventListener;
+}): QueuedPresentationSlideRepairResult {
+  const prefixBlocks = extractPresentationPrefixBlocks(input.html);
+  const sections = extractPresentationSectionFragments(input.html);
+  const validationByPart: NonNullable<ArtifactRuntimeTelemetry['validationByPart']> = [];
+  const maxRepairPasses = input.runPlan?.providerPolicy.maxRepairPasses ?? 0;
+
+  if (sections.length === 0) {
+    return {
+      html: input.html,
+      repairCount: 0,
+      repairedPartCount: 0,
+      repaired: false,
+      validationByPart,
+    };
+  }
+
+  const nextSections = [...sections];
+  let repairCount = 0;
+  let repairedPartCount = 0;
+
+  for (const [index, section] of sections.entries()) {
+    const slideNumber = index + 1;
+    const fragment = assemblePresentationFragments(prefixBlocks, [section]);
+    const validation = validatePresentationRuntimeOutput(fragment, input.planResult, 1);
+    const slideSummary = validation.validationByPart.find((part) => part.partId === 'slide-1');
+    validationByPart.push({
+      partId: `slide-${slideNumber}`,
+      label: `Slide ${slideNumber}`,
+      validationPassed: slideSummary?.validationPassed ?? validation.passed,
+      blockingCount: slideSummary?.blockingCount ?? validation.blockingCount,
+      advisoryCount: slideSummary?.advisoryCount ?? validation.advisoryCount,
+      rules: slideSummary?.rules ?? [],
+    });
+
+    if (validation.passed || repairCount >= maxRepairPasses) continue;
+
+    emitArtifactRunEvent(input.onEvent, {
+      runId: input.runPlan?.runId ?? 'presentation-runtime',
+      type: 'runtime.repair-started',
+      role: 'repairer',
+      message: `Repairing slide ${slideNumber} fragment.`,
+      partId: `slide-${slideNumber}`,
+      pct: Math.min(86, 72 + (slideNumber * 3)),
+    });
+
+    const repaired = repairPresentationFragmentHtml(fragment);
+    if (!repaired.changed) continue;
+
+    const repairedSections = extractPresentationSectionFragments(repaired.html);
+    const repairedSection = repairedSections[0];
+    if (!repairedSection) continue;
+
+    nextSections[index] = repairedSection;
+    repairCount += 1;
+
+    const repairedValidation = validatePresentationRuntimeOutput(
+      assemblePresentationFragments(prefixBlocks, [repairedSection]),
+      input.planResult,
+      1,
+    );
+    const repairedSummary = repairedValidation.validationByPart.find((part) => part.partId === 'slide-1');
+    validationByPart[validationByPart.length - 1] = {
+      partId: `slide-${slideNumber}`,
+      label: `Slide ${slideNumber}`,
+      validationPassed: repairedSummary?.validationPassed ?? repairedValidation.passed,
+      blockingCount: repairedSummary?.blockingCount ?? repairedValidation.blockingCount,
+      advisoryCount: repairedSummary?.advisoryCount ?? repairedValidation.advisoryCount,
+      rules: repairedSummary?.rules ?? [],
+    };
+    if (repairedValidation.passed) {
+      repairedPartCount += 1;
+    }
+  }
+
+  const html = repairCount > 0
+    ? assemblePresentationFragments(prefixBlocks, nextSections)
+    : input.html;
+
+  return {
+    html,
+    repairCount,
+    repairedPartCount,
+    repaired: repairCount > 0,
+    validationByPart,
   };
 }
 
@@ -594,8 +708,22 @@ export async function runQueuedPresentationRuntime(
     pct: 82,
   });
 
+  const slideRepair = repairQueuedPresentationSlideFragments({
+    html: batchResult.html,
+    planResult,
+    ...(runPlan ? { runPlan } : {}),
+    onEvent,
+  });
+  if (slideRepair.repaired) {
+    onEvent({
+      type: 'progress',
+      message: `Repaired ${slideRepair.repairedPartCount} queued slide fragment${slideRepair.repairedPartCount === 1 ? '' : 's'} before deck validation.`,
+      pct: 84,
+    });
+  }
+
   const validation = validatePresentationRuntimeOutput(
-    batchResult.html,
+    slideRepair.html,
     planResult,
     batchResult.slideCount,
   );
@@ -606,7 +734,7 @@ export async function runQueuedPresentationRuntime(
   });
 
   const repair = await repairPresentationRuntimeOutput(
-    batchResult.html,
+    slideRepair.html,
     validation,
     planResult,
     batchResult.slideCount,
@@ -644,18 +772,19 @@ export async function runQueuedPresentationRuntime(
       validationPassed: finalValidation.passed,
       validationBlockingCount: finalValidation.blockingCount,
       validationAdvisoryCount: finalValidation.advisoryCount,
-      repairCount: repair.repairCount,
+      repairCount: slideRepair.repairCount + repair.repairCount,
       runMode: isEdit ? 'queued-edit' : 'queued-create',
       queuedPartCount: slideBriefs.length,
       completedPartCount: batchResult.slideCount,
+      repairedPartCount: slideRepair.repairedPartCount + (repair.repairedPartCount ?? 0),
       validationByPart: finalValidation.validationByPart,
     },
   };
 
   onEvent({
     type: 'progress',
-    message: repair.repaired
-      ? `Presentation finalized after ${repair.repairCount} repair pass${repair.repairCount === 1 ? '' : 'es'}.`
+    message: slideRepair.repairCount + repair.repairCount > 0
+      ? `Presentation finalized after ${slideRepair.repairCount + repair.repairCount} repair pass${slideRepair.repairCount + repair.repairCount === 1 ? '' : 'es'}.`
       : 'Presentation finalized from queued runtime output.',
     pct: 96,
   });

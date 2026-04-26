@@ -31,6 +31,7 @@ export {
   canRunQueuedPresentationRuntime,
   finalizeStaticPresentationRuntime,
   repairPresentationFragmentHtml,
+  repairQueuedPresentationSlideFragments,
   repairPresentationRuntimeOutput,
   runQueuedPresentationRuntime,
   runSinglePresentationRuntime,
@@ -67,6 +68,7 @@ export type {
 export type {
   PresentationRuntimeRepairResult,
   PresentationRuntimeValidationResult,
+  QueuedPresentationSlideRepairResult,
   QueuedPresentationRuntimeOptions,
   SinglePresentationRuntimeOptions,
   StaticPresentationRuntimeFinalizeInput,

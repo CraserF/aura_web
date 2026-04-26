@@ -302,6 +302,20 @@ Last updated: 2026-04-27.
 - Starter presentation build results now expose runtime telemetry for diagnostics, while still writing starter artifacts with `themeCss: ''`.
 - Added starter runtime diagnostics coverage using the shared benchmark helper to summarize first-preview coverage, queued slide counts, and validation pass rate.
 
+### Completed In Sixteenth Runtime Slice
+- Added a deterministic per-slide validation and repair pass for queued presentation decks before final whole-deck validation.
+- The queued slide repair pass:
+  - splits generated deck output into shared prefix blocks and individual `<section>` fragments;
+  - validates each queued slide fragment independently;
+  - applies deterministic fragment cleanup only to failing slides while repair budget remains;
+  - reassembles the deck before the final deck-level validation gate.
+- Queued presentation telemetry now counts per-slide repair passes and repaired slide parts in `repairCount` and `repairedPartCount`.
+- Added queued/generated presentation workflow tests using a mocked batch slide generator:
+  - first-preview events and queued slide telemetry are covered outside starter decks;
+  - deterministic per-slide repair is covered before final deck validation;
+  - shared runtime diagnostics summarize generated queued deck telemetry.
+- Added artifact runtime coverage for queued per-slide deterministic repair behavior.
+
 ### Validation Completed
 - `npm test -- artifact-runtime workflow-planner run-request run-dry-run run-explain structured-run-outputs external-adapter-contracts run-events workflow-benchmark-cases`
   - Passed: 9 files, 23 tests.
@@ -474,6 +488,18 @@ Last updated: 2026-04-27.
     - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
   - Changed-file ESLint across modified template, runtime, starter, and test files
     - Passed.
+- Current sixteenth-slice focused validation:
+  - `npm run typecheck`
+    - Passed.
+  - `npm test -- presentation-runtime-workflow artifact-runtime presentation-template-design-system project-starter-kits runtime-telemetry presentation-runtime-policy workflow-planner`
+    - Passed: 7 files, 45 tests.
+  - `npm test`
+    - Passed: 98 files, 544 tests.
+  - `npm run build`
+    - Passed.
+    - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
+  - Changed-file ESLint via `npx eslint src/services/artifactRuntime/index.ts src/services/artifactRuntime/presentationRuntime.ts src/test/artifact-runtime.test.ts src/test/presentation-runtime-workflow.test.ts`
+    - Passed.
 
 ### Current Open State
 - The active runtime now has an internal plan object, and queued plus single-slide presentation generation are controlled by the runtime layer.
@@ -483,7 +509,7 @@ Last updated: 2026-04-27.
 - Legacy external execution-spec files still exist in the repository as quarantined code, but active chat generation no longer imports them.
 - Starter presentation generation now creates runtime plans and uses runtime-owned template parsing, token replacement, section assembly, sanitize/validate/finalize behavior, and telemetry.
 - Active generated presentation routing now normalizes onto the production template family list. Legacy template files still exist in the registry/build output, but generated and starter routing should no longer select them directly.
-- The current presentation repair stage performs a first deterministic fragment repair pass and executes a bounded LLM repair pass when deterministic repair cannot recover the fragment and a model is available. Presentation runtime telemetry now includes run mode, queued/completed slide counts, and deck/slide validation summaries.
+- The current presentation repair stage performs queued per-slide deterministic repair before whole-deck validation, then a deck-level deterministic repair pass, then a bounded LLM repair pass when deterministic repair cannot recover the fragment and a model is available. Presentation runtime telemetry now includes run mode, queued/completed slide counts, repaired slide counts, and deck/slide validation summaries.
 - Create-mode documents with runtime plans now use queued outline/module generation, runtime shell assembly, module validation/repair, document QA, and runtime telemetry. Image-based create requests also use the queued path by planning from images in the outline step. Targeted edit requests use queued module-local regeneration when existing runtime module wrappers can be resolved, with fallback to the existing targeted patcher when they cannot. Module validation failures now attempt queued per-module repair before deterministic module repair. Runtime telemetry now reports document run mode plus queued, completed, and repaired module counts. Document module create/repair prompts now share a compact module contract pack.
 - Runtime benchmark diagnostics can now summarize prompt token estimates, first-preview coverage, validation pass rates, repair totals, and queued/repaired part counts by artifact type.
 - Spreadsheets still use deterministic workbook execution, but result summaries now map into shared runtime events.
@@ -709,11 +735,11 @@ Last updated: 2026-04-27.
 - Start with presentations, then extend to documents and spreadsheets.
 
 ## Immediate Next Implementation Slice
-- Continue presentation runtime hardening beyond routing:
-  - add queued/generated deck workflow tests with mocked slide generation so first-preview and queued slide telemetry are covered outside starter decks;
-  - start a per-slide validation/repair path for queued decks rather than only whole-deck validation after assembly;
+- Continue presentation runtime hardening beyond deterministic per-slide repair:
+  - add targeted per-slide repair telemetry to runtime events so the UI can distinguish slide repair from deck repair;
   - decide whether legacy template files should be archived out of active bundles or kept as hidden references until conversion;
-  - add production routing assertions for any remaining prompt paths that bypass `buildArtifactRunPlan`.
+  - add production routing assertions for any remaining prompt paths that bypass `buildArtifactRunPlan`;
+  - start viewport-oriented validation harnessing for production templates before attempting browser/canvas automation.
 - Continue compatibility cleanup without deleting compatibility files yet:
   - keep `workflowPlanner` re-exports until older tests and legacy surfaces are migrated;
   - move any remaining active runtime helper names that still read like workflow-planner ownership.
