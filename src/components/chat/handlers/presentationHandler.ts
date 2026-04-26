@@ -313,7 +313,8 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
           targetSummary,
           changedTargets: [...changedTargets],
           validation,
-          workflowPlan: runRequest.workflowPlan,
+          runtimePlan: runRequest.artifactRunPlan,
+          workflowPlan: runRequest.artifactRunPlan.workflow,
           presentation: {
             artifactType: 'presentation',
             title: result.title,
@@ -375,7 +376,8 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
               passed: false,
               summary: 'Run cancelled by user.',
             },
-            workflowPlan: runRequest.workflowPlan,
+            runtimePlan: runRequest.artifactRunPlan,
+            workflowPlan: runRequest.artifactRunPlan.workflow,
             presentation: {
               artifactType: 'presentation',
             },
@@ -407,11 +409,12 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
           mode: runRequest.mode,
           targetSummary,
           changedTargets: [],
-          validation: {
-            passed: false,
-            summary: 'Presentation workflow failed.',
-          },
-          workflowPlan: runRequest.workflowPlan,
+            validation: {
+              passed: false,
+              summary: 'Presentation workflow failed.',
+            },
+            runtimePlan: runRequest.artifactRunPlan,
+            workflowPlan: runRequest.artifactRunPlan.workflow,
           presentation: {
             artifactType: 'presentation',
           },

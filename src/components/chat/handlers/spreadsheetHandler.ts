@@ -149,7 +149,8 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
     targetSummary,
     changedTargets,
     validation,
-    workflowPlan: runRequest.workflowPlan,
+    runtimePlan: runRequest.artifactRunPlan,
+    workflowPlan: runRequest.artifactRunPlan.workflow,
     spreadsheet: {
       artifactType: 'spreadsheet' as const,
       ...spreadsheet,

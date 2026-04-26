@@ -119,7 +119,8 @@ function buildBlockedRunResult(runId: string, runRequest: Awaited<ReturnType<typ
         targetSummary: runRequest.intent.targetSelectors.map((selector) => selector.label ?? selector.type),
         changedTargets,
         validation,
-        workflowPlan: runRequest.workflowPlan,
+        runtimePlan: runRequest.artifactRunPlan,
+        workflowPlan: runRequest.artifactRunPlan.workflow,
         ...(runRequest.intent.projectOperation
           ? {
               project: {

@@ -359,7 +359,8 @@ export async function handleProjectWorkflow(ctx: ProjectWorkflowContext): Promis
           blockingIssues: projectValidation.blockingIssues,
           warnings: projectValidation.warnings,
         },
-        workflowPlan: runRequest.workflowPlan,
+        runtimePlan: runRequest.artifactRunPlan,
+        workflowPlan: runRequest.artifactRunPlan.workflow,
         project: {
           artifactType: 'project',
           project: buildProjectOutputs(

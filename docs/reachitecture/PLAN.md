@@ -120,6 +120,22 @@ Last updated: 2026-04-26.
 - Started document runtime V1 by passing the active `ArtifactRunPlan` into document generation and emitting runtime plan/part/validation/finalization events through the shared event adapter.
 - Added a spreadsheet runtime bridge that maps deterministic spreadsheet results into shared validation, part-completion, and finalization events without changing workbook execution.
 
+### Completed In Fifth Runtime Slice
+- Removed active chat/runtime reliance on `runRequest.workflowPlan`.
+- Output envelopes now include `runtimePlan` sourced from `runRequest.artifactRunPlan`.
+- The older `workflowPlan` envelope field is still populated for compatibility, but active handlers now derive it from `artifactRunPlan.workflow`.
+- Moved the workflow-planning implementation into `src/services/artifactRuntime/planner.ts`.
+- Converted `src/services/workflowPlanner/build.ts` into a thin compatibility export from the runtime planner.
+- Updated `src/services/artifactRuntime/build.ts` so `ArtifactRunPlan` construction depends on runtime-owned planning code.
+- Added document runtime part expansion:
+  - document outline part;
+  - blueprint-backed document module parts;
+  - validation result part.
+- Document generation now attaches those runtime parts to the active `ArtifactRunPlan` before generation.
+- Added deterministic repair follow-up coverage proving validation is re-run after repair and the repaired validation summary is recorded.
+- Added the first bounded LLM repair handoff signal for presentation fragments that deterministic repair cannot recover.
+- Added spreadsheet runtime bridge tests for completed and blocked deterministic workbook results.
+
 ### Validation Completed
 - `npm test -- artifact-runtime workflow-planner run-request run-dry-run run-explain structured-run-outputs external-adapter-contracts run-events workflow-benchmark-cases`
   - Passed: 9 files, 23 tests.
@@ -158,14 +174,27 @@ Last updated: 2026-04-26.
     - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
   - Changed-file ESLint
     - Passed.
+- Current fifth-slice focused validation:
+  - `npm run typecheck`
+    - Passed.
+  - `npm test -- artifact-runtime spreadsheet-runtime prompt-contracts presentation-runtime-policy workflow-planner run-request run-dry-run project-starter-kits`
+    - Passed: 8 files, 33 tests.
+  - `npm test`
+    - Passed: 95 files, 520 tests.
+  - `npm run build`
+    - Passed.
+    - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
+  - Changed-file ESLint
+    - Passed.
 
 ### Current Open State
 - The active runtime now has an internal plan object, and queued plus single-slide presentation generation are controlled by the runtime layer.
-- `ArtifactRunPlan` now exposes the primary planning decisions directly. The nested `workflow` object remains as compatibility scaffolding and should be removed after document/spreadsheet handlers no longer need it.
+- `ArtifactRunPlan` now exposes the primary planning decisions directly. The nested `workflow` object remains as compatibility scaffolding for envelope compatibility and older tests.
 - Legacy external execution-spec files still exist in the repository as quarantined code, but active chat generation no longer imports them.
 - Starter presentation generation now creates runtime plans and uses runtime-owned template parsing, token replacement, section assembly, sanitize/validate/finalize behavior, and telemetry.
-- The current presentation repair stage performs a first deterministic fragment repair pass. It does not yet perform targeted LLM repair for semantic/layout failures that deterministic repair cannot fix.
-- Documents and spreadsheets still use their current handlers, though they now receive run requests that include `artifactRunPlan`.
+- The current presentation repair stage performs a first deterministic fragment repair pass and records a bounded LLM repair handoff when deterministic repair cannot recover the fragment. It does not yet execute that LLM repair pass.
+- Documents still use the current streaming generator, but they now attach runtime outline/module/validation parts and emit runtime events.
+- Spreadsheets still use deterministic workbook execution, but result summaries now map into shared runtime events.
 - Workflow presets still exist in the advanced UI and storage model. They are hidden from the default user surface but not removed yet.
 - Production templates are still mixed with legacy templates; routing has not yet been fully reduced to production families only.
 
@@ -388,12 +417,17 @@ Last updated: 2026-04-26.
 - Start with presentations, then extend to documents and spreadsheets.
 
 ## Immediate Next Implementation Slice
-- Remove remaining active reliance on `runRequest.workflowPlan` where `runRequest.artifactRunPlan` now has the same primary fields.
-- Move runtime planning logic fully out of `workflowPlanner/build.ts`, leaving `workflowPlanner` as a temporary compatibility adapter only.
-- Add deterministic repair follow-up coverage that re-runs validation after repair and records the repaired validation summary.
-- Add the first LLM repair handoff for presentation failures that deterministic repair cannot resolve, bounded by provider policy.
-- Expand document runtime V1 from event emission into outline/section/module runtime parts.
-- Add spreadsheet runtime tests for result-to-event mapping and deterministic workbook-event summaries.
+- Execute the bounded LLM presentation repair pass for failures that deterministic repair cannot fix.
+- Remove or further quarantine `RunRequest.workflowPlan` once remaining compatibility tests and envelope consumers use `runtimePlan`.
+- Split document generation into queued runtime parts instead of one stream:
+  - outline first;
+  - section/module generation;
+  - document validation;
+  - targeted repair;
+  - final shell assembly.
+- Expand spreadsheet runtime tests to cover workbook action, query, chart, formula, and clarification paths.
+- Add runtime metrics to document and spreadsheet outputs, matching presentation telemetry where appropriate.
+- Add import-boundary tests proving `workflowPlanner/build.ts` is now compatibility-only and active runtime planning imports `artifactRuntime/planner.ts`.
 
 ## Test Plan
 - Add planner tests proving each user prompt produces exactly one authoritative `ArtifactRunPlan`.

@@ -8,9 +8,11 @@ import {
 import {
   finalizeStaticPresentationRuntime,
   repairPresentationFragmentHtml,
+  repairPresentationRuntimeOutput,
   validatePresentationRuntimeOutput,
 } from '@/services/artifactRuntime/presentationRuntime';
 import { buildSlideBriefsFromRunPlan } from '@/services/artifactRuntime/presentation';
+import { attachDocumentRuntimeParts } from '@/services/artifactRuntime/documentRuntime';
 import type { PlanResult } from '@/services/ai/workflow/agents/planner';
 
 describe('ArtifactRuntime plan', () => {
@@ -67,6 +69,39 @@ describe('ArtifactRuntime plan', () => {
     });
     expect(plan.designManifest.motionBudget.maxAnimatedSystems).toBe(1);
     expect(plan.cancellation.source).toBe('user-only');
+  });
+
+  it('expands document runtime plans into outline, module, and validation parts', () => {
+    const plan = buildArtifactRunPlan({
+      runId: 'doc-run',
+      prompt: 'Create an executive briefing document',
+      artifactType: 'document',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    const parts = attachDocumentRuntimeParts({
+      runPlan: plan,
+      documentType: 'brief',
+      blueprintLabel: 'Executive Brief',
+      recommendedModules: ['hero summary', 'KPI row', 'next-step timeline'],
+      isEdit: false,
+    });
+
+    expect(parts.map((part) => part.kind)).toEqual([
+      'section',
+      'document-module',
+      'document-module',
+      'document-module',
+      'validation-result',
+    ]);
+    expect(plan.queueMode).toBe('sequential');
+    expect(plan.workQueue).toEqual(parts);
+    expect(plan.workflow.queuedWorkItems.map((item) => item.targetType)).toEqual(['section', 'section', 'section', 'section']);
   });
 
   it('validates queued presentation runtime output without requiring an LLM repair pass', () => {
@@ -163,5 +198,95 @@ describe('ArtifactRuntime plan', () => {
     expect(repaired.html).toContain('class="slide-content"');
     expect(repaired.html).not.toMatch(/<html|<body|<script|<link|https?:\/\//i);
     expect(repaired.html).not.toContain('<p></p>');
+  });
+
+  it('records repaired validation after deterministic presentation repair', async () => {
+    const plan = buildArtifactRunPlan({
+      runId: 'repair-run',
+      prompt: 'Create a polished presentation slide',
+      artifactType: 'presentation',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    const planResult = {
+      intent: 'create',
+      blueprint: {
+        palette: {
+          bg: '#ffffff',
+        },
+      },
+    } as PlanResult;
+    const html = `<style>
+      :root { --bg: #ffffff; --accent: #245c5f; }
+      .title { font-size: 84px; animation: fade 1s ease both; }
+      @keyframes fade { from { opacity: .9; } to { opacity: 1; } }
+    </style>
+    <section><h1 class="title">Repair Me</h1></section>`;
+    const validation = validatePresentationRuntimeOutput(html, planResult, 1);
+    const events: unknown[] = [];
+
+    const repair = await repairPresentationRuntimeOutput(
+      html,
+      validation,
+      planResult,
+      1,
+      plan,
+      (event) => events.push(event),
+    );
+
+    expect(validation.passed).toBe(false);
+    expect(repair.repaired).toBe(true);
+    expect(repair.repairCount).toBe(1);
+    expect(repair.validation?.passed).toBe(true);
+    expect(repair.validation?.blockingCount).toBe(0);
+    expect(repair.summary).toContain('passed validation');
+    expect(events).toContainEqual(expect.objectContaining({ type: 'progress' }));
+  });
+
+  it('requests bounded LLM repair handoff when deterministic repair cannot recover structure', async () => {
+    const plan = buildArtifactRunPlan({
+      runId: 'llm-repair-run',
+      prompt: 'Create a polished presentation slide',
+      artifactType: 'presentation',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    const planResult = {
+      intent: 'create',
+      blueprint: {
+        palette: {
+          bg: '#ffffff',
+        },
+      },
+    } as PlanResult;
+    const html = `<style>.title { font-size: 84px; }</style><div class="title">No section here</div>`;
+    const validation = validatePresentationRuntimeOutput(html, planResult, 1);
+    const events: unknown[] = [];
+
+    const repair = await repairPresentationRuntimeOutput(
+      html,
+      validation,
+      planResult,
+      1,
+      plan,
+      (event) => events.push(event),
+    );
+
+    expect(validation.passed).toBe(false);
+    expect(repair.repaired).toBe(false);
+    expect(repair.llmRepairRequested).toBe(true);
+    expect(repair.summary).toContain('bounded LLM repair handoff requested');
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'progress',
+      message: expect.stringContaining('bounded LLM repair handoff requested'),
+    }));
   });
 });

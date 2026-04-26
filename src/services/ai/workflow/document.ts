@@ -30,6 +30,7 @@ import { getReferenceStylePack } from '../templates';
 import { applyDocumentTargetedEdit, prepareDocumentHtmlForEditing } from '@/services/editing/patchDocument';
 import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
 import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
+import { attachDocumentRuntimeParts } from '@/services/artifactRuntime/documentRuntime';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
 
 export interface DocumentProjectLink {
@@ -1037,12 +1038,21 @@ export async function runDocumentWorkflow(
     onEvent({ type: 'progress', message: 'Understanding the document request…', pct: 8 });
 
     const planResult = planDocumentRequest(input);
+    const runtimeParts = input.artifactRunPlan
+      ? attachDocumentRuntimeParts({
+          runPlan: input.artifactRunPlan,
+          documentType: planResult.documentType,
+          blueprintLabel: planResult.blueprint.label,
+          recommendedModules: planResult.blueprint.recommendedModules,
+          isEdit,
+        })
+      : [];
     emitArtifactRunEvent(onEvent, {
       runId: runtimeRunId,
       type: 'runtime.plan-created',
       role: 'planner',
       message: input.artifactRunPlan
-        ? `Document runtime plan ready: ${input.artifactRunPlan.intentSummary}`
+        ? `Document runtime plan ready with ${runtimeParts.length} part(s).`
         : `Document plan ready: ${planResult.blueprint.label}`,
       pct: 12,
     });

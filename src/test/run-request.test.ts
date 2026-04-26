@@ -81,11 +81,11 @@ describe('buildRunRequest', () => {
     expect(result.runRequest.projectSnapshot.linkedReferenceCount).toBe(0);
     expect(result.runRequest.projectSnapshot.artifactCountsByType.document).toBe(1);
     expect(result.runRequest.artifactRunPlan.version).toBe(1);
-    expect(result.runRequest.artifactRunPlan.workflow).toBe(result.runRequest.workflowPlan);
     expect(result.runRequest.artifactRunPlan.roles).toContain('design-director');
-    expect(result.runRequest.workflowPlan?.artifactType).toBe('document');
-    expect(result.runRequest.workflowPlan?.requestKind).toBe('edit');
-    expect(result.runRequest.workflowPlan?.templateGuidance.intentFamily).toBe('edit');
+    expect(result.runRequest.artifactRunPlan.artifactType).toBe('document');
+    expect(result.runRequest.artifactRunPlan.requestKind).toBe('edit');
+    expect(result.runRequest.artifactRunPlan.templateGuidance.intentFamily).toBe('edit');
+    expect(result.runRequest.workflowPlan).toBe(result.runRequest.artifactRunPlan.workflow);
     expect(result.runRequest.mode).toBe('execute');
     expect(result.runRequest.serializableSpec).toBeUndefined();
   });
@@ -133,7 +133,7 @@ describe('buildRunRequest', () => {
     expect(directIntent.artifactType).toBe('document');
     expect(result.runRequest.intent.artifactType).toBe('document');
     expect(result.runRequest.intent.operation).toBe('create');
-    expect(result.runRequest.workflowPlan?.requestKind).toBe('create');
+    expect(result.runRequest.artifactRunPlan.requestKind).toBe('create');
     expect(result.runRequest.intent.targetDocumentId).toBeUndefined();
     expect(result.runRequest.intent.targetSelectors).toEqual([]);
   });

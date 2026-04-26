@@ -31,6 +31,7 @@ export interface PresentationRuntimeRepairResult {
   repaired: boolean;
   summary: string;
   validation?: PresentationRuntimeValidationResult;
+  llmRepairRequested?: boolean;
 }
 
 export interface QueuedPresentationRuntimeOptions {
@@ -202,6 +203,15 @@ function buildStyleFragment(doc: Document): string {
   return `<style>\n${repairedStyleText}\n</style>`;
 }
 
+function canRequestLlmRepair(input: {
+  runPlan?: ArtifactRunPlan;
+  validation: PresentationRuntimeValidationResult;
+  repairCount: number;
+}): boolean {
+  const maxRepairPasses = input.runPlan?.providerPolicy.maxRepairPasses ?? 0;
+  return !input.validation.passed && input.repairCount < maxRepairPasses;
+}
+
 export function repairPresentationFragmentHtml(html: string): { html: string; changed: boolean } {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
@@ -304,15 +314,41 @@ export async function repairPresentationRuntimeOutput(
       planResult,
       expectedSlideCount,
     );
+    const llmRepairRequested = canRequestLlmRepair({
+      runPlan,
+      validation: repairedValidation,
+      repairCount: 1,
+    });
 
     return {
       html: repaired.html,
       repairCount: 1,
       repaired: true,
       validation: repairedValidation,
+      ...(llmRepairRequested ? { llmRepairRequested: true } : {}),
       summary: repairedValidation.passed
         ? 'Deterministic presentation repair passed validation.'
+        : llmRepairRequested
+          ? `Deterministic presentation repair completed with ${repairedValidation.blockingCount} blocking issue(s) and ${repairedValidation.advisoryCount} advisory issue(s) remaining; bounded LLM repair handoff requested.`
         : `Deterministic presentation repair completed with ${repairedValidation.blockingCount} blocking issue(s) and ${repairedValidation.advisoryCount} advisory issue(s) remaining.`,
+    };
+  }
+
+  if (canRequestLlmRepair({ runPlan, validation, repairCount: 0 })) {
+    emitArtifactRunEvent(onEvent, {
+      runId: runPlan?.runId ?? 'presentation-runtime',
+      type: 'runtime.repair-started',
+      role: 'repairer',
+      message: 'Deterministic repair could not resolve the fragment; bounded LLM repair handoff requested.',
+      pct: 90,
+    });
+
+    return {
+      html,
+      repairCount: 0,
+      repaired: false,
+      llmRepairRequested: true,
+      summary: 'Deterministic repair could not resolve the remaining blocking issues; bounded LLM repair handoff requested.',
     };
   }
 

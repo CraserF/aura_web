@@ -1,4 +1,9 @@
 export { buildArtifactRunPlan } from './build';
+export { buildArtifactWorkflowPlan } from './planner';
+export {
+  attachDocumentRuntimeParts,
+  buildDocumentRuntimeParts,
+} from './documentRuntime';
 export {
   artifactRunEventToWorkflowEvent,
   createArtifactRunEvent,
@@ -17,6 +22,7 @@ export { buildStaticPresentationStarterRuntime } from './starterPresentationRunt
 export { emitSpreadsheetRuntimeResultEvents } from './spreadsheetRuntime';
 export type { BuildArtifactRunPlanInput } from './build';
 export type { CreateArtifactRunEventInput } from './events';
+export type { BuildDocumentRuntimePartsInput } from './documentRuntime';
 export type {
   PresentationRuntimeRepairResult,
   PresentationRuntimeValidationResult,
