@@ -32,6 +32,7 @@ import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
 import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
 import {
   attachDocumentRuntimeParts,
+  applyDocumentRuntimeModuleEdits,
   assembleDocumentRuntimeHtml,
   buildDocumentRuntimeModulePrompt,
   buildDocumentRuntimeOutlinePrompt,
@@ -41,6 +42,7 @@ import {
   finalizeDocumentRuntimeHtml,
   repairDocumentRuntimeModules,
   repairDocumentRuntimeOutput,
+  resolveDocumentRuntimeEditModules,
   validateDocumentRuntimeModules,
   validateDocumentRuntimeOutput,
 } from '@/services/artifactRuntime/documentRuntime';
@@ -862,6 +864,91 @@ async function runQueuedDocumentRuntimeDraft(input: {
   };
 }
 
+async function runQueuedDocumentRuntimeEditDraft(input: {
+  model: LanguageModel;
+  workflowInput: DocumentInput;
+  plan: DocumentPlan;
+  systemPrompt: string;
+  editModules: Array<{ part: ArtifactPart; existingHtml: string; existingText: string }>;
+  onEvent: EventListener;
+  signal?: AbortSignal;
+  runId: string;
+}): Promise<{
+  rawContent: string;
+  renderedHtml: string;
+  firstPreviewAt?: number;
+}> {
+  const designFamily = input.workflowInput.artifactRunPlan?.designManifest.family;
+  let firstPreviewAt: number | undefined;
+  const onChunk = (chunk: string) => {
+    firstPreviewAt ??= performance.now();
+    input.onEvent({ type: 'streaming', stepId: 'generate', chunk });
+  };
+  const outline = [
+    `Edit request: ${input.workflowInput.prompt}`,
+    'Targeted runtime modules:',
+    ...input.editModules.map((match, index) => `${index + 1}. ${match.part.title} [${match.part.id}]: ${match.existingText.slice(0, 600)}`),
+  ].join('\n');
+  const modules: Array<{ partId: string; html: string }> = [];
+
+  for (const [index, match] of input.editModules.entries()) {
+    const pct = Math.min(76, 34 + (index * 10));
+    emitArtifactRunEvent(input.onEvent, {
+      runId: input.runId,
+      type: 'runtime.part-started',
+      role: 'generator',
+      message: `Updating ${match.part.title}`,
+      partId: match.part.id,
+      pct,
+    });
+    const html = await streamDocumentRuntimeText({
+      model: input.model,
+      messages: [
+        { role: 'system', content: input.systemPrompt, providerOptions: CACHE_CONTROL } as ModelMessage,
+        {
+          role: 'user',
+          content: buildDocumentRuntimeModulePrompt({
+            taskBrief: input.workflowInput.prompt,
+            documentType: input.plan.documentType,
+            outline,
+            part: match.part,
+            designFamily,
+            existingModuleHtml: match.existingHtml,
+          }),
+        },
+      ],
+      maxOutputTokens: input.workflowInput.artifactRunPlan?.providerPolicy.mode === 'local-constrained' ? 3072 : 4096,
+      ...(input.signal ? { signal: input.signal } : {}),
+      onChunk,
+    });
+    modules.push({
+      partId: match.part.id,
+      html: extractDocumentSource(html),
+    });
+    emitArtifactRunEvent(input.onEvent, {
+      runId: input.runId,
+      type: 'runtime.part-completed',
+      role: 'generator',
+      message: `Updated ${match.part.title}`,
+      partId: match.part.id,
+      pct: Math.min(82, pct + 6),
+    });
+  }
+
+  const renderedHtml = applyDocumentRuntimeModuleEdits({
+    existingHtml: input.workflowInput.existingHtml ?? '',
+    parts: input.workflowInput.artifactRunPlan?.workQueue ?? input.editModules.map((match) => match.part),
+    modules,
+  });
+  const rawContent = modules.map((module) => module.html).join('\n\n');
+
+  return {
+    rawContent,
+    renderedHtml,
+    ...(firstPreviewAt ? { firstPreviewAt } : {}),
+  };
+}
+
 function getDocumentStructureGuide(documentType: ResolvedDocumentType): string {
   switch (documentType) {
     case 'report':
@@ -1276,6 +1363,19 @@ export async function runDocumentWorkflow(
       isEdit,
       hasImages: (input.imageParts?.length ?? 0) > 0,
     });
+    const queuedEditModules = isEdit && input.existingHtml && input.editing && (input.imageParts?.length ?? 0) === 0
+      ? resolveDocumentRuntimeEditModules({
+          existingHtml: input.existingHtml,
+          targets: input.editing.resolvedTargets,
+          parts: runtimeParts,
+        })
+      : [];
+    const useQueuedDocumentEditRuntime =
+      !!input.artifactRunPlan &&
+      !!input.existingHtml &&
+      !!input.editing &&
+      !input.editing.allowFullRegeneration &&
+      queuedEditModules.length > 0;
 
     const historyMessages: ModelMessage[] = toModelMessages(
       input.chatHistory.slice(-4), // Keep only the most recent context so the current document stays focused
@@ -1314,7 +1414,13 @@ export async function runDocumentWorkflow(
       onEvent,
       startPct: 28,
       maxPct: 68,
-      messages: useQueuedDocumentRuntime
+      messages: useQueuedDocumentEditRuntime
+        ? [
+            'Still updating targeted document modules…',
+            'Checking the edited module structure…',
+            'Finishing the module-level edit…',
+          ]
+        : useQueuedDocumentRuntime
         ? [
             'Still creating document modules…',
             'Assembling the document structure…',
@@ -1335,9 +1441,32 @@ export async function runDocumentWorkflow(
 
     let rawContent = '';
     let renderedHtml = '';
+    let usedQueuedDocumentEdit = false;
 
     try {
-      if (useQueuedDocumentRuntime) {
+      if (useQueuedDocumentEditRuntime) {
+        onEvent({ type: 'progress', message: 'Updating targeted document modules…', pct: 30 });
+        const queuedEditDraft = await runQueuedDocumentRuntimeEditDraft({
+          model,
+          workflowInput: input,
+          plan: planResult,
+          systemPrompt,
+          editModules: queuedEditModules,
+          onEvent,
+          ...(signal ? { signal } : {}),
+          runId: runtimeRunId,
+        });
+        rawContent = queuedEditDraft.rawContent;
+        renderedHtml = queuedEditDraft.renderedHtml;
+        usedQueuedDocumentEdit = true;
+        if (queuedEditDraft.firstPreviewAt) firstPreviewAt = queuedEditDraft.firstPreviewAt;
+        aiDebugLog('document', 'document render mode', {
+          mode: 'queued-runtime-edit',
+          rawChars: rawContent.length,
+          renderedChars: renderedHtml.length,
+          moduleCount: queuedEditModules.length,
+        });
+      } else if (useQueuedDocumentRuntime) {
         onEvent({ type: 'progress', message: 'Creating document outline and modules…', pct: 30 });
         const queuedDraft = await runQueuedDocumentRuntimeDraft({
           model,
@@ -1395,7 +1524,19 @@ export async function runDocumentWorkflow(
     }
     let editingTelemetry: EditingTelemetry | undefined;
 
-    if (isEdit && input.existingHtml && input.editing) {
+    if (usedQueuedDocumentEdit && input.editing) {
+      editingTelemetry = {
+        strategyUsed: 'block-replace',
+        fallbackUsed: false,
+        targetSummary: input.editing.targetSummary,
+        dryRunFailures: [],
+      };
+      logEditingMetrics('document', {
+        ...editingTelemetry,
+        regenerationAvoided: true,
+        promptCharsDelta: finalHtml.length - (input.existingHtml?.length ?? 0),
+      });
+    } else if (isEdit && input.existingHtml && input.editing) {
       const targetedEdit = applyDocumentTargetedEdit({
         existingHtml: prepareDocumentHtmlForEditing(input.existingHtml).html,
         generatedHtml: finalHtml,

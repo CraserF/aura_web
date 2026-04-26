@@ -213,6 +213,22 @@ Last updated: 2026-04-26.
 - Updated module prompt guidance so generated modules use the shared class vocabulary instead of inventing fresh layout systems.
 - Added tests for image-compatible queued eligibility, reusable module prompt classes, runtime shell CSS, and module-specific validation issue reporting.
 
+### Completed In Eleventh Runtime Slice
+- Added runtime helpers for targeted document module edits:
+  - resolve edit targets to existing `data-runtime-part` module wrappers;
+  - score target/module text overlap when direct block ids are unavailable;
+  - preserve each matched module's existing HTML as edit context;
+  - splice regenerated module fragments back into the existing document shell.
+- The document workflow now attempts a guarded queued edit path before the old broad edit stream when:
+  - the request is a document edit;
+  - the existing document has runtime module wrappers;
+  - resolved edit targets map to one or more runtime modules;
+  - full regeneration is not requested;
+  - no image edit input is present.
+- Queued module edits regenerate only the matched modules, preserve untouched modules, and then continue through the same finalizer, module validation/repair, document QA, and telemetry path.
+- If a module cannot be resolved safely, the workflow falls back to the existing targeted edit patcher.
+- Added artifact runtime coverage proving targeted edit resolution selects the expected module and module-local replacement preserves untouched content.
+
 ### Validation Completed
 - `npm test -- artifact-runtime workflow-planner run-request run-dry-run run-explain structured-run-outputs external-adapter-contracts run-events workflow-benchmark-cases`
   - Passed: 9 files, 23 tests.
@@ -325,6 +341,18 @@ Last updated: 2026-04-26.
     - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
   - Changed-file ESLint via `npx eslint src/services/ai/workflow/document.ts src/services/artifactRuntime/documentRuntime.ts src/services/artifactRuntime/index.ts src/test/artifact-runtime.test.ts`
     - Passed.
+- Current eleventh-slice focused validation:
+  - `npm run typecheck`
+    - Passed.
+  - `npm test -- artifact-runtime spreadsheet-runtime prompt-contracts presentation-runtime-policy workflow-planner run-request run-dry-run project-starter-kits project-augmentation`
+    - Passed: 9 files, 45 tests.
+  - `npm test`
+    - Passed: 95 files, 530 tests.
+  - `npm run build`
+    - Passed.
+    - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
+  - Changed-file ESLint via `npx eslint src/services/ai/workflow/document.ts src/services/artifactRuntime/documentRuntime.ts src/services/artifactRuntime/index.ts src/test/artifact-runtime.test.ts`
+    - Passed.
 
 ### Current Open State
 - The active runtime now has an internal plan object, and queued plus single-slide presentation generation are controlled by the runtime layer.
@@ -332,7 +360,7 @@ Last updated: 2026-04-26.
 - Legacy external execution-spec files still exist in the repository as quarantined code, but active chat generation no longer imports them.
 - Starter presentation generation now creates runtime plans and uses runtime-owned template parsing, token replacement, section assembly, sanitize/validate/finalize behavior, and telemetry.
 - The current presentation repair stage performs a first deterministic fragment repair pass and executes a bounded LLM repair pass when deterministic repair cannot recover the fragment and a model is available.
-- Create-mode documents with runtime plans now use queued outline/module generation, runtime shell assembly, module validation/repair, document QA, and runtime telemetry. Image-based create requests also use the queued path by planning from images in the outline step. Edit requests still use the older one-stream generator until the queued edit/module flow is built.
+- Create-mode documents with runtime plans now use queued outline/module generation, runtime shell assembly, module validation/repair, document QA, and runtime telemetry. Image-based create requests also use the queued path by planning from images in the outline step. Targeted edit requests use queued module-local regeneration when existing runtime module wrappers can be resolved, with fallback to the existing targeted patcher when they cannot.
 - Spreadsheets still use deterministic workbook execution, but result summaries now map into shared runtime events.
 - Workflow presets still exist in the advanced UI and storage model. They are hidden from the default user surface but not removed yet.
 - Production templates are still mixed with legacy templates; routing has not yet been fully reduced to production families only.
@@ -556,12 +584,13 @@ Last updated: 2026-04-26.
 - Start with presentations, then extend to documents and spreadsheets.
 
 ## Immediate Next Implementation Slice
-- Extend queued document generation to targeted edits:
-  - map resolved edit targets to runtime module ids when existing documents contain module wrappers;
-  - regenerate only the affected module where possible;
-  - fall back to the existing targeted-edit patcher when a module cannot be resolved safely.
-- Use the new module-specific validation issue metadata to drive per-module repair prompts instead of repairing the whole document.
-- Reuse the module validation/repair helpers as the final gate for separately generated and edited document modules.
+- Use module-specific validation issue metadata to drive per-module repair prompts instead of deterministic whole-document module repair first.
+- Add a bounded queued module repair pass that:
+  - receives the failed module id and issue summaries;
+  - regenerates only that module fragment;
+  - splices the repaired module back into the document shell;
+  - falls back to deterministic module repair when no model repair is available.
+- Add workflow tests around queued edit fallback behavior and module-local repair pass selection.
 - Continue expanding the compact document shell/design-system finalizer only when a new module pattern is needed by queued generation.
 - Add runtime telemetry to final RunResult summaries where useful for diagnostics.
 - Remove or rename remaining `workflowPlanner` compatibility surfaces after all imports move to `artifactRuntime`.

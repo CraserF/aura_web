@@ -2,6 +2,7 @@ import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
 import type { ArtifactPart, ArtifactRunPlan } from '@/services/artifactRuntime/types';
 import { validateDocument } from '@/services/ai/workflow/agents/document-qa';
 import type { ArtifactRuntimeTelemetry, EventListener } from '@/services/ai/workflow/types';
+import type { ResolvedTarget } from '@/services/editing/types';
 
 export interface DocumentRuntimeModuleIssue {
   partId: string;
@@ -36,6 +37,12 @@ export interface DocumentRuntimeFinalizeResult {
 export interface DocumentRuntimeModuleDraft {
   partId: string;
   html: string;
+}
+
+export interface DocumentRuntimeEditModuleMatch {
+  part: ArtifactPart;
+  existingHtml: string;
+  existingText: string;
 }
 
 export interface BuildDocumentRuntimeTelemetryInput {
@@ -75,11 +82,24 @@ export interface BuildDocumentRuntimeModulePromptInput {
   outline: string;
   part: ArtifactPart;
   designFamily?: string;
+  existingModuleHtml?: string;
 }
 
 export interface AssembleDocumentRuntimeHtmlInput {
   title: string;
   outline: string;
+  parts: ArtifactPart[];
+  modules: DocumentRuntimeModuleDraft[];
+}
+
+export interface ResolveDocumentRuntimeEditModulesInput {
+  existingHtml: string;
+  targets: ResolvedTarget[];
+  parts: ArtifactPart[];
+}
+
+export interface ApplyDocumentRuntimeModuleEditsInput {
+  existingHtml: string;
   parts: ArtifactPart[];
   modules: DocumentRuntimeModuleDraft[];
 }
@@ -220,8 +240,63 @@ Return only one semantic HTML module:
 - include one clear <h2>
 - include concise body content using <p>, <ul>, <ol>, <table>, or simple nested <div> blocks only when useful
 - when appropriate, use reusable classes: doc-kpi-row, doc-kpi, doc-comparison, doc-compare-card, doc-proof-strip, doc-proof-item, doc-timeline, doc-timeline-item, doc-sidebar-layout, doc-main, doc-aside
+- ${input.existingModuleHtml ? `preserve the useful structure of this existing module while applying the requested edit:\n\`\`\`html\n${input.existingModuleHtml}\n\`\`\`` : 'create the module from the outline and task brief'}
 - do not include <style>, <script>, <html>, <head>, <body>, remote assets, or JavaScript
 - do not repeat the document shell`;
+}
+
+function normalizeText(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function scoreTextOverlap(a: string, b: string): number {
+  const aTokens = new Set(normalizeText(a).split(' ').filter((token) => token.length >= 4));
+  const bTokens = new Set(normalizeText(b).split(' ').filter((token) => token.length >= 4));
+  if (aTokens.size === 0 || bTokens.size === 0) return 0;
+
+  let overlap = 0;
+  for (const token of aTokens) {
+    if (bTokens.has(token)) overlap += 1;
+  }
+  return overlap / Math.min(aTokens.size, bTokens.size);
+}
+
+export function resolveDocumentRuntimeEditModules(
+  input: ResolveDocumentRuntimeEditModulesInput,
+): DocumentRuntimeEditModuleMatch[] {
+  const moduleParts = getDocumentModuleParts(input.parts);
+  if (moduleParts.length === 0 || input.targets.length === 0) return [];
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(input.existingHtml, 'text/html');
+  const matches = new Map<string, DocumentRuntimeEditModuleMatch>();
+  const targetText = input.targets
+    .map((target) => `${target.label} ${target.matchedText ?? ''} ${target.selector.value ?? ''}`)
+    .join(' ');
+
+  for (const part of moduleParts) {
+    const element = findRuntimePartElement(doc, part.id);
+    if (!element) continue;
+
+    const existingText = (element.textContent ?? '').replace(/\s+/g, ' ').trim();
+    const titleMatch = normalizeText(targetText).includes(normalizeText(part.title));
+    const textMatch = scoreTextOverlap(targetText, existingText) >= 0.35;
+    const blockMatch = input.targets.some((target) => {
+      if (!target.blockId) return false;
+      const targetElement = doc.body.querySelector<HTMLElement>(`[data-aura-block-id="${target.blockId}"]`);
+      return !!targetElement && (element.contains(targetElement) || targetElement.contains(element));
+    });
+
+    if (titleMatch || textMatch || blockMatch) {
+      matches.set(part.id, {
+        part,
+        existingHtml: element.outerHTML,
+        existingText,
+      });
+    }
+  }
+
+  return Array.from(matches.values()).sort((a, b) => a.part.orderIndex - b.part.orderIndex);
 }
 
 function findRuntimePartElement(doc: Document, partId: string): HTMLElement | null {
@@ -622,6 +697,29 @@ export function assembleDocumentRuntimeHtml(input: AssembleDocumentRuntimeHtmlIn
   </section>
   ${modulesHtml}
 </main>`;
+}
+
+export function applyDocumentRuntimeModuleEdits(input: ApplyDocumentRuntimeModuleEditsInput): string {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(input.existingHtml, 'text/html');
+  const moduleMap = new Map(input.modules.map((module) => [module.partId, module.html]));
+
+  for (const part of getDocumentModuleParts(input.parts)) {
+    const moduleHtml = moduleMap.get(part.id);
+    if (!moduleHtml) continue;
+
+    const existingElement = findRuntimePartElement(doc, part.id);
+    if (!existingElement) continue;
+
+    const template = doc.createElement('template');
+    template.innerHTML = normalizeDocumentRuntimeModuleHtml(moduleHtml, part);
+    const replacement = template.content.firstElementChild;
+    if (replacement instanceof HTMLElement) {
+      existingElement.replaceWith(replacement);
+    }
+  }
+
+  return serializeDocumentRuntimeHtml(doc);
 }
 
 export function finalizeDocumentRuntimeHtml(input: {

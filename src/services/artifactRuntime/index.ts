@@ -2,6 +2,7 @@ export { buildArtifactRunPlan } from './build';
 export { buildArtifactWorkflowPlan } from './planner';
 export {
   attachDocumentRuntimeParts,
+  applyDocumentRuntimeModuleEdits,
   assembleDocumentRuntimeHtml,
   buildDocumentRuntimeModulePrompt,
   buildDocumentRuntimeOutlinePrompt,
@@ -12,6 +13,7 @@ export {
   finalizeDocumentRuntimeHtml,
   repairDocumentRuntimeModules,
   repairDocumentRuntimeOutput,
+  resolveDocumentRuntimeEditModules,
   validateDocumentRuntimeModules,
   validateDocumentRuntimeOutput,
 } from './documentRuntime';
@@ -42,8 +44,11 @@ export type {
   BuildDocumentRuntimeModulePromptInput,
   BuildDocumentRuntimeOutlinePromptInput,
   CanRunQueuedDocumentRuntimeInput,
+  ApplyDocumentRuntimeModuleEditsInput,
+  DocumentRuntimeEditModuleMatch,
   DocumentRuntimeModuleDraft,
   DocumentRuntimeModuleIssue,
+  ResolveDocumentRuntimeEditModulesInput,
   DocumentRuntimeFinalizeResult,
   DocumentRuntimeRepairResult,
   DocumentRuntimeValidationResult,

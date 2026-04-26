@@ -14,6 +14,7 @@ import {
 import { buildSlideBriefsFromRunPlan } from '@/services/artifactRuntime/presentation';
 import {
   attachDocumentRuntimeParts,
+  applyDocumentRuntimeModuleEdits,
   assembleDocumentRuntimeHtml,
   buildDocumentRuntimeModulePrompt,
   buildDocumentRuntimeOutlinePrompt,
@@ -23,6 +24,7 @@ import {
   finalizeDocumentRuntimeHtml,
   repairDocumentRuntimeModules,
   repairDocumentRuntimeOutput,
+  resolveDocumentRuntimeEditModules,
   validateDocumentRuntimeModules,
   validateDocumentRuntimeOutput,
 } from '@/services/artifactRuntime/documentRuntime';
@@ -229,6 +231,57 @@ describe('ArtifactRuntime plan', () => {
         severity: 'blocking',
       }),
     ]));
+  });
+
+  it('resolves targeted document edits to runtime modules and applies module-local replacements', () => {
+    const plan = buildArtifactRunPlan({
+      runId: 'doc-edit-module-run',
+      prompt: 'Update the risk section',
+      artifactType: 'document',
+      operation: 'edit',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    const parts = attachDocumentRuntimeParts({
+      runPlan: plan,
+      documentType: 'brief',
+      blueprintLabel: 'Executive Brief',
+      recommendedModules: ['executive summary', 'risk section'],
+      isEdit: true,
+    });
+    const existingHtml = `<main class="doc-shell">
+      <section class="doc-section" data-runtime-part="document-module-1"><h2>Executive summary</h2><p>Keep this summary unchanged.</p></section>
+      <section class="doc-section" data-runtime-part="document-module-2"><h2>Risk section</h2><p>Old risk language with mitigation gaps.</p></section>
+    </main>`;
+
+    const matches = resolveDocumentRuntimeEditModules({
+      existingHtml,
+      parts,
+      targets: [{
+        selector: { type: 'document-block', value: 'risk' },
+        artifactType: 'document',
+        label: 'Risk section',
+        matchedText: 'Old risk language with mitigation gaps.',
+      }],
+    });
+
+    expect(matches.map((match) => match.part.id)).toEqual(['document-module-2']);
+    const editedHtml = applyDocumentRuntimeModuleEdits({
+      existingHtml,
+      parts,
+      modules: [{
+        partId: 'document-module-2',
+        html: '<section><h2>Risk section</h2><p>Updated risk language with clearer owners.</p></section>',
+      }],
+    });
+
+    expect(editedHtml).toContain('Keep this summary unchanged.');
+    expect(editedHtml).toContain('Updated risk language with clearer owners.');
+    expect(editedHtml).not.toContain('Old risk language');
+    expect(validateDocumentRuntimeModules(editedHtml, parts).passed).toBe(true);
   });
 
   it('repairs missing document runtime module wrappers before final QA', () => {
