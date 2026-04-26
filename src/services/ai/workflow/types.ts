@@ -59,6 +59,10 @@ export interface ArtifactRuntimeTelemetry {
   validationBlockingCount: number;
   validationAdvisoryCount: number;
   repairCount: number;
+  runMode?: 'single-stream' | 'queued-create' | 'queued-edit' | 'deterministic-action';
+  queuedPartCount?: number;
+  completedPartCount?: number;
+  repairedPartCount?: number;
 }
 
 /** Output from the presentation workflow */

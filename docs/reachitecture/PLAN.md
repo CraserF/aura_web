@@ -15,7 +15,7 @@ Chosen direction:
 
 ## Progress Tracker
 
-Last updated: 2026-04-26.
+Last updated: 2026-04-27.
 
 ### Completed In First Runtime Slice
 - Added the internal `ArtifactRuntime` module:
@@ -241,6 +241,29 @@ Last updated: 2026-04-26.
 - Deterministic whole-module repair remains as the fallback when queued repair is unavailable or does not fully recover validation.
 - Added artifact runtime coverage for module repair prompts and missing-module repair insertion.
 
+### Completed In Thirteenth Runtime Slice
+- Added workflow-level document runtime orchestration tests using mocked model streaming rather than real providers.
+- Covered the active document workflow scenarios from the next-step plan:
+  - image-based queued create sends images only to the outline step, then uses text-only module prompts;
+  - queued edit falls back to the existing broad targeted edit patcher when no `data-runtime-part` module resolves;
+  - queued edit uses module-local regeneration when a runtime module resolves;
+  - module validation failure attempts queued per-module repair before deterministic whole-module repair.
+- Extended `ArtifactRuntimeTelemetry` with optional diagnostic fields:
+  - `runMode`;
+  - `queuedPartCount`;
+  - `completedPartCount`;
+  - `repairedPartCount`.
+- Document workflow telemetry now reports:
+  - `single-stream`, `queued-create`, or `queued-edit` run mode;
+  - queued/completed module counts for queued create and edit;
+  - repaired module counts for queued and deterministic module repair.
+- Added a deterministic runtime telemetry diagnostic test layer for:
+  - first-preview telemetry;
+  - total runtime telemetry;
+  - queued create/edit part counts;
+  - separation of total repair attempts from part-level repairs.
+- Audited remaining `workflowPlanner` imports. Compatibility re-exports and shared type imports remain in place for now; this slice did not add new active-generation dependency on workflow-planner implementation files.
+
 ### Validation Completed
 - `npm test -- artifact-runtime workflow-planner run-request run-dry-run run-explain structured-run-outputs external-adapter-contracts run-events workflow-benchmark-cases`
   - Passed: 9 files, 23 tests.
@@ -377,6 +400,18 @@ Last updated: 2026-04-26.
     - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
   - Changed-file ESLint via `npx eslint src/services/ai/workflow/document.ts src/services/artifactRuntime/documentRuntime.ts src/services/artifactRuntime/index.ts src/test/artifact-runtime.test.ts`
     - Passed.
+- Current thirteenth-slice focused validation:
+  - `npm run typecheck`
+    - Passed.
+  - `npm test -- artifact-runtime document-runtime-workflow runtime-telemetry workflow-planner run-request run-dry-run project-starter-kits project-augmentation`
+    - Passed: 8 files, 42 tests.
+  - `npm test`
+    - Passed: 97 files, 538 tests.
+  - `npm run build`
+    - Passed.
+    - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
+  - Changed-file ESLint via `npx eslint src/services/ai/workflow/document.ts src/services/ai/workflow/types.ts src/services/artifactRuntime/documentRuntime.ts src/test/document-runtime-workflow.test.ts src/test/runtime-telemetry.test.ts`
+    - Passed.
 
 ### Current Open State
 - The active runtime now has an internal plan object, and queued plus single-slide presentation generation are controlled by the runtime layer.
@@ -384,7 +419,7 @@ Last updated: 2026-04-26.
 - Legacy external execution-spec files still exist in the repository as quarantined code, but active chat generation no longer imports them.
 - Starter presentation generation now creates runtime plans and uses runtime-owned template parsing, token replacement, section assembly, sanitize/validate/finalize behavior, and telemetry.
 - The current presentation repair stage performs a first deterministic fragment repair pass and executes a bounded LLM repair pass when deterministic repair cannot recover the fragment and a model is available.
-- Create-mode documents with runtime plans now use queued outline/module generation, runtime shell assembly, module validation/repair, document QA, and runtime telemetry. Image-based create requests also use the queued path by planning from images in the outline step. Targeted edit requests use queued module-local regeneration when existing runtime module wrappers can be resolved, with fallback to the existing targeted patcher when they cannot. Module validation failures now attempt queued per-module repair before deterministic module repair.
+- Create-mode documents with runtime plans now use queued outline/module generation, runtime shell assembly, module validation/repair, document QA, and runtime telemetry. Image-based create requests also use the queued path by planning from images in the outline step. Targeted edit requests use queued module-local regeneration when existing runtime module wrappers can be resolved, with fallback to the existing targeted patcher when they cannot. Module validation failures now attempt queued per-module repair before deterministic module repair. Runtime telemetry now reports document run mode plus queued, completed, and repaired module counts.
 - Spreadsheets still use deterministic workbook execution, but result summaries now map into shared runtime events.
 - Workflow presets still exist in the advanced UI and storage model. They are hidden from the default user surface but not removed yet.
 - Production templates are still mixed with legacy templates; routing has not yet been fully reduced to production families only.
@@ -474,7 +509,7 @@ Last updated: 2026-04-26.
 4. In progress: Replace presentation prompt composition with compact prompt packs and design manifests.
 5. Done for presentation starters: Convert starter kits to use the same presentation runtime and production design families. Starter decks now create runtime plans, runtime parts, deterministic section assembly, and runtime finalization.
 6. Partially done: Simplify user-facing project settings into guided style/preferences, with current technical controls moved to Advanced.
-7. In progress: Move document generation onto the same run engine. Create-mode documents now generate outline and modules through runtime-owned queued calls; the next step is queued edit/image handling plus stronger module-specific validation summaries.
+7. In progress: Move document generation onto the same run engine. Create-mode documents now generate outline and modules through runtime-owned queued calls; image create, queued module edit, edit fallback, per-module repair, module validation, and workflow-level orchestration tests are now covered. The next step is compatibility cleanup, stronger benchmark diagnostics, and continuing to shrink broad document prompt surfaces.
 8. Next: Keep spreadsheet execution deterministic but emit the same run events and validation summaries.
 9. Later: Delete or convert legacy templates after production routing is stable.
 10. Later: Add benchmark and viewport validation harnesses for presentations first, then documents and spreadsheets.
@@ -608,14 +643,23 @@ Last updated: 2026-04-26.
 - Start with presentations, then extend to documents and spreadsheets.
 
 ## Immediate Next Implementation Slice
-- Add workflow tests around:
-  - queued edit fallback behavior when no module wrapper can be resolved;
-  - queued module-local repair pass selection before deterministic repair;
-  - image-create queued outline behavior.
-- Add runtime telemetry fields or summaries for queued module counts and module repair counts where useful for diagnostics.
-- Continue expanding the compact document shell/design-system finalizer only when a new module pattern is needed by queued generation.
-- Remove or rename remaining `workflowPlanner` compatibility surfaces after all imports move to `artifactRuntime`.
-- Begin quality/benchmark harness work for runtime metrics and first-preview timing.
+- Continue compatibility cleanup:
+  - move runtime-owned type exports toward `artifactRuntime` where straightforward;
+  - keep `src/services/workflowPlanner/*` compatibility re-exports until active consumers are migrated;
+  - add import-boundary tests only where they catch active-generation regressions.
+- Expand the benchmark/diagnostic harness beyond deterministic telemetry:
+  - assert first-preview events for queued workflows;
+  - record validation pass rate and repair count by artifact type;
+  - add token-estimate checks where prompt metrics already exist;
+  - keep timing checks deterministic and non-flaky.
+- Continue shrinking broad document generation surfaces:
+  - replace remaining large document prompt sections with compact prompt packs;
+  - keep generated modules using the shared document class vocabulary;
+  - add new shell/design-system modules only when queued generation needs a reusable pattern.
+- Return to presentation runtime hardening after document telemetry/import cleanup:
+  - production-template routing;
+  - per-slide validation diagnostics;
+  - first-preview benchmark coverage for starter and generated decks.
 
 ## Test Plan
 - Add planner tests proving each user prompt produces exactly one authoritative `ArtifactRunPlan`.

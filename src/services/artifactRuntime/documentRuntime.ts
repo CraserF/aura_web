@@ -51,6 +51,10 @@ export interface BuildDocumentRuntimeTelemetryInput {
   validation: DocumentRuntimeValidationResult;
   repairCount: number;
   firstPreviewAtMs?: number;
+  runMode?: ArtifactRuntimeTelemetry['runMode'];
+  queuedPartCount?: number;
+  completedPartCount?: number;
+  repairedPartCount?: number;
 }
 
 export interface BuildDocumentRuntimePartsInput {
@@ -428,6 +432,10 @@ export function buildDocumentRuntimeTelemetry(
     validationBlockingCount: input.validation.blockingCount,
     validationAdvisoryCount: input.validation.advisoryCount,
     repairCount: input.repairCount,
+    ...(input.runMode ? { runMode: input.runMode } : {}),
+    ...(typeof input.queuedPartCount === 'number' ? { queuedPartCount: input.queuedPartCount } : {}),
+    ...(typeof input.completedPartCount === 'number' ? { completedPartCount: input.completedPartCount } : {}),
+    ...(typeof input.repairedPartCount === 'number' ? { repairedPartCount: input.repairedPartCount } : {}),
   };
 }
 

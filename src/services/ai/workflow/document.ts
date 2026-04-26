@@ -972,6 +972,7 @@ async function runQueuedDocumentRuntimeModuleRepair(input: {
 }): Promise<{
   html: string;
   repairCount: number;
+  repairedPartCount: number;
   repaired: boolean;
   validation: ReturnType<typeof validateDocumentRuntimeModules>;
   summary: string;
@@ -982,6 +983,7 @@ async function runQueuedDocumentRuntimeModuleRepair(input: {
     return {
       html: input.html,
       repairCount: 0,
+      repairedPartCount: 0,
       repaired: false,
       validation: input.validation,
       summary: 'No queued document module repair available.',
@@ -1040,6 +1042,7 @@ async function runQueuedDocumentRuntimeModuleRepair(input: {
     return {
       html: input.html,
       repairCount: 0,
+      repairedPartCount: 0,
       repaired: false,
       validation: input.validation,
       summary: 'Queued document module repair skipped because no matching runtime parts were found.',
@@ -1056,6 +1059,7 @@ async function runQueuedDocumentRuntimeModuleRepair(input: {
   return {
     html: repairedHtml,
     repairCount: 1,
+    repairedPartCount: modules.length,
     repaired: repairedHtml.trim() !== input.html.trim(),
     validation: repairedValidation,
     summary: repairedValidation.passed
@@ -1557,6 +1561,8 @@ export async function runDocumentWorkflow(
     let rawContent = '';
     let renderedHtml = '';
     let usedQueuedDocumentEdit = false;
+    let runtimeRunMode: ArtifactRuntimeTelemetry['runMode'] = 'single-stream';
+    let completedPartCount = 0;
 
     try {
       if (useQueuedDocumentEditRuntime) {
@@ -1574,6 +1580,8 @@ export async function runDocumentWorkflow(
         rawContent = queuedEditDraft.rawContent;
         renderedHtml = queuedEditDraft.renderedHtml;
         usedQueuedDocumentEdit = true;
+        runtimeRunMode = 'queued-edit';
+        completedPartCount = queuedEditModules.length;
         if (queuedEditDraft.firstPreviewAt) firstPreviewAt = queuedEditDraft.firstPreviewAt;
         aiDebugLog('document', 'document render mode', {
           mode: 'queued-runtime-edit',
@@ -1597,6 +1605,8 @@ export async function runDocumentWorkflow(
         });
         rawContent = queuedDraft.rawContent;
         renderedHtml = queuedDraft.renderedHtml;
+        runtimeRunMode = 'queued-create';
+        completedPartCount = runtimeParts.filter((part) => part.kind === 'document-module').length;
         if (queuedDraft.firstPreviewAt) firstPreviewAt = queuedDraft.firstPreviewAt;
         aiDebugLog('document', 'document render mode', {
           mode: 'queued-runtime',
@@ -1689,6 +1699,7 @@ export async function runDocumentWorkflow(
     }
 
     let moduleRepairCount = 0;
+    let repairedPartCount = 0;
     let moduleValidation = validateDocumentRuntimeModules(finalHtml, runtimeParts);
     if (!moduleValidation.passed) {
       onEvent({ type: 'progress', message: moduleValidation.summary, pct: 82 });
@@ -1707,6 +1718,7 @@ export async function runDocumentWorkflow(
       if (queuedModuleRepair.repaired) {
         finalHtml = sanitizeHtml(queuedModuleRepair.html);
         moduleRepairCount += queuedModuleRepair.repairCount;
+        repairedPartCount += queuedModuleRepair.repairedPartCount;
         moduleValidation = queuedModuleRepair.validation;
         onEvent({ type: 'progress', message: queuedModuleRepair.summary, pct: 84 });
       }
@@ -1722,6 +1734,9 @@ export async function runDocumentWorkflow(
         if (moduleRepair.repaired) {
           finalHtml = sanitizeHtml(moduleRepair.html);
           moduleRepairCount += moduleRepair.repairCount;
+          repairedPartCount += moduleValidation.moduleIssues
+            ? new Set(moduleValidation.moduleIssues.map((issue) => issue.partId)).size
+            : 0;
           moduleValidation = moduleRepair.validation;
           onEvent({ type: 'progress', message: moduleRepair.summary, pct: 84 });
         }
@@ -1796,6 +1811,14 @@ export async function runDocumentWorkflow(
         nowMs: performance.now(),
         validation: qaResult,
         repairCount: moduleRepairCount + repair.repairCount + (editingTelemetry?.fallbackUsed ? 1 : 0),
+        runMode: runtimeRunMode,
+        queuedPartCount: runtimeRunMode === 'queued-create'
+          ? runtimeParts.filter((part) => part.kind === 'document-module').length
+          : runtimeRunMode === 'queued-edit'
+            ? queuedEditModules.length
+            : 0,
+        completedPartCount,
+        repairedPartCount,
         ...(firstPreviewAt ? { firstPreviewAtMs: firstPreviewAt } : {}),
       }),
       ...(editingTelemetry ? { editing: editingTelemetry } : {}),
