@@ -124,6 +124,12 @@ describe('ArtifactRuntime plan', () => {
       isEdit: false,
       hasImages: false,
     })).toBe(true);
+    expect(canRunQueuedDocumentRuntime({
+      runPlan: plan,
+      parts,
+      isEdit: false,
+      hasImages: true,
+    })).toBe(true);
     expect(buildDocumentRuntimeOutlinePrompt({
       taskBrief: 'Create an executive briefing document',
       documentType: 'brief',
@@ -131,13 +137,15 @@ describe('ArtifactRuntime plan', () => {
       parts,
       designFamily: 'executive-light',
     })).toContain('Return only a compact outline');
-    expect(buildDocumentRuntimeModulePrompt({
+    const modulePrompt = buildDocumentRuntimeModulePrompt({
       taskBrief: 'Create an executive briefing document',
       documentType: 'brief',
       outline: 'Thesis and module list.',
       part: parts[1]!,
       designFamily: 'executive-light',
-    })).toContain('data-runtime-part="document-module-1"');
+    });
+    expect(modulePrompt).toContain('data-runtime-part="document-module-1"');
+    expect(modulePrompt).toContain('doc-kpi-row');
   });
 
   it('assembles queued document module drafts into a runtime shell', () => {
@@ -177,6 +185,50 @@ describe('ArtifactRuntime plan', () => {
     expect(finalized.html).toContain('data-runtime-part="document-module-2"');
     expect(finalized.html).toContain('<h2>Hero summary</h2>');
     expect(validation.passed).toBe(true);
+  });
+
+  it('reports module-specific validation issues for targeted repair', () => {
+    const plan = buildArtifactRunPlan({
+      runId: 'doc-module-issue-run',
+      prompt: 'Create an executive briefing document',
+      artifactType: 'document',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    const parts = attachDocumentRuntimeParts({
+      runPlan: plan,
+      documentType: 'brief',
+      blueprintLabel: 'Executive Brief',
+      recommendedModules: ['hero summary', 'KPI row'],
+      isEdit: false,
+    });
+    const validation = validateDocumentRuntimeModules(
+      '<main class="doc-shell"><section data-runtime-part="document-module-1"><p>tiny</p></section></main>',
+      parts,
+    );
+
+    expect(validation.passed).toBe(false);
+    expect(validation.moduleIssues).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        partId: 'document-module-1',
+        reason: 'empty',
+        severity: 'blocking',
+      }),
+      expect.objectContaining({
+        partId: 'document-module-1',
+        reason: 'headingless',
+        severity: 'advisory',
+      }),
+      expect.objectContaining({
+        partId: 'document-module-2',
+        reason: 'missing',
+        severity: 'blocking',
+      }),
+    ]));
   });
 
   it('repairs missing document runtime module wrappers before final QA', () => {
@@ -236,6 +288,7 @@ describe('ArtifactRuntime plan', () => {
     expect(finalized.changed).toBe(true);
     expect(finalized.html).toContain('<style>');
     expect(finalized.html).toContain('class="doc-shell"');
+    expect(finalized.html).toContain('.doc-kpi-row');
     expect(finalized.html).toContain('<h1>Runtime Shell</h1>');
   });
 

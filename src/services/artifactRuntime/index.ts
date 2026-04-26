@@ -43,6 +43,7 @@ export type {
   BuildDocumentRuntimeOutlinePromptInput,
   CanRunQueuedDocumentRuntimeInput,
   DocumentRuntimeModuleDraft,
+  DocumentRuntimeModuleIssue,
   DocumentRuntimeFinalizeResult,
   DocumentRuntimeRepairResult,
   DocumentRuntimeValidationResult,

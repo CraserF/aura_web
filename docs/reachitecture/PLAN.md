@@ -195,6 +195,24 @@ Last updated: 2026-04-26.
 - Edit and image-heavy document requests intentionally remain on the existing one-stream path for now so the first queued-document landing is scoped and reversible.
 - Added artifact runtime coverage for queued-document eligibility, outline prompt contracts, module prompt contracts, and assembled queued module shells.
 
+### Completed In Tenth Runtime Slice
+- Opened queued document generation to image-based create requests by sending images only to the outline step, then generating text/HTML modules from the planned outline.
+- Updated the outline prompt contract so attached images are used for structure, evidence, labels, and emphasis rather than copied into unsafe document assets.
+- Added module-specific document validation issues:
+  - missing module wrapper;
+  - empty module;
+  - headingless module.
+- Validation results now carry per-module issue metadata so later repair prompts can target exactly the failed module instead of reworking the whole document.
+- Expanded the compact runtime shell/design-system CSS with reusable document module classes:
+  - KPI rows;
+  - proof strips;
+  - comparison blocks;
+  - timelines;
+  - sidebar layouts;
+  - mobile-safe stacking.
+- Updated module prompt guidance so generated modules use the shared class vocabulary instead of inventing fresh layout systems.
+- Added tests for image-compatible queued eligibility, reusable module prompt classes, runtime shell CSS, and module-specific validation issue reporting.
+
 ### Validation Completed
 - `npm test -- artifact-runtime workflow-planner run-request run-dry-run run-explain structured-run-outputs external-adapter-contracts run-events workflow-benchmark-cases`
   - Passed: 9 files, 23 tests.
@@ -295,6 +313,18 @@ Last updated: 2026-04-26.
     - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
   - Changed-file ESLint via `npx eslint src/services/ai/workflow/document.ts src/services/artifactRuntime/documentRuntime.ts src/services/artifactRuntime/index.ts src/test/artifact-runtime.test.ts`
     - Passed.
+- Current tenth-slice focused validation:
+  - `npm run typecheck`
+    - Passed.
+  - `npm test -- artifact-runtime spreadsheet-runtime prompt-contracts presentation-runtime-policy workflow-planner run-request run-dry-run project-starter-kits project-augmentation`
+    - Passed: 9 files, 44 tests.
+  - `npm test`
+    - Passed: 95 files, 529 tests.
+  - `npm run build`
+    - Passed.
+    - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
+  - Changed-file ESLint via `npx eslint src/services/ai/workflow/document.ts src/services/artifactRuntime/documentRuntime.ts src/services/artifactRuntime/index.ts src/test/artifact-runtime.test.ts`
+    - Passed.
 
 ### Current Open State
 - The active runtime now has an internal plan object, and queued plus single-slide presentation generation are controlled by the runtime layer.
@@ -302,7 +332,7 @@ Last updated: 2026-04-26.
 - Legacy external execution-spec files still exist in the repository as quarantined code, but active chat generation no longer imports them.
 - Starter presentation generation now creates runtime plans and uses runtime-owned template parsing, token replacement, section assembly, sanitize/validate/finalize behavior, and telemetry.
 - The current presentation repair stage performs a first deterministic fragment repair pass and executes a bounded LLM repair pass when deterministic repair cannot recover the fragment and a model is available.
-- Create-mode documents with runtime plans now use queued outline/module generation, runtime shell assembly, module validation/repair, document QA, and runtime telemetry. Edit and image-heavy document requests still use the older one-stream generator until the queued edit/module flow is built.
+- Create-mode documents with runtime plans now use queued outline/module generation, runtime shell assembly, module validation/repair, document QA, and runtime telemetry. Image-based create requests also use the queued path by planning from images in the outline step. Edit requests still use the older one-stream generator until the queued edit/module flow is built.
 - Spreadsheets still use deterministic workbook execution, but result summaries now map into shared runtime events.
 - Workflow presets still exist in the advanced UI and storage model. They are hidden from the default user surface but not removed yet.
 - Production templates are still mixed with legacy templates; routing has not yet been fully reduced to production families only.
@@ -526,12 +556,13 @@ Last updated: 2026-04-26.
 - Start with presentations, then extend to documents and spreadsheets.
 
 ## Immediate Next Implementation Slice
-- Extend queued document generation beyond simple create requests:
-  - preserve targeted document edits through module-local regeneration where possible;
-  - keep image-based requests on a planned multimodal outline step before module generation;
-  - add module-specific validation summaries so failed modules can be repaired individually.
-- Reuse the module validation/repair helpers as the final gate for separately generated document modules.
-- Expand the compact document shell/design-system finalizer with reusable module classes for KPI rows, comparison blocks, proof strips, timelines, and sidebars.
+- Extend queued document generation to targeted edits:
+  - map resolved edit targets to runtime module ids when existing documents contain module wrappers;
+  - regenerate only the affected module where possible;
+  - fall back to the existing targeted-edit patcher when a module cannot be resolved safely.
+- Use the new module-specific validation issue metadata to drive per-module repair prompts instead of repairing the whole document.
+- Reuse the module validation/repair helpers as the final gate for separately generated and edited document modules.
+- Continue expanding the compact document shell/design-system finalizer only when a new module pattern is needed by queued generation.
 - Add runtime telemetry to final RunResult summaries where useful for diagnostics.
 - Remove or rename remaining `workflowPlanner` compatibility surfaces after all imports move to `artifactRuntime`.
 - Begin quality/benchmark harness work for runtime metrics and first-preview timing.

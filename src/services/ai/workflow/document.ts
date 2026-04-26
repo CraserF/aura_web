@@ -767,12 +767,25 @@ async function runQueuedDocumentRuntimeDraft(input: {
     }),
     input.workflowInput.memoryContext,
   );
+  const outlineUserMessage: ModelMessage = input.workflowInput.imageParts && input.workflowInput.imageParts.length > 0
+    ? {
+        role: 'user',
+        content: [
+          { type: 'text' as const, text: outlinePrompt },
+          ...input.workflowInput.imageParts.map((img) => ({
+            type: 'image' as const,
+            image: img.image,
+            mimeType: img.mimeType as `image/${string}`,
+          })),
+        ],
+      }
+    : { role: 'user', content: outlinePrompt };
   const outline = await streamDocumentRuntimeText({
     model: input.model,
     messages: [
       { role: 'system', content: input.systemPrompt, providerOptions: CACHE_CONTROL } as ModelMessage,
       ...input.historyMessages,
-      { role: 'user', content: outlinePrompt },
+      outlineUserMessage,
     ],
     maxOutputTokens: 2048,
     ...(input.signal ? { signal: input.signal } : {}),

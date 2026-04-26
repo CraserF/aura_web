@@ -3,12 +3,21 @@ import type { ArtifactPart, ArtifactRunPlan } from '@/services/artifactRuntime/t
 import { validateDocument } from '@/services/ai/workflow/agents/document-qa';
 import type { ArtifactRuntimeTelemetry, EventListener } from '@/services/ai/workflow/types';
 
+export interface DocumentRuntimeModuleIssue {
+  partId: string;
+  title: string;
+  severity: 'blocking' | 'advisory';
+  reason: 'missing' | 'empty' | 'headingless';
+  summary: string;
+}
+
 export interface DocumentRuntimeValidationResult {
   passed: boolean;
   score: number;
   blockingCount: number;
   advisoryCount: number;
   summary: string;
+  moduleIssues?: DocumentRuntimeModuleIssue[];
 }
 
 export interface DocumentRuntimeRepairResult {
@@ -164,7 +173,7 @@ function getDocumentModuleParts(parts: ArtifactPart[]): ArtifactPart[] {
 
 export function canRunQueuedDocumentRuntime(input: CanRunQueuedDocumentRuntimeInput): boolean {
   if (!input.runPlan) return false;
-  if (input.isEdit || input.hasImages) return false;
+  if (input.isEdit) return false;
   if (input.runPlan.artifactType !== 'document') return false;
   if (input.runPlan.providerPolicy.generationGranularity !== 'part') return false;
   return getDocumentModuleParts(input.parts).length > 0;
@@ -187,6 +196,7 @@ ${moduleParts.map((part, index) => `${index + 1}. ${part.title} [${part.id}]: ${
 Return only a compact outline in markdown:
 - one document thesis sentence
 - one bullet per required module
+- if images were provided, use them only to infer structure, evidence, labels, or visual emphasis
 - no CSS, no full HTML document, no external assets`;
 }
 
@@ -209,6 +219,7 @@ Return only one semantic HTML module:
 - use a single wrapper: <section class="doc-section doc-runtime-module" data-runtime-part="${input.part.id}">
 - include one clear <h2>
 - include concise body content using <p>, <ul>, <ol>, <table>, or simple nested <div> blocks only when useful
+- when appropriate, use reusable classes: doc-kpi-row, doc-kpi, doc-comparison, doc-compare-card, doc-proof-strip, doc-proof-item, doc-timeline, doc-timeline-item, doc-sidebar-layout, doc-main, doc-aside
 - do not include <style>, <script>, <html>, <head>, <body>, remote assets, or JavaScript
 - do not repeat the document shell`;
 }
@@ -238,20 +249,42 @@ export function validateDocumentRuntimeModules(
   let missingCount = 0;
   let emptyCount = 0;
   let headinglessCount = 0;
+  const moduleIssues: DocumentRuntimeModuleIssue[] = [];
 
   for (const part of moduleParts) {
     const element = findRuntimePartElement(doc, part.id);
     if (!element) {
       missingCount += 1;
+      moduleIssues.push({
+        partId: part.id,
+        title: part.title,
+        severity: 'blocking',
+        reason: 'missing',
+        summary: `${part.title} is missing its runtime module wrapper.`,
+      });
       continue;
     }
 
     if ((element.textContent ?? '').replace(/\s+/g, ' ').trim().length < 24) {
       emptyCount += 1;
+      moduleIssues.push({
+        partId: part.id,
+        title: part.title,
+        severity: 'blocking',
+        reason: 'empty',
+        summary: `${part.title} is present but too empty to be useful.`,
+      });
     }
 
     if (!element.querySelector('h2, h3, h4')) {
       headinglessCount += 1;
+      moduleIssues.push({
+        partId: part.id,
+        title: part.title,
+        severity: 'advisory',
+        reason: 'headingless',
+        summary: `${part.title} is missing a module heading.`,
+      });
     }
   }
 
@@ -267,6 +300,7 @@ export function validateDocumentRuntimeModules(
     summary: blockingCount === 0 && advisoryCount === 0
       ? `Document runtime modules validated (${moduleParts.length} module(s)).`
       : `Document runtime module validation found ${missingCount} missing, ${emptyCount} empty, and ${headinglessCount} headingless module(s).`,
+    ...(moduleIssues.length > 0 ? { moduleIssues } : {}),
   };
 }
 
@@ -378,9 +412,65 @@ body {
 .doc-runtime-outline {
   background: color-mix(in srgb, var(--doc-surface) 72%, var(--doc-accent) 10%);
 }
+.doc-kpi-row,
+.doc-proof-strip,
+.doc-comparison {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+.doc-kpi,
+.doc-proof-item,
+.doc-compare-card {
+  padding: 16px;
+  border: 1px solid var(--doc-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--doc-surface) 82%, var(--doc-bg));
+}
+.doc-kpi strong {
+  display: block;
+  color: var(--doc-primary);
+  font-size: clamp(24px, 4vw, 36px);
+  line-height: 1;
+}
+.doc-kpi span,
+.doc-proof-item span,
+.doc-compare-card span {
+  display: block;
+  margin-top: 6px;
+  color: var(--doc-muted);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.doc-timeline {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.doc-timeline-item {
+  padding-left: 16px;
+  border-left: 3px solid var(--doc-accent);
+}
+.doc-timeline-item strong {
+  display: block;
+  color: var(--doc-primary);
+}
+.doc-sidebar-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(220px, 0.85fr);
+  gap: 18px;
+  align-items: start;
+}
+.doc-aside {
+  padding: 16px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--doc-surface) 72%, var(--doc-accent) 10%);
+}
 @media (max-width: 720px) {
   .doc-shell { padding: 32px 18px; }
   .doc-section { padding: 18px; }
+  .doc-sidebar-layout { grid-template-columns: 1fr; }
 }
 `;
   doc.head.append(style);
