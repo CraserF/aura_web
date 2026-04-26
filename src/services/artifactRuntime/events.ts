@@ -60,6 +60,15 @@ export function artifactRunEventToWorkflowEvent(event: ArtifactRunEvent): Workfl
         type: 'progress',
         message: event.message,
         pct: event.pct,
+        ...(event.partId ? { partId: event.partId } : {}),
+        runId: event.runId,
+      };
+    case 'runtime.repair-completed':
+      return {
+        type: 'step-update',
+        stepId: event.partId ?? event.type,
+        label: event.message,
+        status: 'done',
       };
     case 'runtime.finalized':
       return {

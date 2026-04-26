@@ -464,6 +464,16 @@ export function repairQueuedPresentationSlideFragments(input: {
     if (repairedValidation.passed) {
       repairedPartCount += 1;
     }
+    emitArtifactRunEvent(input.onEvent, {
+      runId: input.runPlan?.runId ?? 'presentation-runtime',
+      type: 'runtime.repair-completed',
+      role: 'repairer',
+      message: repairedValidation.passed
+        ? `Repaired slide ${slideNumber} fragment.`
+        : `Slide ${slideNumber} fragment repair completed with validation issues remaining.`,
+      partId: `slide-${slideNumber}`,
+      pct: Math.min(88, 75 + (slideNumber * 3)),
+    });
   }
 
   const html = repairCount > 0

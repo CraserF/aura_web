@@ -148,6 +148,14 @@ describe('presentation runtime workflow orchestration', () => {
     expect(events).toContainEqual(expect.objectContaining({
       type: 'progress',
       message: 'Repairing slide 1 fragment.',
+      partId: 'slide-1',
+      runId: 'presentation-runtime-workflow-run',
+    }));
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'step-update',
+      stepId: 'slide-1',
+      label: 'Repaired slide 1 fragment.',
+      status: 'done',
     }));
     expect(events.some((event) =>
       event.type === 'progress' && event.message === 'Applying deterministic presentation repair.',

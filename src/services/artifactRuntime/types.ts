@@ -225,6 +225,7 @@ export type ArtifactRunEventType =
   | 'runtime.validation-started'
   | 'runtime.validation-completed'
   | 'runtime.repair-started'
+  | 'runtime.repair-completed'
   | 'runtime.finalized'
   | 'runtime.cancelled';
 

@@ -7,7 +7,11 @@ import {
   resolveTemplatePlan,
   type TemplateId,
 } from '@/services/ai/templates';
-import { buildArtifactRunPlan } from '@/services/artifactRuntime';
+import {
+  buildArtifactRunPlan,
+  PRESENTATION_VIEWPORT_MATRIX,
+  validatePresentationViewportContract,
+} from '@/services/artifactRuntime';
 import { validatePresentationRuntimeOutput } from '@/services/artifactRuntime/presentationRuntime';
 import { plan, type PlanResult } from '@/services/ai/workflow/agents/planner';
 import type { PresentationRecipeId } from '@/services/artifactRuntime/types';
@@ -135,6 +139,18 @@ describe('production presentation templates', () => {
         .filter((size) => size > 0 && size < 16);
 
       expect(smallCssFontSizes).toEqual([]);
+    }
+  });
+
+  it('passes the static viewport contract for production canvases', async () => {
+    for (const templateId of PRODUCTION_RECIPE_TEMPLATES) {
+      const html = await getTemplateHtml(templateId);
+      const validation = validatePresentationViewportContract(html);
+
+      expect(validation.checkedViewports.map((viewport) => viewport.id)).toEqual(
+        PRESENTATION_VIEWPORT_MATRIX.map((viewport) => viewport.id),
+      );
+      expect(validation.blockingCount).toBe(0);
     }
   });
 

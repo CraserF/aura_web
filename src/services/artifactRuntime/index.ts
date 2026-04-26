@@ -37,6 +37,10 @@ export {
   runSinglePresentationRuntime,
   validatePresentationRuntimeOutput,
 } from './presentationRuntime';
+export {
+  PRESENTATION_VIEWPORT_MATRIX,
+  validatePresentationViewportContract,
+} from './presentationViewport';
 export { buildStaticPresentationStarterRuntime } from './starterPresentationRuntime';
 export {
   buildSpreadsheetRuntimeTelemetry,
@@ -73,6 +77,12 @@ export type {
   SinglePresentationRuntimeOptions,
   StaticPresentationRuntimeFinalizeInput,
 } from './presentationRuntime';
+export type {
+  PresentationViewportId,
+  PresentationViewportIssue,
+  PresentationViewportSpec,
+  PresentationViewportValidationResult,
+} from './presentationViewport';
 export type {
   StaticPresentationStarterRuntimeInput,
   StaticPresentationStarterRuntimeResult,

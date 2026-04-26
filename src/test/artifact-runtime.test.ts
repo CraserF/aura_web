@@ -12,6 +12,7 @@ import {
   repairPresentationRuntimeOutput,
   validatePresentationRuntimeOutput,
 } from '@/services/artifactRuntime/presentationRuntime';
+import { validatePresentationViewportContract } from '@/services/artifactRuntime/presentationViewport';
 import { buildSlideBriefsFromRunPlan } from '@/services/artifactRuntime/presentation';
 import {
   attachDocumentRuntimeParts,
@@ -647,7 +648,35 @@ describe('ArtifactRuntime plan', () => {
     expect(events).toContainEqual(expect.objectContaining({
       type: 'progress',
       message: 'Repairing slide 1 fragment.',
+      partId: 'slide-1',
+      runId: 'queued-slide-repair-run',
     }));
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'step-update',
+      stepId: 'slide-1',
+      label: 'Repaired slide 1 fragment.',
+      status: 'done',
+    }));
+  });
+
+  it('flags viewport contract risks for presentation fragments', () => {
+    const validation = validatePresentationViewportContract(`
+      <style>
+        .deck { width: 100vw; min-width: 720px; }
+        .label { font-size: 12px; }
+      </style>
+      <section><h1 class="label">Too Small</h1></section>
+    `);
+
+    expect(validation.passed).toBe(false);
+    expect(validation.blockingCount).toBeGreaterThan(0);
+    expect(validation.advisoryCount).toBeGreaterThan(0);
+    expect(validation.issues.map((issue) => issue.rule)).toEqual(expect.arrayContaining([
+      'viewport-units',
+      'risky-min-width',
+      'tiny-source-type',
+      'missing-section-background',
+    ]));
   });
 
   it('requests bounded LLM repair handoff when deterministic repair cannot recover structure', async () => {
