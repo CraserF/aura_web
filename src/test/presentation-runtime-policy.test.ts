@@ -49,6 +49,7 @@ describe('presentation runtime policy', () => {
 
     expect(activeSources).not.toMatch(/services\/executionSpec|@\/services\/executionSpec/);
     expect(activeSources).not.toMatch(/run\.spec-built|run\.explained/);
+    expect(activeSources).not.toMatch(/runRequest\.workflowPlan|workflowPlan:\s*runRequest/);
   });
 
   it('keeps workflow planner build as a compatibility export for runtime-owned planning', () => {

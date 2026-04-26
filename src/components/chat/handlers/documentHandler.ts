@@ -285,7 +285,6 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
           changedTargets: [...changedTargets],
           validation,
           runtimePlan: runRequest.artifactRunPlan,
-          workflowPlan: runRequest.artifactRunPlan.workflow,
           document: {
             artifactType: 'document',
             title: result.title,
@@ -345,7 +344,6 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
               summary: 'Run cancelled by user.',
             },
             runtimePlan: runRequest.artifactRunPlan,
-            workflowPlan: runRequest.artifactRunPlan.workflow,
             document: {
               artifactType: 'document',
             },
@@ -382,7 +380,6 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
               summary: 'Document workflow failed.',
             },
             runtimePlan: runRequest.artifactRunPlan,
-            workflowPlan: runRequest.artifactRunPlan.workflow,
           document: {
             artifactType: 'document',
           },

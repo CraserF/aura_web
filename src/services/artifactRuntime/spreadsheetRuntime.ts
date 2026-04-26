@@ -1,6 +1,6 @@
 import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
-import type { EventListener } from '@/services/ai/workflow/types';
+import type { ArtifactRuntimeTelemetry, EventListener } from '@/services/ai/workflow/types';
 import type { SpreadsheetOutput } from '@/services/ai/workflow/spreadsheet';
 
 function describeSpreadsheetResult(result: SpreadsheetOutput): string {
@@ -76,4 +76,21 @@ export function emitSpreadsheetRuntimeResultEvents(input: {
     partId: 'finalize',
     pct: 100,
   });
+}
+
+export function buildSpreadsheetRuntimeTelemetry(input: {
+  result: SpreadsheetOutput;
+  totalRuntimeMs: number;
+}): ArtifactRuntimeTelemetry {
+  const isBlockingKind = ['blocked', 'clarification-needed', 'no-intent'].includes(input.result.kind);
+  const validationPassed = input.result.planValidation?.passed ?? !isBlockingKind;
+
+  return {
+    timeToFirstPreviewMs: 0,
+    totalRuntimeMs: input.totalRuntimeMs,
+    validationPassed,
+    validationBlockingCount: input.result.planValidation?.issues.length ?? (isBlockingKind ? 1 : 0),
+    validationAdvisoryCount: 0,
+    repairCount: 0,
+  };
 }

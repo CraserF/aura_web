@@ -2,7 +2,11 @@ export { buildArtifactRunPlan } from './build';
 export { buildArtifactWorkflowPlan } from './planner';
 export {
   attachDocumentRuntimeParts,
+  buildDocumentRuntimePartPrompt,
+  buildDocumentRuntimeTelemetry,
   buildDocumentRuntimeParts,
+  repairDocumentRuntimeOutput,
+  validateDocumentRuntimeOutput,
 } from './documentRuntime';
 export {
   artifactRunEventToWorkflowEvent,
@@ -19,10 +23,18 @@ export {
   validatePresentationRuntimeOutput,
 } from './presentationRuntime';
 export { buildStaticPresentationStarterRuntime } from './starterPresentationRuntime';
-export { emitSpreadsheetRuntimeResultEvents } from './spreadsheetRuntime';
+export {
+  buildSpreadsheetRuntimeTelemetry,
+  emitSpreadsheetRuntimeResultEvents,
+} from './spreadsheetRuntime';
 export type { BuildArtifactRunPlanInput } from './build';
 export type { CreateArtifactRunEventInput } from './events';
-export type { BuildDocumentRuntimePartsInput } from './documentRuntime';
+export type {
+  BuildDocumentRuntimePartsInput,
+  BuildDocumentRuntimeTelemetryInput,
+  DocumentRuntimeRepairResult,
+  DocumentRuntimeValidationResult,
+} from './documentRuntime';
 export type {
   PresentationRuntimeRepairResult,
   PresentationRuntimeValidationResult,

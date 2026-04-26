@@ -11,7 +11,6 @@ import type {
 import type { ExecutionMode } from '@/services/runs/types';
 import type { PublishReadinessResult } from '@/services/validation/types';
 import type { SpreadsheetExecutionSummary } from '@/services/spreadsheet/plans';
-import type { ArtifactWorkflowPlan } from '@/services/workflowPlanner/types';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
 import type { ArtifactRuntimeTelemetry, PresentationRuntimeTelemetry } from '@/services/ai/workflow/types';
 
@@ -64,8 +63,6 @@ export interface RunOutputsEnvelope {
   changedTargets: RunResultChangedTarget[];
   validation: RunResultValidationSummary;
   runtimePlan?: ArtifactRunPlan;
-  /** @deprecated Compatibility field while consumers move to runtimePlan. */
-  workflowPlan?: ArtifactWorkflowPlan;
   document?: DocumentRunOutputs;
   presentation?: PresentationRunOutputs;
   spreadsheet?: SpreadsheetRunOutputs;

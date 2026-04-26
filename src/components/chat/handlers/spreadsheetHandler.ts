@@ -21,7 +21,10 @@ import { resolveTargets } from '@/services/editing/resolveTargets';
 import { validateArtifactAgainstProfile } from '@/services/validation';
 import { summarizeValidationResult } from '@/services/validation/profiles';
 import { deriveLifecycleFromValidation } from '@/services/lifecycle/state';
-import { emitSpreadsheetRuntimeResultEvents } from '@/services/artifactRuntime';
+import {
+  buildSpreadsheetRuntimeTelemetry,
+  emitSpreadsheetRuntimeResultEvents,
+} from '@/services/artifactRuntime';
 import type { ArtifactRuntimeTelemetry, WorkflowEvent } from '@/services/ai/workflow/types';
 
 function isDefaultSheet(doc: ProjectDocument | null): boolean {
@@ -151,7 +154,6 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
     changedTargets,
     validation,
     runtimePlan: runRequest.artifactRunPlan,
-    workflowPlan: runRequest.artifactRunPlan.workflow,
     spreadsheet: {
       artifactType: 'spreadsheet' as const,
       ...(runtimeTelemetry ? { runtime: runtimeTelemetry } : {}),
@@ -168,14 +170,10 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
       projectDocumentCount: context.data.projectDocumentCount,
       isDefaultSheet: docIsDefaultSheet,
     });
-    runtimeTelemetry = {
-      timeToFirstPreviewMs: 0,
+    runtimeTelemetry = buildSpreadsheetRuntimeTelemetry({
+      result,
       totalRuntimeMs: Math.round(performance.now() - workflowStart),
-      validationPassed: result.planValidation?.passed ?? !['blocked', 'clarification-needed', 'no-intent'].includes(result.kind),
-      validationBlockingCount: result.planValidation?.issues.length ?? (['blocked', 'clarification-needed', 'no-intent'].includes(result.kind) ? 1 : 0),
-      validationAdvisoryCount: 0,
-      repairCount: 0,
-    };
+    });
     emitSpreadsheetRuntimeResultEvents({
       runPlan: runRequest.artifactRunPlan,
       result,

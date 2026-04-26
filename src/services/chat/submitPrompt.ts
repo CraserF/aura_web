@@ -120,7 +120,6 @@ function buildBlockedRunResult(runId: string, runRequest: Awaited<ReturnType<typ
         changedTargets,
         validation,
         runtimePlan: runRequest.artifactRunPlan,
-        workflowPlan: runRequest.artifactRunPlan.workflow,
         ...(runRequest.intent.projectOperation
           ? {
               project: {

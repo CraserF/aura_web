@@ -13,7 +13,6 @@ import { withDefaults } from '../middleware';
 import { sanitizeHtml } from '@/services/html/sanitizer';
 import { CACHE_CONTROL } from './engine';
 import { aiDebugLog, logEditingMetrics, logPromptMetrics } from '../debug';
-import { validateDocument } from './agents/document-qa';
 import { getProviderCapabilityProfile } from '../providerCapabilities';
 import type {
   ArtifactRuntimeTelemetry,
@@ -31,7 +30,13 @@ import { getReferenceStylePack } from '../templates';
 import { applyDocumentTargetedEdit, prepareDocumentHtmlForEditing } from '@/services/editing/patchDocument';
 import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
 import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
-import { attachDocumentRuntimeParts } from '@/services/artifactRuntime/documentRuntime';
+import {
+  attachDocumentRuntimeParts,
+  buildDocumentRuntimePartPrompt,
+  buildDocumentRuntimeTelemetry,
+  repairDocumentRuntimeOutput,
+  validateDocumentRuntimeOutput,
+} from '@/services/artifactRuntime/documentRuntime';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
 
 export interface DocumentProjectLink {
@@ -1086,8 +1091,10 @@ export async function runDocumentWorkflow(
       ),
       input.templateGuidance,
     );
+    const baseUserPrompt = isEdit ? await buildEditPrompt(input, planResult) : await buildCreatePrompt(input, planResult);
+    const runtimePartPrompt = buildDocumentRuntimePartPrompt(runtimeParts);
     const userPrompt = withMemoryContext(
-      isEdit ? await buildEditPrompt(input, planResult) : await buildCreatePrompt(input, planResult),
+      [baseUserPrompt, runtimePartPrompt].filter(Boolean).join('\n\n'),
       input.memoryContext,
     );
 
@@ -1208,6 +1215,7 @@ export async function runDocumentWorkflow(
     const sourceMarkdown = looksLikeHtml(rawContent)
       ? summarizeExistingDocument(finalHtml)
       : rawContent.trim();
+    const title = requestedTitle || extractDocumentTitle(finalHtml) || extractTitleFromPrompt(input.prompt);
 
     onEvent({ type: 'step-done', stepId: 'generate', label: isEdit ? 'Updating document…' : 'Writing document…' });
     emitArtifactRunEvent(onEvent, {
@@ -1228,18 +1236,30 @@ export async function runDocumentWorkflow(
       partId: 'qa',
       pct: 84,
     });
-    const qaResult = validateDocument(finalHtml);
+    let qaResult = validateDocumentRuntimeOutput(finalHtml);
     aiDebugLog('document', 'document QA', {
       passed: qaResult.passed,
       score: qaResult.score,
-      violations: qaResult.violations.length,
-      details: qaResult.violations.map((v) => `[${v.severity}] ${v.rule}: ${v.detail}`),
+      blockingCount: qaResult.blockingCount,
+      advisoryCount: qaResult.advisoryCount,
     });
     onEvent({
       type: 'progress',
-      message: qaResult.passed ? `QA passed (score ${qaResult.score})` : `QA warnings detected (score ${qaResult.score})`,
+      message: qaResult.summary,
       pct: 88,
     });
+    const repair = await repairDocumentRuntimeOutput({
+      html: finalHtml,
+      title,
+      validation: qaResult,
+      runPlan: input.artifactRunPlan,
+      onEvent,
+    });
+    if (repair.repaired) {
+      finalHtml = sanitizeHtml(repair.html);
+      qaResult = repair.validation;
+      onEvent({ type: 'progress', message: repair.summary, pct: 92 });
+    }
     onEvent({ type: 'step-done', stepId: 'qa', label: 'Checking document quality…' });
     emitArtifactRunEvent(onEvent, {
       runId: runtimeRunId,
@@ -1251,20 +1271,18 @@ export async function runDocumentWorkflow(
     });
 
     onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing document…' });
-    const title = requestedTitle || extractDocumentTitle(finalHtml) || extractTitleFromPrompt(input.prompt);
 
     const output: DocumentOutput = {
       html: finalHtml,
       markdown: sourceMarkdown,
       title,
-      runtime: {
-        ...(firstPreviewAt ? { timeToFirstPreviewMs: Math.round(firstPreviewAt - runtimeStart) } : {}),
-        totalRuntimeMs: Math.round(performance.now() - runtimeStart),
-        validationPassed: qaResult.passed,
-        validationBlockingCount: qaResult.violations.filter((violation) => violation.severity === 'error').length,
-        validationAdvisoryCount: qaResult.violations.filter((violation) => violation.severity !== 'error').length,
-        repairCount: editingTelemetry?.fallbackUsed ? 1 : 0,
-      },
+      runtime: buildDocumentRuntimeTelemetry({
+        runtimeStartMs: runtimeStart,
+        nowMs: performance.now(),
+        validation: qaResult,
+        repairCount: repair.repairCount + (editingTelemetry?.fallbackUsed ? 1 : 0),
+        ...(firstPreviewAt ? { firstPreviewAtMs: firstPreviewAt } : {}),
+      }),
       ...(editingTelemetry ? { editing: editingTelemetry } : {}),
     };
 

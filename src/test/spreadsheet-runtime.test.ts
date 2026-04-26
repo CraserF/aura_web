@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildArtifactRunPlan, emitSpreadsheetRuntimeResultEvents } from '@/services/artifactRuntime';
+import {
+  buildArtifactRunPlan,
+  buildSpreadsheetRuntimeTelemetry,
+  emitSpreadsheetRuntimeResultEvents,
+} from '@/services/artifactRuntime';
 import type { SpreadsheetOutput } from '@/services/ai/workflow/spreadsheet';
 import type { WorkflowEvent } from '@/services/ai/workflow/types';
 
@@ -52,6 +56,14 @@ describe('spreadsheet runtime bridge', () => {
         label: 'Spreadsheet runtime summary finalized.',
       },
     ]);
+    expect(buildSpreadsheetRuntimeTelemetry({ result, totalRuntimeMs: 42 })).toEqual({
+      timeToFirstPreviewMs: 0,
+      totalRuntimeMs: 42,
+      validationPassed: true,
+      validationBlockingCount: 0,
+      validationAdvisoryCount: 0,
+      repairCount: 0,
+    });
   });
 
   it.each([
@@ -182,6 +194,14 @@ describe('spreadsheet runtime bridge', () => {
       type: 'step-error',
       stepId: 'workbook-action',
       error: 'I need an active populated sheet before I can create a chart.',
+    });
+    expect(buildSpreadsheetRuntimeTelemetry({ result, totalRuntimeMs: 9 })).toEqual({
+      timeToFirstPreviewMs: 0,
+      totalRuntimeMs: 9,
+      validationPassed: false,
+      validationBlockingCount: 0,
+      validationAdvisoryCount: 0,
+      repairCount: 0,
     });
   });
 });

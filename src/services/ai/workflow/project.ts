@@ -360,7 +360,6 @@ export async function handleProjectWorkflow(ctx: ProjectWorkflowContext): Promis
           warnings: projectValidation.warnings,
         },
         runtimePlan: runRequest.artifactRunPlan,
-        workflowPlan: runRequest.artifactRunPlan.workflow,
         project: {
           artifactType: 'project',
           project: buildProjectOutputs(

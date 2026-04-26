@@ -12,7 +12,13 @@ import {
   validatePresentationRuntimeOutput,
 } from '@/services/artifactRuntime/presentationRuntime';
 import { buildSlideBriefsFromRunPlan } from '@/services/artifactRuntime/presentation';
-import { attachDocumentRuntimeParts } from '@/services/artifactRuntime/documentRuntime';
+import {
+  attachDocumentRuntimeParts,
+  buildDocumentRuntimePartPrompt,
+  buildDocumentRuntimeTelemetry,
+  repairDocumentRuntimeOutput,
+  validateDocumentRuntimeOutput,
+} from '@/services/artifactRuntime/documentRuntime';
 import type { PlanResult } from '@/services/ai/workflow/agents/planner';
 
 describe('ArtifactRuntime plan', () => {
@@ -102,6 +108,60 @@ describe('ArtifactRuntime plan', () => {
     expect(plan.queueMode).toBe('sequential');
     expect(plan.workQueue).toEqual(parts);
     expect(plan.workflow.queuedWorkItems.map((item) => item.targetType)).toEqual(['section', 'section', 'section', 'section']);
+    expect(buildDocumentRuntimePartPrompt(parts)).toContain('DOCUMENT RUNTIME PART QUEUE');
+    expect(buildDocumentRuntimePartPrompt(parts)).toContain('Create brief outline');
+  });
+
+  it('repairs document runtime output and records telemetry-ready validation', async () => {
+    const plan = buildArtifactRunPlan({
+      runId: 'doc-repair-run',
+      prompt: 'Create a document',
+      artifactType: 'document',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    const html = '<article><p>Document body without a title or style.</p><script>bad()</script></article>';
+    const validation = validateDocumentRuntimeOutput(html);
+    const events: unknown[] = [];
+
+    const repair = await repairDocumentRuntimeOutput({
+      html,
+      title: 'Runtime Document',
+      validation,
+      runPlan: plan,
+      onEvent: (event) => events.push(event),
+    });
+
+    expect(validation.passed).toBe(false);
+    expect(repair.repaired).toBe(true);
+    expect(repair.repairCount).toBe(1);
+    expect(repair.html).toContain('<style>');
+    expect(repair.html).toContain('<h1>Runtime Document</h1>');
+    expect(repair.html).not.toContain('<script>');
+    expect(repair.validation.blockingCount).toBe(0);
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'progress',
+      message: 'Applying deterministic document repair.',
+    }));
+
+    expect(buildDocumentRuntimeTelemetry({
+      runtimeStartMs: 100,
+      firstPreviewAtMs: 250,
+      nowMs: 700,
+      validation: repair.validation,
+      repairCount: repair.repairCount,
+    })).toEqual({
+      timeToFirstPreviewMs: 150,
+      totalRuntimeMs: 600,
+      validationPassed: repair.validation.passed,
+      validationBlockingCount: repair.validation.blockingCount,
+      validationAdvisoryCount: repair.validation.advisoryCount,
+      repairCount: 1,
+    });
   });
 
   it('validates queued presentation runtime output without requiring an LLM repair pass', () => {

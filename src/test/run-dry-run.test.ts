@@ -63,7 +63,6 @@ describe('legacy dry-run request mode', () => {
           changedTargets: [{ documentId: 'doc-1', action: 'updated' as const }],
           validation: { passed: true, summary: 'ok' },
           runtimePlan: context.runRequest.artifactRunPlan,
-          workflowPlan: context.runRequest.artifactRunPlan.workflow,
           document: {
             artifactType: 'document' as const,
             title: 'Working Draft',
