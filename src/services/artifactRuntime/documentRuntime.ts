@@ -24,6 +24,11 @@ export interface DocumentRuntimeFinalizeResult {
   changed: boolean;
 }
 
+export interface DocumentRuntimeModuleDraft {
+  partId: string;
+  html: string;
+}
+
 export interface BuildDocumentRuntimeTelemetryInput {
   runtimeStartMs: number;
   nowMs: number;
@@ -38,6 +43,36 @@ export interface BuildDocumentRuntimePartsInput {
   blueprintLabel: string;
   recommendedModules: string[];
   isEdit: boolean;
+}
+
+export interface CanRunQueuedDocumentRuntimeInput {
+  runPlan?: ArtifactRunPlan;
+  parts: ArtifactPart[];
+  isEdit: boolean;
+  hasImages: boolean;
+}
+
+export interface BuildDocumentRuntimeOutlinePromptInput {
+  taskBrief: string;
+  documentType: string;
+  blueprintLabel: string;
+  parts: ArtifactPart[];
+  designFamily?: string;
+}
+
+export interface BuildDocumentRuntimeModulePromptInput {
+  taskBrief: string;
+  documentType: string;
+  outline: string;
+  part: ArtifactPart;
+  designFamily?: string;
+}
+
+export interface AssembleDocumentRuntimeHtmlInput {
+  title: string;
+  outline: string;
+  parts: ArtifactPart[];
+  modules: DocumentRuntimeModuleDraft[];
 }
 
 function normalizeModuleTitle(value: string, index: number): string {
@@ -125,6 +160,57 @@ function getDocumentModuleParts(parts: ArtifactPart[]): ArtifactPart[] {
   return parts
     .filter((part) => part.kind === 'document-module')
     .sort((a, b) => a.orderIndex - b.orderIndex);
+}
+
+export function canRunQueuedDocumentRuntime(input: CanRunQueuedDocumentRuntimeInput): boolean {
+  if (!input.runPlan) return false;
+  if (input.isEdit || input.hasImages) return false;
+  if (input.runPlan.artifactType !== 'document') return false;
+  if (input.runPlan.providerPolicy.generationGranularity !== 'part') return false;
+  return getDocumentModuleParts(input.parts).length > 0;
+}
+
+export function buildDocumentRuntimeOutlinePrompt(input: BuildDocumentRuntimeOutlinePromptInput): string {
+  const moduleParts = getDocumentModuleParts(input.parts);
+
+  return `Create the runtime outline for this ${input.documentType} document.
+
+Task:
+${input.taskBrief}
+
+Blueprint: ${input.blueprintLabel}
+Design family: ${input.designFamily ?? 'document-default'}
+
+Required modules:
+${moduleParts.map((part, index) => `${index + 1}. ${part.title} [${part.id}]: ${part.brief}`).join('\n')}
+
+Return only a compact outline in markdown:
+- one document thesis sentence
+- one bullet per required module
+- no CSS, no full HTML document, no external assets`;
+}
+
+export function buildDocumentRuntimeModulePrompt(input: BuildDocumentRuntimeModulePromptInput): string {
+  return `Create one document module fragment for runtime assembly.
+
+Task:
+${input.taskBrief}
+
+Document type: ${input.documentType}
+Design family: ${input.designFamily ?? 'document-default'}
+Runtime part id: ${input.part.id}
+Runtime part title: ${input.part.title}
+Runtime part brief: ${input.part.brief}
+
+Outline:
+${input.outline}
+
+Return only one semantic HTML module:
+- use a single wrapper: <section class="doc-section doc-runtime-module" data-runtime-part="${input.part.id}">
+- include one clear <h2>
+- include concise body content using <p>, <ul>, <ol>, <table>, or simple nested <div> blocks only when useful
+- do not include <style>, <script>, <html>, <head>, <body>, remote assets, or JavaScript
+- do not repeat the document shell`;
 }
 
 function findRuntimePartElement(doc: Document, partId: string): HTMLElement | null {
@@ -258,8 +344,43 @@ body {
   margin: 0 auto;
   padding: 48px 28px;
 }
+.doc-header {
+  margin-bottom: 28px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--doc-border);
+}
+.doc-header h1 {
+  margin: 0;
+  color: var(--doc-text);
+  font-size: clamp(34px, 5vw, 48px);
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+.doc-section {
+  margin: 22px 0;
+  padding: 22px;
+  border: 1px solid var(--doc-border);
+  border-radius: 14px;
+  background: var(--doc-surface);
+}
+.doc-section h2 {
+  margin: 0 0 10px;
+  color: var(--doc-primary);
+  font-size: clamp(24px, 3.2vw, 32px);
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+.doc-section p,
+.doc-section li {
+  color: var(--doc-text);
+  font-size: 16px;
+}
+.doc-runtime-outline {
+  background: color-mix(in srgb, var(--doc-surface) 72%, var(--doc-accent) 10%);
+}
 @media (max-width: 720px) {
   .doc-shell { padding: 32px 18px; }
+  .doc-section { padding: 18px; }
 }
 `;
   doc.head.append(style);
@@ -343,6 +464,74 @@ function createDocumentModuleShell(doc: Document, part: ArtifactPart): HTMLEleme
   ensureDocumentModuleHeading(doc, section, part);
   ensureDocumentModuleBody(doc, section, part);
   return section;
+}
+
+function escapeDocumentText(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function outlineToHtml(outline: string): string {
+  const lines = outline
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^[-*#\d.\s]+/, '').trim())
+    .filter(Boolean)
+    .slice(0, 8);
+
+  if (lines.length === 0) return '<p>Document outline.</p>';
+
+  const [summary, ...items] = lines;
+  const list = items.length > 0
+    ? `<ul>${items.map((item) => `<li>${escapeDocumentText(item)}</li>`).join('')}</ul>`
+    : '';
+  return `<p>${escapeDocumentText(summary ?? 'Document outline.')}</p>${list}`;
+}
+
+function normalizeDocumentRuntimeModuleHtml(html: string, part: ArtifactPart): string {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  stripUnsupportedDocumentNodes(doc);
+  doc.querySelectorAll('style').forEach((node) => node.remove());
+
+  const existing = findRuntimePartElement(doc, part.id);
+  const candidate = existing
+    ?? doc.body.querySelector<HTMLElement>('section, article, div')
+    ?? createDocumentModuleShell(doc, part);
+
+  const wrapper = doc.createElement('section');
+  wrapper.className = Array.from(new Set([
+    'doc-section',
+    'doc-runtime-module',
+    ...Array.from(candidate.classList).filter((className) => className !== 'doc-shell'),
+  ])).join(' ');
+  wrapper.setAttribute('data-runtime-part', part.id);
+  wrapper.innerHTML = candidate.innerHTML.trim() || `<p>${escapeDocumentText(part.brief)}</p>`;
+
+  ensureDocumentModuleHeading(doc, wrapper, part);
+  ensureDocumentModuleBody(doc, wrapper, part);
+  return wrapper.outerHTML;
+}
+
+export function assembleDocumentRuntimeHtml(input: AssembleDocumentRuntimeHtmlInput): string {
+  const moduleParts = getDocumentModuleParts(input.parts);
+  const moduleMap = new Map(input.modules.map((module) => [module.partId, module.html]));
+  const modulesHtml = moduleParts
+    .map((part) => normalizeDocumentRuntimeModuleHtml(moduleMap.get(part.id) ?? '', part))
+    .join('\n');
+
+  return `<main class="doc-shell">
+  <header class="doc-header">
+    <h1>${escapeDocumentText(input.title || 'Document')}</h1>
+  </header>
+  <section class="doc-section doc-runtime-outline" data-runtime-part="document-outline">
+    <h2>Outline</h2>
+    ${outlineToHtml(input.outline)}
+  </section>
+  ${modulesHtml}
+</main>`;
 }
 
 export function finalizeDocumentRuntimeHtml(input: {

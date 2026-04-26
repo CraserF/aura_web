@@ -32,15 +32,19 @@ import type { TemplateGuidanceProfile } from '@/services/workflowPlanner/types';
 import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
 import {
   attachDocumentRuntimeParts,
+  assembleDocumentRuntimeHtml,
+  buildDocumentRuntimeModulePrompt,
+  buildDocumentRuntimeOutlinePrompt,
   buildDocumentRuntimePartPrompt,
   buildDocumentRuntimeTelemetry,
+  canRunQueuedDocumentRuntime,
   finalizeDocumentRuntimeHtml,
   repairDocumentRuntimeModules,
   repairDocumentRuntimeOutput,
   validateDocumentRuntimeModules,
   validateDocumentRuntimeOutput,
 } from '@/services/artifactRuntime/documentRuntime';
-import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
+import type { ArtifactPart, ArtifactRunPlan } from '@/services/artifactRuntime/types';
 
 export interface DocumentProjectLink {
   id: string;
@@ -693,6 +697,158 @@ async function buildEditPrompt(input: DocumentInput, plan: DocumentPlan): Promis
     .build();
 }
 
+async function streamDocumentRuntimeText(input: {
+  model: LanguageModel;
+  messages: ModelMessage[];
+  maxOutputTokens: number;
+  signal?: AbortSignal;
+  onChunk: (chunk: string) => void;
+}): Promise<string> {
+  const stream = streamText({
+    model: input.model,
+    messages: input.messages,
+    maxOutputTokens: input.maxOutputTokens,
+    ...(input.signal ? { abortSignal: input.signal } : {}),
+  });
+  let text = '';
+
+  for await (const chunk of stream.textStream) {
+    if (input.signal?.aborted) {
+      throw new DOMException('Workflow aborted', 'AbortError');
+    }
+    text += chunk;
+    input.onChunk(chunk);
+  }
+
+  return text;
+}
+
+async function runQueuedDocumentRuntimeDraft(input: {
+  model: LanguageModel;
+  workflowInput: DocumentInput;
+  plan: DocumentPlan;
+  runtimeParts: ArtifactPart[];
+  systemPrompt: string;
+  historyMessages: ModelMessage[];
+  requestedTitle?: string;
+  onEvent: EventListener;
+  signal?: AbortSignal;
+  runId: string;
+}): Promise<{
+  rawContent: string;
+  renderedHtml: string;
+  firstPreviewAt?: number;
+}> {
+  const moduleParts = input.runtimeParts
+    .filter((part) => part.kind === 'document-module')
+    .sort((a, b) => a.orderIndex - b.orderIndex);
+  const designFamily = input.workflowInput.artifactRunPlan?.designManifest.family;
+  let firstPreviewAt: number | undefined;
+  const onChunk = (chunk: string) => {
+    firstPreviewAt ??= performance.now();
+    input.onEvent({ type: 'streaming', stepId: 'generate', chunk });
+  };
+
+  emitArtifactRunEvent(input.onEvent, {
+    runId: input.runId,
+    type: 'runtime.part-started',
+    role: 'generator',
+    message: 'Creating document outline',
+    partId: 'document-outline',
+    pct: 30,
+  });
+  const outlinePrompt = withMemoryContext(
+    buildDocumentRuntimeOutlinePrompt({
+      taskBrief: input.workflowInput.prompt,
+      documentType: input.plan.documentType,
+      blueprintLabel: input.plan.blueprint.label,
+      parts: input.runtimeParts,
+      designFamily,
+    }),
+    input.workflowInput.memoryContext,
+  );
+  const outline = await streamDocumentRuntimeText({
+    model: input.model,
+    messages: [
+      { role: 'system', content: input.systemPrompt, providerOptions: CACHE_CONTROL } as ModelMessage,
+      ...input.historyMessages,
+      { role: 'user', content: outlinePrompt },
+    ],
+    maxOutputTokens: 2048,
+    ...(input.signal ? { signal: input.signal } : {}),
+    onChunk,
+  });
+  emitArtifactRunEvent(input.onEvent, {
+    runId: input.runId,
+    type: 'runtime.part-completed',
+    role: 'generator',
+    message: 'Created document outline',
+    partId: 'document-outline',
+    pct: 40,
+  });
+
+  const modules: Array<{ partId: string; html: string }> = [];
+  for (const [index, part] of moduleParts.entries()) {
+    const pct = Math.min(76, 42 + (index * 8));
+    emitArtifactRunEvent(input.onEvent, {
+      runId: input.runId,
+      type: 'runtime.part-started',
+      role: 'generator',
+      message: `Creating ${part.title}`,
+      partId: part.id,
+      pct,
+    });
+    const modulePrompt = buildDocumentRuntimeModulePrompt({
+      taskBrief: input.workflowInput.prompt,
+      documentType: input.plan.documentType,
+      outline,
+      part,
+      designFamily,
+    });
+    const html = await streamDocumentRuntimeText({
+      model: input.model,
+      messages: [
+        { role: 'system', content: input.systemPrompt, providerOptions: CACHE_CONTROL } as ModelMessage,
+        { role: 'user', content: modulePrompt },
+      ],
+      maxOutputTokens: input.workflowInput.artifactRunPlan?.providerPolicy.mode === 'local-constrained' ? 3072 : 4096,
+      ...(input.signal ? { signal: input.signal } : {}),
+      onChunk,
+    });
+    modules.push({
+      partId: part.id,
+      html: extractDocumentSource(html),
+    });
+    emitArtifactRunEvent(input.onEvent, {
+      runId: input.runId,
+      type: 'runtime.part-completed',
+      role: 'generator',
+      message: `Created ${part.title}`,
+      partId: part.id,
+      pct: Math.min(82, pct + 6),
+    });
+  }
+
+  const title = input.requestedTitle || extractTitleFromPrompt(input.workflowInput.prompt);
+  const renderedHtml = assembleDocumentRuntimeHtml({
+    title,
+    outline: extractDocumentSource(outline),
+    parts: input.runtimeParts,
+    modules,
+  });
+  const rawContent = [
+    `# ${title}`,
+    extractDocumentSource(outline),
+    ...modules.map((module) => module.html),
+  ].filter(Boolean).join('\n\n');
+
+  return {
+    rawContent,
+    renderedHtml,
+    ...(firstPreviewAt ? { firstPreviewAt } : {}),
+  };
+}
+
 function getDocumentStructureGuide(documentType: ResolvedDocumentType): string {
   switch (documentType) {
     case 'report':
@@ -1094,12 +1250,19 @@ export async function runDocumentWorkflow(
       ),
       input.templateGuidance,
     );
+    const requestedTitle = extractRequestedDocumentTitle(input.prompt);
     const baseUserPrompt = isEdit ? await buildEditPrompt(input, planResult) : await buildCreatePrompt(input, planResult);
     const runtimePartPrompt = buildDocumentRuntimePartPrompt(runtimeParts);
     const userPrompt = withMemoryContext(
       [baseUserPrompt, runtimePartPrompt].filter(Boolean).join('\n\n'),
       input.memoryContext,
     );
+    const useQueuedDocumentRuntime = canRunQueuedDocumentRuntime({
+      ...(input.artifactRunPlan ? { runPlan: input.artifactRunPlan } : {}),
+      parts: runtimeParts,
+      isEdit,
+      hasImages: (input.imageParts?.length ?? 0) > 0,
+    });
 
     const historyMessages: ModelMessage[] = toModelMessages(
       input.chatHistory.slice(-4), // Keep only the most recent context so the current document stays focused
@@ -1134,17 +1297,17 @@ export async function runDocumentWorkflow(
       artDirection: planResult.artDirection,
     });
 
-    const stream = streamText({
-      model,
-      messages: requestMessages,
-      maxOutputTokens: 16384,
-      abortSignal: signal,
-    });
     const stopHeartbeat = startProgressHeartbeat({
       onEvent,
       startPct: 28,
       maxPct: 68,
-      messages: isEdit
+      messages: useQueuedDocumentRuntime
+        ? [
+            'Still creating document modules…',
+            'Assembling the document structure…',
+            'Finishing the module queue…',
+          ]
+        : isEdit
         ? [
             'Still applying targeted document changes…',
             'Refining the updated document layout…',
@@ -1157,12 +1320,53 @@ export async function runDocumentWorkflow(
           ],
     });
 
+    let rawContent = '';
+    let renderedHtml = '';
+
     try {
-      for await (const chunk of stream.textStream) {
-        if (signal?.aborted) break;
-        firstPreviewAt ??= performance.now();
-        accumulated += chunk;
-        onEvent({ type: 'streaming', stepId: 'generate', chunk });
+      if (useQueuedDocumentRuntime) {
+        onEvent({ type: 'progress', message: 'Creating document outline and modules…', pct: 30 });
+        const queuedDraft = await runQueuedDocumentRuntimeDraft({
+          model,
+          workflowInput: input,
+          plan: planResult,
+          runtimeParts,
+          systemPrompt,
+          historyMessages,
+          ...(requestedTitle ? { requestedTitle } : {}),
+          onEvent,
+          ...(signal ? { signal } : {}),
+          runId: runtimeRunId,
+        });
+        rawContent = queuedDraft.rawContent;
+        renderedHtml = queuedDraft.renderedHtml;
+        if (queuedDraft.firstPreviewAt) firstPreviewAt = queuedDraft.firstPreviewAt;
+        aiDebugLog('document', 'document render mode', {
+          mode: 'queued-runtime',
+          rawChars: rawContent.length,
+          renderedChars: renderedHtml.length,
+        });
+      } else {
+        const stream = streamText({
+          model,
+          messages: requestMessages,
+          maxOutputTokens: 16384,
+          ...(signal ? { abortSignal: signal } : {}),
+        });
+
+        for await (const chunk of stream.textStream) {
+          if (signal?.aborted) break;
+          firstPreviewAt ??= performance.now();
+          accumulated += chunk;
+          onEvent({ type: 'streaming', stepId: 'generate', chunk });
+        }
+        rawContent = extractDocumentSource(accumulated);
+        renderedHtml = renderDocumentContent(rawContent, input);
+        aiDebugLog('document', 'document render mode', {
+          mode: looksLikeHtml(rawContent) ? 'html' : 'markdown',
+          rawChars: rawContent.length,
+          renderedChars: renderedHtml.length,
+        });
       }
     } finally {
       stopHeartbeat();
@@ -1170,18 +1374,9 @@ export async function runDocumentWorkflow(
 
     onEvent({ type: 'progress', message: 'Structuring document…', pct: 72 });
 
-    const rawContent = extractDocumentSource(accumulated);
-    const renderedHtml = renderDocumentContent(rawContent, input);
-    aiDebugLog('document', 'document render mode', {
-      mode: looksLikeHtml(rawContent) ? 'html' : 'markdown',
-      rawChars: rawContent.length,
-      renderedChars: renderedHtml.length,
-    });
-
     onEvent({ type: 'progress', message: 'Sanitizing content…', pct: 84 });
 
     let finalHtml = sanitizeHtml(renderedHtml);
-    const requestedTitle = extractRequestedDocumentTitle(input.prompt);
     if (requestedTitle) {
       finalHtml = enforceRequestedDocumentTitle(finalHtml, requestedTitle);
     }

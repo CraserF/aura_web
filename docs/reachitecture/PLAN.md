@@ -180,6 +180,21 @@ Last updated: 2026-04-26.
 - Document runtime telemetry now counts module repair passes alongside document-level repair and targeted-edit fallback repair.
 - Added artifact runtime coverage for module prompt ids, missing module wrapper repair, shell finalization, and module validation success after repair.
 
+### Completed In Ninth Runtime Slice
+- Added queued document runtime prompt primitives:
+  - queue eligibility checks;
+  - compact outline prompts;
+  - single-module HTML fragment prompts;
+  - runtime shell assembly from separately generated module drafts.
+- Extended the compact document runtime shell CSS so generated modules can omit repeated shell styling while still rendering with readable header, section, and mobile-safe module defaults.
+- Create-mode document generation now uses the runtime queue when a document `ArtifactRunPlan` is available and the request is not an edit or image-based generation:
+  - generate outline first;
+  - generate each runtime document module separately;
+  - assemble modules into one shell;
+  - run the existing finalizer, module validation/repair, document QA, and telemetry path.
+- Edit and image-heavy document requests intentionally remain on the existing one-stream path for now so the first queued-document landing is scoped and reversible.
+- Added artifact runtime coverage for queued-document eligibility, outline prompt contracts, module prompt contracts, and assembled queued module shells.
+
 ### Validation Completed
 - `npm test -- artifact-runtime workflow-planner run-request run-dry-run run-explain structured-run-outputs external-adapter-contracts run-events workflow-benchmark-cases`
   - Passed: 9 files, 23 tests.
@@ -268,6 +283,18 @@ Last updated: 2026-04-26.
     - Passed.
   - Repo-wide lint through `npm run lint -- ...`
     - Non-gating failure due existing unrelated lint debt outside this slice.
+- Current ninth-slice focused validation:
+  - `npm run typecheck`
+    - Passed.
+  - `npm test -- artifact-runtime spreadsheet-runtime prompt-contracts presentation-runtime-policy workflow-planner run-request run-dry-run project-starter-kits project-augmentation`
+    - Passed: 9 files, 43 tests.
+  - `npm test`
+    - Passed: 95 files, 528 tests.
+  - `npm run build`
+    - Passed.
+    - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
+  - Changed-file ESLint via `npx eslint src/services/ai/workflow/document.ts src/services/artifactRuntime/documentRuntime.ts src/services/artifactRuntime/index.ts src/test/artifact-runtime.test.ts`
+    - Passed.
 
 ### Current Open State
 - The active runtime now has an internal plan object, and queued plus single-slide presentation generation are controlled by the runtime layer.
@@ -275,7 +302,7 @@ Last updated: 2026-04-26.
 - Legacy external execution-spec files still exist in the repository as quarantined code, but active chat generation no longer imports them.
 - Starter presentation generation now creates runtime plans and uses runtime-owned template parsing, token replacement, section assembly, sanitize/validate/finalize behavior, and telemetry.
 - The current presentation repair stage performs a first deterministic fragment repair pass and executes a bounded LLM repair pass when deterministic repair cannot recover the fragment and a model is available.
-- Documents still use the current streaming generator, but the prompt is now guided by runtime outline/module parts, runtime shell finalization runs before module validation, module-level validation/repair runs before final document QA, deterministic document repair hooks run before finalization, and runtime events/telemetry are emitted.
+- Create-mode documents with runtime plans now use queued outline/module generation, runtime shell assembly, module validation/repair, document QA, and runtime telemetry. Edit and image-heavy document requests still use the older one-stream generator until the queued edit/module flow is built.
 - Spreadsheets still use deterministic workbook execution, but result summaries now map into shared runtime events.
 - Workflow presets still exist in the advanced UI and storage model. They are hidden from the default user surface but not removed yet.
 - Production templates are still mixed with legacy templates; routing has not yet been fully reduced to production families only.
@@ -365,7 +392,7 @@ Last updated: 2026-04-26.
 4. In progress: Replace presentation prompt composition with compact prompt packs and design manifests.
 5. Done for presentation starters: Convert starter kits to use the same presentation runtime and production design families. Starter decks now create runtime plans, runtime parts, deterministic section assembly, and runtime finalization.
 6. Partially done: Simplify user-facing project settings into guided style/preferences, with current technical controls moved to Advanced.
-7. In progress: Move document generation onto the same run engine. Documents now attach outline/module/validation parts, guide the stream with runtime part ids, validate/repair module wrappers, and emit runtime telemetry; the next step is replacing the single stream with queued outline/module generation.
+7. In progress: Move document generation onto the same run engine. Create-mode documents now generate outline and modules through runtime-owned queued calls; the next step is queued edit/image handling plus stronger module-specific validation summaries.
 8. Next: Keep spreadsheet execution deterministic but emit the same run events and validation summaries.
 9. Later: Delete or convert legacy templates after production routing is stable.
 10. Later: Add benchmark and viewport validation harnesses for presentations first, then documents and spreadsheets.
@@ -499,14 +526,12 @@ Last updated: 2026-04-26.
 - Start with presentations, then extend to documents and spreadsheets.
 
 ## Immediate Next Implementation Slice
-- Replace document generation's one-stream implementation with queued runtime-owned parts:
-  - outline first;
-  - section/module generation;
-  - document validation;
-  - targeted repair;
-  - final shell assembly.
-- Reuse the new module validation/repair helpers as the final gate for separately generated document modules.
-- Extend the compact document shell/design-system finalizer so separately generated modules can be assembled without repeating shell CSS in each module prompt.
+- Extend queued document generation beyond simple create requests:
+  - preserve targeted document edits through module-local regeneration where possible;
+  - keep image-based requests on a planned multimodal outline step before module generation;
+  - add module-specific validation summaries so failed modules can be repaired individually.
+- Reuse the module validation/repair helpers as the final gate for separately generated document modules.
+- Expand the compact document shell/design-system finalizer with reusable module classes for KPI rows, comparison blocks, proof strips, timelines, and sidebars.
 - Add runtime telemetry to final RunResult summaries where useful for diagnostics.
 - Remove or rename remaining `workflowPlanner` compatibility surfaces after all imports move to `artifactRuntime`.
 - Begin quality/benchmark harness work for runtime metrics and first-preview timing.

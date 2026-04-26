@@ -14,8 +14,12 @@ import {
 import { buildSlideBriefsFromRunPlan } from '@/services/artifactRuntime/presentation';
 import {
   attachDocumentRuntimeParts,
+  assembleDocumentRuntimeHtml,
+  buildDocumentRuntimeModulePrompt,
+  buildDocumentRuntimeOutlinePrompt,
   buildDocumentRuntimePartPrompt,
   buildDocumentRuntimeTelemetry,
+  canRunQueuedDocumentRuntime,
   finalizeDocumentRuntimeHtml,
   repairDocumentRuntimeModules,
   repairDocumentRuntimeOutput,
@@ -114,6 +118,65 @@ describe('ArtifactRuntime plan', () => {
     expect(buildDocumentRuntimePartPrompt(parts)).toContain('DOCUMENT RUNTIME PART QUEUE');
     expect(buildDocumentRuntimePartPrompt(parts)).toContain('Create brief outline');
     expect(buildDocumentRuntimePartPrompt(parts)).toContain('[document-module-1]');
+    expect(canRunQueuedDocumentRuntime({
+      runPlan: plan,
+      parts,
+      isEdit: false,
+      hasImages: false,
+    })).toBe(true);
+    expect(buildDocumentRuntimeOutlinePrompt({
+      taskBrief: 'Create an executive briefing document',
+      documentType: 'brief',
+      blueprintLabel: 'Executive Brief',
+      parts,
+      designFamily: 'executive-light',
+    })).toContain('Return only a compact outline');
+    expect(buildDocumentRuntimeModulePrompt({
+      taskBrief: 'Create an executive briefing document',
+      documentType: 'brief',
+      outline: 'Thesis and module list.',
+      part: parts[1]!,
+      designFamily: 'executive-light',
+    })).toContain('data-runtime-part="document-module-1"');
+  });
+
+  it('assembles queued document module drafts into a runtime shell', () => {
+    const plan = buildArtifactRunPlan({
+      runId: 'doc-assemble-run',
+      prompt: 'Create an executive briefing document',
+      artifactType: 'document',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    const parts = attachDocumentRuntimeParts({
+      runPlan: plan,
+      documentType: 'brief',
+      blueprintLabel: 'Executive Brief',
+      recommendedModules: ['hero summary', 'KPI row'],
+      isEdit: false,
+    });
+
+    const html = assembleDocumentRuntimeHtml({
+      title: 'Queued Document',
+      outline: '- Thesis\n- Hero summary\n- KPI row',
+      parts,
+      modules: [{
+        partId: 'document-module-1',
+        html: '<section><p>The module draft is intentionally missing a heading but contains useful detail.</p></section>',
+      }],
+    });
+    const finalized = finalizeDocumentRuntimeHtml({ html, title: 'Queued Document' });
+    const validation = validateDocumentRuntimeModules(finalized.html, parts);
+
+    expect(finalized.html).toContain('class="doc-section doc-runtime-outline"');
+    expect(finalized.html).toContain('data-runtime-part="document-module-1"');
+    expect(finalized.html).toContain('data-runtime-part="document-module-2"');
+    expect(finalized.html).toContain('<h2>Hero summary</h2>');
+    expect(validation.passed).toBe(true);
   });
 
   it('repairs missing document runtime module wrappers before final QA', () => {
