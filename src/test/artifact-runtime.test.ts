@@ -16,7 +16,10 @@ import {
   attachDocumentRuntimeParts,
   buildDocumentRuntimePartPrompt,
   buildDocumentRuntimeTelemetry,
+  finalizeDocumentRuntimeHtml,
+  repairDocumentRuntimeModules,
   repairDocumentRuntimeOutput,
+  validateDocumentRuntimeModules,
   validateDocumentRuntimeOutput,
 } from '@/services/artifactRuntime/documentRuntime';
 import type { PlanResult } from '@/services/ai/workflow/agents/planner';
@@ -110,6 +113,67 @@ describe('ArtifactRuntime plan', () => {
     expect(plan.workflow.queuedWorkItems.map((item) => item.targetType)).toEqual(['section', 'section', 'section', 'section']);
     expect(buildDocumentRuntimePartPrompt(parts)).toContain('DOCUMENT RUNTIME PART QUEUE');
     expect(buildDocumentRuntimePartPrompt(parts)).toContain('Create brief outline');
+    expect(buildDocumentRuntimePartPrompt(parts)).toContain('[document-module-1]');
+  });
+
+  it('repairs missing document runtime module wrappers before final QA', () => {
+    const plan = buildArtifactRunPlan({
+      runId: 'doc-module-run',
+      prompt: 'Create an executive briefing document',
+      artifactType: 'document',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    const parts = attachDocumentRuntimeParts({
+      runPlan: plan,
+      documentType: 'brief',
+      blueprintLabel: 'Executive Brief',
+      recommendedModules: ['hero summary', 'KPI row', 'next-step timeline'],
+      isEdit: false,
+    });
+    const html = `<main class="doc-shell">
+      <h1>Executive Brief</h1>
+      <section><p>The opening module has enough substance to be mapped into the runtime queue.</p></section>
+    </main>`;
+    const validation = validateDocumentRuntimeModules(html, parts);
+    const events: unknown[] = [];
+
+    const repair = repairDocumentRuntimeModules({
+      html,
+      parts,
+      validation,
+      runPlan: plan,
+      onEvent: (event) => events.push(event),
+    });
+
+    expect(validation.passed).toBe(false);
+    expect(repair.repaired).toBe(true);
+    expect(repair.repairCount).toBe(1);
+    expect(repair.validation.passed).toBe(true);
+    expect(repair.html).toContain('data-runtime-part="document-module-1"');
+    expect(repair.html).toContain('data-runtime-part="document-module-2"');
+    expect(repair.html).toContain('data-runtime-part="document-module-3"');
+    expect(repair.html).toContain('<h2>KPI row</h2>');
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'progress',
+      message: 'Applying deterministic document module repair.',
+    }));
+  });
+
+  it('finalizes loose document runtime HTML into a shell before QA', () => {
+    const finalized = finalizeDocumentRuntimeHtml({
+      html: '<p>Loose document body.</p>',
+      title: 'Runtime Shell',
+    });
+
+    expect(finalized.changed).toBe(true);
+    expect(finalized.html).toContain('<style>');
+    expect(finalized.html).toContain('class="doc-shell"');
+    expect(finalized.html).toContain('<h1>Runtime Shell</h1>');
   });
 
   it('repairs document runtime output and records telemetry-ready validation', async () => {

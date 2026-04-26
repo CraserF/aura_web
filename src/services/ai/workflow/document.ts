@@ -34,7 +34,10 @@ import {
   attachDocumentRuntimeParts,
   buildDocumentRuntimePartPrompt,
   buildDocumentRuntimeTelemetry,
+  finalizeDocumentRuntimeHtml,
+  repairDocumentRuntimeModules,
   repairDocumentRuntimeOutput,
+  validateDocumentRuntimeModules,
   validateDocumentRuntimeOutput,
 } from '@/services/artifactRuntime/documentRuntime';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
@@ -1212,10 +1215,36 @@ export async function runDocumentWorkflow(
       });
     }
 
+    const title = requestedTitle || extractDocumentTitle(finalHtml) || extractTitleFromPrompt(input.prompt);
+    const finalizedRuntimeHtml = finalizeDocumentRuntimeHtml({
+      html: finalHtml,
+      title,
+    });
+    if (finalizedRuntimeHtml.changed) {
+      finalHtml = sanitizeHtml(finalizedRuntimeHtml.html);
+    }
+
+    let moduleRepairCount = 0;
+    const moduleValidation = validateDocumentRuntimeModules(finalHtml, runtimeParts);
+    if (!moduleValidation.passed) {
+      onEvent({ type: 'progress', message: moduleValidation.summary, pct: 82 });
+      const moduleRepair = repairDocumentRuntimeModules({
+        html: finalHtml,
+        parts: runtimeParts,
+        validation: moduleValidation,
+        runPlan: input.artifactRunPlan,
+        onEvent,
+      });
+      if (moduleRepair.repaired) {
+        finalHtml = sanitizeHtml(moduleRepair.html);
+        moduleRepairCount = moduleRepair.repairCount;
+        onEvent({ type: 'progress', message: moduleRepair.summary, pct: 84 });
+      }
+    }
+
     const sourceMarkdown = looksLikeHtml(rawContent)
       ? summarizeExistingDocument(finalHtml)
       : rawContent.trim();
-    const title = requestedTitle || extractDocumentTitle(finalHtml) || extractTitleFromPrompt(input.prompt);
 
     onEvent({ type: 'step-done', stepId: 'generate', label: isEdit ? 'Updating document…' : 'Writing document…' });
     emitArtifactRunEvent(onEvent, {
@@ -1280,7 +1309,7 @@ export async function runDocumentWorkflow(
         runtimeStartMs: runtimeStart,
         nowMs: performance.now(),
         validation: qaResult,
-        repairCount: repair.repairCount + (editingTelemetry?.fallbackUsed ? 1 : 0),
+        repairCount: moduleRepairCount + repair.repairCount + (editingTelemetry?.fallbackUsed ? 1 : 0),
         ...(firstPreviewAt ? { firstPreviewAtMs: firstPreviewAt } : {}),
       }),
       ...(editingTelemetry ? { editing: editingTelemetry } : {}),

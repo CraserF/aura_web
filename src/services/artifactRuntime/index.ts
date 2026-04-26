@@ -5,7 +5,10 @@ export {
   buildDocumentRuntimePartPrompt,
   buildDocumentRuntimeTelemetry,
   buildDocumentRuntimeParts,
+  finalizeDocumentRuntimeHtml,
+  repairDocumentRuntimeModules,
   repairDocumentRuntimeOutput,
+  validateDocumentRuntimeModules,
   validateDocumentRuntimeOutput,
 } from './documentRuntime';
 export {
@@ -32,6 +35,7 @@ export type { CreateArtifactRunEventInput } from './events';
 export type {
   BuildDocumentRuntimePartsInput,
   BuildDocumentRuntimeTelemetryInput,
+  DocumentRuntimeFinalizeResult,
   DocumentRuntimeRepairResult,
   DocumentRuntimeValidationResult,
 } from './documentRuntime';

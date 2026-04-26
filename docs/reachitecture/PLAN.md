@@ -166,6 +166,20 @@ Last updated: 2026-04-26.
 - Added a runtime part prompt section for document generation so the current document stream is explicitly guided by outline/module runtime parts while the deeper queued-document generator is built.
 - Added import-boundary coverage proving active handlers and run-request building do not read `runRequest.workflowPlan`.
 
+### Completed In Eighth Runtime Slice
+- Added document module-level runtime validation in `src/services/artifactRuntime/documentRuntime.ts`.
+- The document runtime part prompt now includes exact runtime ids and asks generated module wrappers to use `data-runtime-part="..."`.
+- Added deterministic document module repair that:
+  - maps existing generated sections/articles/cards onto missing runtime module ids;
+  - appends compact fallback module shells only when the generated document has no suitable block to map;
+  - inserts missing module headings;
+  - fills empty module shells with the module brief;
+  - strips unsupported document nodes before module repair.
+- The document workflow now runs module validation/repair before final document QA, so the final validation pass sees the runtime-owned module structure.
+- Added a compact document runtime finalizer that normalizes loose generated HTML into a shell/title/style frame before module validation and QA.
+- Document runtime telemetry now counts module repair passes alongside document-level repair and targeted-edit fallback repair.
+- Added artifact runtime coverage for module prompt ids, missing module wrapper repair, shell finalization, and module validation success after repair.
+
 ### Validation Completed
 - `npm test -- artifact-runtime workflow-planner run-request run-dry-run run-explain structured-run-outputs external-adapter-contracts run-events workflow-benchmark-cases`
   - Passed: 9 files, 23 tests.
@@ -240,6 +254,20 @@ Last updated: 2026-04-26.
     - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
   - Changed-file ESLint
     - Passed.
+- Current eighth-slice focused validation:
+  - `npm run typecheck`
+    - Passed.
+  - `npm test -- artifact-runtime spreadsheet-runtime prompt-contracts presentation-runtime-policy workflow-planner run-request run-dry-run project-starter-kits project-augmentation`
+    - Passed: 9 files, 42 tests.
+  - `npm test`
+    - Passed: 95 files, 527 tests.
+  - `npm run build`
+    - Passed.
+    - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
+  - Changed-file ESLint via `npx eslint src/services/ai/workflow/document.ts src/services/artifactRuntime/documentRuntime.ts src/services/artifactRuntime/index.ts src/test/artifact-runtime.test.ts`
+    - Passed.
+  - Repo-wide lint through `npm run lint -- ...`
+    - Non-gating failure due existing unrelated lint debt outside this slice.
 
 ### Current Open State
 - The active runtime now has an internal plan object, and queued plus single-slide presentation generation are controlled by the runtime layer.
@@ -247,7 +275,7 @@ Last updated: 2026-04-26.
 - Legacy external execution-spec files still exist in the repository as quarantined code, but active chat generation no longer imports them.
 - Starter presentation generation now creates runtime plans and uses runtime-owned template parsing, token replacement, section assembly, sanitize/validate/finalize behavior, and telemetry.
 - The current presentation repair stage performs a first deterministic fragment repair pass and executes a bounded LLM repair pass when deterministic repair cannot recover the fragment and a model is available.
-- Documents still use the current streaming generator, but the prompt is now guided by runtime outline/module parts, deterministic document repair hooks run before finalization, and runtime events/telemetry are emitted.
+- Documents still use the current streaming generator, but the prompt is now guided by runtime outline/module parts, runtime shell finalization runs before module validation, module-level validation/repair runs before final document QA, deterministic document repair hooks run before finalization, and runtime events/telemetry are emitted.
 - Spreadsheets still use deterministic workbook execution, but result summaries now map into shared runtime events.
 - Workflow presets still exist in the advanced UI and storage model. They are hidden from the default user surface but not removed yet.
 - Production templates are still mixed with legacy templates; routing has not yet been fully reduced to production families only.
@@ -337,7 +365,7 @@ Last updated: 2026-04-26.
 4. In progress: Replace presentation prompt composition with compact prompt packs and design manifests.
 5. Done for presentation starters: Convert starter kits to use the same presentation runtime and production design families. Starter decks now create runtime plans, runtime parts, deterministic section assembly, and runtime finalization.
 6. Partially done: Simplify user-facing project settings into guided style/preferences, with current technical controls moved to Advanced.
-7. Next: Move document generation onto the same run engine.
+7. In progress: Move document generation onto the same run engine. Documents now attach outline/module/validation parts, guide the stream with runtime part ids, validate/repair module wrappers, and emit runtime telemetry; the next step is replacing the single stream with queued outline/module generation.
 8. Next: Keep spreadsheet execution deterministic but emit the same run events and validation summaries.
 9. Later: Delete or convert legacy templates after production routing is stable.
 10. Later: Add benchmark and viewport validation harnesses for presentations first, then documents and spreadsheets.
@@ -471,14 +499,14 @@ Last updated: 2026-04-26.
 - Start with presentations, then extend to documents and spreadsheets.
 
 ## Immediate Next Implementation Slice
-- Split document generation into queued runtime parts instead of one stream:
+- Replace document generation's one-stream implementation with queued runtime-owned parts:
   - outline first;
   - section/module generation;
   - document validation;
   - targeted repair;
   - final shell assembly.
-- Continue replacing the one-stream document generator with runtime-owned outline/module generation.
-- Add document module-level validation and targeted repair once modules are generated separately.
+- Reuse the new module validation/repair helpers as the final gate for separately generated document modules.
+- Extend the compact document shell/design-system finalizer so separately generated modules can be assembled without repeating shell CSS in each module prompt.
 - Add runtime telemetry to final RunResult summaries where useful for diagnostics.
 - Remove or rename remaining `workflowPlanner` compatibility surfaces after all imports move to `artifactRuntime`.
 - Begin quality/benchmark harness work for runtime metrics and first-preview timing.

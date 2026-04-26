@@ -19,6 +19,11 @@ export interface DocumentRuntimeRepairResult {
   summary: string;
 }
 
+export interface DocumentRuntimeFinalizeResult {
+  html: string;
+  changed: boolean;
+}
+
 export interface BuildDocumentRuntimeTelemetryInput {
   runtimeStartMs: number;
   nowMs: number;
@@ -111,8 +116,72 @@ export function buildDocumentRuntimePartPrompt(parts: ArtifactPart[]): string {
   return `## DOCUMENT RUNTIME PART QUEUE
 
 Build the document by satisfying these runtime parts in order. Keep the final output as one complete document, but make each part visible in the structure.
+Mark each document module wrapper with its exact runtime id using data-runtime-part="...".
 
-${documentParts.map((part, index) => `${index + 1}. ${part.title}: ${part.brief}`).join('\n')}`;
+${documentParts.map((part, index) => `${index + 1}. ${part.title} [${part.id}]: ${part.brief}`).join('\n')}`;
+}
+
+function getDocumentModuleParts(parts: ArtifactPart[]): ArtifactPart[] {
+  return parts
+    .filter((part) => part.kind === 'document-module')
+    .sort((a, b) => a.orderIndex - b.orderIndex);
+}
+
+function findRuntimePartElement(doc: Document, partId: string): HTMLElement | null {
+  return Array.from(doc.body.querySelectorAll<HTMLElement>('[data-runtime-part]'))
+    .find((element) => element.getAttribute('data-runtime-part') === partId) ?? null;
+}
+
+export function validateDocumentRuntimeModules(
+  html: string,
+  parts: ArtifactPart[],
+): DocumentRuntimeValidationResult {
+  const moduleParts = getDocumentModuleParts(parts);
+  if (moduleParts.length === 0) {
+    return {
+      passed: true,
+      score: 100,
+      blockingCount: 0,
+      advisoryCount: 0,
+      summary: 'No document runtime modules required.',
+    };
+  }
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  let missingCount = 0;
+  let emptyCount = 0;
+  let headinglessCount = 0;
+
+  for (const part of moduleParts) {
+    const element = findRuntimePartElement(doc, part.id);
+    if (!element) {
+      missingCount += 1;
+      continue;
+    }
+
+    if ((element.textContent ?? '').replace(/\s+/g, ' ').trim().length < 24) {
+      emptyCount += 1;
+    }
+
+    if (!element.querySelector('h2, h3, h4')) {
+      headinglessCount += 1;
+    }
+  }
+
+  const blockingCount = missingCount + emptyCount;
+  const advisoryCount = headinglessCount;
+  const score = Math.max(0, 100 - (blockingCount * 18) - (advisoryCount * 7));
+
+  return {
+    passed: blockingCount === 0 && advisoryCount === 0,
+    score,
+    blockingCount,
+    advisoryCount,
+    summary: blockingCount === 0 && advisoryCount === 0
+      ? `Document runtime modules validated (${moduleParts.length} module(s)).`
+      : `Document runtime module validation found ${missingCount} missing, ${emptyCount} empty, and ${headinglessCount} headingless module(s).`,
+  };
 }
 
 export function buildDocumentRuntimeTelemetry(
@@ -215,6 +284,161 @@ function wrapLooseDocumentBody(doc: Document): void {
   doc.body.append(shell);
 }
 
+function serializeDocumentRuntimeHtml(doc: Document): string {
+  return `${Array.from(doc.head.querySelectorAll('style')).map((style) => style.outerHTML).join('\n')}\n${doc.body.innerHTML}`.trim();
+}
+
+function findDocumentModuleCandidates(doc: Document): HTMLElement[] {
+  const selector = [
+    'section',
+    'article',
+    '.doc-section',
+    '.doc-story-card',
+    '.doc-callout',
+    '.doc-kpi-grid',
+    '.doc-proof-strip',
+    '.doc-infographic-band',
+    '.doc-comparison',
+    '.doc-timeline',
+    '.doc-sidebar-layout',
+  ].join(', ');
+  const candidates = Array.from(doc.body.querySelectorAll<HTMLElement>(selector))
+    .filter((element) => {
+      if (element.matches('.doc-shell')) return false;
+      if (element.hasAttribute('data-runtime-part')) return false;
+      if ((element.textContent ?? '').replace(/\s+/g, ' ').trim().length < 24) return false;
+      return true;
+    });
+
+  return candidates.filter((element) => !candidates.some((other) => other !== element && other.contains(element)));
+}
+
+function getDocumentModuleRoot(doc: Document): HTMLElement {
+  return doc.body.querySelector<HTMLElement>('.doc-shell, main, article') ?? doc.body;
+}
+
+function ensureDocumentModuleHeading(doc: Document, element: HTMLElement, part: ArtifactPart): boolean {
+  if (element.querySelector('h2, h3, h4')) return false;
+
+  const heading = doc.createElement('h2');
+  heading.textContent = part.title;
+  element.prepend(heading);
+  return true;
+}
+
+function ensureDocumentModuleBody(doc: Document, element: HTMLElement, part: ArtifactPart): boolean {
+  const text = (element.textContent ?? '').replace(/\s+/g, ' ').trim();
+  if (text.length >= 40) return false;
+
+  const paragraph = doc.createElement('p');
+  paragraph.textContent = part.brief;
+  element.append(paragraph);
+  return true;
+}
+
+function createDocumentModuleShell(doc: Document, part: ArtifactPart): HTMLElement {
+  const section = doc.createElement('section');
+  section.className = 'doc-section doc-runtime-module';
+  section.setAttribute('data-runtime-part', part.id);
+  ensureDocumentModuleHeading(doc, section, part);
+  ensureDocumentModuleBody(doc, section, part);
+  return section;
+}
+
+export function finalizeDocumentRuntimeHtml(input: {
+  html: string;
+  title: string;
+}): DocumentRuntimeFinalizeResult {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(input.html, 'text/html');
+  const before = serializeDocumentRuntimeHtml(doc);
+
+  stripUnsupportedDocumentNodes(doc);
+  ensureDocumentRuntimeTitle(doc, input.title);
+  wrapLooseDocumentBody(doc);
+  ensureDocumentRuntimeStyle(doc);
+
+  const html = serializeDocumentRuntimeHtml(doc);
+  return {
+    html,
+    changed: html.trim() !== before.trim(),
+  };
+}
+
+export function repairDocumentRuntimeModules(input: {
+  html: string;
+  parts: ArtifactPart[];
+  validation: DocumentRuntimeValidationResult;
+  runPlan?: ArtifactRunPlan;
+  onEvent: EventListener;
+}): DocumentRuntimeRepairResult {
+  if (input.validation.passed) {
+    return {
+      html: input.html,
+      repairCount: 0,
+      repaired: false,
+      validation: input.validation,
+      summary: 'No document module repair needed.',
+    };
+  }
+
+  const moduleParts = getDocumentModuleParts(input.parts);
+  const maxRepairPasses = input.runPlan?.providerPolicy.maxRepairPasses ?? 1;
+  if (moduleParts.length === 0 || maxRepairPasses <= 0) {
+    return {
+      html: input.html,
+      repairCount: 0,
+      repaired: false,
+      validation: input.validation,
+      summary: 'Document module repair skipped because no runtime module repair budget is available.',
+    };
+  }
+
+  emitArtifactRunEvent(input.onEvent, {
+    runId: input.runPlan?.runId ?? 'document-runtime',
+    type: 'runtime.repair-started',
+    role: 'repairer',
+    message: 'Applying deterministic document module repair.',
+    partId: 'document-modules',
+    pct: 86,
+  });
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(input.html, 'text/html');
+  stripUnsupportedDocumentNodes(doc);
+  wrapLooseDocumentBody(doc);
+
+  const root = getDocumentModuleRoot(doc);
+  const candidates = findDocumentModuleCandidates(doc);
+  let changed = false;
+
+  for (const part of moduleParts) {
+    let element = findRuntimePartElement(doc, part.id);
+    if (!element) {
+      element = candidates.shift() ?? createDocumentModuleShell(doc, part);
+      if (!element.parentElement) root.append(element);
+      element.setAttribute('data-runtime-part', part.id);
+      changed = true;
+    }
+
+    if (ensureDocumentModuleHeading(doc, element, part)) changed = true;
+    if (ensureDocumentModuleBody(doc, element, part)) changed = true;
+  }
+
+  const repairedHtml = serializeDocumentRuntimeHtml(doc);
+  const repairedValidation = validateDocumentRuntimeModules(repairedHtml, input.parts);
+
+  return {
+    html: repairedHtml,
+    repairCount: changed ? 1 : 0,
+    repaired: changed,
+    validation: repairedValidation,
+    summary: repairedValidation.passed
+      ? 'Deterministic document module repair passed validation.'
+      : `Deterministic document module repair completed with ${repairedValidation.blockingCount} blocking issue(s) and ${repairedValidation.advisoryCount} advisory issue(s) remaining.`,
+  };
+}
+
 export async function repairDocumentRuntimeOutput(input: {
   html: string;
   title: string;
@@ -259,7 +483,7 @@ export async function repairDocumentRuntimeOutput(input: {
   wrapLooseDocumentBody(doc);
   ensureDocumentRuntimeStyle(doc);
 
-  const repairedHtml = `${Array.from(doc.head.querySelectorAll('style')).map((style) => style.outerHTML).join('\n')}\n${doc.body.innerHTML}`.trim();
+  const repairedHtml = serializeDocumentRuntimeHtml(doc);
   const repairedValidation = validateDocumentRuntimeOutput(repairedHtml);
 
   return {
