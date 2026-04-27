@@ -28,10 +28,49 @@ export type ProductionPresentationTemplateId = typeof PRODUCTION_PRESENTATION_TE
 
 const PRODUCTION_PRESENTATION_TEMPLATE_SET = new Set<TemplateId>(PRODUCTION_PRESENTATION_TEMPLATE_IDS);
 
+export const LEGACY_PRESENTATION_TEMPLATE_IDS = [
+  'keynote',
+  'corporate',
+  'tech-architecture',
+  'data-dashboard',
+  'sci-fi',
+  'creative-portfolio',
+  'storytelling',
+  'educational',
+  'minimal',
+  'cinematic',
+  'pitch-deck',
+  'workshop',
+  'code-walkthrough',
+  'product-demo',
+  'comparison',
+  'timeline',
+  'editorial-magazine',
+  'infographic-grid',
+  'landscape-illustration',
+  'multi-panel-dashboard',
+  'sidebar-cards',
+] as const satisfies readonly TemplateId[];
+
+export type LegacyPresentationTemplateId = typeof LEGACY_PRESENTATION_TEMPLATE_IDS[number];
+
+const LEGACY_PRESENTATION_TEMPLATE_SET = new Set<TemplateId>(LEGACY_PRESENTATION_TEMPLATE_IDS);
+
+export const PRESENTATION_TEMPLATE_AUDIT = {
+  production: PRODUCTION_PRESENTATION_TEMPLATE_IDS,
+  legacy: LEGACY_PRESENTATION_TEMPLATE_IDS,
+} as const;
+
 export function isProductionPresentationTemplate(
   templateId: TemplateId,
 ): templateId is ProductionPresentationTemplateId {
   return PRODUCTION_PRESENTATION_TEMPLATE_SET.has(templateId);
+}
+
+export function isLegacyPresentationTemplate(
+  templateId: TemplateId,
+): templateId is LegacyPresentationTemplateId {
+  return LEGACY_PRESENTATION_TEMPLATE_SET.has(templateId);
 }
 
 export function toProductionPresentationTemplate(templateId: TemplateId): ProductionPresentationTemplateId {

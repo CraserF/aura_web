@@ -121,11 +121,31 @@ export function buildPresentationQualityTelemetry(
   input: PresentationQualityChecklistInput,
 ): Pick<
   ArtifactRuntimeTelemetry,
-  'promptTokenEstimate' | 'viewportContractPassed' | 'viewportBlockingCount' | 'viewportAdvisoryCount'
+  | 'promptTokenEstimate'
+  | 'qualityPassed'
+  | 'qualityBlockingCount'
+  | 'qualityAdvisoryCount'
+  | 'qualityChecks'
+  | 'viewportContractPassed'
+  | 'viewportBlockingCount'
+  | 'viewportAdvisoryCount'
 > {
   const checklist = buildPresentationQualityChecklist(input);
+  const qualityBlockingCount = checklist.checks.reduce((sum, check) => sum + check.blockingCount, 0);
+  const qualityAdvisoryCount = checklist.checks.reduce((sum, check) => sum + check.advisoryCount, 0);
+
   return {
     promptTokenEstimate: checklist.promptTokenEstimate,
+    qualityPassed: checklist.ready,
+    qualityBlockingCount,
+    qualityAdvisoryCount,
+    qualityChecks: checklist.checks.map((check) => ({
+      id: check.id,
+      label: check.label,
+      passed: check.passed,
+      blockingCount: check.blockingCount,
+      advisoryCount: check.advisoryCount,
+    })),
     viewportContractPassed: checklist.viewportContractPassed,
     viewportBlockingCount: checklist.viewportBlockingCount,
     viewportAdvisoryCount: checklist.viewportAdvisoryCount,

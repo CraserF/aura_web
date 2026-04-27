@@ -1,4 +1,8 @@
 import type { TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
+import {
+  DOCUMENT_RUNTIME_SHARED_MODULE_CLASSES,
+  getDocumentRuntimeModuleWrapperClassName,
+} from '@/services/artifactRuntime/documentDesignSystem';
 
 export function buildCoreArtifactContractPack(): string {
   return `## ARTIFACT RUNTIME CONTRACT
@@ -37,13 +41,15 @@ Keep the result canvas-safe for the fixed 16:9 Reveal stage inside Aura.`;
 }
 
 export function buildDocumentIframeContractPack(): string {
+  const sharedClasses = DOCUMENT_RUNTIME_SHARED_MODULE_CLASSES.join(', ');
+
   return `## DOCUMENT IFRAME CONTRACT
 
 Output must be safe for Aura's sandboxed document canvas:
 - no <script>, <iframe>, <object>, <embed>, <html>, <head>, <body>, remote assets, or JavaScript
 - keep media and tables fluid with max-width: 100%
 - avoid fixed-width modules that clip on narrow framed viewports
-- use mobile-safe stacking with CSS classes such as doc-kpi-row, doc-proof-strip, doc-comparison, doc-timeline, and doc-sidebar-layout
+- use mobile-safe stacking with CSS classes such as ${sharedClasses}
 - keep body copy at 16px or larger and print-friendly; use mostly static markup`;
 }
 
@@ -62,13 +68,16 @@ Use the family as a compact design direction, not a second preset system.`;
 }
 
 export function buildDocumentModuleContractPack(input: { partId: string; repair?: boolean }): string {
+  const wrapperClassName = getDocumentRuntimeModuleWrapperClassName();
+  const sharedClasses = DOCUMENT_RUNTIME_SHARED_MODULE_CLASSES.join(', ');
+
   return `## DOCUMENT MODULE CONTRACT
 
 Return only one semantic HTML module:
-- use exactly one wrapper: <section class="doc-section doc-runtime-module" data-runtime-part="${input.partId}">
+- use exactly one wrapper: <section class="${wrapperClassName}" data-runtime-part="${input.partId}">
 - include one clear <h2>
 - include useful body content with <p>, <ul>, <ol>, <table>, or simple nested <div> blocks only when useful
-- use shared classes when helpful: doc-kpi-row, doc-kpi, doc-comparison, doc-compare-card, doc-proof-strip, doc-proof-item, doc-timeline, doc-timeline-item, doc-sidebar-layout, doc-main, doc-aside
+- use shared classes when helpful: ${sharedClasses}
 - keep module layout mobile-safe and readable in a framed iframe
 - ${input.repair ? 'fix only the failed module issues and preserve useful existing structure' : 'do not repeat the document shell'}
 - do not include <style>, <script>, <html>, <head>, <body>, remote assets, or JavaScript`;

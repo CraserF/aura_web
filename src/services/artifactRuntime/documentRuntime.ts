@@ -6,6 +6,12 @@ import {
   buildDocumentModuleContractPack,
   buildValidatorFeedbackPack,
 } from '@/services/artifactRuntime/promptPacks';
+import {
+  DOCUMENT_RUNTIME_MODULE_CANDIDATE_SELECTORS,
+  DOCUMENT_RUNTIME_SHELL_CSS,
+  getDocumentRuntimeModuleWrapperClassName,
+} from '@/services/artifactRuntime/documentDesignSystem';
+import { buildDocumentQualityTelemetry } from '@/services/artifactRuntime/documentQualityChecklist';
 import type { ArtifactPart, ArtifactRunPlan } from '@/services/artifactRuntime/types';
 import { validateDocument } from '@/services/ai/workflow/agents/document-qa';
 import type { ArtifactRuntimeTelemetry, EventListener } from '@/services/ai/workflow/types';
@@ -62,6 +68,9 @@ export interface BuildDocumentRuntimeTelemetryInput {
   queuedPartCount?: number;
   completedPartCount?: number;
   repairedPartCount?: number;
+  html?: string;
+  promptText?: string;
+  promptChars?: number;
 }
 
 export interface BuildDocumentRuntimePartsInput {
@@ -445,6 +454,14 @@ export function validateDocumentRuntimeModules(
 export function buildDocumentRuntimeTelemetry(
   input: BuildDocumentRuntimeTelemetryInput,
 ): ArtifactRuntimeTelemetry {
+  const qualityTelemetry = input.html
+    ? buildDocumentQualityTelemetry({
+        html: input.html,
+        promptText: input.promptText,
+        promptChars: input.promptChars,
+      })
+    : {};
+
   return {
     ...(typeof input.firstPreviewAtMs === 'number'
       ? { timeToFirstPreviewMs: Math.round(input.firstPreviewAtMs - input.runtimeStartMs) }
@@ -458,6 +475,7 @@ export function buildDocumentRuntimeTelemetry(
     ...(typeof input.queuedPartCount === 'number' ? { queuedPartCount: input.queuedPartCount } : {}),
     ...(typeof input.completedPartCount === 'number' ? { completedPartCount: input.completedPartCount } : {}),
     ...(typeof input.repairedPartCount === 'number' ? { repairedPartCount: input.repairedPartCount } : {}),
+    ...qualityTelemetry,
   };
 }
 
@@ -499,122 +517,7 @@ function ensureDocumentRuntimeStyle(doc: Document): void {
   if (doc.querySelector('style')) return;
 
   const style = doc.createElement('style');
-  style.textContent = `
-:root {
-  --doc-primary: #1f4b99;
-  --doc-accent: #0f8b8d;
-  --doc-text: #162235;
-  --doc-muted: #5f6f85;
-  --doc-bg: #f7f9fc;
-  --doc-surface: #ffffff;
-  --doc-border: rgba(22, 34, 53, 0.18);
-}
-body {
-  margin: 0;
-  background: var(--doc-bg);
-  color: var(--doc-text);
-  font: 16px/1.6 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-.doc-shell {
-  max-width: 920px;
-  margin: 0 auto;
-  padding: 48px 28px;
-}
-.doc-header {
-  margin-bottom: 28px;
-  padding-bottom: 22px;
-  border-bottom: 1px solid var(--doc-border);
-}
-.doc-header h1 {
-  margin: 0;
-  color: var(--doc-text);
-  font-size: clamp(34px, 5vw, 48px);
-  line-height: 1.05;
-  letter-spacing: 0;
-}
-.doc-section {
-  margin: 22px 0;
-  padding: 22px;
-  border: 1px solid var(--doc-border);
-  border-radius: 14px;
-  background: var(--doc-surface);
-}
-.doc-section h2 {
-  margin: 0 0 10px;
-  color: var(--doc-primary);
-  font-size: clamp(24px, 3.2vw, 32px);
-  line-height: 1.15;
-  letter-spacing: 0;
-}
-.doc-section p,
-.doc-section li {
-  color: var(--doc-text);
-  font-size: 16px;
-}
-.doc-runtime-outline {
-  background: color-mix(in srgb, var(--doc-surface) 72%, var(--doc-accent) 10%);
-}
-.doc-kpi-row,
-.doc-proof-strip,
-.doc-comparison {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 14px;
-  margin-top: 16px;
-}
-.doc-kpi,
-.doc-proof-item,
-.doc-compare-card {
-  padding: 16px;
-  border: 1px solid var(--doc-border);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--doc-surface) 82%, var(--doc-bg));
-}
-.doc-kpi strong {
-  display: block;
-  color: var(--doc-primary);
-  font-size: clamp(24px, 4vw, 36px);
-  line-height: 1;
-}
-.doc-kpi span,
-.doc-proof-item span,
-.doc-compare-card span {
-  display: block;
-  margin-top: 6px;
-  color: var(--doc-muted);
-  font-size: 14px;
-  line-height: 1.4;
-}
-.doc-timeline {
-  display: grid;
-  gap: 12px;
-  margin-top: 16px;
-}
-.doc-timeline-item {
-  padding-left: 16px;
-  border-left: 3px solid var(--doc-accent);
-}
-.doc-timeline-item strong {
-  display: block;
-  color: var(--doc-primary);
-}
-.doc-sidebar-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(220px, 0.85fr);
-  gap: 18px;
-  align-items: start;
-}
-.doc-aside {
-  padding: 16px;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--doc-surface) 72%, var(--doc-accent) 10%);
-}
-@media (max-width: 720px) {
-  .doc-shell { padding: 32px 18px; }
-  .doc-section { padding: 18px; }
-  .doc-sidebar-layout { grid-template-columns: 1fr; }
-}
-`;
+  style.textContent = DOCUMENT_RUNTIME_SHELL_CSS;
   doc.head.append(style);
 }
 
@@ -642,19 +545,7 @@ function serializeDocumentRuntimeHtml(doc: Document): string {
 }
 
 function findDocumentModuleCandidates(doc: Document): HTMLElement[] {
-  const selector = [
-    'section',
-    'article',
-    '.doc-section',
-    '.doc-story-card',
-    '.doc-callout',
-    '.doc-kpi-grid',
-    '.doc-proof-strip',
-    '.doc-infographic-band',
-    '.doc-comparison',
-    '.doc-timeline',
-    '.doc-sidebar-layout',
-  ].join(', ');
+  const selector = DOCUMENT_RUNTIME_MODULE_CANDIDATE_SELECTORS.join(', ');
   const candidates = Array.from(doc.body.querySelectorAll<HTMLElement>(selector))
     .filter((element) => {
       if (element.matches('.doc-shell')) return false;
@@ -691,7 +582,7 @@ function ensureDocumentModuleBody(doc: Document, element: HTMLElement, part: Art
 
 function createDocumentModuleShell(doc: Document, part: ArtifactPart): HTMLElement {
   const section = doc.createElement('section');
-  section.className = 'doc-section doc-runtime-module';
+  section.className = getDocumentRuntimeModuleWrapperClassName();
   section.setAttribute('data-runtime-part', part.id);
   ensureDocumentModuleHeading(doc, section, part);
   ensureDocumentModuleBody(doc, section, part);
@@ -734,11 +625,7 @@ function normalizeDocumentRuntimeModuleHtml(html: string, part: ArtifactPart): s
     ?? createDocumentModuleShell(doc, part);
 
   const wrapper = doc.createElement('section');
-  wrapper.className = Array.from(new Set([
-    'doc-section',
-    'doc-runtime-module',
-    ...Array.from(candidate.classList).filter((className) => className !== 'doc-shell'),
-  ])).join(' ');
+  wrapper.className = getDocumentRuntimeModuleWrapperClassName(candidate.classList);
   wrapper.setAttribute('data-runtime-part', part.id);
   wrapper.innerHTML = candidate.innerHTML.trim() || `<p>${escapeDocumentText(part.brief)}</p>`;
 

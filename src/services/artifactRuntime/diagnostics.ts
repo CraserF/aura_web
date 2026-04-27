@@ -22,6 +22,13 @@ export interface RuntimeArtifactDiagnosticSummary {
   viewportContractPassRate: number;
   viewportBlockingIssueCount: number;
   viewportAdvisoryIssueCount: number;
+  qualitySampleCount: number;
+  qualityPassRate: number;
+  qualityBlockingIssueCount: number;
+  qualityAdvisoryIssueCount: number;
+  spreadsheetActionKinds: string[];
+  changedSheetCount: number;
+  refreshedSheetCount: number;
 }
 
 export interface RuntimeDiagnosticSummary extends RuntimeArtifactDiagnosticSummary {
@@ -61,6 +68,13 @@ function summarizeRuntimeDiagnosticGroup(samples: RuntimeDiagnosticSample[]): Ru
   );
   const viewportSamples = samples.filter((sample) => typeof sample.telemetry.viewportContractPassed === 'boolean');
   const viewportPassCount = viewportSamples.filter((sample) => sample.telemetry.viewportContractPassed).length;
+  const qualitySamples = samples.filter((sample) => typeof sample.telemetry.qualityPassed === 'boolean');
+  const qualityPassCount = qualitySamples.filter((sample) => sample.telemetry.qualityPassed).length;
+  const spreadsheetActionKinds = Array.from(new Set(
+    samples
+      .map((sample) => sample.telemetry.spreadsheetActionKind)
+      .filter((kind): kind is string => typeof kind === 'string' && kind.length > 0),
+  )).sort();
 
   return {
     sampleCount: samples.length,
@@ -82,6 +96,13 @@ function summarizeRuntimeDiagnosticGroup(samples: RuntimeDiagnosticSample[]): Ru
     viewportContractPassRate: viewportSamples.length > 0 ? roundMetric(viewportPassCount / viewportSamples.length) : 0,
     viewportBlockingIssueCount: samples.reduce((sum, sample) => sum + (sample.telemetry.viewportBlockingCount ?? 0), 0),
     viewportAdvisoryIssueCount: samples.reduce((sum, sample) => sum + (sample.telemetry.viewportAdvisoryCount ?? 0), 0),
+    qualitySampleCount: qualitySamples.length,
+    qualityPassRate: qualitySamples.length > 0 ? roundMetric(qualityPassCount / qualitySamples.length) : 0,
+    qualityBlockingIssueCount: samples.reduce((sum, sample) => sum + (sample.telemetry.qualityBlockingCount ?? 0), 0),
+    qualityAdvisoryIssueCount: samples.reduce((sum, sample) => sum + (sample.telemetry.qualityAdvisoryCount ?? 0), 0),
+    spreadsheetActionKinds,
+    changedSheetCount: samples.reduce((sum, sample) => sum + (sample.telemetry.changedSheetCount ?? 0), 0),
+    refreshedSheetCount: samples.reduce((sum, sample) => sum + (sample.telemetry.refreshedSheetCount ?? 0), 0),
   };
 }
 

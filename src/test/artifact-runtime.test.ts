@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildArtifactRunPlan } from '@/services/artifactRuntime';
+import {
+  buildArtifactRunPlan,
+  DOCUMENT_RUNTIME_SHARED_MODULE_CLASSES,
+  DOCUMENT_RUNTIME_SHELL_CSS,
+} from '@/services/artifactRuntime';
 import {
   artifactRunEventToWorkflowEvent,
   createArtifactRunEvent,
@@ -148,6 +152,9 @@ describe('ArtifactRuntime plan', () => {
     expect(outlinePrompt).toContain('Return only a compact outline');
     expect(outlinePrompt).toContain('no <script>');
     expect(outlinePrompt).toContain('mobile-safe stacking');
+    for (const className of DOCUMENT_RUNTIME_SHARED_MODULE_CLASSES) {
+      expect(outlinePrompt).toContain(className);
+    }
     expect(outlinePrompt.length).toBeLessThan(2_500);
     const modulePrompt = buildDocumentRuntimeModulePrompt({
       taskBrief: 'Create an executive briefing document',
@@ -159,6 +166,9 @@ describe('ArtifactRuntime plan', () => {
     expect(modulePrompt).toContain('data-runtime-part="document-module-1"');
     expect(modulePrompt).toContain('doc-kpi-row');
     expect(modulePrompt).toContain('doc-sidebar-layout');
+    for (const className of DOCUMENT_RUNTIME_SHARED_MODULE_CLASSES) {
+      expect(modulePrompt).toContain(className);
+    }
     expect(modulePrompt).toContain('mobile-safe');
     expect(modulePrompt).toContain('remote assets');
     expect(modulePrompt).not.toContain('TEMPLATE EXAMPLES');
@@ -408,6 +418,8 @@ describe('ArtifactRuntime plan', () => {
     expect(finalized.html).toContain('<style>');
     expect(finalized.html).toContain('class="doc-shell"');
     expect(finalized.html).toContain('.doc-kpi-row');
+    expect(finalized.html).toContain('@media print');
+    expect(finalized.html).toContain(DOCUMENT_RUNTIME_SHELL_CSS.trim().slice(0, 24));
     expect(finalized.html).toContain('<h1>Runtime Shell</h1>');
   });
 

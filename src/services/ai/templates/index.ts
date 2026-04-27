@@ -16,12 +16,16 @@ export {
 export {
   TEMPLATE_REGISTRY,
   PRODUCTION_PRESENTATION_TEMPLATE_IDS,
+  LEGACY_PRESENTATION_TEMPLATE_IDS,
+  PRESENTATION_TEMPLATE_AUDIT,
   getTemplateHtml,
   getTemplateEntry,
+  isLegacyPresentationTemplate,
   isProductionPresentationTemplate,
   toProductionPresentationTemplate,
   type TemplateId,
   type TemplateEntry,
+  type LegacyPresentationTemplateId,
   type ProductionPresentationTemplateId,
 } from './registry';
 

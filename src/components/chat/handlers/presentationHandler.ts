@@ -22,6 +22,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import type { RunRequest } from '@/services/runs/types';
 import type { RunResult } from '@/services/contracts/runResult';
 import { resolveTargets } from '@/services/editing/resolveTargets';
+import { workflowStepUpdateFromRuntimeEvent } from '@/services/chat/workflowProgress';
 import { validateArtifactAgainstProfile } from '@/services/validation';
 import { summarizeValidationResult } from '@/services/validation/profiles';
 import { deriveLifecycleFromValidation } from '@/services/lifecycle/state';
@@ -124,20 +125,26 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
     const providerEntry = getProviderEntry(providerConfig.id);
 
     const onEvent = (event: WorkflowEvent) => {
+      const workflowStepUpdate = workflowStepUpdateFromRuntimeEvent(event);
+      if (workflowStepUpdate) {
+        updateStepStatus(
+          workflowStepUpdate.stepId,
+          workflowStepUpdate.status,
+          workflowStepUpdate.label,
+        );
+      }
+
       switch (event.type) {
         case 'step-start':
-          updateStepStatus(event.stepId, 'active', event.label);
           setStatus({ state: 'generating', startedAt: Date.now(), step: event.label, steps: [...workflowStepsRef.current] });
           break;
         case 'step-done':
-          updateStepStatus(event.stepId, 'done', event.label);
           setStatus({ state: 'generating', startedAt: Date.now(), steps: [...workflowStepsRef.current] });
           break;
         case 'step-error':
-          updateStepStatus(event.stepId, 'error');
+          setStatus({ state: 'generating', startedAt: Date.now(), step: event.error, steps: [...workflowStepsRef.current] });
           break;
         case 'step-skipped':
-          updateStepStatus(event.stepId, 'skipped', event.label);
           setStatus({ state: 'generating', startedAt: Date.now(), steps: [...workflowStepsRef.current] });
           break;
         case 'retry-attempt':
@@ -158,13 +165,9 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
           setStatus({ state: 'generating', startedAt: Date.now(), step: `Slide ${event.slideIndex} of ${event.totalSlides} complete`, pct: Math.round(20 + (event.slideIndex / event.totalSlides) * 70), steps: [...workflowStepsRef.current] });
           break;
         case 'step-update':
-          updateStepStatus(event.stepId, event.status, event.label);
           setStatus({ state: 'generating', startedAt: Date.now(), step: event.label, steps: [...workflowStepsRef.current] });
           break;
         case 'progress':
-          if (event.partId) {
-            updateStepStatus(event.partId, 'active', event.message);
-          }
           setStatus({ state: 'generating', startedAt: Date.now(), step: event.message, pct: event.pct, steps: [...workflowStepsRef.current] });
           break;
       }

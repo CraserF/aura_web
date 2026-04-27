@@ -1,6 +1,17 @@
 export { buildArtifactRunPlan } from './build';
 export { buildArtifactWorkflowPlan } from './planner';
 export {
+  DOCUMENT_RUNTIME_MODULE_BASE_CLASSES,
+  DOCUMENT_RUNTIME_MODULE_CANDIDATE_SELECTORS,
+  DOCUMENT_RUNTIME_SHARED_MODULE_CLASSES,
+  DOCUMENT_RUNTIME_SHELL_CSS,
+  getDocumentRuntimeModuleWrapperClassName,
+} from './documentDesignSystem';
+export {
+  buildDocumentQualityChecklist,
+  buildDocumentQualityTelemetry,
+} from './documentQualityChecklist';
+export {
   attachDocumentRuntimeParts,
   applyDocumentRuntimeModuleEdits,
   assembleDocumentRuntimeHtml,
@@ -71,6 +82,11 @@ export {
 } from './spreadsheetRuntime';
 export type { BuildArtifactRunPlanInput } from './build';
 export type { CreateArtifactRunEventInput } from './events';
+export type {
+  DocumentQualityCheck,
+  DocumentQualityChecklistInput,
+  DocumentQualityChecklistResult,
+} from './documentQualityChecklist';
 export type {
   BuildDocumentRuntimePartsInput,
   BuildDocumentRuntimeTelemetryInput,

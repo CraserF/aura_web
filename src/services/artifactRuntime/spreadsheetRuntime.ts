@@ -155,6 +155,14 @@ function getPartId(result: SpreadsheetOutput): string {
   }
 }
 
+function countChangedSheets(result: SpreadsheetOutput): number {
+  return 'updatedSheets' in result ? result.updatedSheets.length : 0;
+}
+
+function countRefreshedSheets(result: SpreadsheetOutput): number {
+  return 'refreshedSheetIds' in result ? result.refreshedSheetIds?.length ?? 0 : 0;
+}
+
 export function emitSpreadsheetRuntimeResultEvents(input: {
   runPlan: ArtifactRunPlan;
   result: SpreadsheetOutput;
@@ -238,6 +246,16 @@ export function buildSpreadsheetRuntimeTelemetry(input: {
         rules: part.kind === 'validation-result' ? validationIssueRules : [],
       }))
     : undefined;
+  const spreadsheetActionKind = input.result.plan?.kind ?? input.result.kind;
+  const changedSheetCount = countChangedSheets(input.result);
+  const refreshedSheetCount = countRefreshedSheets(input.result);
+  const qualityCheck = {
+    id: 'spreadsheet-validation',
+    label: 'Spreadsheet deterministic validation',
+    passed: validationPassed,
+    blockingCount: validationBlockingCount,
+    advisoryCount: 0,
+  };
 
   return {
     timeToFirstPreviewMs: 0,
@@ -250,6 +268,13 @@ export function buildSpreadsheetRuntimeTelemetry(input: {
     queuedPartCount,
     completedPartCount,
     repairedPartCount: 0,
+    qualityPassed: validationPassed,
+    qualityBlockingCount: validationBlockingCount,
+    qualityAdvisoryCount: 0,
+    qualityChecks: [qualityCheck],
+    spreadsheetActionKind,
+    changedSheetCount,
+    refreshedSheetCount,
     ...(validationByPart ? { validationByPart } : {}),
   };
 }

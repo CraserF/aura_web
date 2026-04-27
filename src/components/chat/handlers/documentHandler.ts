@@ -18,6 +18,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import type { RunResult } from '@/services/contracts/runResult';
 import type { RunRequest } from '@/services/runs/types';
 import { resolveTargets } from '@/services/editing/resolveTargets';
+import { workflowStepUpdateFromRuntimeEvent } from '@/services/chat/workflowProgress';
 import { validateArtifactAgainstProfile } from '@/services/validation';
 import { summarizeValidationResult } from '@/services/validation/profiles';
 import { deriveLifecycleFromValidation } from '@/services/lifecycle/state';
@@ -87,10 +88,10 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
     : intent.targetSelectors.map((selector) => selector.label ?? selector.type);
 
   workflowStepsRef.current = [
-    { id: 'plan', label: 'Plan', status: 'pending' },
-    { id: 'generate', label: isEdit ? 'Update' : 'Write', status: 'pending' },
-    { id: 'qa', label: 'QA', status: 'pending' },
-    { id: 'finalize', label: 'Finalize', status: 'pending' },
+    { id: 'plan', label: 'Planning', status: 'pending' },
+    { id: 'generate', label: isEdit ? 'Editing' : 'Creating', status: 'pending' },
+    { id: 'qa', label: 'Checking quality', status: 'pending' },
+    { id: 'finalize', label: 'Finishing', status: 'pending' },
   ];
 
   setStatus({ state: 'generating', startedAt: Date.now(), step: 'Starting…', pct: 0, steps: workflowStepsRef.current });
@@ -107,30 +108,32 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
     const providerEntry = getProviderEntry(providerConfig.id);
 
     const onEvent = (event: WorkflowEvent) => {
+      const workflowStepUpdate = workflowStepUpdateFromRuntimeEvent(event);
+      if (workflowStepUpdate) {
+        updateStepStatus(
+          workflowStepUpdate.stepId,
+          workflowStepUpdate.status,
+          workflowStepUpdate.label,
+        );
+      }
+
       switch (event.type) {
         case 'step-start':
-          updateStepStatus(event.stepId, 'active', event.label);
           setStatus({ state: 'generating', startedAt: Date.now(), step: event.label, steps: [...workflowStepsRef.current] });
           break;
         case 'step-done':
-          updateStepStatus(event.stepId, 'done', event.label);
           setStatus({ state: 'generating', startedAt: Date.now(), steps: [...workflowStepsRef.current] });
           break;
         case 'streaming':
           appendStreamingContent(event.chunk);
           break;
         case 'progress':
-          if (event.partId) {
-            updateStepStatus(event.partId, 'active', event.message);
-          }
           setStatus({ state: 'generating', startedAt: Date.now(), step: event.message, pct: event.pct, steps: [...workflowStepsRef.current] });
           break;
         case 'step-error':
-          updateStepStatus(event.stepId, 'error');
           setStatus({ state: 'generating', startedAt: Date.now(), step: `Issue in ${event.stepId}`, steps: [...workflowStepsRef.current] });
           break;
         case 'step-update':
-          updateStepStatus(event.stepId, event.status, event.label);
           setStatus({ state: 'generating', startedAt: Date.now(), step: event.label, steps: [...workflowStepsRef.current] });
           break;
       }

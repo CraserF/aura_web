@@ -6,7 +6,7 @@
  */
 
 import type { ProjectDocument, WorkbookMeta } from '@/types/project';
-import type { GenerationStatus } from '@/types';
+import type { GenerationStatus, WorkflowStep } from '@/types';
 import { logContextMetrics } from '@/services/ai/debug';
 import { extractChartSpecsFromHtml } from '@/services/charts';
 import { getCompressionBudget } from '@/services/context/compressionBudget';
@@ -18,6 +18,7 @@ import { createDefaultSheet } from '@/services/spreadsheet/workbook';
 import type { RunRequest } from '@/services/runs/types';
 import type { RunResult } from '@/services/contracts/runResult';
 import { resolveTargets } from '@/services/editing/resolveTargets';
+import { workflowStepUpdateFromRuntimeEvent } from '@/services/chat/workflowProgress';
 import { validateArtifactAgainstProfile } from '@/services/validation';
 import { summarizeValidationResult } from '@/services/validation/profiles';
 import { deriveLifecycleFromValidation } from '@/services/lifecycle/state';
@@ -42,17 +43,20 @@ function isDefaultSheet(doc: ProjectDocument | null): boolean {
 
 export interface SpreadsheetHandlerContext {
   runRequest: RunRequest;
+  workflowStepsRef: { current: WorkflowStep[] };
   // Store mutations
   addDocument: (doc: ProjectDocument) => void;
   updateDocument: (id: string, updates: Partial<ProjectDocument>) => void;
   setStatus: (s: GenerationStatus) => void;
   setStreamingContent: (content: string) => void;
+  updateStepStatus: (stepId: string, stepStatus: WorkflowStep['status'], label?: string) => void;
 }
 
 export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext): Promise<RunResult> {
   const {
     runRequest,
-    addDocument, updateDocument, setStatus, setStreamingContent,
+    workflowStepsRef,
+    addDocument, updateDocument, setStatus, setStreamingContent, updateStepStatus,
   } = ctx;
   const { context, activeArtifacts, intent, runId } = runRequest;
   const prompt = context.conversation.prompt;
@@ -103,20 +107,57 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
 
   logContextMetrics('spreadsheet-handler', context.metrics);
 
-  setStatus({ state: 'generating', startedAt: Date.now(), step: 'Working on spreadsheet…', pct: 20 });
+  workflowStepsRef.current = [
+    { id: 'plan', label: 'Planning', status: 'done' },
+    { id: 'validation', label: 'Checking quality', status: 'pending' },
+    { id: 'finalize', label: 'Finishing', status: 'pending' },
+  ];
+
+  setStatus({
+    state: 'generating',
+    startedAt: Date.now(),
+    step: 'Planning',
+    pct: 20,
+    steps: workflowStepsRef.current,
+  });
   setStreamingContent('');
   const onRuntimeEvent = (event: WorkflowEvent) => {
+    const workflowStepUpdate = workflowStepUpdateFromRuntimeEvent(event);
+    if (workflowStepUpdate) {
+      updateStepStatus(
+        workflowStepUpdate.stepId,
+        workflowStepUpdate.status,
+        workflowStepUpdate.label,
+      );
+    }
+
     switch (event.type) {
       case 'progress':
-        setStatus({ state: 'generating', startedAt: Date.now(), step: event.message, pct: event.pct });
+        setStatus({
+          state: 'generating',
+          startedAt: Date.now(),
+          step: workflowStepUpdate?.label ?? event.message,
+          pct: event.pct,
+          steps: [...workflowStepsRef.current],
+        });
         break;
       case 'step-start':
       case 'step-done':
       case 'step-update':
-        setStatus({ state: 'generating', startedAt: Date.now(), step: event.label });
+        setStatus({
+          state: 'generating',
+          startedAt: Date.now(),
+          step: workflowStepUpdate?.label ?? event.label,
+          steps: [...workflowStepsRef.current],
+        });
         break;
       case 'step-error':
-        setStatus({ state: 'generating', startedAt: Date.now(), step: event.error });
+        setStatus({
+          state: 'generating',
+          startedAt: Date.now(),
+          step: event.error,
+          steps: [...workflowStepsRef.current],
+        });
         break;
     }
   };

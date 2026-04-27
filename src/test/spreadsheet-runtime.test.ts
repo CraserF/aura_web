@@ -101,6 +101,19 @@ describe('spreadsheet runtime bridge', () => {
       queuedPartCount: 3,
       completedPartCount: 3,
       repairedPartCount: 0,
+      qualityPassed: true,
+      qualityBlockingCount: 0,
+      qualityAdvisoryCount: 0,
+      qualityChecks: [{
+        id: 'spreadsheet-validation',
+        label: 'Spreadsheet deterministic validation',
+        passed: true,
+        blockingCount: 0,
+        advisoryCount: 0,
+      }],
+      spreadsheetActionKind: 'create-formula-column',
+      changedSheetCount: 0,
+      refreshedSheetCount: 0,
       validationByPart: [
         {
           partId: 'formula',
@@ -272,6 +285,60 @@ describe('spreadsheet runtime bridge', () => {
     });
   });
 
+  it('records spreadsheet action diagnostics for changed and refreshed sheets', () => {
+    const runPlan = buildArtifactRunPlan({
+      runId: 'sheet-diagnostics-run',
+      prompt: 'Sort the sheet and refresh derived views',
+      artifactType: 'spreadsheet',
+      operation: 'action',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    const plan: SpreadsheetPlan = {
+      kind: 'sheet-action',
+      targets: [],
+      requiresClarification: false,
+      canAugmentProject: true,
+      action: { type: 'sort', column: 'Amount', direction: 'desc' },
+    };
+    attachSpreadsheetRuntimeParts({ runPlan, plan });
+    const result = {
+      kind: 'action-executed',
+      message: 'Sorted Sheet 1 by Amount descending.',
+      updatedSheets: [
+        {
+          id: 'sheet-1',
+          name: 'Sheet 1',
+          tableName: 'Sheet 1',
+          schema: [],
+          frozenRows: 0,
+          frozenCols: 0,
+          columnWidths: {},
+          formulas: [],
+        },
+      ],
+      refreshedSheetIds: ['query-1', 'query-2'],
+      plan,
+      planValidation: {
+        passed: true,
+        issues: [],
+      },
+    } as SpreadsheetOutput;
+
+    expect(buildSpreadsheetRuntimeTelemetry({ result, totalRuntimeMs: 18, runPlan })).toEqual(expect.objectContaining({
+      runMode: 'deterministic-action',
+      queuedPartCount: 3,
+      completedPartCount: 3,
+      qualityPassed: true,
+      spreadsheetActionKind: 'sheet-action',
+      changedSheetCount: 1,
+      refreshedSheetCount: 2,
+    }));
+  });
+
   it('maps clarification results into runtime cancellation events', () => {
     const runPlan = buildArtifactRunPlan({
       runId: 'clarify-sheet-run',
@@ -356,6 +423,19 @@ describe('spreadsheet runtime bridge', () => {
       queuedPartCount: 1,
       completedPartCount: 1,
       repairedPartCount: 0,
+      qualityPassed: false,
+      qualityBlockingCount: 0,
+      qualityAdvisoryCount: 0,
+      qualityChecks: [{
+        id: 'spreadsheet-validation',
+        label: 'Spreadsheet deterministic validation',
+        passed: false,
+        blockingCount: 0,
+        advisoryCount: 0,
+      }],
+      spreadsheetActionKind: 'blocked',
+      changedSheetCount: 0,
+      refreshedSheetCount: 0,
     });
   });
 });

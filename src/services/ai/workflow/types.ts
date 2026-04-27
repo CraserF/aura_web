@@ -64,9 +64,22 @@ export interface ArtifactRuntimeTelemetry {
   completedPartCount?: number;
   repairedPartCount?: number;
   promptTokenEstimate?: number;
+  qualityPassed?: boolean;
+  qualityBlockingCount?: number;
+  qualityAdvisoryCount?: number;
+  qualityChecks?: Array<{
+    id: string;
+    label: string;
+    passed: boolean;
+    blockingCount: number;
+    advisoryCount: number;
+  }>;
   viewportContractPassed?: boolean;
   viewportBlockingCount?: number;
   viewportAdvisoryCount?: number;
+  spreadsheetActionKind?: string;
+  changedSheetCount?: number;
+  refreshedSheetCount?: number;
   validationByPart?: Array<{
     partId: string;
     label?: string;

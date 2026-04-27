@@ -3,8 +3,13 @@ import { describe, expect, it } from 'vitest';
 import {
   getTemplateHtml,
   isProductionPresentationTemplate,
+  isLegacyPresentationTemplate,
+  LEGACY_PRESENTATION_TEMPLATE_IDS,
+  PRESENTATION_TEMPLATE_AUDIT,
   PRODUCTION_PRESENTATION_TEMPLATE_IDS,
   resolveTemplatePlan,
+  TEMPLATE_REGISTRY,
+  toProductionPresentationTemplate,
   type TemplateId,
 } from '@/services/ai/templates';
 import {
@@ -69,6 +74,22 @@ const PRODUCTION_ROUTE_CASES: Array<{
 ];
 
 describe('production presentation templates', () => {
+  it('partitions presentation templates into explicit production and legacy audit groups', () => {
+    const allTemplateIds = Object.keys(TEMPLATE_REGISTRY).sort();
+    const auditedTemplateIds = [
+      ...PRESENTATION_TEMPLATE_AUDIT.production,
+      ...PRESENTATION_TEMPLATE_AUDIT.legacy,
+    ].slice().sort();
+
+    expect(auditedTemplateIds).toEqual(allTemplateIds);
+    expect(PRODUCTION_PRESENTATION_TEMPLATE_IDS.some((id) => isLegacyPresentationTemplate(id))).toBe(false);
+    expect(LEGACY_PRESENTATION_TEMPLATE_IDS.some((id) => isProductionPresentationTemplate(id))).toBe(false);
+    for (const legacyTemplateId of LEGACY_PRESENTATION_TEMPLATE_IDS) {
+      expect(isLegacyPresentationTemplate(legacyTemplateId)).toBe(true);
+      expect(isProductionPresentationTemplate(toProductionPresentationTemplate(legacyTemplateId))).toBe(true);
+    }
+  });
+
   it('routes generated presentation plans through production template families', async () => {
     for (const routeCase of PRODUCTION_ROUTE_CASES) {
       const templatePlan = resolveTemplatePlan(routeCase.prompt, { recipeHint: routeCase.recipeHint });

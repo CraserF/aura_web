@@ -78,6 +78,40 @@ describe('runtime telemetry diagnostics', () => {
     }));
   });
 
+  it('records generic document quality diagnostics when runtime HTML is available', () => {
+    const telemetry = buildDocumentRuntimeTelemetry({
+      runtimeStartMs: 0,
+      nowMs: 120,
+      validation: passingValidation,
+      repairCount: 0,
+      runMode: 'queued-create',
+      queuedPartCount: 2,
+      completedPartCount: 2,
+      html: `<style>
+        body { font-size: 16px; }
+        .doc-section p, .doc-section li { font-size: 16px; }
+        img, table { max-width: 100%; }
+        @media print { .doc-section { break-inside: avoid; } }
+      </style>
+      <main class="doc-shell"><section class="doc-section"><h2>Summary</h2><p>Readable document copy.</p></section></main>`,
+      promptText: 'Create a concise executive document.',
+    });
+
+    expect(telemetry).toEqual(expect.objectContaining({
+      qualityPassed: true,
+      qualityBlockingCount: 0,
+      qualityAdvisoryCount: 0,
+      promptTokenEstimate: estimateRuntimePromptTokens('Create a concise executive document.'),
+    }));
+    expect(telemetry.qualityChecks?.map((check) => check.id)).toEqual([
+      'iframe-contract',
+      'typography',
+      'mobile-safety',
+      'print-safety',
+      'prompt-estimate',
+    ]);
+  });
+
   it('distinguishes total repair attempts from part-level repairs', () => {
     expect(buildDocumentRuntimeTelemetry({
       runtimeStartMs: 200,
@@ -176,5 +210,51 @@ describe('runtime telemetry diagnostics', () => {
       totalRepairCount: 1,
       totalQueuedPartCount: 4,
     }));
+  });
+
+  it('summarizes generic quality and spreadsheet runtime diagnostics', () => {
+    const summary = summarizeRuntimeDiagnostics([
+      {
+        artifactType: 'spreadsheet',
+        telemetry: {
+          timeToFirstPreviewMs: 0,
+          totalRuntimeMs: 24,
+          validationPassed: true,
+          validationBlockingCount: 0,
+          validationAdvisoryCount: 0,
+          repairCount: 0,
+          runMode: 'deterministic-action',
+          queuedPartCount: 3,
+          completedPartCount: 3,
+          qualityPassed: true,
+          qualityBlockingCount: 0,
+          qualityAdvisoryCount: 0,
+          spreadsheetActionKind: 'create-formula-column',
+          changedSheetCount: 1,
+          refreshedSheetCount: 2,
+        },
+      },
+      {
+        artifactType: 'document',
+        telemetry: {
+          totalRuntimeMs: 50,
+          validationPassed: false,
+          validationBlockingCount: 1,
+          validationAdvisoryCount: 0,
+          repairCount: 1,
+          qualityPassed: false,
+          qualityBlockingCount: 1,
+          qualityAdvisoryCount: 2,
+        },
+      },
+    ]);
+
+    expect(summary.qualitySampleCount).toBe(2);
+    expect(summary.qualityPassRate).toBe(0.5);
+    expect(summary.qualityBlockingIssueCount).toBe(1);
+    expect(summary.qualityAdvisoryIssueCount).toBe(2);
+    expect(summary.spreadsheetActionKinds).toEqual(['create-formula-column']);
+    expect(summary.changedSheetCount).toBe(1);
+    expect(summary.refreshedSheetCount).toBe(2);
   });
 });

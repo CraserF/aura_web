@@ -1819,6 +1819,8 @@ export async function runDocumentWorkflow(
             : 0,
         completedPartCount,
         repairedPartCount,
+        html: finalHtml,
+        promptText: input.prompt,
         ...(firstPreviewAt ? { firstPreviewAtMs: firstPreviewAt } : {}),
       }),
       ...(editingTelemetry ? { editing: editingTelemetry } : {}),
