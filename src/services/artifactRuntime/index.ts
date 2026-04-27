@@ -28,6 +28,7 @@ export {
   repairDocumentRuntimeStructure,
   resolveDocumentRuntimeEditModules,
   runDocumentRuntimeGeneration,
+  runDocumentRuntimeOrchestrator,
   validateDocumentRuntimeModules,
   validateDocumentRuntimeOutput,
 } from './documentRuntime';
@@ -82,6 +83,7 @@ export {
 export { buildStaticPresentationStarterRuntime } from './starterPresentationRuntime';
 export {
   attachSpreadsheetRuntimeParts,
+  attachSpreadsheetRuntimeResultParts,
   buildSpreadsheetRuntimeTelemetry,
   emitSpreadsheetRuntimeResultEvents,
 } from './spreadsheetRuntime';
@@ -105,10 +107,13 @@ export type {
   DocumentRuntimeGenerationResult,
   DocumentRuntimeModuleDraft,
   DocumentRuntimeModuleIssue,
+  DocumentRuntimeOrchestratorResult,
+  DocumentRuntimePreparedEditResult,
   DocumentRuntimeStructureRepairResult,
   QueuedDocumentRuntimeModuleRepairResult,
   RepairDocumentRuntimeStructureInput,
   RunDocumentRuntimeGenerationInput,
+  RunDocumentRuntimeOrchestratorInput,
   ResolveDocumentRuntimeEditModulesInput,
   DocumentRuntimeFinalizeResult,
   DocumentRuntimeRepairResult,
@@ -149,6 +154,7 @@ export type {
 } from './starterPresentationRuntime';
 export type {
   AttachSpreadsheetRuntimePartsInput,
+  AttachSpreadsheetRuntimeResultPartsInput,
 } from './spreadsheetRuntime';
 export type {
   ArtifactPart,

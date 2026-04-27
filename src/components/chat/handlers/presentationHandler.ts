@@ -26,6 +26,7 @@ import { workflowStepUpdateFromRuntimeEvent } from '@/services/chat/workflowProg
 import { validateArtifactAgainstProfile } from '@/services/validation';
 import { summarizeValidationResult } from '@/services/validation/profiles';
 import { deriveLifecycleFromValidation } from '@/services/lifecycle/state';
+import { formatRuntimeQualityDiagnostics } from '@/services/artifactRuntime';
 
 export interface PresentationHandlerContext {
   runRequest: RunRequest;
@@ -307,6 +308,8 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
           overrideRequired: !artifactValidation.passed,
         }
       : undefined;
+    const advancedDiagnostics = formatRuntimeQualityDiagnostics(result.runtime)
+      .map((diagnostic) => diagnostic.message);
 
     return {
       runId,
@@ -363,6 +366,7 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         detail: result.title
           ? `Presentation "${result.title}" completed successfully.`
           : 'Presentation workflow completed successfully.',
+        ...(advancedDiagnostics.length > 0 ? { advancedDiagnostics } : {}),
       },
     };
   } catch (err) {

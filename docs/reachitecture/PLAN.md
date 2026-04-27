@@ -773,8 +773,8 @@ Last updated: 2026-04-27.
 4. Done for active presentation generation: Replace presentation prompt composition with compact prompt packs and design manifests. The old presentation composer has been removed from active create/edit/batch/revision paths.
 5. Done for presentation starters: Convert starter kits to use the same presentation runtime and production design families. Starter decks now create runtime plans, runtime parts, deterministic section assembly, and runtime finalization.
 6. Partially done: Simplify user-facing project settings into guided style/preferences, with current technical controls moved to Advanced. Curated Output Mode now feeds runtime plan defaults for presentation recipes and document design families.
-7. In progress: Move document generation onto the same run engine. Create-mode documents now generate outline and modules through runtime-owned queued calls; image create, queued module edit, edit fallback, per-module repair, module validation, workflow-level orchestration tests, document design-system constants, and document quality summaries are covered. Outline/module/repair prompts now compose compact document packs, and the document workflow shell delegates queued/single generation selection plus structure/module repair coordination into `artifactRuntime`.
-8. Started: Keep spreadsheet execution deterministic but emit the same run events and validation summaries. Workbook actions, formulas, query views, charts, validation, and finalization now attach as first-class runtime parts and report deterministic runtime telemetry, action kind, changed/refreshed sheet counts, quality summaries, and fallback validation-by-part diagnostics for blocked/clarification/no-intent results.
+7. Mostly done: Move document generation onto the same run engine. Create-mode documents now generate outline and modules through runtime-owned queued calls; image create, queued module edit, edit fallback, per-module repair, module validation, workflow-level orchestration tests, document design-system constants, and document quality summaries are covered. Outline/module/repair prompts now compose compact document packs, and the document workflow shell delegates generation selection, fallback edit delegation, structure/module repair, final QA repair, finalization events, and telemetry assembly into `artifactRuntime`.
+8. Started: Keep spreadsheet execution deterministic but emit the same run events and validation summaries. Workbook actions, formulas, query views, charts, validation, and finalization now attach as first-class runtime parts and report deterministic runtime telemetry, action kind, changed/refreshed sheet counts, quality summaries, and fallback validation-by-part diagnostics for blocked/clarification/no-intent results. Fallback spreadsheet results now replace the generic default workbook placeholder with concrete runtime parts before telemetry is built.
 9. Prepared: Delete or convert legacy templates after production routing is stable. Production-vs-legacy metadata, routing guards, bundle-size notes, production replacements, and convert/archive/delete recommendations are recorded; archival/deletion remains deferred.
 10. Started for presentations and expanded to documents/spreadsheets: Runtime benchmark diagnostics exist, production presentation templates pass a deterministic static viewport contract, reusable presentation and document quality checklists report readiness, and spreadsheet diagnostics report deterministic action/validation summaries. Manual/browser canvas automation remains skipped for now by request.
 
@@ -799,6 +799,13 @@ Last updated: 2026-04-27.
   - Teaching -> playbook/stage setting;
   - Data Story -> infographic/metrics.
 - Added a legacy presentation template audit helper with bundle-size notes, production replacements, and cleanup recommendations.
+
+## Completed In Current Document Runtime V1 Closure Slice
+- Added `runDocumentRuntimeOrchestrator()` as the document runtime lifecycle boundary for queued/single generation selection, fallback edit delegation, structure/module repair, final QA repair, finalization events, and telemetry assembly.
+- Reduced `runDocumentWorkflow()` further so it handles provider/model setup, context/project wiring, legacy broad prompt construction, abort signal forwarding, and provider-specific streaming callbacks, while the runtime owns the document lifecycle after setup.
+- Added advanced runtime quality diagnostics to `structuredStatus.advancedDiagnostics` for presentation, document, and spreadsheet results; default assistant content and status detail remain non-technical.
+- Added spreadsheet fallback runtime part attachment so blocked, clarification, and no-intent results use concrete workbook action, validation, and finalization parts instead of the default placeholder work item.
+- Added focused coverage for the document orchestrator, advanced diagnostics staying out of default rendered content, and spreadsheet fallback runtime parts.
 
 Legacy template decision table:
 
@@ -827,6 +834,7 @@ Legacy template decision table:
 | `sidebar-cards` | `executive-briefing-light` | 47.59 kB before gzip | convert later |
 
 ## Validation Completed
+- `npm test -- document-runtime-workflow artifact-runtime runtime-telemetry spreadsheet-runtime workflow-progress ux-simplification presentation-template-design-system run-result`
 - `npm test -- document-runtime-workflow artifact-runtime runtime-telemetry spreadsheet-runtime presentation-template-design-system ux-simplification`
 - `npm test -- presentation-runtime-workflow presentation-runtime-policy presentation-template-design-system presentation-quality-checklist release-smoke artifact-runtime document-runtime-workflow runtime-telemetry spreadsheet-runtime prompt-to-formula prompt-to-query ux-simplification`
 - `npm run typecheck`
@@ -968,22 +976,22 @@ Build notes:
 - Start with presentations, then extend to documents and spreadsheets.
 
 ## Immediate Next Implementation Slice
-- Close Document Runtime V1:
-  - move outline/module prompt construction and final telemetry assembly behind one runtime orchestrator boundary;
-  - keep provider/model setup, abort signal forwarding, and UI entry wiring in the document workflow shell;
-  - keep queued create, image create, queued edit, fallback edit, and repair behavior unchanged.
-- Wire advanced diagnostics display:
-  - expose `formatRuntimeQualityDiagnostics()` through the existing advanced/run-summary surface;
-  - keep default generation messages simple and non-technical.
-- Finish spreadsheet run-plan attachment gaps:
-  - attach lightweight runtime parts for blocked, clarification, and no-intent flows before telemetry is built;
+- Finish the last Document Runtime V1 cleanup:
+  - move queued outline/module streaming helpers from `src/services/ai/workflow/document.ts` into `artifactRuntime` behind provider-agnostic inputs;
+  - keep provider/model creation and broad legacy prompt construction in the workflow shell until document prompt packs fully replace the broad fallback path;
+  - add an import-boundary test so active document lifecycle orchestration stays runtime-owned.
+- Expand advanced diagnostics UI:
+  - render `structuredStatus.advancedDiagnostics` only in an Advanced/run-details surface;
+  - keep default assistant messages and progress labels simple.
+- Stabilize spreadsheet runtime parts:
+  - ensure workflow events use attached fallback parts for no-intent/blocked/clarification flows;
   - keep deterministic execution and avoid model calls.
-- Prepare the legacy-template cleanup slice:
-  - use the recorded audit table to choose the first no-risk archive/delete candidates;
-  - do not delete templates until production routing and starter tests stay green after the archival patch.
+- Start the first controlled legacy-template cleanup patch:
+  - archive or delete the safest `delete later` candidates only after a no-op routing verification pass;
+  - rerun production routing, starter kit, and build checks before removing any template files.
 - Continue UX simplification:
   - audit remaining provider/model/context controls in default UI;
-  - move any remaining technical controls behind Advanced without removing expert access.
+  - move technical controls behind Advanced without removing expert access.
 
 ## Test Plan
 - Add planner tests proving each user prompt produces exactly one authoritative `ArtifactRunPlan`.

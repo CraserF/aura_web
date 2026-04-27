@@ -15,7 +15,7 @@ import { buildDocumentQualityTelemetry } from '@/services/artifactRuntime/docume
 import type { ArtifactPart, ArtifactRunPlan } from '@/services/artifactRuntime/types';
 import { validateDocument } from '@/services/ai/workflow/agents/document-qa';
 import type { ArtifactRuntimeTelemetry, EventListener } from '@/services/ai/workflow/types';
-import type { ResolvedTarget } from '@/services/editing/types';
+import type { EditingTelemetry, ResolvedTarget } from '@/services/editing/types';
 
 export interface DocumentRuntimeModuleIssue {
   partId: string;
@@ -104,6 +104,42 @@ export interface DocumentRuntimeStructureRepairResult {
   moduleRepairCount: number;
   repairedPartCount: number;
   finalizedChanged: boolean;
+}
+
+export interface DocumentRuntimePreparedEditResult {
+  html: string;
+  editing?: EditingTelemetry;
+  repairCount?: number;
+}
+
+export interface RunDocumentRuntimeOrchestratorInput {
+  isEdit: boolean;
+  runtimeStartMs: number;
+  nowMs: () => number;
+  promptText: string;
+  parts: ArtifactPart[];
+  runPlan?: ArtifactRunPlan;
+  onEvent: EventListener;
+  sanitizeHtml: (html: string) => string;
+  generation: RunDocumentRuntimeGenerationInput;
+  stopGenerationHeartbeat?: () => void;
+  onGenerationComplete?: (result: DocumentRuntimeGenerationResult) => void;
+  prepareGeneratedHtml: (html: string) => string;
+  buildQueuedEditTelemetry?: (html: string) => EditingTelemetry;
+  applyFallbackEdit?: (html: string) => DocumentRuntimePreparedEditResult;
+  resolveTitle: (html: string) => string;
+  buildSourceMarkdown: (rawContent: string, finalHtml: string) => string;
+  runQueuedModuleRepair: RepairDocumentRuntimeStructureInput['runQueuedModuleRepair'];
+  finalProgressMessage?: string;
+}
+
+export interface DocumentRuntimeOrchestratorResult {
+  html: string;
+  markdown: string;
+  title: string;
+  runtime: ArtifactRuntimeTelemetry;
+  generation: DocumentRuntimeGenerationResult;
+  editing?: EditingTelemetry;
 }
 
 export interface DocumentRuntimeEditModuleMatch {
@@ -979,5 +1015,150 @@ export async function repairDocumentRuntimeOutput(input: {
     summary: repairedValidation.passed
       ? 'Deterministic document repair passed validation.'
       : `Deterministic document repair completed with ${repairedValidation.blockingCount} blocking issue(s) and ${repairedValidation.advisoryCount} advisory issue(s) remaining.`,
+  };
+}
+
+export async function runDocumentRuntimeOrchestrator(
+  input: RunDocumentRuntimeOrchestratorInput,
+): Promise<DocumentRuntimeOrchestratorResult> {
+  let generation: DocumentRuntimeGenerationResult | undefined;
+
+  try {
+    generation = await runDocumentRuntimeGeneration(input.generation);
+  } finally {
+    input.stopGenerationHeartbeat?.();
+  }
+
+  if (!generation) {
+    throw new Error('Document runtime generation did not produce a draft.');
+  }
+
+  input.onGenerationComplete?.(generation);
+  input.onEvent({ type: 'progress', message: 'Structuring document…', pct: 72 });
+  input.onEvent({ type: 'progress', message: 'Sanitizing content…', pct: 84 });
+
+  let finalHtml = input.prepareGeneratedHtml(generation.renderedHtml);
+  let editingTelemetry: EditingTelemetry | undefined;
+  let editFallbackRepairCount = 0;
+
+  if (generation.usedQueuedDocumentEdit && input.buildQueuedEditTelemetry) {
+    editingTelemetry = input.buildQueuedEditTelemetry(finalHtml);
+  } else if (input.applyFallbackEdit) {
+    const fallbackEdit = input.applyFallbackEdit(finalHtml);
+    finalHtml = fallbackEdit.html;
+    editingTelemetry = fallbackEdit.editing;
+    editFallbackRepairCount = fallbackEdit.repairCount ?? 0;
+  }
+
+  const title = input.resolveTitle(finalHtml);
+  const structureRepair = await repairDocumentRuntimeStructure({
+    html: finalHtml,
+    title,
+    parts: input.parts,
+    runPlan: input.runPlan,
+    onEvent: input.onEvent,
+    sanitizeHtml: input.sanitizeHtml,
+    runQueuedModuleRepair: input.runQueuedModuleRepair,
+  });
+  finalHtml = structureRepair.html;
+
+  const sourceMarkdown = input.buildSourceMarkdown(generation.rawContent, finalHtml);
+
+  input.onEvent({
+    type: 'step-done',
+    stepId: 'generate',
+    label: input.isEdit ? 'Updating document…' : 'Writing document…',
+  });
+  emitArtifactRunEvent(input.onEvent, {
+    runId: input.runPlan?.runId ?? 'document-runtime',
+    type: 'runtime.part-completed',
+    role: 'generator',
+    message: input.isEdit ? 'Updated document part' : 'Wrote document part',
+    partId: 'generate',
+    pct: 80,
+  });
+
+  input.onEvent({ type: 'step-start', stepId: 'qa', label: 'Checking document quality…' });
+  emitArtifactRunEvent(input.onEvent, {
+    runId: input.runPlan?.runId ?? 'document-runtime',
+    type: 'runtime.validation-started',
+    role: 'validator',
+    message: 'Checking document quality...',
+    partId: 'qa',
+    pct: 84,
+  });
+
+  let qaResult = validateDocumentRuntimeOutput(finalHtml);
+  input.onEvent({
+    type: 'progress',
+    message: qaResult.summary,
+    pct: 88,
+  });
+  const qaRepair = await repairDocumentRuntimeOutput({
+    html: finalHtml,
+    title,
+    validation: qaResult,
+    runPlan: input.runPlan,
+    onEvent: input.onEvent,
+  });
+  if (qaRepair.repaired) {
+    finalHtml = input.sanitizeHtml(qaRepair.html);
+    qaResult = qaRepair.validation;
+    input.onEvent({ type: 'progress', message: qaRepair.summary, pct: 92 });
+  }
+
+  input.onEvent({ type: 'step-done', stepId: 'qa', label: 'Checking document quality…' });
+  emitArtifactRunEvent(input.onEvent, {
+    runId: input.runPlan?.runId ?? 'document-runtime',
+    type: 'runtime.validation-completed',
+    role: 'validator',
+    message: 'Checking document quality...',
+    partId: 'qa',
+    pct: 90,
+  });
+
+  input.onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing document…' });
+
+  const runMode = generation.runMode;
+  const runtime = buildDocumentRuntimeTelemetry({
+    runtimeStartMs: input.runtimeStartMs,
+    nowMs: input.nowMs(),
+    validation: qaResult,
+    repairCount: structureRepair.moduleRepairCount + qaRepair.repairCount + editFallbackRepairCount,
+    runMode,
+    queuedPartCount: runMode === 'queued-create'
+      ? input.generation.queuedCreatePartCount
+      : runMode === 'queued-edit'
+        ? input.generation.queuedEditModuleCount
+        : 0,
+    completedPartCount: generation.completedPartCount,
+    repairedPartCount: structureRepair.repairedPartCount,
+    html: finalHtml,
+    promptText: input.promptText,
+    ...(generation.firstPreviewAt ? { firstPreviewAtMs: generation.firstPreviewAt } : {}),
+  });
+
+  input.onEvent({ type: 'step-done', stepId: 'finalize', label: 'Finalizing document…' });
+  emitArtifactRunEvent(input.onEvent, {
+    runId: input.runPlan?.runId ?? 'document-runtime',
+    type: 'runtime.finalized',
+    role: 'finalizer',
+    message: 'Finalizing document...',
+    partId: 'finalize',
+    pct: 100,
+  });
+  input.onEvent({
+    type: 'progress',
+    message: input.finalProgressMessage ?? 'Done!',
+    pct: 100,
+  });
+
+  return {
+    html: finalHtml,
+    markdown: sourceMarkdown,
+    title,
+    runtime,
+    generation,
+    ...(editingTelemetry ? { editing: editingTelemetry } : {}),
   };
 }

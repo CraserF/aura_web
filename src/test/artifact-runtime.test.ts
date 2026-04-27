@@ -34,6 +34,7 @@ import {
   repairDocumentRuntimeStructure,
   resolveDocumentRuntimeEditModules,
   runDocumentRuntimeGeneration,
+  runDocumentRuntimeOrchestrator,
   validateDocumentRuntimeModules,
   validateDocumentRuntimeOutput,
 } from '@/services/artifactRuntime/documentRuntime';
@@ -519,6 +520,85 @@ describe('ArtifactRuntime plan', () => {
     expect(events).toContainEqual(expect.objectContaining({
       type: 'progress',
       message: 'Queued document module repair passed validation.',
+    }));
+  });
+
+  it('runs the document runtime orchestrator through generation, QA, finalization, and telemetry', async () => {
+    const plan = buildArtifactRunPlan({
+      runId: 'doc-orchestrator-run',
+      prompt: 'Create an executive briefing document',
+      artifactType: 'document',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    const parts = attachDocumentRuntimeParts({
+      runPlan: plan,
+      documentType: 'brief',
+      blueprintLabel: 'Executive Brief',
+      recommendedModules: ['hero summary'],
+      isEdit: false,
+    });
+    const events: unknown[] = [];
+
+    const result = await runDocumentRuntimeOrchestrator({
+      isEdit: false,
+      runtimeStartMs: 100,
+      nowMs: () => 260,
+      promptText: 'Create an executive briefing document',
+      parts,
+      runPlan: plan,
+      onEvent: (event) => events.push(event),
+      sanitizeHtml: (html) => html,
+      generation: {
+        useQueuedDocumentRuntime: false,
+        useQueuedDocumentEditRuntime: false,
+        queuedCreatePartCount: 1,
+        queuedEditModuleCount: 0,
+        onEvent: (event) => events.push(event),
+        runQueuedCreate: async () => {
+          throw new Error('queued create should not run');
+        },
+        runQueuedEdit: async () => {
+          throw new Error('queued edit should not run');
+        },
+        runSingleStream: async () => ({
+          rawContent: '# Runtime Document\nUseful runtime document body.',
+          renderedHtml: '<main class="doc-shell"><h1>Runtime Document</h1><section class="doc-section doc-runtime-module" data-runtime-part="document-module-1"><h2>Hero summary</h2><p>Enough useful document detail for validation and runtime telemetry.</p></section></main>',
+          firstPreviewAt: 130,
+        }),
+      },
+      prepareGeneratedHtml: (html) => html,
+      resolveTitle: () => 'Runtime Document',
+      buildSourceMarkdown: (rawContent) => rawContent,
+      runQueuedModuleRepair: async ({ html, validation }) => ({
+        html,
+        repairCount: 0,
+        repairedPartCount: 0,
+        repaired: false,
+        validation,
+        summary: 'No queued repair needed.',
+      }),
+    });
+
+    expect(result.title).toBe('Runtime Document');
+    expect(result.markdown).toContain('Runtime Document');
+    expect(result.runtime.runMode).toBe('single-stream');
+    expect(result.runtime.totalRuntimeMs).toBe(160);
+    expect(result.runtime.timeToFirstPreviewMs).toBe(30);
+    expect(result.runtime.validationPassed).toBe(true);
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'step-start',
+      stepId: 'qa',
+      label: 'Checking document quality…',
+    }));
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'progress',
+      message: 'Done!',
+      pct: 100,
     }));
   });
 

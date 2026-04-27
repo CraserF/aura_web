@@ -38,14 +38,10 @@ import {
   buildDocumentRuntimeModuleRepairPrompt,
   buildDocumentRuntimeOutlinePrompt,
   buildDocumentRuntimePartPrompt,
-  buildDocumentRuntimeTelemetry,
   canRunQueuedDocumentRuntime,
-  repairDocumentRuntimeOutput,
-  repairDocumentRuntimeStructure,
   resolveDocumentRuntimeEditModules,
-  runDocumentRuntimeGeneration,
+  runDocumentRuntimeOrchestrator,
   validateDocumentRuntimeModules,
-  validateDocumentRuntimeOutput,
 } from '@/services/artifactRuntime/documentRuntime';
 import type { ArtifactPart, ArtifactRunPlan } from '@/services/artifactRuntime/types';
 
@@ -1558,10 +1554,16 @@ export async function runDocumentWorkflow(
           ],
     });
 
-    let generationResult: Awaited<ReturnType<typeof runDocumentRuntimeGeneration>> | undefined;
-
-    try {
-      generationResult = await runDocumentRuntimeGeneration({
+    const runtimeOutput = await runDocumentRuntimeOrchestrator({
+      isEdit,
+      runtimeStartMs: runtimeStart,
+      nowMs: () => performance.now(),
+      promptText: input.prompt,
+      parts: runtimeParts,
+      runPlan: input.artifactRunPlan,
+      onEvent,
+      sanitizeHtml,
+      generation: {
         useQueuedDocumentRuntime,
         useQueuedDocumentEditRuntime,
         queuedCreatePartCount: runtimeParts.filter((part) => part.kind === 'document-module').length,
@@ -1612,90 +1614,85 @@ export async function runDocumentWorkflow(
             ...(firstPreviewAt ? { firstPreviewAt } : {}),
           };
         },
-      });
-    } finally {
-      stopHeartbeat();
-    }
-
-    if (!generationResult) {
-      throw new Error('Document runtime generation did not produce a draft.');
-    }
-
-    const rawContent = generationResult.rawContent;
-    const renderedHtml = generationResult.renderedHtml;
-    const usedQueuedDocumentEdit = generationResult.usedQueuedDocumentEdit;
-    const runtimeRunMode = generationResult.runMode;
-    const completedPartCount = generationResult.completedPartCount;
-    if (generationResult.firstPreviewAt) firstPreviewAt = generationResult.firstPreviewAt;
-    aiDebugLog('document', 'document render mode', {
-      mode: generationResult.selectedMode === 'single-stream'
-        ? looksLikeHtml(rawContent) ? 'html' : 'markdown'
-        : generationResult.selectedMode,
-      rawChars: rawContent.length,
-      renderedChars: renderedHtml.length,
-      ...(generationResult.selectedMode === 'queued-runtime-edit'
-        ? { moduleCount: queuedEditModules.length }
+      },
+      stopGenerationHeartbeat: stopHeartbeat,
+      onGenerationComplete: (generationResult) => {
+        if (generationResult.firstPreviewAt) firstPreviewAt = generationResult.firstPreviewAt;
+        aiDebugLog('document', 'document render mode', {
+          mode: generationResult.selectedMode === 'single-stream'
+            ? looksLikeHtml(generationResult.rawContent) ? 'html' : 'markdown'
+            : generationResult.selectedMode,
+          rawChars: generationResult.rawContent.length,
+          renderedChars: generationResult.renderedHtml.length,
+          ...(generationResult.selectedMode === 'queued-runtime-edit'
+            ? { moduleCount: queuedEditModules.length }
+            : {}),
+        });
+      },
+      prepareGeneratedHtml: (renderedHtml) => {
+        const sanitized = sanitizeHtml(renderedHtml);
+        return requestedTitle
+          ? enforceRequestedDocumentTitle(sanitized, requestedTitle)
+          : sanitized;
+      },
+      ...(input.editing
+        ? {
+            buildQueuedEditTelemetry: (finalHtml: string) => {
+              const editingTelemetry: EditingTelemetry = {
+                strategyUsed: 'block-replace',
+                fallbackUsed: false,
+                targetSummary: input.editing!.targetSummary,
+                dryRunFailures: [],
+              };
+              logEditingMetrics('document', {
+                ...editingTelemetry,
+                regenerationAvoided: true,
+                promptCharsDelta: finalHtml.length - (input.existingHtml?.length ?? 0),
+              });
+              return editingTelemetry;
+            },
+          }
         : {}),
-    });
-
-    onEvent({ type: 'progress', message: 'Structuring document…', pct: 72 });
-
-    onEvent({ type: 'progress', message: 'Sanitizing content…', pct: 84 });
-
-    let finalHtml = sanitizeHtml(renderedHtml);
-    if (requestedTitle) {
-      finalHtml = enforceRequestedDocumentTitle(finalHtml, requestedTitle);
-    }
-    let editingTelemetry: EditingTelemetry | undefined;
-
-    if (usedQueuedDocumentEdit && input.editing) {
-      editingTelemetry = {
-        strategyUsed: 'block-replace',
-        fallbackUsed: false,
-        targetSummary: input.editing.targetSummary,
-        dryRunFailures: [],
-      };
-      logEditingMetrics('document', {
-        ...editingTelemetry,
-        regenerationAvoided: true,
-        promptCharsDelta: finalHtml.length - (input.existingHtml?.length ?? 0),
-      });
-    } else if (isEdit && input.existingHtml && input.editing) {
-      const targetedEdit = applyDocumentTargetedEdit({
-        existingHtml: prepareDocumentHtmlForEditing(input.existingHtml).html,
-        generatedHtml: finalHtml,
-        targets: input.editing.resolvedTargets,
-        strategyHint: input.editing.allowFullRegeneration
-          ? 'full-regenerate'
-          : input.editing.strategyHint === 'style-token'
-            ? 'style-token'
-            : input.editing.strategyHint === 'search-replace'
-              ? 'search-replace'
-              : 'block-replace',
-        allowFullRegeneration: input.editing.allowFullRegeneration,
-      });
-      finalHtml = sanitizeHtml(targetedEdit.html);
-      editingTelemetry = {
-        strategyUsed: targetedEdit.strategyUsed,
-        fallbackUsed: targetedEdit.fallbackUsed,
-        targetSummary: input.editing.targetSummary,
-        dryRunFailures: targetedEdit.dryRunFailures,
-      };
-      logEditingMetrics('document', {
-        ...editingTelemetry,
-        regenerationAvoided: targetedEdit.strategyUsed !== 'full-regenerate',
-        promptCharsDelta: finalHtml.length - (input.existingHtml?.length ?? 0),
-      });
-    }
-
-    const title = requestedTitle || extractDocumentTitle(finalHtml) || extractTitleFromPrompt(input.prompt);
-    const structureRepair = await repairDocumentRuntimeStructure({
-      html: finalHtml,
-      title,
-      parts: runtimeParts,
-      runPlan: input.artifactRunPlan,
-      onEvent,
-      sanitizeHtml,
+      ...(isEdit && input.existingHtml && input.editing
+        ? {
+            applyFallbackEdit: (finalHtml: string) => {
+              const targetedEdit = applyDocumentTargetedEdit({
+                existingHtml: prepareDocumentHtmlForEditing(input.existingHtml!).html,
+                generatedHtml: finalHtml,
+                targets: input.editing!.resolvedTargets,
+                strategyHint: input.editing!.allowFullRegeneration
+                  ? 'full-regenerate'
+                  : input.editing!.strategyHint === 'style-token'
+                    ? 'style-token'
+                    : input.editing!.strategyHint === 'search-replace'
+                      ? 'search-replace'
+                      : 'block-replace',
+                allowFullRegeneration: input.editing!.allowFullRegeneration,
+              });
+              const editedHtml = sanitizeHtml(targetedEdit.html);
+              const editingTelemetry: EditingTelemetry = {
+                strategyUsed: targetedEdit.strategyUsed,
+                fallbackUsed: targetedEdit.fallbackUsed,
+                targetSummary: input.editing!.targetSummary,
+                dryRunFailures: targetedEdit.dryRunFailures,
+              };
+              logEditingMetrics('document', {
+                ...editingTelemetry,
+                regenerationAvoided: targetedEdit.strategyUsed !== 'full-regenerate',
+                promptCharsDelta: editedHtml.length - (input.existingHtml?.length ?? 0),
+              });
+              return {
+                html: editedHtml,
+                editing: editingTelemetry,
+                repairCount: targetedEdit.fallbackUsed ? 1 : 0,
+              };
+            },
+          }
+        : {}),
+      resolveTitle: (finalHtml) => requestedTitle || extractDocumentTitle(finalHtml) || extractTitleFromPrompt(input.prompt),
+      buildSourceMarkdown: (rawContent, finalHtml) => looksLikeHtml(rawContent)
+        ? summarizeExistingDocument(finalHtml)
+        : rawContent.trim(),
       runQueuedModuleRepair: ({ html, validation }) => runQueuedDocumentRuntimeModuleRepair({
         model,
         html,
@@ -1708,110 +1705,19 @@ export async function runDocumentWorkflow(
         ...(signal ? { signal } : {}),
         runId: runtimeRunId,
       }),
-    });
-    finalHtml = structureRepair.html;
-    const moduleRepairCount = structureRepair.moduleRepairCount;
-    const repairedPartCount = structureRepair.repairedPartCount;
-
-    const sourceMarkdown = looksLikeHtml(rawContent)
-      ? summarizeExistingDocument(finalHtml)
-      : rawContent.trim();
-
-    onEvent({ type: 'step-done', stepId: 'generate', label: isEdit ? 'Updating document…' : 'Writing document…' });
-    emitArtifactRunEvent(onEvent, {
-      runId: runtimeRunId,
-      type: 'runtime.part-completed',
-      role: 'generator',
-      message: isEdit ? 'Updated document part' : 'Wrote document part',
-      partId: 'generate',
-      pct: 80,
-    });
-
-    onEvent({ type: 'step-start', stepId: 'qa', label: 'Checking document quality…' });
-    emitArtifactRunEvent(onEvent, {
-      runId: runtimeRunId,
-      type: 'runtime.validation-started',
-      role: 'validator',
-      message: 'Checking document quality...',
-      partId: 'qa',
-      pct: 84,
-    });
-    let qaResult = validateDocumentRuntimeOutput(finalHtml);
-    aiDebugLog('document', 'document QA', {
-      passed: qaResult.passed,
-      score: qaResult.score,
-      blockingCount: qaResult.blockingCount,
-      advisoryCount: qaResult.advisoryCount,
-    });
-    onEvent({
-      type: 'progress',
-      message: qaResult.summary,
-      pct: 88,
-    });
-    const repair = await repairDocumentRuntimeOutput({
-      html: finalHtml,
-      title,
-      validation: qaResult,
-      runPlan: input.artifactRunPlan,
-      onEvent,
-    });
-    if (repair.repaired) {
-      finalHtml = sanitizeHtml(repair.html);
-      qaResult = repair.validation;
-      onEvent({ type: 'progress', message: repair.summary, pct: 92 });
-    }
-    onEvent({ type: 'step-done', stepId: 'qa', label: 'Checking document quality…' });
-    emitArtifactRunEvent(onEvent, {
-      runId: runtimeRunId,
-      type: 'runtime.validation-completed',
-      role: 'validator',
-      message: 'Checking document quality...',
-      partId: 'qa',
-      pct: 90,
-    });
-
-    onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing document…' });
-
-    const output: DocumentOutput = {
-      html: finalHtml,
-      markdown: sourceMarkdown,
-      title,
-      runtime: buildDocumentRuntimeTelemetry({
-        runtimeStartMs: runtimeStart,
-        nowMs: performance.now(),
-        validation: qaResult,
-        repairCount: moduleRepairCount + repair.repairCount + (editingTelemetry?.fallbackUsed ? 1 : 0),
-        runMode: runtimeRunMode,
-        queuedPartCount: runtimeRunMode === 'queued-create'
-          ? runtimeParts.filter((part) => part.kind === 'document-module').length
-          : runtimeRunMode === 'queued-edit'
-            ? queuedEditModules.length
-            : 0,
-        completedPartCount,
-        repairedPartCount,
-        html: finalHtml,
-        promptText: input.prompt,
-        ...(firstPreviewAt ? { firstPreviewAtMs: firstPreviewAt } : {}),
-      }),
-      ...(editingTelemetry ? { editing: editingTelemetry } : {}),
-    };
-
-    onEvent({ type: 'step-done', stepId: 'finalize', label: 'Finalizing document…' });
-    emitArtifactRunEvent(onEvent, {
-      runId: runtimeRunId,
-      type: 'runtime.finalized',
-      role: 'finalizer',
-      message: 'Finalizing document...',
-      partId: 'finalize',
-      pct: 100,
-    });
-    onEvent({
-      type: 'progress',
-      message: providerProfile.providerId === 'ollama'
+      finalProgressMessage: providerProfile.providerId === 'ollama'
         ? 'Done! Local baseline run complete.'
         : 'Done!',
-      pct: 100,
     });
+
+    const output: DocumentOutput = {
+      html: runtimeOutput.html,
+      markdown: runtimeOutput.markdown,
+      title: runtimeOutput.title,
+      runtime: runtimeOutput.runtime,
+      ...(runtimeOutput.editing ? { editing: runtimeOutput.editing } : {}),
+    };
+
     onEvent({ type: 'complete', result: output });
     return output;
   } catch (err) {

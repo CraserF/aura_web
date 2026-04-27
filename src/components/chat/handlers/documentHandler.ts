@@ -22,6 +22,7 @@ import { workflowStepUpdateFromRuntimeEvent } from '@/services/chat/workflowProg
 import { validateArtifactAgainstProfile } from '@/services/validation';
 import { summarizeValidationResult } from '@/services/validation/profiles';
 import { deriveLifecycleFromValidation } from '@/services/lifecycle/state';
+import { formatRuntimeQualityDiagnostics } from '@/services/artifactRuntime';
 
 export interface DocumentHandlerContext {
   runRequest: RunRequest;
@@ -278,6 +279,8 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
           overrideRequired: !artifactValidation.passed,
         }
       : undefined;
+    const advancedDiagnostics = formatRuntimeQualityDiagnostics(result.runtime)
+      .map((diagnostic) => diagnostic.message);
 
     return {
       runId,
@@ -331,6 +334,7 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
         detail: result.title
           ? `Document "${result.title}" completed successfully.`
           : 'Document workflow completed successfully.',
+        ...(advancedDiagnostics.length > 0 ? { advancedDiagnostics } : {}),
       },
     };
   } catch (err) {

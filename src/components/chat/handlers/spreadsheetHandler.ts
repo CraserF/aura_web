@@ -23,8 +23,10 @@ import { validateArtifactAgainstProfile } from '@/services/validation';
 import { summarizeValidationResult } from '@/services/validation/profiles';
 import { deriveLifecycleFromValidation } from '@/services/lifecycle/state';
 import {
+  attachSpreadsheetRuntimeResultParts,
   buildSpreadsheetRuntimeTelemetry,
   emitSpreadsheetRuntimeResultEvents,
+  formatRuntimeQualityDiagnostics,
 } from '@/services/artifactRuntime';
 import type { ArtifactRuntimeTelemetry, WorkflowEvent } from '@/services/ai/workflow/types';
 
@@ -212,6 +214,10 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
       isDefaultSheet: docIsDefaultSheet,
       artifactRunPlan: runRequest.artifactRunPlan,
     });
+    attachSpreadsheetRuntimeResultParts({
+      runPlan: runRequest.artifactRunPlan,
+      result,
+    });
     runtimeTelemetry = buildSpreadsheetRuntimeTelemetry({
       result,
       totalRuntimeMs: Math.round(performance.now() - workflowStart),
@@ -222,6 +228,8 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
       result,
       onEvent: onRuntimeEvent,
     });
+    const advancedDiagnostics = formatRuntimeQualityDiagnostics(runtimeTelemetry)
+      .map((diagnostic) => diagnostic.message);
 
     if (result.kind === 'clarification-needed') {
       return {
@@ -266,6 +274,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
         structuredStatus: {
           title: 'Spreadsheet clarification needed',
           detail: result.message,
+          ...(advancedDiagnostics.length > 0 ? { advancedDiagnostics } : {}),
         },
       };
     }
@@ -313,6 +322,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
         structuredStatus: {
           title: 'Spreadsheet request blocked',
           detail: result.message,
+          ...(advancedDiagnostics.length > 0 ? { advancedDiagnostics } : {}),
         },
       };
     }
@@ -357,6 +367,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
         structuredStatus: {
           title: 'No spreadsheet action taken',
           detail: result.message,
+          ...(advancedDiagnostics.length > 0 ? { advancedDiagnostics } : {}),
         },
       };
     }
@@ -430,6 +441,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
         structuredStatus: {
           title: 'Spreadsheet chart created',
           detail: result.message,
+          ...(advancedDiagnostics.length > 0 ? { advancedDiagnostics } : {}),
         },
       };
     }
@@ -503,6 +515,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
         structuredStatus: {
           title: 'Spreadsheet updated',
           detail: result.message,
+          ...(advancedDiagnostics.length > 0 ? { advancedDiagnostics } : {}),
         },
       };
     }
@@ -581,6 +594,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
         structuredStatus: {
           title: result.kind === 'query-view-created' ? 'Spreadsheet query view created' : 'Spreadsheet formula applied',
           detail: result.message,
+          ...(advancedDiagnostics.length > 0 ? { advancedDiagnostics } : {}),
         },
       };
     }
@@ -625,6 +639,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
         structuredStatus: {
           title: 'Spreadsheet summary generated',
           detail: result.message,
+          ...(advancedDiagnostics.length > 0 ? { advancedDiagnostics } : {}),
         },
       };
     }
@@ -740,6 +755,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
       structuredStatus: {
         title: activeDocument?.type === 'spreadsheet' ? 'Spreadsheet updated' : 'Spreadsheet created',
         detail: result.summary,
+        ...(advancedDiagnostics.length > 0 ? { advancedDiagnostics } : {}),
       },
     };
   } catch (err) {

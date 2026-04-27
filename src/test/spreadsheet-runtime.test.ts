@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   attachSpreadsheetRuntimeParts,
+  attachSpreadsheetRuntimeResultParts,
   buildArtifactRunPlan,
   buildSpreadsheetRuntimeTelemetry,
   emitSpreadsheetRuntimeResultEvents,
@@ -459,34 +460,72 @@ describe('spreadsheet runtime bridge', () => {
       expectedActionKind: 'no-intent',
     },
   ])('records fallback diagnostics for $kind spreadsheet results without a work queue', ({ kind, message, expectedActionKind }) => {
+    const runPlan = buildArtifactRunPlan({
+      runId: `${kind}-fallback-run`,
+      prompt: message,
+      artifactType: 'spreadsheet',
+      operation: 'action',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    const result = {
+      kind,
+      message,
+      planValidation: {
+        passed: false,
+        issues: [{ code: 'missing-intent', message: 'No deterministic spreadsheet action could be selected.' }],
+      },
+    } as SpreadsheetOutput;
+
+    attachSpreadsheetRuntimeResultParts({
+      runPlan,
+      result,
+    });
     const telemetry = buildSpreadsheetRuntimeTelemetry({
-      result: {
-        kind,
-        message,
-        planValidation: {
-          passed: false,
-          issues: [{ code: 'missing-intent', message: 'No deterministic spreadsheet action could be selected.' }],
-        },
-      } as SpreadsheetOutput,
+      result,
       totalRuntimeMs: 12,
+      runPlan,
     });
 
     expect(telemetry).toEqual(expect.objectContaining({
       runMode: 'deterministic-action',
-      queuedPartCount: 1,
+      queuedPartCount: 3,
       completedPartCount: 1,
       qualityPassed: false,
       spreadsheetActionKind: expectedActionKind,
       changedSheetCount: 0,
       refreshedSheetCount: 0,
     }));
-    expect(telemetry.validationByPart).toEqual([{
-      partId: 'workbook-action',
-      label: expectedActionKind,
-      validationPassed: false,
-      blockingCount: 1,
-      advisoryCount: 0,
-      rules: ['missing-intent'],
-    }]);
+    expect(runPlan.workQueue.map((part) => part.id)).toEqual(['workbook-action', 'validation', 'finalize']);
+    expect(runPlan.workflow.queuedWorkItems).toHaveLength(1);
+    expect(telemetry.validationByPart).toEqual([
+      {
+        partId: 'workbook-action',
+        label: kind === 'clarification-needed' ? 'Spreadsheet clarification' : 'Spreadsheet action selection',
+        validationPassed: false,
+        blockingCount: 0,
+        advisoryCount: 0,
+        rules: [],
+      },
+      {
+        partId: 'validation',
+        label: 'Spreadsheet validation',
+        validationPassed: false,
+        blockingCount: 1,
+        advisoryCount: 0,
+        rules: ['missing-intent'],
+      },
+      {
+        partId: 'finalize',
+        label: 'Spreadsheet finalization',
+        validationPassed: false,
+        blockingCount: 0,
+        advisoryCount: 0,
+        rules: [],
+      },
+    ]);
   });
 });

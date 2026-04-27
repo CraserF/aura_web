@@ -35,6 +35,7 @@ export interface RunResultChangedTarget {
 export interface RunResultStructuredStatus {
   title: string;
   detail: string;
+  advancedDiagnostics?: string[];
 }
 
 export interface RunResultDependencyChange {

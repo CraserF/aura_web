@@ -49,6 +49,7 @@ describe('run result rendering and registry', () => {
       structuredStatus: {
         title: 'Document updated',
         detail: 'Document update completed successfully.',
+        advancedDiagnostics: ['Quality blocked by 1 issue across Typography.'],
       },
     };
 
@@ -56,7 +57,11 @@ describe('run result rendering and registry', () => {
 
     expect(rendered.content).toContain('Created document');
     expect(rendered.content).toContain('Minor chart spacing issue');
+    expect(rendered.content).not.toContain('Quality blocked');
     expect(rendered.statusMessage).toContain('completed successfully');
+    expect(result.structuredStatus.advancedDiagnostics).toEqual([
+      'Quality blocked by 1 issue across Typography.',
+    ]);
   });
 
   it('tracks run lifecycle status in the registry skeleton', () => {

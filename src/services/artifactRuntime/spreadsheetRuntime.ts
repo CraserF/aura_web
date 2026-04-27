@@ -9,6 +9,11 @@ export interface AttachSpreadsheetRuntimePartsInput {
   plan: SpreadsheetPlan;
 }
 
+export interface AttachSpreadsheetRuntimeResultPartsInput {
+  runPlan: ArtifactRunPlan;
+  result: SpreadsheetOutput;
+}
+
 function resolveSpreadsheetRuntimeActionPart(plan: SpreadsheetPlan): ArtifactPart {
   switch (plan.kind) {
     case 'create-formula-column':
@@ -94,6 +99,48 @@ function buildSpreadsheetRuntimeParts(plan: SpreadsheetPlan): ArtifactPart[] {
   ];
 }
 
+function buildSpreadsheetFallbackRuntimeParts(result: SpreadsheetOutput): ArtifactPart[] {
+  const partId = getPartId(result);
+  const message = describeSpreadsheetResult(result);
+  return [
+    {
+      id: partId,
+      artifactType: 'spreadsheet',
+      kind: 'workbook-action',
+      orderIndex: 0,
+      title: result.kind === 'clarification-needed'
+        ? 'Spreadsheet clarification'
+        : result.kind === 'blocked'
+          ? 'Spreadsheet blocked action'
+          : result.kind === 'no-intent'
+            ? 'Spreadsheet action selection'
+            : 'Workbook action',
+      brief: message,
+      status: result.kind === 'blocked' || result.kind === 'clarification-needed' || result.kind === 'no-intent'
+        ? 'failed'
+        : 'pending',
+    },
+    {
+      id: 'validation',
+      artifactType: 'spreadsheet',
+      kind: 'validation-result',
+      orderIndex: 1,
+      title: 'Spreadsheet validation',
+      brief: 'Record deterministic spreadsheet validation outcome.',
+      status: result.planValidation?.passed === false ? 'failed' : 'done',
+    },
+    {
+      id: 'finalize',
+      artifactType: 'spreadsheet',
+      kind: 'finalization',
+      orderIndex: 2,
+      title: 'Spreadsheet finalization',
+      brief: 'Summarize the deterministic spreadsheet result.',
+      status: 'done',
+    },
+  ];
+}
+
 function toQueuedOperationKind(kind: ArtifactPartKind): 'create' | 'formula' | 'query' | 'refresh' {
   if (kind === 'formula') return 'formula';
   if (kind === 'query') return 'query';
@@ -115,6 +162,41 @@ export function attachSpreadsheetRuntimeParts(input: AttachSpreadsheetRuntimePar
       targetLabel: part.title,
       operationKind: toQueuedOperationKind(part.kind),
       status: 'pending',
+      promptSummary: part.brief,
+    }));
+
+  return parts;
+}
+
+export function attachSpreadsheetRuntimeResultParts(input: AttachSpreadsheetRuntimeResultPartsInput): ArtifactPart[] {
+  const hasOnlyDefaultWorkbookPart =
+    input.runPlan.workQueue.length === 1 &&
+    input.runPlan.workQueue[0]?.id === 'spreadsheet-part-1';
+
+  if (input.runPlan.workQueue.length > 0 && !hasOnlyDefaultWorkbookPart) {
+    return input.runPlan.workQueue;
+  }
+
+  if (input.result.plan) {
+    return attachSpreadsheetRuntimeParts({
+      runPlan: input.runPlan,
+      plan: input.result.plan,
+    });
+  }
+
+  const parts = buildSpreadsheetFallbackRuntimeParts(input.result);
+  input.runPlan.workQueue = parts;
+  input.runPlan.queueMode = 'sequential';
+  input.runPlan.workflow.queueMode = 'sequential';
+  input.runPlan.workflow.queuedWorkItems = parts
+    .filter((part) => part.kind === 'workbook-action')
+    .map((part) => ({
+      id: part.id,
+      orderIndex: part.orderIndex,
+      targetType: 'sheet',
+      targetLabel: part.title,
+      operationKind: 'refresh',
+      status: part.status === 'failed' ? 'blocked' : 'pending',
       promptSummary: part.brief,
     }));
 
