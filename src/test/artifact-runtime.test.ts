@@ -135,13 +135,20 @@ describe('ArtifactRuntime plan', () => {
       isEdit: false,
       hasImages: true,
     })).toBe(true);
-    expect(buildDocumentRuntimeOutlinePrompt({
+    const outlinePrompt = buildDocumentRuntimeOutlinePrompt({
       taskBrief: 'Create an executive briefing document',
       documentType: 'brief',
       blueprintLabel: 'Executive Brief',
       parts,
       designFamily: 'executive-light',
-    })).toContain('Return only a compact outline');
+    });
+    expect(outlinePrompt).toContain('ARTIFACT RUNTIME CONTRACT');
+    expect(outlinePrompt).toContain('DOCUMENT IFRAME CONTRACT');
+    expect(outlinePrompt).toContain('DOCUMENT DESIGN FAMILY');
+    expect(outlinePrompt).toContain('Return only a compact outline');
+    expect(outlinePrompt).toContain('no <script>');
+    expect(outlinePrompt).toContain('mobile-safe stacking');
+    expect(outlinePrompt.length).toBeLessThan(2_500);
     const modulePrompt = buildDocumentRuntimeModulePrompt({
       taskBrief: 'Create an executive briefing document',
       documentType: 'brief',
@@ -151,6 +158,11 @@ describe('ArtifactRuntime plan', () => {
     });
     expect(modulePrompt).toContain('data-runtime-part="document-module-1"');
     expect(modulePrompt).toContain('doc-kpi-row');
+    expect(modulePrompt).toContain('doc-sidebar-layout');
+    expect(modulePrompt).toContain('mobile-safe');
+    expect(modulePrompt).toContain('remote assets');
+    expect(modulePrompt).not.toContain('TEMPLATE EXAMPLES');
+    expect(modulePrompt.length).toBeLessThan(3_500);
   });
 
   it('assembles queued document module drafts into a runtime shell', () => {
@@ -244,8 +256,11 @@ describe('ArtifactRuntime plan', () => {
       existingModuleHtml: '<section data-runtime-part="document-module-1"><p>tiny</p></section>',
     });
     expect(repairPrompt).toContain('Repair one failed document module fragment');
+    expect(repairPrompt).toContain('VALIDATOR FEEDBACK');
     expect(repairPrompt).toContain('empty');
     expect(repairPrompt).toContain('data-runtime-part="document-module-1"');
+    expect(repairPrompt).toContain('fix only the failed module issues');
+    expect(repairPrompt.length).toBeLessThan(3_500);
   });
 
   it('resolves targeted document edits to runtime modules and applies module-local replacements', () => {

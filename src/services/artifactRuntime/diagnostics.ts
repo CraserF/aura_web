@@ -18,6 +18,10 @@ export interface RuntimeArtifactDiagnosticSummary {
   totalQueuedPartCount: number;
   totalRepairedPartCount: number;
   estimatedPromptTokens: number;
+  viewportContractSampleCount: number;
+  viewportContractPassRate: number;
+  viewportBlockingIssueCount: number;
+  viewportAdvisoryIssueCount: number;
 }
 
 export interface RuntimeDiagnosticSummary extends RuntimeArtifactDiagnosticSummary {
@@ -46,12 +50,17 @@ function summarizeRuntimeDiagnosticGroup(samples: RuntimeDiagnosticSample[]): Ru
   const totalRuntimeMs = samples.reduce((sum, sample) => sum + sample.telemetry.totalRuntimeMs, 0);
   const validationPassCount = samples.filter((sample) => sample.telemetry.validationPassed).length;
   const estimatedPromptTokens = samples.reduce(
-    (sum, sample) => sum + estimateRuntimePromptTokens({
-      text: sample.promptText,
-      chars: sample.promptChars,
-    }),
+    (sum, sample) => sum + (
+      sample.telemetry.promptTokenEstimate ??
+      estimateRuntimePromptTokens({
+        text: sample.promptText,
+        chars: sample.promptChars,
+      })
+    ),
     0,
   );
+  const viewportSamples = samples.filter((sample) => typeof sample.telemetry.viewportContractPassed === 'boolean');
+  const viewportPassCount = viewportSamples.filter((sample) => sample.telemetry.viewportContractPassed).length;
 
   return {
     sampleCount: samples.length,
@@ -69,6 +78,10 @@ function summarizeRuntimeDiagnosticGroup(samples: RuntimeDiagnosticSample[]): Ru
     totalQueuedPartCount: samples.reduce((sum, sample) => sum + (sample.telemetry.queuedPartCount ?? 0), 0),
     totalRepairedPartCount: samples.reduce((sum, sample) => sum + (sample.telemetry.repairedPartCount ?? 0), 0),
     estimatedPromptTokens,
+    viewportContractSampleCount: viewportSamples.length,
+    viewportContractPassRate: viewportSamples.length > 0 ? roundMetric(viewportPassCount / viewportSamples.length) : 0,
+    viewportBlockingIssueCount: samples.reduce((sum, sample) => sum + (sample.telemetry.viewportBlockingCount ?? 0), 0),
+    viewportAdvisoryIssueCount: samples.reduce((sum, sample) => sum + (sample.telemetry.viewportAdvisoryCount ?? 0), 0),
   };
 }
 

@@ -63,6 +63,10 @@ export interface ArtifactRuntimeTelemetry {
   queuedPartCount?: number;
   completedPartCount?: number;
   repairedPartCount?: number;
+  promptTokenEstimate?: number;
+  viewportContractPassed?: boolean;
+  viewportBlockingCount?: number;
+  viewportAdvisoryCount?: number;
   validationByPart?: Array<{
     partId: string;
     label?: string;

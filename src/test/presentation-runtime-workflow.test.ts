@@ -14,7 +14,10 @@ vi.mock('@/services/ai/workflow/batchQueue', () => ({
   runBatchQueue: batchQueueMocks.runBatchQueue,
 }));
 
-const { runQueuedPresentationRuntime } = await import('@/services/artifactRuntime/presentationRuntime');
+const {
+  runPresentationRuntime,
+  runQueuedPresentationRuntime,
+} = await import('@/services/artifactRuntime/presentationRuntime');
 const runBatchQueueMock = batchQueueMocks.runBatchQueue;
 
 const VALID_STYLE = `<style>
@@ -107,6 +110,8 @@ describe('presentation runtime workflow orchestration', () => {
     expect(output.runtime?.completedPartCount).toBe(2);
     expect(output.runtime?.timeToFirstPreviewMs).toBeGreaterThanOrEqual(0);
     expect(output.runtime?.validationPassed).toBe(true);
+    expect(output.runtime?.promptTokenEstimate).toBeGreaterThan(0);
+    expect(output.runtime?.viewportContractPassed).toBe(true);
     expect(output.runtime?.validationByPart?.filter((part) => part.partId.startsWith('slide-'))).toHaveLength(2);
 
     const diagnostics = summarizeRuntimeDiagnostics([{
@@ -117,6 +122,150 @@ describe('presentation runtime workflow orchestration', () => {
     expect(diagnostics.firstPreviewCount).toBe(1);
     expect(diagnostics.totalQueuedPartCount).toBe(2);
     expect(diagnostics.validationPassRate).toBe(1);
+    expect(diagnostics.viewportContractSampleCount).toBe(1);
+    expect(diagnostics.viewportContractPassRate).toBe(1);
+    expect(diagnostics.viewportBlockingIssueCount).toBe(0);
+  });
+
+  it('prefers ArtifactRunPlan workQueue slide parts over legacy slide briefs', async () => {
+    const runPlan = createRunPlan();
+    runPlan.queueMode = 'sequential';
+    runPlan.workQueue = [
+      {
+        id: 'runtime-slide-2',
+        artifactType: 'presentation',
+        kind: 'slide',
+        orderIndex: 1,
+        title: 'Runtime slide two',
+        brief: 'Close with the runtime-authored action.',
+        status: 'pending',
+      },
+      {
+        id: 'runtime-slide-1',
+        artifactType: 'presentation',
+        kind: 'slide',
+        orderIndex: 0,
+        title: 'Runtime slide one',
+        brief: 'Open with the runtime-authored thesis.',
+        status: 'pending',
+      },
+    ];
+    const legacyPlanResult = {
+      ...createPlanResult(),
+      slideBriefs: [
+        {
+          index: 1,
+          title: 'Legacy ignored',
+          contentGuidance: 'This legacy planner brief should not drive queued generation.',
+        },
+      ],
+    } as PlanResult;
+    const firstSlideHtml = `${VALID_STYLE}
+      <section data-background-color="#ffffff"><h1 class="slide-title">Runtime slide one</h1><p class="slide-body">Runtime-authored thesis.</p></section>`;
+    const fullDeckHtml = `${firstSlideHtml}
+      <section data-background-color="#ffffff"><h2 class="slide-title">Runtime slide two</h2><p class="slide-body">Runtime-authored action.</p></section>`;
+    runBatchQueueMock.mockImplementation(async (options: BatchQueueOptions) => {
+      expect(options.planResult.slideBriefs?.map((brief) => brief.title)).toEqual([
+        'Runtime slide one',
+        'Runtime slide two',
+      ]);
+      options.onSlideComplete(firstSlideHtml, 1, 2);
+      options.onSlideComplete(fullDeckHtml, 2, 2);
+      return createBatchResult(fullDeckHtml);
+    });
+
+    const output = await runQueuedPresentationRuntime({
+      runPlan,
+      planResult: legacyPlanResult,
+      model: {} as LanguageModel,
+      input: {
+        prompt: 'Create 2 slides from the runtime plan',
+        chatHistory: [],
+      },
+      onEvent: vi.fn(),
+      isEdit: false,
+    });
+
+    expect(runBatchQueueMock).toHaveBeenCalledTimes(1);
+    expect(output.html).toContain('Runtime slide one');
+    expect(output.html).toContain('Runtime slide two');
+    expect(output.html).not.toContain('Legacy ignored');
+    expect(output.runtime?.queuedPartCount).toBe(2);
+    expect(output.runtime?.completedPartCount).toBe(2);
+  });
+
+  it('orchestrates planning, design manifest, queued slides, validation, and finalization from the runtime', async () => {
+    const runPlan = createRunPlan();
+    runPlan.queueMode = 'sequential';
+    runPlan.workQueue = [
+      {
+        id: 'runtime-outline-slide-1',
+        artifactType: 'presentation',
+        kind: 'slide',
+        orderIndex: 0,
+        title: 'Runtime outline',
+        brief: 'Show the runtime-owned outline.',
+        status: 'pending',
+      },
+      {
+        id: 'runtime-outline-slide-2',
+        artifactType: 'presentation',
+        kind: 'slide',
+        orderIndex: 1,
+        title: 'Runtime finalization',
+        brief: 'Show validation and final assembly.',
+        status: 'pending',
+      },
+    ];
+    const firstSlideHtml = `${VALID_STYLE}
+      <section data-background-color="#ffffff"><h1 class="slide-title">Runtime outline</h1><p class="slide-body">Planner and design manifest are ready.</p></section>`;
+    const fullDeckHtml = `${firstSlideHtml}
+      <section data-background-color="#ffffff"><h2 class="slide-title">Runtime finalization</h2><p class="slide-body">Validation and final assembly pass.</p></section>`;
+    runBatchQueueMock.mockImplementation(async (options: BatchQueueOptions) => {
+      expect(options.runPlan?.runId).toBe(runPlan.runId);
+      expect(options.planResult.slideBriefs?.map((brief) => brief.title)).toEqual([
+        'Runtime outline',
+        'Runtime finalization',
+      ]);
+      options.onSlideComplete(firstSlideHtml, 1, 2);
+      options.onSlideComplete(fullDeckHtml, 2, 2);
+      return createBatchResult(fullDeckHtml);
+    });
+    const events: WorkflowEvent[] = [];
+
+    const output = await runPresentationRuntime({
+      model: {} as LanguageModel,
+      input: {
+        prompt: 'Create a two slide deck about runtime ownership',
+        chatHistory: [],
+        artifactRunPlan: runPlan,
+      },
+      onEvent: (event) => events.push(event),
+      editCorrectionPolicy: {
+        mode: 'full',
+        maxCorrectionSteps: 1,
+      },
+      skipSecondaryEvaluation: false,
+    });
+
+    expect(runBatchQueueMock).toHaveBeenCalledTimes(1);
+    expect(output.runtime?.runMode).toBe('queued-create');
+    expect(output.runtime?.queuedPartCount).toBe(2);
+    expect(output.runtime?.validationPassed).toBe(true);
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'progress',
+      message: runPlan.intentSummary,
+      pct: 18,
+    }));
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'progress',
+      message: `Design manifest ready: ${runPlan.designManifest.family}.`,
+      pct: 20,
+    }));
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'step-done',
+      stepId: 'finalize',
+    }));
   });
 
   it('repairs failing queued slide fragments before final deck validation', async () => {

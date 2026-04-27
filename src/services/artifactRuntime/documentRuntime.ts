@@ -1,5 +1,11 @@
 import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
-import { buildDocumentModuleContractPack } from '@/services/artifactRuntime/promptPacks';
+import {
+  buildCoreArtifactContractPack,
+  buildDocumentDesignFamilyPack,
+  buildDocumentIframeContractPack,
+  buildDocumentModuleContractPack,
+  buildValidatorFeedbackPack,
+} from '@/services/artifactRuntime/promptPacks';
 import type { ArtifactPart, ArtifactRunPlan } from '@/services/artifactRuntime/types';
 import { validateDocument } from '@/services/ai/workflow/agents/document-qa';
 import type { ArtifactRuntimeTelemetry, EventListener } from '@/services/ai/workflow/types';
@@ -216,32 +222,45 @@ export function canRunQueuedDocumentRuntime(input: CanRunQueuedDocumentRuntimeIn
 export function buildDocumentRuntimeOutlinePrompt(input: BuildDocumentRuntimeOutlinePromptInput): string {
   const moduleParts = getDocumentModuleParts(input.parts);
 
-  return `Create the runtime outline for this ${input.documentType} document.
+  return [
+    buildCoreArtifactContractPack(),
+    buildDocumentIframeContractPack(),
+    buildDocumentDesignFamilyPack({
+      documentType: input.documentType,
+      designFamily: input.designFamily,
+      blueprintLabel: input.blueprintLabel,
+    }),
+    `## OUTLINE TASK
 
-Task:
-${input.taskBrief}
-
-Blueprint: ${input.blueprintLabel}
-Design family: ${input.designFamily ?? 'document-default'}
+Create the runtime outline for this ${input.documentType} document.
 
 Required modules:
 ${moduleParts.map((part, index) => `${index + 1}. ${part.title} [${part.id}]: ${part.brief}`).join('\n')}
+
+Task brief:
+${input.taskBrief}
 
 Return only a compact outline in markdown:
 - one document thesis sentence
 - one bullet per required module
 - if images were provided, use them only to infer structure, evidence, labels, or visual emphasis
-- no CSS, no full HTML document, no external assets`;
+- no CSS, no full HTML document, no external assets`,
+  ].join('\n\n');
 }
 
 export function buildDocumentRuntimeModulePrompt(input: BuildDocumentRuntimeModulePromptInput): string {
-  return `Create one document module fragment for runtime assembly.
+  return [
+    buildCoreArtifactContractPack(),
+    buildDocumentIframeContractPack(),
+    buildDocumentDesignFamilyPack({
+      documentType: input.documentType,
+      designFamily: input.designFamily,
+    }),
+    `## MODULE TASK
 
-Task:
+Task brief:
 ${input.taskBrief}
 
-Document type: ${input.documentType}
-Design family: ${input.designFamily ?? 'document-default'}
 Runtime part id: ${input.part.id}
 Runtime part title: ${input.part.title}
 Runtime part brief: ${input.part.brief}
@@ -256,30 +275,37 @@ ${input.existingModuleHtml}
 
 preserve the useful structure of this existing module while applying the requested edit.` : 'Create the module from the outline and task brief.'}
 
-${buildDocumentModuleContractPack({ partId: input.part.id })}`;
+${buildDocumentModuleContractPack({ partId: input.part.id })}`,
+  ].join('\n\n');
 }
 
 export function buildDocumentRuntimeModuleRepairPrompt(input: BuildDocumentRuntimeModuleRepairPromptInput): string {
-  return `Repair one failed document module fragment.
+  return [
+    buildCoreArtifactContractPack(),
+    buildDocumentIframeContractPack(),
+    buildDocumentDesignFamilyPack({
+      documentType: input.documentType,
+      designFamily: input.designFamily,
+    }),
+    buildValidatorFeedbackPack(input.issues.map((issue) => `${issue.severity}: ${issue.summary}`)),
+    `## MODULE REPAIR TASK
 
-Task:
+Repair one failed document module fragment.
+
+Task brief:
 ${input.taskBrief}
 
-Document type: ${input.documentType}
-Design family: ${input.designFamily ?? 'document-default'}
 Runtime part id: ${input.part.id}
 Runtime part title: ${input.part.title}
 Runtime part brief: ${input.part.brief}
-
-Validation issues:
-${input.issues.map((issue) => `- ${issue.severity}: ${issue.summary}`).join('\n')}
 
 ${input.existingModuleHtml ? `Existing module:
 \`\`\`html
 ${input.existingModuleHtml}
 \`\`\`` : 'The module is missing and must be created from the runtime part brief.'}
 
-${buildDocumentModuleContractPack({ partId: input.part.id, repair: true })}`;
+${buildDocumentModuleContractPack({ partId: input.part.id, repair: true })}`,
+  ].join('\n\n');
 }
 
 function normalizeText(value: string): string {

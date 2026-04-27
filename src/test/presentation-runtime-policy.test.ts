@@ -35,6 +35,24 @@ describe('presentation runtime policy', () => {
     expect(designerSource).not.toMatch(/softTimeoutMs|Draft stream soft timeout|Edit correction soft timeout/);
   });
 
+  it('keeps active presentation workflow orchestration inside the runtime', () => {
+    const presentationSource = readSource('services/ai/workflow/presentation.ts');
+    const presentationRuntimeSource = readSource('services/artifactRuntime/presentationRuntime.ts');
+
+    expect(presentationSource).toMatch(/runPresentationRuntime/);
+    expect(presentationSource).not.toMatch(/from '\.\/agents\/planner'/);
+    expect(presentationSource).not.toMatch(/applyArtifactRunPlanToPresentationPlan/);
+    expect(presentationSource).not.toMatch(/canRunQueuedPresentationRuntime/);
+    expect(presentationSource).not.toMatch(/runQueuedPresentationRuntime/);
+    expect(presentationSource).not.toMatch(/runSinglePresentationRuntime/);
+
+    expect(presentationRuntimeSource).toMatch(/export async function runPresentationRuntime/);
+    expect(presentationRuntimeSource).toMatch(/await plan\(input\.prompt, isEdit\)/);
+    expect(presentationRuntimeSource).toMatch(/runtime\.plan-created/);
+    expect(presentationRuntimeSource).toMatch(/runtime\.design-manifest-created/);
+    expect(presentationRuntimeSource).toMatch(/buildSlideBriefsFromRunPlan/);
+  });
+
   it('keeps external execution-spec adapters out of active generation paths', () => {
     const activeSources = [
       'services/chat/buildRunRequest.ts',

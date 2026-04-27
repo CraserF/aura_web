@@ -118,7 +118,7 @@ export function ChatBar() {
     workflowArtifactType,
     selectedPresetId ?? undefined,
   );
-  const presetLabel = presetState.appliedPreset?.name ?? 'Project default';
+  const presetLabel = presetState.appliedPreset?.name ?? 'Auto mode';
 
   const workflowStepsRef = useRef<WorkflowStep[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -613,7 +613,7 @@ export function ChatBar() {
                 <button
                   type="button"
                   className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border/70 bg-background/80 px-2 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
-                  aria-label="Choose workflow preset"
+                  aria-label="Choose output mode"
                 >
                   <Sparkles size={12} strokeWidth={2} />
                   <span className="max-w-[120px] truncate">{presetLabel}</span>
@@ -621,7 +621,7 @@ export function ChatBar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" side="top">
                 <DropdownMenuItem onSelect={() => setSelectedPresetId(null)}>
-                  {selectedPresetId === null ? '✓ ' : ''}Project default
+                  {selectedPresetId === null ? '✓ ' : ''}Auto mode
                 </DropdownMenuItem>
                 {presetState.presets.presets
                   .filter((preset) => !preset.artifactType || preset.artifactType === workflowArtifactType)
@@ -632,13 +632,13 @@ export function ChatBar() {
                   ))}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={handleSavePreset}>
-                  {selectedPresetId ? 'Update selected preset' : 'Save current as preset'}
+                  {selectedPresetId ? 'Update selected mode' : 'Save current as mode'}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={handleDuplicatePreset}
                   disabled={!presetState.appliedPreset}
                 >
-                  Duplicate preset
+                  Duplicate mode
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

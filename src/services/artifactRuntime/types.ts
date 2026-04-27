@@ -124,7 +124,8 @@ export type ArtifactPartKind =
   | 'formula'
   | 'query'
   | 'chart'
-  | 'validation-result';
+  | 'validation-result'
+  | 'finalization';
 
 export type ArtifactPartStatus = 'pending' | 'active' | 'done' | 'failed';
 

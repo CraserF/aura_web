@@ -9,6 +9,7 @@ import {
 } from '@/services/ai/templates';
 import {
   buildArtifactRunPlan,
+  buildPresentationQualityChecklist,
   PRESENTATION_VIEWPORT_MATRIX,
   validatePresentationViewportContract,
 } from '@/services/artifactRuntime';
@@ -146,11 +147,19 @@ describe('production presentation templates', () => {
     for (const templateId of PRODUCTION_RECIPE_TEMPLATES) {
       const html = await getTemplateHtml(templateId);
       const validation = validatePresentationViewportContract(html);
+      const checklist = buildPresentationQualityChecklist({
+        html,
+        promptText: `Production template ${templateId}`,
+        allowTemplateTokens: true,
+      });
 
       expect(validation.checkedViewports.map((viewport) => viewport.id)).toEqual(
         PRESENTATION_VIEWPORT_MATRIX.map((viewport) => viewport.id),
       );
       expect(validation.blockingCount).toBe(0);
+      expect(checklist.ready).toBe(true);
+      expect(checklist.viewportContractPassed).toBe(true);
+      expect(checklist.promptTokenEstimate).toBeGreaterThan(0);
     }
   });
 

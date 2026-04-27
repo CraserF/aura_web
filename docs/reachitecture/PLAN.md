@@ -349,6 +349,19 @@ Last updated: 2026-04-27.
   - queued presentation edit with `existingSlidesHtml` passed through and an unaffected slide preserved.
 - Full launch-kit browser smoke is still required because the deterministic jsdom smoke intentionally avoids spreadsheet/DuckDB Worker initialization while focusing on the presentation release contract.
 
+### Completed In Twenty-First Runtime Slice
+- Re-ran the release-gate preflight without changing the release-candidate scope:
+  - `npm test -- release-smoke` still passes the deterministic presentation smoke contract;
+  - `npm run typecheck` still passes;
+  - local Vite startup still requires sandbox escalation, then serves successfully on `http://127.0.0.1:5173/`;
+  - an approved local HTTP preflight returned `HTTP/1.1 200 OK`;
+  - the smoke-test dev server was stopped after the preflight.
+- Rechecked available browser surfaces for the manual visual gate:
+  - Browser plugin automation is still blocked because the required Node REPL `js` tool is not exposed in this session;
+  - Computer Use still fails app discovery with macOS Apple event error `-1743`;
+  - therefore the desktop/mobile canvas smoke remains a local manual deployment gate.
+- No presentation runtime cleanup, legacy-template pruning, document runtime expansion, spreadsheet runtime expansion, or UX simplification was started in this slice, because the plan requires the browser/provider smoke to be recorded first.
+
 ### Validation Completed
 - `npm test -- artifact-runtime workflow-planner run-request run-dry-run run-explain structured-run-outputs external-adapter-contracts run-events workflow-benchmark-cases`
   - Passed: 9 files, 23 tests.
@@ -594,6 +607,22 @@ Last updated: 2026-04-27.
     - Passed.
   - `git diff --check`
     - Passed.
+- Current twenty-first-slice focused validation:
+  - `npm test -- release-smoke`
+    - Passed: 1 file, 3 tests.
+  - `npm run typecheck`
+    - Passed.
+  - `npm test -- release-smoke prompt-contracts presentation-runtime-workflow project-starter-kits presentation-template-design-system presentation-runtime-policy workflow-progress ai-working-indicator`
+    - Passed: 8 files, 26 tests.
+  - `npm test`
+    - Passed: 101 files, 555 tests.
+  - `npm run build`
+    - Passed.
+    - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
+  - Changed-file ESLint
+    - Not run for this documentation-only change.
+  - `git diff --check`
+    - Passed.
 
 ### Current Open State
 - The active runtime now has an internal plan object, and queued plus single-slide presentation generation are controlled by the runtime layer.
@@ -609,6 +638,7 @@ Last updated: 2026-04-27.
 - The current presentation repair stage performs queued per-slide deterministic repair before whole-deck validation, then a deck-level deterministic repair pass, then a bounded LLM repair pass when deterministic repair cannot recover the fragment and a model is available. Presentation runtime telemetry now includes run mode, queued/completed slide counts, repaired slide counts, and deck/slide validation summaries. Repair-started workflow progress events now carry `partId` and `runId`, and successful queued slide repairs emit `runtime.repair-completed` as a slide-specific step update.
 - The chat progress UI now materializes runtime-owned presentation part ids such as `slide-1` into visible workflow steps, preserving repair labels from runtime events instead of hiding them behind only the original seeded workflow steps.
 - A deterministic release-smoke test now covers the prompt-cutover baseline for starter presentation initialization, fresh 3-slide queued presentation generation, and queued edit preservation. This is not a replacement for the remaining manual browser/provider smoke gate.
+- Manual browser/provider smoke is still required before calling a build deploy-ready, but it is no longer blocking architecture implementation slices because the current direction is to keep moving on runtime milestones without the manual smoke gate.
 - Presentation production templates now have a static viewport contract harness covering desktop, desktop wide, tablet portrait, mobile portrait, and mobile landscape. The first deterministic checks cover unsafe wrappers, viewport-unit layout/type usage, oversized fixed dimensions, risky large `min-width`, tiny source type, missing section backgrounds, and dense-grid risk. Browser/canvas screenshot automation is still a later layer.
 - Create-mode documents with runtime plans now use queued outline/module generation, runtime shell assembly, module validation/repair, document QA, and runtime telemetry. Image-based create requests also use the queued path by planning from images in the outline step. Targeted edit requests use queued module-local regeneration when existing runtime module wrappers can be resolved, with fallback to the existing targeted patcher when they cannot. Module validation failures now attempt queued per-module repair before deterministic module repair. Runtime telemetry now reports document run mode plus queued, completed, and repaired module counts. Document module create/repair prompts now share a compact module contract pack.
 - Runtime benchmark diagnostics can now summarize prompt token estimates, first-preview coverage, validation pass rates, repair totals, and queued/repaired part counts by artifact type.
@@ -697,14 +727,32 @@ Last updated: 2026-04-27.
 ## Implementation Order
 1. Done: Remove/quarantine external API/MCP/automation seams and dry-run/explain complexity from the active runtime.
 2. Done: Define the new `ArtifactRunPlan`, `ArtifactRunEvent`, `ArtifactPart`, `DesignManifest`, and `ValidationGate` types.
-3. Mostly done for presentations: Rebuild presentation generation around the new run engine while keeping the current UI entry point. Queued decks and single-slide create/edit now dispatch through the runtime; outline/design-manifest-first generation still needs a deeper planner pass.
+3. Done for Presentation Runtime V1 ownership: Rebuild presentation generation around the new run engine while keeping the current UI entry point. `runPresentationWorkflow()` is now a provider/model setup shell, while the runtime owns plan interpretation, design-manifest events, queued/single selection, validation, repair, finalization, and telemetry.
 4. Done for active presentation generation: Replace presentation prompt composition with compact prompt packs and design manifests. The old presentation composer has been removed from active create/edit/batch/revision paths.
 5. Done for presentation starters: Convert starter kits to use the same presentation runtime and production design families. Starter decks now create runtime plans, runtime parts, deterministic section assembly, and runtime finalization.
 6. Partially done: Simplify user-facing project settings into guided style/preferences, with current technical controls moved to Advanced.
-7. In progress: Move document generation onto the same run engine. Create-mode documents now generate outline and modules through runtime-owned queued calls; image create, queued module edit, edit fallback, per-module repair, module validation, and workflow-level orchestration tests are now covered. The next step is compatibility cleanup, stronger benchmark diagnostics, and continuing to shrink broad document prompt surfaces.
-8. Next: Keep spreadsheet execution deterministic but emit the same run events and validation summaries.
+7. In progress: Move document generation onto the same run engine. Create-mode documents now generate outline and modules through runtime-owned queued calls; image create, queued module edit, edit fallback, per-module repair, module validation, and workflow-level orchestration tests are covered. Outline/module/repair prompts now compose compact document packs for the core contract, iframe/mobile/print contract, design family, module contract, and validator feedback.
+8. Started: Keep spreadsheet execution deterministic but emit the same run events and validation summaries. Workbook actions, formulas, query views, charts, validation, and finalization now attach as first-class runtime parts and report deterministic runtime telemetry.
 9. Later: Delete or convert legacy templates after production routing is stable.
-10. Started for presentations: Add benchmark and viewport validation harnesses for presentations first, then documents and spreadsheets. Runtime benchmark diagnostics exist, and production presentation templates now pass a deterministic static viewport contract. Manual/browser canvas automation remains next.
+10. Started for presentations: Add benchmark and viewport validation harnesses for presentations first, then documents and spreadsheets. Runtime benchmark diagnostics exist, production presentation templates pass a deterministic static viewport contract, and a reusable presentation quality checklist now reports readiness for templates, starters, and generated runtime output. Manual/browser canvas automation remains skipped for now by request.
+
+## Completed In This Slice
+- Added `runPresentationRuntime()` as the runtime-owned presentation orchestrator; it emits explicit planning/design-manifest events and chooses queued generation from `ArtifactRunPlan.workQueue` before falling back to legacy slide briefs.
+- Added a reusable presentation quality checklist plus runtime telemetry/diagnostics fields for viewport contract pass/fail and prompt token estimates.
+- Reworked document runtime outline/module/repair prompts to compose compact prompt packs while keeping queued create, image-outline create, queued edit, fallback edit, and module repair behavior unchanged.
+- Promoted spreadsheet deterministic work into runtime parts for workbook action, formula, query, chart, validation, and finalization; spreadsheet telemetry now reports `runMode: 'deterministic-action'`, queued/completed counts, and validation-by-part summaries.
+- Added the first UX simplification pass: Project Style now exposes curated output modes, raw rules/context/workflow mode controls remain under Advanced, and visible chat wording now says output mode instead of workflow preset.
+
+## Validation Completed
+- `npm test -- presentation-runtime-workflow presentation-runtime-policy presentation-template-design-system presentation-quality-checklist release-smoke artifact-runtime document-runtime-workflow runtime-telemetry spreadsheet-runtime prompt-to-formula prompt-to-query ux-simplification`
+- `npm test`
+- `npm run typecheck`
+- `npm run build`
+- Changed-file ESLint passed.
+
+Build notes:
+- Vite still reports existing non-blocking chunk/dynamic-import warnings for DuckDB/export/data bundles.
+- Manual browser/provider smoke remains intentionally skipped for this slice per request, so this is architecture-progress validation rather than a deploy-ready visual signoff.
 
 ## Next Steps
 
@@ -835,22 +883,22 @@ Last updated: 2026-04-27.
 - Start with presentations, then extend to documents and spreadsheets.
 
 ## Immediate Next Implementation Slice
-- Complete the remaining manual production-readiness smoke for the prompt cutover before starting another architecture slice:
-  - create the executive starter deck and launch starter deck in the app and confirm slide count, scoped HTML, and canvas rendering;
-  - generate a fresh 3-slide presentation and confirm first preview, queued slide progress, no duplicated CSS, and no unresolved placeholders;
-  - edit one generated slide and confirm the compact edit prompt preserves unaffected slides;
-  - check desktop plus one mobile viewport manually, then record pass/fail notes here.
-- Before the manual pass, use `npm test -- release-smoke` as the deterministic preflight. It verifies the presentation release contracts that do not require a browser or provider credentials.
-- After smoke passes, continue presentation runtime hardening:
-  - turn the static viewport contract into a repeatable manual/browser checklist for starter decks and fresh generated decks without adding a new browser dependency;
-  - use the recorded Vite build-output bundle snapshot to decide which legacy templates should be archived, converted, or deleted after production routing has soaked;
+- Close the remaining Presentation Runtime V1 hardening:
+  - make slide-specific repair/progress labels visible everywhere the UI summarizes runtime events;
+  - use the recorded Vite build-output bundle snapshot to decide which legacy presentation templates should be archived, converted, or deleted;
   - prune unused old presentation prompt-section files only where import audits prove they are dead.
-- Continue compatibility cleanup without deleting compatibility files yet:
-  - keep `workflowPlanner` re-exports until older tests and legacy surfaces are migrated;
-  - move any remaining active runtime helper names that still read like workflow-planner ownership.
-- Continue prompt-surface reduction:
-  - extract compact document system/output packs where they replace real duplication;
-  - avoid expanding the prompt universe or adding a second preset system.
+- Extend the deterministic quality harness:
+  - add document iframe/mobile/print quality checklist summaries parallel to the presentation checklist;
+  - add spreadsheet runtime diagnostic summaries for action type, validation by part, and changed sheet counts;
+  - keep browser automation out of scope until we decide to re-enable the manual/provider smoke gate.
+- Continue runtime expansion in order:
+  - finish document shell/module design-system extraction;
+  - move more document workflow orchestration into `artifactRuntime`;
+  - keep spreadsheet execution deterministic and low-token while enriching shared runtime events.
+- Continue UX simplification:
+  - connect curated output modes more directly to run-plan design families;
+  - move provider/model/context tuning behind an Advanced affordance everywhere it still appears in the default path;
+  - keep the default generation labels simple: planning, designing, creating, checking quality, finishing.
 
 ## Test Plan
 - Add planner tests proving each user prompt produces exactly one authoritative `ArtifactRunPlan`.

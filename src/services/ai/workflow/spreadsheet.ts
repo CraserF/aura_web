@@ -17,6 +17,8 @@ import type {
 } from '@/services/spreadsheet/plans';
 import { planSpreadsheetWorkflow } from '@/services/ai/workflow/agents/spreadsheet-planner';
 import { validateSpreadsheetPlan } from '@/services/ai/workflow/agents/spreadsheet-validator';
+import { attachSpreadsheetRuntimeParts } from '@/services/artifactRuntime/spreadsheetRuntime';
+import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
 
 export interface SpreadsheetInput {
   prompt: string;
@@ -24,6 +26,7 @@ export interface SpreadsheetInput {
   activeDocumentId: string | null;
   projectDocumentCount: number;
   isDefaultSheet: boolean;
+  artifactRunPlan?: ArtifactRunPlan;
 }
 
 type SpreadsheetBaseResult = {
@@ -91,6 +94,13 @@ export async function runSpreadsheetWorkflow(input: SpreadsheetInput): Promise<S
       kind: 'no-intent',
       message: 'I can create new sheets, add computed columns, build query views, chart existing data, and run deterministic workbook actions. Try: "create a budget tracker", "add a margin column as revenue minus cost", "create a query view by region with total revenue", or "sort by Amount descending".',
     };
+  }
+
+  if (input.artifactRunPlan) {
+    attachSpreadsheetRuntimeParts({
+      runPlan: input.artifactRunPlan,
+      plan,
+    });
   }
 
   const planValidation = validateSpreadsheetPlan({
@@ -167,7 +177,7 @@ export async function runSpreadsheetWorkflow(input: SpreadsheetInput): Promise<S
 
     return {
       kind: 'chart-created',
-      chartHtml: `<script type="application/json" data-aura-chart-spec>${JSON.stringify(spec)}<\/script>\n<div data-aura-chart="${spec.id}" style="width:100%; max-width:720px; aspect-ratio:2; margin:24px auto;"></div>`,
+      chartHtml: `<script type="application/json" data-aura-chart-spec>${JSON.stringify(spec)}</script>\n<div data-aura-chart="${spec.id}" style="width:100%; max-width:720px; aspect-ratio:2; margin:24px auto;"></div>`,
       chartType: spec.type ?? 'chart',
       rowCount: tableDesc.rowCount,
       message: `Created a ${spec.type ?? 'chart'} from "${activeSheet.name}" with ${tableDesc.rowCount} rows.`,

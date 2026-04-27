@@ -4,7 +4,11 @@ import type { BatchQueueOptions, BatchQueueResult } from '@/services/ai/workflow
 import type { PlanResult } from '@/services/ai/workflow/agents/planner';
 import type { WorkflowEvent } from '@/services/ai/workflow/types';
 import type { TemplateId } from '@/services/ai/templates';
-import { buildArtifactRunPlan, runQueuedPresentationRuntime } from '@/services/artifactRuntime';
+import {
+  buildArtifactRunPlan,
+  buildPresentationQualityChecklist,
+  runQueuedPresentationRuntime,
+} from '@/services/artifactRuntime';
 import { createBlankProject, buildStarterArtifact } from '@/services/bootstrap/projectStarter';
 import { initProject } from '@/services/bootstrap/initProject';
 import { listProjectStarterKits } from '@/services/bootstrap/starterKits';
@@ -38,8 +42,12 @@ function countStyleBlocks(html: string): number {
 }
 
 function expectPresentationSmokeContract(html: string, slideCount: number): void {
+  const checklist = buildPresentationQualityChecklist({ html });
+
   expect(countSections(html)).toBe(slideCount);
   expect(countStyleBlocks(html)).toBe(1);
+  expect(checklist.ready).toBe(true);
+  expect(checklist.viewportContractPassed).toBe(true);
   expect(html).not.toMatch(/\{\{[A-Z0-9_]+\}\}/);
   expect(html).not.toMatch(/<(?:html|body|script|link)\b/i);
   expect(html).not.toMatch(/\sstyle=/i);

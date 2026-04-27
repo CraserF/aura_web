@@ -24,12 +24,14 @@ const STYLE_BLOCK_START = '<!-- aura:project-style:start -->';
 const STYLE_BLOCK_END = '<!-- aura:project-style:end -->';
 
 const DEFAULT_AUDIENCE = 'Leadership';
+const DEFAULT_OUTPUT_MODE = 'Executive';
 const DEFAULT_TONE = 'Executive';
 const DEFAULT_VISUAL_STYLE = 'Polished light';
 const DEFAULT_QUALITY_SPEED = 'Best quality';
 const DEFAULT_SOURCE_USAGE = 'Use relevant sources automatically';
 
 const AUDIENCE_OPTIONS = [DEFAULT_AUDIENCE, 'Clients', 'Internal team', 'Students', 'General audience'];
+const OUTPUT_MODE_OPTIONS = [DEFAULT_OUTPUT_MODE, 'Editorial', 'Proposal', 'Research', 'Launch', 'Teaching', 'Data Story'];
 const TONE_OPTIONS = [DEFAULT_TONE, 'Editorial', 'Persuasive', 'Teaching', 'Operational'];
 const VISUAL_STYLE_OPTIONS = [DEFAULT_VISUAL_STYLE, 'Launch energy', 'Editorial grid', 'Research clean', 'Data story'];
 const QUALITY_SPEED_OPTIONS = [DEFAULT_QUALITY_SPEED, 'Balanced', 'Fast draft'];
@@ -49,6 +51,7 @@ function readGuidedField(markdown: string, label: string, fallback: string): str
 
 function buildGuidedStyleBlock({
   audience,
+  outputMode,
   tone,
   visualStyle,
   qualitySpeed,
@@ -56,6 +59,7 @@ function buildGuidedStyleBlock({
   note,
 }: {
   audience: string;
+  outputMode: string;
   tone: string;
   visualStyle: string;
   qualitySpeed: string;
@@ -66,6 +70,7 @@ function buildGuidedStyleBlock({
 ## Project Style
 
 - Audience: ${audience}
+- Output mode: ${outputMode}
 - Tone: ${tone}
 - Visual style: ${visualStyle}
 - Quality preference: ${qualitySpeed}
@@ -83,6 +88,7 @@ export function ProjectRulesPanel({
   const normalizedProject = normalizeProjectData(project);
   const initialMarkdown = normalizedProject.projectRules?.markdown ?? '';
   const [audience, setAudience] = useState(readGuidedField(initialMarkdown, 'Audience', DEFAULT_AUDIENCE));
+  const [outputMode, setOutputMode] = useState(readGuidedField(initialMarkdown, 'Output mode', DEFAULT_OUTPUT_MODE));
   const [tone, setTone] = useState(readGuidedField(initialMarkdown, 'Tone', DEFAULT_TONE));
   const [visualStyle, setVisualStyle] = useState(readGuidedField(initialMarkdown, 'Visual style', DEFAULT_VISUAL_STYLE));
   const [qualitySpeed, setQualitySpeed] = useState(readGuidedField(initialMarkdown, 'Quality preference', DEFAULT_QUALITY_SPEED));
@@ -97,6 +103,7 @@ export function ProjectRulesPanel({
     const nextProject = normalizeProjectData(project);
     const nextMarkdown = nextProject.projectRules?.markdown ?? '';
     setAudience(readGuidedField(nextMarkdown, 'Audience', DEFAULT_AUDIENCE));
+    setOutputMode(readGuidedField(nextMarkdown, 'Output mode', DEFAULT_OUTPUT_MODE));
     setTone(readGuidedField(nextMarkdown, 'Tone', DEFAULT_TONE));
     setVisualStyle(readGuidedField(nextMarkdown, 'Visual style', DEFAULT_VISUAL_STYLE));
     setQualitySpeed(readGuidedField(nextMarkdown, 'Quality preference', DEFAULT_QUALITY_SPEED));
@@ -110,6 +117,7 @@ export function ProjectRulesPanel({
   const handleSave = () => {
     const guidedMarkdown = buildGuidedStyleBlock({
       audience,
+      outputMode,
       tone,
       visualStyle,
       qualitySpeed,
@@ -170,6 +178,7 @@ export function ProjectRulesPanel({
           <h3 className="text-sm font-semibold">Guided Defaults</h3>
           <div className="grid gap-3 md:grid-cols-2">
             <SelectField label="Audience" value={audience} options={AUDIENCE_OPTIONS} onChange={setAudience} />
+            <SelectField label="Output mode" value={outputMode} options={OUTPUT_MODE_OPTIONS} onChange={setOutputMode} />
             <SelectField label="Tone" value={tone} options={TONE_OPTIONS} onChange={setTone} />
             <SelectField label="Visual style" value={visualStyle} options={VISUAL_STYLE_OPTIONS} onChange={setVisualStyle} />
             <SelectField label="Quality / speed" value={qualitySpeed} options={QUALITY_SPEED_OPTIONS} onChange={setQualitySpeed} />
@@ -271,7 +280,7 @@ export function ProjectRulesPanel({
 
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Workflow Presets</h3>
+            <h3 className="text-sm font-semibold">Advanced Workflow Modes</h3>
             <Button
               variant="outline"
               size="sm"
@@ -287,7 +296,7 @@ export function ProjectRulesPanel({
                 ],
               }))}
             >
-              Add preset
+              Add advanced mode
             </Button>
           </div>
 
@@ -322,13 +331,13 @@ export function ProjectRulesPanel({
           <div className="space-y-3">
             {workflowPresets.presets.length === 0 ? (
               <div className="rounded-md border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-                No workflow presets yet.
+                No advanced modes yet.
               </div>
             ) : workflowPresets.presets.map((preset, index) => (
               <div key={`${preset.id}-${index}`} className="space-y-3 rounded-lg border border-border p-4">
                 <div className="grid gap-3 md:grid-cols-3">
                   <label className="space-y-1 text-sm">
-                    <span className="font-medium">Preset id</span>
+                  <span className="font-medium">Mode id</span>
                     <Input
                       value={preset.id}
                       onChange={(event) => updatePreset(index, { id: event.target.value })}
@@ -364,7 +373,7 @@ export function ProjectRulesPanel({
 
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className="space-y-1 text-sm">
-                    <span className="font-medium">Document style preset</span>
+                    <span className="font-medium">Document style mode</span>
                     <Input
                       value={preset.documentStylePreset ?? ''}
                       onChange={(event) => updatePreset(index, { documentStylePreset: event.target.value || undefined })}
@@ -386,7 +395,7 @@ export function ProjectRulesPanel({
                     value={preset.rulesAppendix ?? ''}
                     onChange={(event) => updatePreset(index, { rulesAppendix: event.target.value || undefined })}
                     className="min-h-24 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
-                    placeholder="Optional preset-specific guidance appended to project rules."
+                    placeholder="Optional mode-specific guidance appended to project rules."
                   />
                 </label>
 
@@ -415,7 +424,7 @@ export function ProjectRulesPanel({
 
                 <div className="flex justify-end">
                   <Button variant="ghost" size="sm" onClick={() => removePreset(index)}>
-                    Remove preset
+                    Remove mode
                   </Button>
                 </div>
               </div>

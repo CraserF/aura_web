@@ -169,10 +169,12 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
       activeDocumentId: activeDocument?.id ?? null,
       projectDocumentCount: context.data.projectDocumentCount,
       isDefaultSheet: docIsDefaultSheet,
+      artifactRunPlan: runRequest.artifactRunPlan,
     });
     runtimeTelemetry = buildSpreadsheetRuntimeTelemetry({
       result,
       totalRuntimeMs: Math.round(performance.now() - workflowStart),
+      runPlan: runRequest.artifactRunPlan,
     });
     emitSpreadsheetRuntimeResultEvents({
       runPlan: runRequest.artifactRunPlan,

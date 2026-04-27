@@ -33,6 +33,7 @@ export {
   repairPresentationFragmentHtml,
   repairQueuedPresentationSlideFragments,
   repairPresentationRuntimeOutput,
+  runPresentationRuntime,
   runQueuedPresentationRuntime,
   runSinglePresentationRuntime,
   validatePresentationRuntimeOutput,
@@ -48,16 +49,23 @@ export {
 } from './presentationPrompts';
 export {
   buildCoreArtifactContractPack,
+  buildDocumentDesignFamilyPack,
+  buildDocumentIframeContractPack,
   buildDocumentModuleContractPack,
   buildPresentationFragmentContractPack,
   buildValidatorFeedbackPack,
 } from './promptPacks';
+export {
+  buildPresentationQualityChecklist,
+  buildPresentationQualityTelemetry,
+} from './presentationQualityChecklist';
 export {
   PRESENTATION_VIEWPORT_MATRIX,
   validatePresentationViewportContract,
 } from './presentationViewport';
 export { buildStaticPresentationStarterRuntime } from './starterPresentationRuntime';
 export {
+  attachSpreadsheetRuntimeParts,
   buildSpreadsheetRuntimeTelemetry,
   emitSpreadsheetRuntimeResultEvents,
 } from './spreadsheetRuntime';
@@ -87,11 +95,17 @@ export type {
 export type {
   PresentationRuntimeRepairResult,
   PresentationRuntimeValidationResult,
+  PresentationRuntimeOrchestratorOptions,
   QueuedPresentationSlideRepairResult,
   QueuedPresentationRuntimeOptions,
   SinglePresentationRuntimeOptions,
   StaticPresentationRuntimeFinalizeInput,
 } from './presentationRuntime';
+export type {
+  PresentationQualityCheck,
+  PresentationQualityChecklistInput,
+  PresentationQualityChecklistResult,
+} from './presentationQualityChecklist';
 export type {
   PresentationViewportId,
   PresentationViewportIssue,
@@ -103,6 +117,9 @@ export type {
   StaticPresentationStarterRuntimeResult,
   StarterTokenValues,
 } from './starterPresentationRuntime';
+export type {
+  AttachSpreadsheetRuntimePartsInput,
+} from './spreadsheetRuntime';
 export type {
   ArtifactPart,
   ArtifactProviderPolicy,

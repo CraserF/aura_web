@@ -2,11 +2,17 @@ import type { LanguageModel } from 'ai';
 
 import { runBatchQueue } from '@/services/ai/workflow/batchQueue';
 import { design, designEdit } from '@/services/ai/workflow/agents/designer';
+import { plan } from '@/services/ai/workflow/agents/planner';
 import { validateSlides, type QAViolation } from '@/services/ai/workflow/agents/qa-validator';
 import { evaluateAndRevise } from '@/services/ai/workflow/agents/evaluator';
 import { sanitizeSlideHtml } from '@/services/ai/utils/sanitizeHtml';
 import { sanitizeInnerHtml } from '@/services/html/sanitizer';
 import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
+import {
+  applyArtifactRunPlanToPresentationPlan,
+  buildSlideBriefsFromRunPlan,
+} from '@/services/artifactRuntime/presentation';
+import { buildPresentationQualityTelemetry } from '@/services/artifactRuntime/presentationQualityChecklist';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { aiDebugLog, logEditingMetrics, toErrorInfo } from '@/services/ai/debug';
 import type { PlanResult } from '@/services/ai/workflow/agents/planner';
@@ -54,6 +60,15 @@ export interface QueuedPresentationRuntimeOptions {
   onEvent: EventListener;
   isEdit: boolean;
   guidanceProfile?: TemplateGuidanceProfile;
+  signal?: AbortSignal;
+}
+
+export interface PresentationRuntimeOrchestratorOptions {
+  model: LanguageModel;
+  input: PresentationInput;
+  onEvent: EventListener;
+  editCorrectionPolicy: SinglePresentationRuntimeOptions['editCorrectionPolicy'];
+  skipSecondaryEvaluation: boolean;
   signal?: AbortSignal;
 }
 
@@ -491,10 +506,37 @@ export function repairQueuedPresentationSlideFragments(input: {
 }
 
 export function canRunQueuedPresentationRuntime(planResult: PlanResult): boolean {
+  return canRunQueuedPresentationRuntimeWithPlan(planResult);
+}
+
+function canRunQueuedPresentationRuntimeWithPlan(
+  planResult: PlanResult,
+  runPlan?: ArtifactRunPlan,
+): boolean {
+  if (runPlan && buildSlideBriefsFromRunPlan(runPlan).length > 0) {
+    return true;
+  }
+
   return (
     (planResult.intent === 'batch_create' || planResult.intent === 'add_slides') &&
     (planResult.slideBriefs?.length ?? 0) > 0
   );
+}
+
+function buildQueuedPresentationPlanResult(
+  planResult: PlanResult,
+  runPlan: ArtifactRunPlan | undefined,
+): PlanResult {
+  const runtimeSlideBriefs = runPlan ? buildSlideBriefsFromRunPlan(runPlan) : [];
+  if (runtimeSlideBriefs.length === 0) {
+    return planResult;
+  }
+
+  return {
+    ...planResult,
+    slideBriefs: runtimeSlideBriefs,
+    intent: planResult.intent === 'add_slides' ? 'add_slides' : 'batch_create',
+  };
 }
 
 export function validatePresentationRuntimeOutput(
@@ -663,7 +705,8 @@ export async function runQueuedPresentationRuntime(
   const runtimeStart = performance.now();
   let firstPreviewAt: number | undefined;
   const runtimeRunId = runPlan?.runId ?? 'presentation-runtime';
-  const slideBriefs = planResult.slideBriefs ?? [];
+  const effectivePlanResult = buildQueuedPresentationPlanResult(planResult, runPlan);
+  const slideBriefs = effectivePlanResult.slideBriefs ?? [];
   if (slideBriefs.length === 0) {
     throw new Error('Queued presentation runtime requires slide briefs.');
   }
@@ -690,7 +733,7 @@ export async function runQueuedPresentationRuntime(
   });
 
   const batchResult = await runBatchQueue({
-    planResult,
+    planResult: effectivePlanResult,
     model,
     onEvent,
     ...(isEdit && input.existingSlidesHtml ? { initialHtml: input.existingSlidesHtml } : {}),
@@ -722,7 +765,7 @@ export async function runQueuedPresentationRuntime(
 
   const slideRepair = repairQueuedPresentationSlideFragments({
     html: batchResult.html,
-    planResult,
+    planResult: effectivePlanResult,
     ...(runPlan ? { runPlan } : {}),
     onEvent,
   });
@@ -736,7 +779,7 @@ export async function runQueuedPresentationRuntime(
 
   const validation = validatePresentationRuntimeOutput(
     slideRepair.html,
-    planResult,
+    effectivePlanResult,
     batchResult.slideCount,
   );
   onEvent({
@@ -748,7 +791,7 @@ export async function runQueuedPresentationRuntime(
   const repair = await repairPresentationRuntimeOutput(
     slideRepair.html,
     validation,
-    planResult,
+    effectivePlanResult,
     batchResult.slideCount,
     runPlan,
     onEvent,
@@ -773,8 +816,9 @@ export async function runQueuedPresentationRuntime(
   onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing presentation…' });
   const finalValidation = repair.validation ?? validation;
 
+  const outputHtml = sanitizeInnerHtml(repair.html);
   const output: PresentationOutput = {
-    html: sanitizeInnerHtml(repair.html),
+    html: outputHtml,
     title: batchResult.title,
     slideCount: batchResult.slideCount,
     reviewPassed: finalValidation.passed,
@@ -789,6 +833,10 @@ export async function runQueuedPresentationRuntime(
       queuedPartCount: slideBriefs.length,
       completedPartCount: batchResult.slideCount,
       repairedPartCount: slideRepair.repairedPartCount + (repair.repairedPartCount ?? 0),
+      ...buildPresentationQualityTelemetry({
+        html: outputHtml,
+        promptText: input.prompt,
+      }),
       validationByPart: finalValidation.validationByPart,
     },
   };
@@ -811,6 +859,100 @@ export async function runQueuedPresentationRuntime(
   onEvent({ type: 'complete', result: output });
 
   return output;
+}
+
+export async function runPresentationRuntime(
+  opts: PresentationRuntimeOrchestratorOptions,
+): Promise<PresentationOutput> {
+  const {
+    model,
+    input,
+    onEvent,
+    editCorrectionPolicy,
+    skipSecondaryEvaluation,
+    signal,
+  } = opts;
+  const isEdit = !!input.existingSlidesHtml;
+  const runtimeRunId = input.artifactRunPlan?.runId ?? 'presentation-runtime';
+  const effectiveChatHistory = input.memoryContext
+    ? [
+        ...input.chatHistory,
+        {
+          role: 'assistant' as const,
+          content: `Relevant memory context:\n${input.memoryContext}`,
+        },
+      ]
+    : input.chatHistory;
+
+  onEvent({ type: 'step-start', stepId: 'plan', label: 'Analyzing your request…' });
+  onEvent({ type: 'progress', message: 'Understanding your request…', pct: 10 });
+
+  let planResult = await plan(input.prompt, isEdit);
+  if (planResult.blocked) {
+    onEvent({ type: 'step-error', stepId: 'plan', error: planResult.blockReason ?? 'Request blocked.' });
+    throw new Error(planResult.blockReason ?? 'Request blocked.');
+  }
+
+  planResult = applyArtifactRunPlanToPresentationPlan(planResult, input.artifactRunPlan, isEdit);
+  const guidanceProfile = input.templateGuidance ?? input.artifactRunPlan?.templateGuidance;
+  emitArtifactRunEvent(onEvent, {
+    runId: runtimeRunId,
+    type: 'runtime.plan-created',
+    role: 'planner',
+    message: input.artifactRunPlan
+      ? input.artifactRunPlan.intentSummary
+      : `Presentation plan selected ${planResult.selectedTemplate}.`,
+    partId: 'plan',
+    pct: 18,
+  });
+  emitArtifactRunEvent(onEvent, {
+    runId: runtimeRunId,
+    type: 'runtime.design-manifest-created',
+    role: 'design-director',
+    message: input.artifactRunPlan
+      ? `Design manifest ready: ${input.artifactRunPlan.designManifest.family}.`
+      : `Design family ready: ${planResult.selectedTemplate}.`,
+    partId: 'design',
+    pct: 20,
+  });
+
+  onEvent({
+    type: 'progress',
+    message: input.artifactRunPlan
+      ? `Designing with ${input.artifactRunPlan.designManifest.family}`
+      : `Detected ${planResult.style} style, animation level ${planResult.animationLevel}`,
+    pct: 20,
+  });
+  onEvent({ type: 'step-done', stepId: 'plan', label: 'Analyzing your request…' });
+
+  if (signal?.aborted) throw new DOMException('Workflow aborted', 'AbortError');
+
+  if (canRunQueuedPresentationRuntimeWithPlan(planResult, input.artifactRunPlan)) {
+    return runQueuedPresentationRuntime({
+      ...(input.artifactRunPlan ? { runPlan: input.artifactRunPlan } : {}),
+      planResult,
+      model,
+      input,
+      onEvent,
+      isEdit,
+      ...(guidanceProfile ? { guidanceProfile } : {}),
+      ...(signal ? { signal } : {}),
+    });
+  }
+
+  return runSinglePresentationRuntime({
+    ...(input.artifactRunPlan ? { runPlan: input.artifactRunPlan } : {}),
+    planResult,
+    model,
+    input,
+    onEvent,
+    isEdit,
+    effectiveChatHistory,
+    ...(guidanceProfile ? { guidanceProfile } : {}),
+    editCorrectionPolicy,
+    skipSecondaryEvaluation,
+    ...(signal ? { signal } : {}),
+  });
 }
 
 export async function runSinglePresentationRuntime(
@@ -1007,8 +1149,9 @@ export async function runSinglePresentationRuntime(
 
   onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing slide...' });
 
+  const outputHtml = sanitizeInnerHtml(finalHtml);
   const output: PresentationOutput = {
-    html: sanitizeInnerHtml(finalHtml),
+    html: outputHtml,
     title: designResult.title,
     slideCount: designResult.slideCount,
     reviewPassed,
@@ -1022,6 +1165,10 @@ export async function runSinglePresentationRuntime(
       runMode: 'single-stream',
       queuedPartCount: 1,
       completedPartCount: designResult.slideCount,
+      ...buildPresentationQualityTelemetry({
+        html: outputHtml,
+        promptText: input.prompt,
+      }),
       validationByPart: summarizePresentationValidationByPart(qaResult.violations, designResult.slideCount),
     },
     ...(designResult.editing ? { editing: designResult.editing } : {}),
@@ -1052,6 +1199,10 @@ export function finalizeStaticPresentationRuntime(
 ): PresentationOutput {
   const runtimeStart = performance.now();
   const html = sanitizeSlideHtml(input.rawHtml);
+  const qualityTelemetry = buildPresentationQualityTelemetry({
+    html,
+    promptText: input.title,
+  });
   const qaResult = validateSlides(html, {
     expectedSlideCount: input.slideCount,
     isCreate: true,
@@ -1076,6 +1227,7 @@ export function finalizeStaticPresentationRuntime(
       queuedPartCount: input.slideCount,
       completedPartCount: input.slideCount,
       repairedPartCount: 0,
+      ...qualityTelemetry,
       validationByPart,
     },
   };
