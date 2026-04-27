@@ -38,7 +38,7 @@ export interface PresentationHandlerContext {
   appendStreamingContent: (chunk: string) => void;
   setSlides: (html: string) => void;
   setTitle: (title: string) => void;
-  updateStepStatus: (stepId: string, stepStatus: WorkflowStep['status']) => void;
+  updateStepStatus: (stepId: string, stepStatus: WorkflowStep['status'], label?: string) => void;
   queueMemoryExtraction: (
     llmConfig: LLMConfig,
     conversation: AIMessage[],
@@ -126,18 +126,18 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
     const onEvent = (event: WorkflowEvent) => {
       switch (event.type) {
         case 'step-start':
-          updateStepStatus(event.stepId, 'active');
+          updateStepStatus(event.stepId, 'active', event.label);
           setStatus({ state: 'generating', startedAt: Date.now(), step: event.label, steps: [...workflowStepsRef.current] });
           break;
         case 'step-done':
-          updateStepStatus(event.stepId, 'done');
+          updateStepStatus(event.stepId, 'done', event.label);
           setStatus({ state: 'generating', startedAt: Date.now(), steps: [...workflowStepsRef.current] });
           break;
         case 'step-error':
           updateStepStatus(event.stepId, 'error');
           break;
         case 'step-skipped':
-          updateStepStatus(event.stepId, 'skipped');
+          updateStepStatus(event.stepId, 'skipped', event.label);
           setStatus({ state: 'generating', startedAt: Date.now(), steps: [...workflowStepsRef.current] });
           break;
         case 'retry-attempt':
@@ -158,10 +158,13 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
           setStatus({ state: 'generating', startedAt: Date.now(), step: `Slide ${event.slideIndex} of ${event.totalSlides} complete`, pct: Math.round(20 + (event.slideIndex / event.totalSlides) * 70), steps: [...workflowStepsRef.current] });
           break;
         case 'step-update':
-          updateStepStatus(event.stepId, event.status);
+          updateStepStatus(event.stepId, event.status, event.label);
           setStatus({ state: 'generating', startedAt: Date.now(), step: event.label, steps: [...workflowStepsRef.current] });
           break;
         case 'progress':
+          if (event.partId) {
+            updateStepStatus(event.partId, 'active', event.message);
+          }
           setStatus({ state: 'generating', startedAt: Date.now(), step: event.message, pct: event.pct, steps: [...workflowStepsRef.current] });
           break;
       }

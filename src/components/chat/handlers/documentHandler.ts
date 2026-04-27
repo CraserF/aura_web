@@ -33,7 +33,7 @@ export interface DocumentHandlerContext {
   setStatus: (s: GenerationStatus) => void;
   setStreamingContent: (content: string) => void;
   appendStreamingContent: (chunk: string) => void;
-  updateStepStatus: (stepId: string, stepStatus: WorkflowStep['status']) => void;
+  updateStepStatus: (stepId: string, stepStatus: WorkflowStep['status'], label?: string) => void;
   queueMemoryExtraction: (
     llmConfig: LLMConfig,
     conversation: AIMessage[],
@@ -109,17 +109,20 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
     const onEvent = (event: WorkflowEvent) => {
       switch (event.type) {
         case 'step-start':
-          updateStepStatus(event.stepId, 'active');
+          updateStepStatus(event.stepId, 'active', event.label);
           setStatus({ state: 'generating', startedAt: Date.now(), step: event.label, steps: [...workflowStepsRef.current] });
           break;
         case 'step-done':
-          updateStepStatus(event.stepId, 'done');
+          updateStepStatus(event.stepId, 'done', event.label);
           setStatus({ state: 'generating', startedAt: Date.now(), steps: [...workflowStepsRef.current] });
           break;
         case 'streaming':
           appendStreamingContent(event.chunk);
           break;
         case 'progress':
+          if (event.partId) {
+            updateStepStatus(event.partId, 'active', event.message);
+          }
           setStatus({ state: 'generating', startedAt: Date.now(), step: event.message, pct: event.pct, steps: [...workflowStepsRef.current] });
           break;
         case 'step-error':
@@ -127,7 +130,7 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
           setStatus({ state: 'generating', startedAt: Date.now(), step: `Issue in ${event.stepId}`, steps: [...workflowStepsRef.current] });
           break;
         case 'step-update':
-          updateStepStatus(event.stepId, event.status);
+          updateStepStatus(event.stepId, event.status, event.label);
           setStatus({ state: 'generating', startedAt: Date.now(), step: event.label, steps: [...workflowStepsRef.current] });
           break;
       }

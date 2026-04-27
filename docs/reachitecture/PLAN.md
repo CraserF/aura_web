@@ -316,6 +316,21 @@ Last updated: 2026-04-27.
   - shared runtime diagnostics summarize generated queued deck telemetry.
 - Added artifact runtime coverage for queued per-slide deterministic repair behavior.
 
+### Completed In Nineteenth Runtime Slice
+- Stabilized the prompt-cutover release candidate and kept this slice scoped to presentation progress hardening.
+- Added a chat workflow-step upsert helper so runtime-owned part ids can appear in the visible generation step list even when they were not part of the original seeded workflow steps.
+- Wired presentation workflow events so:
+  - `step-start`, `step-done`, `step-skipped`, and `step-update` preserve runtime labels;
+  - `progress` events with `partId` create or update visible part-specific steps;
+  - slide repair progress such as `slide-1` becomes a user-facing step instead of being dropped behind a generic deck repair message.
+- Applied the same optional label/part-id handling to the document handler so queued document modules can benefit from the shared progress behavior without changing public output contracts.
+- Added focused UI/progress coverage proving:
+  - slide-specific repair progress is inserted before deck evaluation;
+  - completed repair labels remain visible;
+  - the working indicator renders slide-specific repair labels.
+- Collected the first build-output bundle snapshot for presentation template impact. The current production build still emits legacy-template chunks, including larger candidates such as `sidebar-cards` 47.59 kB, `corporate` 47.40 kB, `educational` 40.96 kB, `landscape-illustration` 37.44 kB, `keynote` 35.05 kB, `infographic-grid` 34.69 kB, and `product-demo` 30.16 kB before gzip. This is data only; no archive/delete decision was made in this slice.
+- Manual browser/provider smoke is still a deployment gate. It was not completed in this environment because the Browser plugin's Node REPL control surface was unavailable; the release candidate still needs local UI smoke for executive starter, launch starter, fresh 3-slide generation, and one slide edit before production deployment.
+
 ### Validation Completed
 - `npm test -- artifact-runtime workflow-planner run-request run-dry-run run-explain structured-run-outputs external-adapter-contracts run-events workflow-benchmark-cases`
   - Passed: 9 files, 23 tests.
@@ -528,6 +543,22 @@ Last updated: 2026-04-27.
     - Passed.
   - `git diff --check`
     - Passed.
+- Current nineteenth-slice focused validation:
+  - `npm run typecheck`
+    - Passed.
+  - `npm test -- workflow-progress ai-working-indicator presentation-runtime-workflow`
+    - Passed: 3 files, 6 tests.
+  - `npm test -- prompt-contracts presentation-runtime-workflow artifact-runtime presentation-template-design-system project-starter-kits presentation-runtime-policy workflow-progress ai-working-indicator`
+    - Passed: 8 files, 41 tests.
+  - `npm test`
+    - Passed: 100 files, 552 tests.
+  - `npm run build`
+    - Passed.
+    - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
+  - Changed-file ESLint via `npx eslint src/components/ChatBar.tsx src/components/chat/handlers/documentHandler.ts src/components/chat/handlers/presentationHandler.ts src/services/chat/submitPrompt.ts src/services/chat/workflowProgress.ts src/test/ai-working-indicator.test.tsx src/test/workflow-progress.test.ts`
+    - Passed.
+  - `git diff --check`
+    - Passed.
 
 ### Current Open State
 - The active runtime now has an internal plan object, and queued plus single-slide presentation generation are controlled by the runtime layer.
@@ -541,6 +572,7 @@ Last updated: 2026-04-27.
 - The old presentation `PromptComposer` path has been removed from active code. `src/services/ai/prompts/index.ts` no longer exports presentation composer functions, and active designer, batch, evaluator, and prompt tests no longer import `src/services/ai/prompts/composer.ts`.
 - Active presentation prompts no longer require Google Fonts links or `<link>` output. Runtime prompt contract tests now enforce compact prompt size ceilings and guard against old broad prompt sections returning to active generation.
 - The current presentation repair stage performs queued per-slide deterministic repair before whole-deck validation, then a deck-level deterministic repair pass, then a bounded LLM repair pass when deterministic repair cannot recover the fragment and a model is available. Presentation runtime telemetry now includes run mode, queued/completed slide counts, repaired slide counts, and deck/slide validation summaries. Repair-started workflow progress events now carry `partId` and `runId`, and successful queued slide repairs emit `runtime.repair-completed` as a slide-specific step update.
+- The chat progress UI now materializes runtime-owned presentation part ids such as `slide-1` into visible workflow steps, preserving repair labels from runtime events instead of hiding them behind only the original seeded workflow steps.
 - Presentation production templates now have a static viewport contract harness covering desktop, desktop wide, tablet portrait, mobile portrait, and mobile landscape. The first deterministic checks cover unsafe wrappers, viewport-unit layout/type usage, oversized fixed dimensions, risky large `min-width`, tiny source type, missing section backgrounds, and dense-grid risk. Browser/canvas screenshot automation is still a later layer.
 - Create-mode documents with runtime plans now use queued outline/module generation, runtime shell assembly, module validation/repair, document QA, and runtime telemetry. Image-based create requests also use the queued path by planning from images in the outline step. Targeted edit requests use queued module-local regeneration when existing runtime module wrappers can be resolved, with fallback to the existing targeted patcher when they cannot. Module validation failures now attempt queued per-module repair before deterministic module repair. Runtime telemetry now reports document run mode plus queued, completed, and repaired module counts. Document module create/repair prompts now share a compact module contract pack.
 - Runtime benchmark diagnostics can now summarize prompt token estimates, first-preview coverage, validation pass rates, repair totals, and queued/repaired part counts by artifact type.
@@ -767,15 +799,15 @@ Last updated: 2026-04-27.
 - Start with presentations, then extend to documents and spreadsheets.
 
 ## Immediate Next Implementation Slice
-- Complete production-readiness smoke for the prompt cutover before starting another architecture slice:
+- Complete the remaining manual production-readiness smoke for the prompt cutover before starting another architecture slice:
   - create the executive starter deck and launch starter deck in the app and confirm slide count, scoped HTML, and canvas rendering;
   - generate a fresh 3-slide presentation and confirm first preview, queued slide progress, no duplicated CSS, and no unresolved placeholders;
   - edit one generated slide and confirm the compact edit prompt preserves unaffected slides;
   - check desktop plus one mobile viewport manually, then record pass/fail notes here.
 - After smoke passes, continue presentation runtime hardening:
-  - surface slide-specific repair progress in the generation UI where `partId`/`runId` can drive clearer step labels;
-  - extend viewport validation from static CSS/fragment checks into a browser/canvas screenshot harness for production templates and starter decks;
-  - collect bundle impact data for legacy presentation templates before deciding whether to archive, convert, or delete them.
+  - turn the static viewport contract into a repeatable manual/browser checklist for starter decks and fresh generated decks without adding a new browser dependency;
+  - use the recorded Vite build-output bundle snapshot to decide which legacy templates should be archived, converted, or deleted after production routing has soaked;
+  - prune unused old presentation prompt-section files only where import audits prove they are dead.
 - Continue compatibility cleanup without deleting compatibility files yet:
   - keep `workflowPlanner` re-exports until older tests and legacy surfaces are migrated;
   - move any remaining active runtime helper names that still read like workflow-planner ownership.

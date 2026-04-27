@@ -20,6 +20,7 @@ import { loadPresetCollection } from '@/services/presets/storage';
 import { resolveProjectRulesSnapshot } from '@/services/projectRules/resolve';
 import { loadContextPolicy } from '@/services/projectRules/load';
 import { mergeContextPolicy } from '@/services/projectRules/merge';
+import { upsertWorkflowStepStatus } from '@/services/chat/workflowProgress';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -145,9 +146,12 @@ export function ChatBar() {
   }, [pendingAutoSubmitPrompt, isGenerating]);
 
   const updateStepStatus = useCallback(
-    (stepId: string, stepStatus: WorkflowStep['status']) => {
-      workflowStepsRef.current = workflowStepsRef.current.map((s) =>
-        s.id === stepId ? { ...s, status: stepStatus } : s,
+    (stepId: string, stepStatus: WorkflowStep['status'], label?: string) => {
+      workflowStepsRef.current = upsertWorkflowStepStatus(
+        workflowStepsRef.current,
+        stepId,
+        stepStatus,
+        label,
       );
     },
     [],

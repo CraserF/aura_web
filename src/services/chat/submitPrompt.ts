@@ -64,7 +64,7 @@ export interface SubmitPromptServices {
   appendStreamingContent: (chunk: string) => void;
   setSlides: (html: string) => void;
   setTitle: (title: string) => void;
-  updateStepStatus: (stepId: string, stepStatus: WorkflowStep['status']) => void;
+  updateStepStatus: (stepId: string, stepStatus: WorkflowStep['status'], label?: string) => void;
   queueMemoryExtraction: (
     llmConfig: LLMConfig,
     conversation: AIMessage[],
