@@ -331,6 +331,24 @@ Last updated: 2026-04-27.
 - Collected the first build-output bundle snapshot for presentation template impact. The current production build still emits legacy-template chunks, including larger candidates such as `sidebar-cards` 47.59 kB, `corporate` 47.40 kB, `educational` 40.96 kB, `landscape-illustration` 37.44 kB, `keynote` 35.05 kB, `infographic-grid` 34.69 kB, and `product-demo` 30.16 kB before gzip. This is data only; no archive/delete decision was made in this slice.
 - Manual browser/provider smoke is still a deployment gate. It was not completed in this environment because the Browser plugin's Node REPL control surface was unavailable; the release candidate still needs local UI smoke for executive starter, launch starter, fresh 3-slide generation, and one slide edit before production deployment.
 
+### Completed In Twentieth Runtime Slice
+- Started the production-readiness smoke gate and confirmed the local Vite app can serve successfully:
+  - sandboxed dev-server startup was blocked by `listen EPERM`;
+  - the approved escalated dev server started on `http://127.0.0.1:5174/`;
+  - an approved local HTTP preflight returned `HTTP/1.1 200 OK`.
+- Browser automation remains blocked in this session:
+  - the Browser plugin's required Node REPL `js` tool is not exposed;
+  - Computer Use app discovery failed with a macOS Apple event permission error;
+  - therefore desktop/mobile visual canvas smoke still requires a local manual run before deployment.
+- Added `src/test/release-smoke.test.ts` as a deterministic release-smoke layer for the prompt-cutover baseline.
+- The deterministic smoke now covers:
+  - executive and launch presentation starter initialization through `initProject()` using the kit's presentation artifact and project defaults;
+  - starter deck scoped CSS, `themeCss: ''`, slide counts, no unresolved tokens, no wrappers/scripts/links, no inline styles, and no empty paragraph shells;
+  - starter runtime plans using the expected production design families and deterministic runtime telemetry;
+  - fresh 3-slide queued presentation generation with first-preview events and queued-part telemetry;
+  - queued presentation edit with `existingSlidesHtml` passed through and an unaffected slide preserved.
+- Full launch-kit browser smoke is still required because the deterministic jsdom smoke intentionally avoids spreadsheet/DuckDB Worker initialization while focusing on the presentation release contract.
+
 ### Validation Completed
 - `npm test -- artifact-runtime workflow-planner run-request run-dry-run run-explain structured-run-outputs external-adapter-contracts run-events workflow-benchmark-cases`
   - Passed: 9 files, 23 tests.
@@ -559,6 +577,23 @@ Last updated: 2026-04-27.
     - Passed.
   - `git diff --check`
     - Passed.
+- Current twentieth-slice focused validation:
+  - `npm test -- release-smoke`
+    - Passed: 1 file, 3 tests.
+  - `npm run typecheck`
+    - Passed.
+  - `npm test -- release-smoke prompt-contracts presentation-runtime-workflow project-starter-kits presentation-template-design-system presentation-runtime-policy workflow-progress ai-working-indicator`
+    - Passed: 8 files, 26 tests.
+  - `npm test`
+    - Passed on rerun: 101 files, 555 tests.
+    - Note: an earlier full-suite run executed concurrently with `npm run build` and hit the existing timing-sensitive `m3d-benchmarks` threshold (`8.68ms` against `<5ms`). The standalone rerun passed.
+  - `npm run build`
+    - Passed.
+    - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
+  - Changed-file ESLint via `npx eslint src/test/release-smoke.test.ts`
+    - Passed.
+  - `git diff --check`
+    - Passed.
 
 ### Current Open State
 - The active runtime now has an internal plan object, and queued plus single-slide presentation generation are controlled by the runtime layer.
@@ -573,6 +608,7 @@ Last updated: 2026-04-27.
 - Active presentation prompts no longer require Google Fonts links or `<link>` output. Runtime prompt contract tests now enforce compact prompt size ceilings and guard against old broad prompt sections returning to active generation.
 - The current presentation repair stage performs queued per-slide deterministic repair before whole-deck validation, then a deck-level deterministic repair pass, then a bounded LLM repair pass when deterministic repair cannot recover the fragment and a model is available. Presentation runtime telemetry now includes run mode, queued/completed slide counts, repaired slide counts, and deck/slide validation summaries. Repair-started workflow progress events now carry `partId` and `runId`, and successful queued slide repairs emit `runtime.repair-completed` as a slide-specific step update.
 - The chat progress UI now materializes runtime-owned presentation part ids such as `slide-1` into visible workflow steps, preserving repair labels from runtime events instead of hiding them behind only the original seeded workflow steps.
+- A deterministic release-smoke test now covers the prompt-cutover baseline for starter presentation initialization, fresh 3-slide queued presentation generation, and queued edit preservation. This is not a replacement for the remaining manual browser/provider smoke gate.
 - Presentation production templates now have a static viewport contract harness covering desktop, desktop wide, tablet portrait, mobile portrait, and mobile landscape. The first deterministic checks cover unsafe wrappers, viewport-unit layout/type usage, oversized fixed dimensions, risky large `min-width`, tiny source type, missing section backgrounds, and dense-grid risk. Browser/canvas screenshot automation is still a later layer.
 - Create-mode documents with runtime plans now use queued outline/module generation, runtime shell assembly, module validation/repair, document QA, and runtime telemetry. Image-based create requests also use the queued path by planning from images in the outline step. Targeted edit requests use queued module-local regeneration when existing runtime module wrappers can be resolved, with fallback to the existing targeted patcher when they cannot. Module validation failures now attempt queued per-module repair before deterministic module repair. Runtime telemetry now reports document run mode plus queued, completed, and repaired module counts. Document module create/repair prompts now share a compact module contract pack.
 - Runtime benchmark diagnostics can now summarize prompt token estimates, first-preview coverage, validation pass rates, repair totals, and queued/repaired part counts by artifact type.
@@ -804,6 +840,7 @@ Last updated: 2026-04-27.
   - generate a fresh 3-slide presentation and confirm first preview, queued slide progress, no duplicated CSS, and no unresolved placeholders;
   - edit one generated slide and confirm the compact edit prompt preserves unaffected slides;
   - check desktop plus one mobile viewport manually, then record pass/fail notes here.
+- Before the manual pass, use `npm test -- release-smoke` as the deterministic preflight. It verifies the presentation release contracts that do not require a browser or provider credentials.
 - After smoke passes, continue presentation runtime hardening:
   - turn the static viewport contract into a repeatable manual/browser checklist for starter decks and fresh generated decks without adding a new browser dependency;
   - use the recorded Vite build-output bundle snapshot to decide which legacy templates should be archived, converted, or deleted after production routing has soaked;
