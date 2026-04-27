@@ -21,6 +21,15 @@ describe('non-technical UX simplification', () => {
     expect(panelSource).toContain('Advanced Workflow Modes');
     expect(panelSource).not.toContain('Workflow Presets');
     expect(panelSource).not.toContain('No workflow presets yet.');
+
+    const advancedStart = panelSource.indexOf('>Advanced</summary>');
+    expect(advancedStart).toBeGreaterThan(0);
+    for (const defaultLabel of ['Audience', 'Output mode', 'Tone', 'Visual style', 'Quality / speed', 'Source usage']) {
+      expect(panelSource.indexOf(defaultLabel)).toBeLessThan(advancedStart);
+    }
+    for (const technicalLabel of ['Rules Markdown', 'Context Policy', 'Advanced Workflow Modes']) {
+      expect(panelSource.indexOf(technicalLabel)).toBeGreaterThan(advancedStart);
+    }
   });
 
   it('replaces visible workflow-preset wording in the chat controls with output modes', () => {

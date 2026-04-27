@@ -33,6 +33,11 @@ export {
   validateDocumentRuntimeOutput,
 } from './documentRuntime';
 export {
+  runQueuedDocumentRuntimeCreateDraft,
+  runQueuedDocumentRuntimeEditDraft,
+  runQueuedDocumentRuntimeModuleRepair,
+} from './documentStreaming';
+export {
   estimateRuntimePromptTokens,
   summarizeRuntimeDiagnostics,
 } from './diagnostics';
@@ -119,6 +124,12 @@ export type {
   DocumentRuntimeRepairResult,
   DocumentRuntimeValidationResult,
 } from './documentRuntime';
+export type {
+  DocumentRuntimeImagePart,
+  RunQueuedDocumentRuntimeCreateDraftInput,
+  RunQueuedDocumentRuntimeEditDraftInput,
+  RunQueuedDocumentRuntimeModuleRepairInput,
+} from './documentStreaming';
 export type {
   RuntimeArtifactDiagnosticSummary,
   RuntimeDiagnosticSample,

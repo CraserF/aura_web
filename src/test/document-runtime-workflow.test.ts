@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LanguageModel, ModelMessage } from 'ai';
 import type { ProviderEntry } from '@/services/ai/types';
@@ -98,6 +100,15 @@ describe('document runtime workflow orchestration', () => {
   beforeEach(() => {
     streamTextMock.mockReset();
     installDefaultStreamMock();
+  });
+
+  it('keeps queued document streaming implementation in artifactRuntime', () => {
+    const workflowSource = readFileSync(join(process.cwd(), 'src/services/ai/workflow/document.ts'), 'utf8');
+
+    expect(workflowSource).toContain("from '@/services/artifactRuntime/documentStreaming'");
+    expect(workflowSource).not.toMatch(/function\s+streamDocumentRuntimeText/);
+    expect(workflowSource).not.toMatch(/buildDocumentRuntime(?:Outline|Module|ModuleRepair)Prompt/);
+    expect(workflowSource).not.toMatch(/assembleDocumentRuntimeHtml|applyDocumentRuntimeModuleEdits|validateDocumentRuntimeModules/);
   });
 
   it('uses images only in the queued outline step for image-based creates', async () => {

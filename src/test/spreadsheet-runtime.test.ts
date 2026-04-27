@@ -484,6 +484,12 @@ describe('spreadsheet runtime bridge', () => {
       runPlan,
       result,
     });
+    const events: WorkflowEvent[] = [];
+    emitSpreadsheetRuntimeResultEvents({
+      runPlan,
+      result,
+      onEvent: (event) => events.push(event),
+    });
     const telemetry = buildSpreadsheetRuntimeTelemetry({
       result,
       totalRuntimeMs: 12,
@@ -501,6 +507,13 @@ describe('spreadsheet runtime bridge', () => {
     }));
     expect(runPlan.workQueue.map((part) => part.id)).toEqual(['workbook-action', 'validation', 'finalize']);
     expect(runPlan.workflow.queuedWorkItems).toHaveLength(1);
+    expect(events.map((event) => `${event.type}:${'stepId' in event ? event.stepId : 'progress'}`)).toEqual([
+      'step-start:validation',
+      'step-done:validation',
+      'step-update:workbook-action',
+      'step-error:workbook-action',
+      'step-done:finalize',
+    ]);
     expect(telemetry.validationByPart).toEqual([
       {
         partId: 'workbook-action',

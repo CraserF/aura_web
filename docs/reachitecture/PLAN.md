@@ -807,6 +807,14 @@ Last updated: 2026-04-27.
 - Added spreadsheet fallback runtime part attachment so blocked, clarification, and no-intent results use concrete workbook action, validation, and finalization parts instead of the default placeholder work item.
 - Added focused coverage for the document orchestrator, advanced diagnostics staying out of default rendered content, and spreadsheet fallback runtime parts.
 
+## Completed In Current Runtime Ownership Before Cleanup Slice
+- Moved queued document outline/module streaming, queued module edit streaming, queued module repair streaming, runtime part HTML lookup, and streamed chunk forwarding into runtime-owned document streaming helpers under `artifactRuntime`.
+- Kept `runDocumentWorkflow()` focused on provider/model setup, broad fallback prompt construction, abort signal forwarding, context/project wiring, and runtime helper delegation.
+- Rendered `structuredStatus.advancedDiagnostics` inside the existing run-history output buffer path as a collapsed `Advanced diagnostics` section, while assistant chat content remains concise.
+- Stabilized spreadsheet runtime events so no-intent, blocked, and clarification flows resolve their action events from attached fallback runtime parts instead of the default spreadsheet placeholder.
+- Added no-op legacy cleanup verification for the first delete-later candidates: `minimal`, `comparison`, and `pitch-deck`; no templates were removed in this slice.
+- Extended UX guard coverage so default Project Style controls stay non-technical and Rules Markdown, Context Policy, and Advanced Workflow Modes remain behind Advanced.
+
 Legacy template decision table:
 
 | Legacy template | Production replacement | Bundle note | Decision |
@@ -834,6 +842,12 @@ Legacy template decision table:
 | `sidebar-cards` | `executive-briefing-light` | 47.59 kB before gzip | convert later |
 
 ## Validation Completed
+- Current runtime-ownership-before-cleanup slice:
+  - `npm test -- document-runtime-workflow artifact-runtime runtime-telemetry spreadsheet-runtime workflow-progress ux-simplification presentation-template-design-system run-result run-history-panel`
+  - `npm run typecheck`
+  - `npm test`
+  - `npm run build`
+  - Changed-file ESLint across modified runtime, workflow, run-history, and test files.
 - `npm test -- document-runtime-workflow artifact-runtime runtime-telemetry spreadsheet-runtime workflow-progress ux-simplification presentation-template-design-system run-result`
 - `npm test -- document-runtime-workflow artifact-runtime runtime-telemetry spreadsheet-runtime presentation-template-design-system ux-simplification`
 - `npm test -- presentation-runtime-workflow presentation-runtime-policy presentation-template-design-system presentation-quality-checklist release-smoke artifact-runtime document-runtime-workflow runtime-telemetry spreadsheet-runtime prompt-to-formula prompt-to-query ux-simplification`
@@ -976,22 +990,21 @@ Build notes:
 - Start with presentations, then extend to documents and spreadsheets.
 
 ## Immediate Next Implementation Slice
-- Finish the last Document Runtime V1 cleanup:
-  - move queued outline/module streaming helpers from `src/services/ai/workflow/document.ts` into `artifactRuntime` behind provider-agnostic inputs;
-  - keep provider/model creation and broad legacy prompt construction in the workflow shell until document prompt packs fully replace the broad fallback path;
-  - add an import-boundary test so active document lifecycle orchestration stays runtime-owned.
-- Expand advanced diagnostics UI:
-  - render `structuredStatus.advancedDiagnostics` only in an Advanced/run-details surface;
-  - keep default assistant messages and progress labels simple.
-- Stabilize spreadsheet runtime parts:
-  - ensure workflow events use attached fallback parts for no-intent/blocked/clarification flows;
-  - keep deterministic execution and avoid model calls.
 - Start the first controlled legacy-template cleanup patch:
-  - archive or delete the safest `delete later` candidates only after a no-op routing verification pass;
-  - rerun production routing, starter kit, and build checks before removing any template files.
+  - remove or archive `minimal`, `comparison`, and `pitch-deck` only after confirming no active runtime, starter, or generation route imports them directly;
+  - rerun production routing, starter kit, template design-system, and build checks immediately after the cleanup.
+- Continue document prompt-surface cleanup:
+  - replace the remaining broad single-stream document prompt composer path with compact document prompt packs where behavior can stay unchanged;
+  - keep the broad fallback path only as a temporary compatibility escape hatch until compact prompts cover create/edit parity.
+- Continue spreadsheet runtime consolidation:
+  - attach deterministic spreadsheet action parts to `ArtifactRunPlan` before execution where the planner can resolve an action safely;
+  - keep blocked, clarification, and no-intent paths deterministic and model-free.
 - Continue UX simplification:
-  - audit remaining provider/model/context controls in default UI;
-  - move technical controls behind Advanced without removing expert access.
+  - audit default ChatBar and Project Style controls for any remaining technical wording;
+  - keep provider/model/context/raw-rule controls Advanced-only while preserving expert access.
+- Prepare quarantined external adapter cleanup:
+  - audit API/MCP/automation adapter and execution-spec imports;
+  - plan the first deletion patch only after active generation import-boundary tests are already green.
 
 ## Test Plan
 - Add planner tests proving each user prompt produces exactly one authoritative `ArtifactRunPlan`.

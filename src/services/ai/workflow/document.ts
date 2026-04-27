@@ -32,18 +32,17 @@ import type { TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
 import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
 import {
   attachDocumentRuntimeParts,
-  applyDocumentRuntimeModuleEdits,
-  assembleDocumentRuntimeHtml,
-  buildDocumentRuntimeModulePrompt,
-  buildDocumentRuntimeModuleRepairPrompt,
-  buildDocumentRuntimeOutlinePrompt,
   buildDocumentRuntimePartPrompt,
   canRunQueuedDocumentRuntime,
   resolveDocumentRuntimeEditModules,
   runDocumentRuntimeOrchestrator,
-  validateDocumentRuntimeModules,
 } from '@/services/artifactRuntime/documentRuntime';
-import type { ArtifactPart, ArtifactRunPlan } from '@/services/artifactRuntime/types';
+import {
+  runQueuedDocumentRuntimeCreateDraft,
+  runQueuedDocumentRuntimeEditDraft,
+  runQueuedDocumentRuntimeModuleRepair,
+} from '@/services/artifactRuntime/documentStreaming';
+import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
 
 export interface DocumentProjectLink {
   id: string;
@@ -696,374 +695,6 @@ async function buildEditPrompt(input: DocumentInput, plan: DocumentPlan): Promis
     .build();
 }
 
-async function streamDocumentRuntimeText(input: {
-  model: LanguageModel;
-  messages: ModelMessage[];
-  maxOutputTokens: number;
-  signal?: AbortSignal;
-  onChunk: (chunk: string) => void;
-}): Promise<string> {
-  const stream = streamText({
-    model: input.model,
-    messages: input.messages,
-    maxOutputTokens: input.maxOutputTokens,
-    ...(input.signal ? { abortSignal: input.signal } : {}),
-  });
-  let text = '';
-
-  for await (const chunk of stream.textStream) {
-    if (input.signal?.aborted) {
-      throw new DOMException('Workflow aborted', 'AbortError');
-    }
-    text += chunk;
-    input.onChunk(chunk);
-  }
-
-  return text;
-}
-
-async function runQueuedDocumentRuntimeDraft(input: {
-  model: LanguageModel;
-  workflowInput: DocumentInput;
-  plan: DocumentPlan;
-  runtimeParts: ArtifactPart[];
-  systemPrompt: string;
-  historyMessages: ModelMessage[];
-  requestedTitle?: string;
-  onEvent: EventListener;
-  signal?: AbortSignal;
-  runId: string;
-}): Promise<{
-  rawContent: string;
-  renderedHtml: string;
-  firstPreviewAt?: number;
-}> {
-  const moduleParts = input.runtimeParts
-    .filter((part) => part.kind === 'document-module')
-    .sort((a, b) => a.orderIndex - b.orderIndex);
-  const designFamily = input.workflowInput.artifactRunPlan?.designManifest.family;
-  let firstPreviewAt: number | undefined;
-  const onChunk = (chunk: string) => {
-    firstPreviewAt ??= performance.now();
-    input.onEvent({ type: 'streaming', stepId: 'generate', chunk });
-  };
-
-  emitArtifactRunEvent(input.onEvent, {
-    runId: input.runId,
-    type: 'runtime.part-started',
-    role: 'generator',
-    message: 'Creating document outline',
-    partId: 'document-outline',
-    pct: 30,
-  });
-  const outlinePrompt = withMemoryContext(
-    buildDocumentRuntimeOutlinePrompt({
-      taskBrief: input.workflowInput.prompt,
-      documentType: input.plan.documentType,
-      blueprintLabel: input.plan.blueprint.label,
-      parts: input.runtimeParts,
-      designFamily,
-    }),
-    input.workflowInput.memoryContext,
-  );
-  const outlineUserMessage: ModelMessage = input.workflowInput.imageParts && input.workflowInput.imageParts.length > 0
-    ? {
-        role: 'user',
-        content: [
-          { type: 'text' as const, text: outlinePrompt },
-          ...input.workflowInput.imageParts.map((img) => ({
-            type: 'image' as const,
-            image: img.image,
-            mimeType: img.mimeType as `image/${string}`,
-          })),
-        ],
-      }
-    : { role: 'user', content: outlinePrompt };
-  const outline = await streamDocumentRuntimeText({
-    model: input.model,
-    messages: [
-      { role: 'system', content: input.systemPrompt, providerOptions: CACHE_CONTROL } as ModelMessage,
-      ...input.historyMessages,
-      outlineUserMessage,
-    ],
-    maxOutputTokens: 2048,
-    ...(input.signal ? { signal: input.signal } : {}),
-    onChunk,
-  });
-  emitArtifactRunEvent(input.onEvent, {
-    runId: input.runId,
-    type: 'runtime.part-completed',
-    role: 'generator',
-    message: 'Created document outline',
-    partId: 'document-outline',
-    pct: 40,
-  });
-
-  const modules: Array<{ partId: string; html: string }> = [];
-  for (const [index, part] of moduleParts.entries()) {
-    const pct = Math.min(76, 42 + (index * 8));
-    emitArtifactRunEvent(input.onEvent, {
-      runId: input.runId,
-      type: 'runtime.part-started',
-      role: 'generator',
-      message: `Creating ${part.title}`,
-      partId: part.id,
-      pct,
-    });
-    const modulePrompt = buildDocumentRuntimeModulePrompt({
-      taskBrief: input.workflowInput.prompt,
-      documentType: input.plan.documentType,
-      outline,
-      part,
-      designFamily,
-    });
-    const html = await streamDocumentRuntimeText({
-      model: input.model,
-      messages: [
-        { role: 'system', content: input.systemPrompt, providerOptions: CACHE_CONTROL } as ModelMessage,
-        { role: 'user', content: modulePrompt },
-      ],
-      maxOutputTokens: input.workflowInput.artifactRunPlan?.providerPolicy.mode === 'local-constrained' ? 3072 : 4096,
-      ...(input.signal ? { signal: input.signal } : {}),
-      onChunk,
-    });
-    modules.push({
-      partId: part.id,
-      html: extractDocumentSource(html),
-    });
-    emitArtifactRunEvent(input.onEvent, {
-      runId: input.runId,
-      type: 'runtime.part-completed',
-      role: 'generator',
-      message: `Created ${part.title}`,
-      partId: part.id,
-      pct: Math.min(82, pct + 6),
-    });
-  }
-
-  const title = input.requestedTitle || extractTitleFromPrompt(input.workflowInput.prompt);
-  const renderedHtml = assembleDocumentRuntimeHtml({
-    title,
-    outline: extractDocumentSource(outline),
-    parts: input.runtimeParts,
-    modules,
-  });
-  const rawContent = [
-    `# ${title}`,
-    extractDocumentSource(outline),
-    ...modules.map((module) => module.html),
-  ].filter(Boolean).join('\n\n');
-
-  return {
-    rawContent,
-    renderedHtml,
-    ...(firstPreviewAt ? { firstPreviewAt } : {}),
-  };
-}
-
-async function runQueuedDocumentRuntimeEditDraft(input: {
-  model: LanguageModel;
-  workflowInput: DocumentInput;
-  plan: DocumentPlan;
-  systemPrompt: string;
-  editModules: Array<{ part: ArtifactPart; existingHtml: string; existingText: string }>;
-  onEvent: EventListener;
-  signal?: AbortSignal;
-  runId: string;
-}): Promise<{
-  rawContent: string;
-  renderedHtml: string;
-  firstPreviewAt?: number;
-}> {
-  const designFamily = input.workflowInput.artifactRunPlan?.designManifest.family;
-  let firstPreviewAt: number | undefined;
-  const onChunk = (chunk: string) => {
-    firstPreviewAt ??= performance.now();
-    input.onEvent({ type: 'streaming', stepId: 'generate', chunk });
-  };
-  const outline = [
-    `Edit request: ${input.workflowInput.prompt}`,
-    'Targeted runtime modules:',
-    ...input.editModules.map((match, index) => `${index + 1}. ${match.part.title} [${match.part.id}]: ${match.existingText.slice(0, 600)}`),
-  ].join('\n');
-  const modules: Array<{ partId: string; html: string }> = [];
-
-  for (const [index, match] of input.editModules.entries()) {
-    const pct = Math.min(76, 34 + (index * 10));
-    emitArtifactRunEvent(input.onEvent, {
-      runId: input.runId,
-      type: 'runtime.part-started',
-      role: 'generator',
-      message: `Updating ${match.part.title}`,
-      partId: match.part.id,
-      pct,
-    });
-    const html = await streamDocumentRuntimeText({
-      model: input.model,
-      messages: [
-        { role: 'system', content: input.systemPrompt, providerOptions: CACHE_CONTROL } as ModelMessage,
-        {
-          role: 'user',
-          content: buildDocumentRuntimeModulePrompt({
-            taskBrief: input.workflowInput.prompt,
-            documentType: input.plan.documentType,
-            outline,
-            part: match.part,
-            designFamily,
-            existingModuleHtml: match.existingHtml,
-          }),
-        },
-      ],
-      maxOutputTokens: input.workflowInput.artifactRunPlan?.providerPolicy.mode === 'local-constrained' ? 3072 : 4096,
-      ...(input.signal ? { signal: input.signal } : {}),
-      onChunk,
-    });
-    modules.push({
-      partId: match.part.id,
-      html: extractDocumentSource(html),
-    });
-    emitArtifactRunEvent(input.onEvent, {
-      runId: input.runId,
-      type: 'runtime.part-completed',
-      role: 'generator',
-      message: `Updated ${match.part.title}`,
-      partId: match.part.id,
-      pct: Math.min(82, pct + 6),
-    });
-  }
-
-  const renderedHtml = applyDocumentRuntimeModuleEdits({
-    existingHtml: input.workflowInput.existingHtml ?? '',
-    parts: input.workflowInput.artifactRunPlan?.workQueue ?? input.editModules.map((match) => match.part),
-    modules,
-  });
-  const rawContent = modules.map((module) => module.html).join('\n\n');
-
-  return {
-    rawContent,
-    renderedHtml,
-    ...(firstPreviewAt ? { firstPreviewAt } : {}),
-  };
-}
-
-function findRuntimePartHtml(html: string, partId: string): string | undefined {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  const element = Array.from(doc.body.querySelectorAll<HTMLElement>('[data-runtime-part]'))
-    .find((node) => node.getAttribute('data-runtime-part') === partId);
-  return element?.outerHTML;
-}
-
-async function runQueuedDocumentRuntimeModuleRepair(input: {
-  model: LanguageModel;
-  html: string;
-  workflowInput: DocumentInput;
-  plan: DocumentPlan;
-  runtimeParts: ArtifactPart[];
-  validation: ReturnType<typeof validateDocumentRuntimeModules>;
-  systemPrompt: string;
-  onEvent: EventListener;
-  signal?: AbortSignal;
-  runId: string;
-}): Promise<{
-  html: string;
-  repairCount: number;
-  repairedPartCount: number;
-  repaired: boolean;
-  validation: ReturnType<typeof validateDocumentRuntimeModules>;
-  summary: string;
-}> {
-  const issues = input.validation.moduleIssues ?? [];
-  const maxRepairPasses = input.workflowInput.artifactRunPlan?.providerPolicy.maxRepairPasses ?? 0;
-  if (issues.length === 0 || maxRepairPasses <= 0) {
-    return {
-      html: input.html,
-      repairCount: 0,
-      repairedPartCount: 0,
-      repaired: false,
-      validation: input.validation,
-      summary: 'No queued document module repair available.',
-    };
-  }
-
-  const partsById = new Map(input.runtimeParts.map((part) => [part.id, part]));
-  const issueGroups = new Map<string, typeof issues>();
-  for (const issue of issues) {
-    issueGroups.set(issue.partId, [...(issueGroups.get(issue.partId) ?? []), issue]);
-  }
-
-  const designFamily = input.workflowInput.artifactRunPlan?.designManifest.family;
-  const modules = [];
-  const selectedGroups = Array.from(issueGroups.entries()).slice(0, maxRepairPasses);
-
-  for (const [partId, partIssues] of selectedGroups) {
-    const part = partsById.get(partId);
-    if (!part) continue;
-
-    emitArtifactRunEvent(input.onEvent, {
-      runId: input.runId,
-      type: 'runtime.repair-started',
-      role: 'repairer',
-      message: `Repairing ${part.title}`,
-      partId,
-      pct: 84,
-    });
-    const repairedModule = await streamDocumentRuntimeText({
-      model: input.model,
-      messages: [
-        { role: 'system', content: input.systemPrompt, providerOptions: CACHE_CONTROL } as ModelMessage,
-        {
-          role: 'user',
-          content: buildDocumentRuntimeModuleRepairPrompt({
-            taskBrief: input.workflowInput.prompt,
-            documentType: input.plan.documentType,
-            part,
-            issues: partIssues,
-            designFamily,
-            existingModuleHtml: findRuntimePartHtml(input.html, partId),
-          }),
-        },
-      ],
-      maxOutputTokens: input.workflowInput.artifactRunPlan?.providerPolicy.mode === 'local-constrained' ? 2048 : 3072,
-      ...(input.signal ? { signal: input.signal } : {}),
-      onChunk: (chunk) => input.onEvent({ type: 'streaming', stepId: 'qa', chunk }),
-    });
-    modules.push({
-      partId,
-      html: extractDocumentSource(repairedModule),
-    });
-  }
-
-  if (modules.length === 0) {
-    return {
-      html: input.html,
-      repairCount: 0,
-      repairedPartCount: 0,
-      repaired: false,
-      validation: input.validation,
-      summary: 'Queued document module repair skipped because no matching runtime parts were found.',
-    };
-  }
-
-  const repairedHtml = applyDocumentRuntimeModuleEdits({
-    existingHtml: input.html,
-    parts: input.runtimeParts,
-    modules,
-  });
-  const repairedValidation = validateDocumentRuntimeModules(repairedHtml, input.runtimeParts);
-
-  return {
-    html: repairedHtml,
-    repairCount: 1,
-    repairedPartCount: modules.length,
-    repaired: repairedHtml.trim() !== input.html.trim(),
-    validation: repairedValidation,
-    summary: repairedValidation.passed
-      ? 'Queued document module repair passed validation.'
-      : `Queued document module repair completed with ${repairedValidation.blockingCount} blocking issue(s) and ${repairedValidation.advisoryCount} advisory issue(s) remaining.`,
-  };
-}
-
 function getDocumentStructureGuide(documentType: ResolvedDocumentType): string {
   switch (documentType) {
     case 'report':
@@ -1571,22 +1202,33 @@ export async function runDocumentWorkflow(
         onEvent,
         runQueuedEdit: () => runQueuedDocumentRuntimeEditDraft({
           model,
-          workflowInput: input,
-          plan: planResult,
           systemPrompt,
+          systemProviderOptions: CACHE_CONTROL,
+          taskBrief: input.prompt,
+          documentType: planResult.documentType,
+          designFamily: input.artifactRunPlan?.designManifest.family,
+          existingHtml: input.existingHtml ?? '',
+          runtimeParts,
           editModules: queuedEditModules,
+          maxModuleOutputTokens: input.artifactRunPlan?.providerPolicy.mode === 'local-constrained' ? 3072 : 4096,
           onEvent,
           ...(signal ? { signal } : {}),
           runId: runtimeRunId,
         }),
-        runQueuedCreate: () => runQueuedDocumentRuntimeDraft({
+        runQueuedCreate: () => runQueuedDocumentRuntimeCreateDraft({
           model,
-          workflowInput: input,
-          plan: planResult,
           runtimeParts,
           systemPrompt,
+          systemProviderOptions: CACHE_CONTROL,
           historyMessages,
-          ...(requestedTitle ? { requestedTitle } : {}),
+          taskBrief: input.prompt,
+          memoryContext: input.memoryContext,
+          imageParts: input.imageParts,
+          documentType: planResult.documentType,
+          blueprintLabel: planResult.blueprint.label,
+          designFamily: input.artifactRunPlan?.designManifest.family,
+          title: requestedTitle || extractTitleFromPrompt(input.prompt),
+          maxModuleOutputTokens: input.artifactRunPlan?.providerPolicy.mode === 'local-constrained' ? 3072 : 4096,
           onEvent,
           ...(signal ? { signal } : {}),
           runId: runtimeRunId,
@@ -1696,11 +1338,15 @@ export async function runDocumentWorkflow(
       runQueuedModuleRepair: ({ html, validation }) => runQueuedDocumentRuntimeModuleRepair({
         model,
         html,
-        workflowInput: input,
-        plan: planResult,
+        taskBrief: input.prompt,
+        documentType: planResult.documentType,
+        designFamily: input.artifactRunPlan?.designManifest.family,
         runtimeParts,
         validation,
+        maxRepairPasses: input.artifactRunPlan?.providerPolicy.maxRepairPasses ?? 0,
+        maxRepairOutputTokens: input.artifactRunPlan?.providerPolicy.mode === 'local-constrained' ? 2048 : 3072,
         systemPrompt,
+        systemProviderOptions: CACHE_CONTROL,
         onEvent,
         ...(signal ? { signal } : {}),
         runId: runtimeRunId,

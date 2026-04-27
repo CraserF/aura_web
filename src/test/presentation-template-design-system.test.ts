@@ -108,6 +108,17 @@ describe('production presentation templates', () => {
     expect(audit.some((entry) => entry.decision === 'delete later')).toBe(true);
   });
 
+  it('keeps first legacy cleanup candidates audited but inactive before deletion', () => {
+    const auditById = new Map(listLegacyPresentationTemplateAudit().map((entry) => [entry.templateId, entry]));
+
+    for (const templateId of ['minimal', 'comparison', 'pitch-deck'] as const) {
+      const auditEntry = auditById.get(templateId);
+      expect(auditEntry).toMatchObject({ decision: 'delete later' });
+      expect(isLegacyPresentationTemplate(templateId)).toBe(true);
+      expect(isProductionPresentationTemplate(toProductionPresentationTemplate(templateId))).toBe(true);
+    }
+  });
+
   it('routes generated presentation plans through production template families', async () => {
     for (const routeCase of PRODUCTION_ROUTE_CASES) {
       const templatePlan = resolveTemplatePlan(routeCase.prompt, { recipeHint: routeCase.recipeHint });

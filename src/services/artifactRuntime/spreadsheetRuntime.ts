@@ -148,6 +148,10 @@ function toQueuedOperationKind(kind: ArtifactPartKind): 'create' | 'formula' | '
   return 'refresh';
 }
 
+function hasOnlyDefaultSpreadsheetPart(workQueue: ArtifactPart[]): boolean {
+  return workQueue.length === 1 && workQueue[0]?.id === 'spreadsheet-part-1';
+}
+
 export function attachSpreadsheetRuntimeParts(input: AttachSpreadsheetRuntimePartsInput): ArtifactPart[] {
   const parts = buildSpreadsheetRuntimeParts(input.plan);
   input.runPlan.workQueue = parts;
@@ -169,11 +173,7 @@ export function attachSpreadsheetRuntimeParts(input: AttachSpreadsheetRuntimePar
 }
 
 export function attachSpreadsheetRuntimeResultParts(input: AttachSpreadsheetRuntimeResultPartsInput): ArtifactPart[] {
-  const hasOnlyDefaultWorkbookPart =
-    input.runPlan.workQueue.length === 1 &&
-    input.runPlan.workQueue[0]?.id === 'spreadsheet-part-1';
-
-  if (input.runPlan.workQueue.length > 0 && !hasOnlyDefaultWorkbookPart) {
+  if (input.runPlan.workQueue.length > 0 && !hasOnlyDefaultSpreadsheetPart(input.runPlan.workQueue)) {
     return input.runPlan.workQueue;
   }
 
@@ -237,6 +237,21 @@ function getPartId(result: SpreadsheetOutput): string {
   }
 }
 
+function isBlockingSpreadsheetResultKind(kind: SpreadsheetOutput['kind']): boolean {
+  return kind === 'blocked' || kind === 'clarification-needed' || kind === 'no-intent';
+}
+
+function resolvePrimarySpreadsheetRuntimePart(
+  runPlan: ArtifactRunPlan,
+  result: SpreadsheetOutput,
+): ArtifactPart {
+  const preferredPartId = getPartId(result);
+  const workQueue = hasOnlyDefaultSpreadsheetPart(runPlan.workQueue) ? [] : runPlan.workQueue;
+  return workQueue.find((part) => part.id === preferredPartId)
+    ?? workQueue.find((part) => part.kind !== 'validation-result' && part.kind !== 'finalization')
+    ?? buildSpreadsheetFallbackRuntimeParts(result)[0]!;
+}
+
 function countChangedSheets(result: SpreadsheetOutput): number {
   return 'updatedSheets' in result ? result.updatedSheets.length : 0;
 }
@@ -251,8 +266,10 @@ export function emitSpreadsheetRuntimeResultEvents(input: {
   onEvent: EventListener;
 }): void {
   const { runPlan, result, onEvent } = input;
-  const partId = getPartId(result);
+  const actionPart = resolvePrimarySpreadsheetRuntimePart(runPlan, result);
+  const partId = actionPart.id;
   const message = describeSpreadsheetResult(result);
+  const isBlockingKind = isBlockingSpreadsheetResultKind(result.kind);
 
   emitArtifactRunEvent(onEvent, {
     runId: runPlan.runId,
@@ -277,8 +294,8 @@ export function emitSpreadsheetRuntimeResultEvents(input: {
   emitArtifactRunEvent(onEvent, {
     runId: runPlan.runId,
     type: 'runtime.part-started',
-    role: result.kind === 'blocked' || result.kind === 'clarification-needed' ? 'validator' : 'generator',
-    message: result.kind === 'blocked' || result.kind === 'clarification-needed'
+    role: isBlockingKind ? 'validator' : 'generator',
+    message: isBlockingKind
       ? 'Spreadsheet action blocked.'
       : 'Executing spreadsheet runtime part.',
     partId,
@@ -287,10 +304,10 @@ export function emitSpreadsheetRuntimeResultEvents(input: {
 
   emitArtifactRunEvent(onEvent, {
     runId: runPlan.runId,
-    type: result.kind === 'blocked' || result.kind === 'clarification-needed'
+    type: isBlockingKind
       ? 'runtime.cancelled'
       : 'runtime.part-completed',
-    role: result.kind === 'blocked' || result.kind === 'clarification-needed' ? 'validator' : 'generator',
+    role: isBlockingKind ? 'validator' : 'generator',
     message,
     partId,
     pct: 88,
@@ -311,7 +328,7 @@ export function buildSpreadsheetRuntimeTelemetry(input: {
   totalRuntimeMs: number;
   runPlan?: ArtifactRunPlan;
 }): ArtifactRuntimeTelemetry {
-  const isBlockingKind = ['blocked', 'clarification-needed', 'no-intent'].includes(input.result.kind);
+  const isBlockingKind = isBlockingSpreadsheetResultKind(input.result.kind);
   const validationPassed = input.result.planValidation?.passed ?? !isBlockingKind;
   const validationBlockingCount = input.result.planValidation?.issues.length ?? (isBlockingKind ? 1 : 0);
   const workQueue = input.runPlan?.workQueue ?? [];

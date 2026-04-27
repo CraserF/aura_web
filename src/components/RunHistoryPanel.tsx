@@ -18,6 +18,18 @@ function formatTimestamp(value: number): string {
   return new Date(value).toLocaleString();
 }
 
+function readAdvancedDiagnostics(payload: Record<string, unknown>): string[] {
+  const structuredStatus = payload.structuredStatus;
+  if (!structuredStatus || typeof structuredStatus !== 'object') return [];
+
+  const diagnostics = (structuredStatus as { advancedDiagnostics?: unknown }).advancedDiagnostics;
+  if (!Array.isArray(diagnostics)) return [];
+
+  return diagnostics.filter((diagnostic): diagnostic is string =>
+    typeof diagnostic === 'string' && diagnostic.trim().length > 0,
+  );
+}
+
 export function RunHistoryPanel({
   open,
   onOpenChange,
@@ -45,6 +57,7 @@ export function RunHistoryPanel({
             </div>
           ) : runs.map((run) => {
             const outputBuffer = run.outputBufferId ? readRunOutputBuffer(run.outputBufferId) : null;
+            const advancedDiagnostics = outputBuffer ? readAdvancedDiagnostics(outputBuffer.payload) : [];
             return (
               <section key={run.runId} className="rounded-lg border border-border p-4 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -98,6 +111,18 @@ export function RunHistoryPanel({
                       <div className="rounded-md bg-muted/40 px-3 py-2">
                         <p className="font-medium">Summary</p>
                         <p className="text-muted-foreground">{outputBuffer.summary}</p>
+                        {advancedDiagnostics.length > 0 && (
+                          <details className="mt-2">
+                            <summary className="cursor-pointer text-xs font-semibold text-muted-foreground">
+                              Advanced diagnostics
+                            </summary>
+                            <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
+                              {advancedDiagnostics.map((diagnostic) => (
+                                <li key={diagnostic}>{diagnostic}</li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
                       </div>
                     )}
                   </div>
