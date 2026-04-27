@@ -26,17 +26,19 @@ import {
   selectDocumentBlueprint,
   type DocumentBlueprint,
 } from '../templates/document-blueprints';
-import { getReferenceStylePack } from '../templates';
 import { applyDocumentTargetedEdit, prepareDocumentHtmlForEditing } from '@/services/editing/patchDocument';
 import type { TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
 import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
 import {
   attachDocumentRuntimeParts,
-  buildDocumentRuntimePartPrompt,
   canRunQueuedDocumentRuntime,
   resolveDocumentRuntimeEditModules,
   runDocumentRuntimeOrchestrator,
 } from '@/services/artifactRuntime/documentRuntime';
+import {
+  buildDocumentRuntimeSingleStreamSystemPrompt,
+  buildDocumentRuntimeSingleStreamUserPrompt,
+} from '@/services/artifactRuntime/documentPrompts';
 import {
   runQueuedDocumentRuntimeCreateDraft,
   runQueuedDocumentRuntimeEditDraft,
@@ -83,80 +85,6 @@ export interface DocumentOutput {
 
 type ResolvedDocumentType = 'report' | 'brief' | 'proposal' | 'notes' | 'wiki' | 'readme' | 'article';
 type ArtDirection = 'clean' | 'polished' | 'editorial';
-
-const DOCUMENT_SYSTEM_PROMPT = `You are a professional document designer and writer.
-Return a complete document body that feels purposeful and polished — premium editorial or infographic-style for rich content, clean and focused for reference material.
-Use HTML with semantic structure and a compact inline <style> block whenever the request benefits from visual hierarchy, layout, or explanation.
-
-Rules:
-- focus on the current document only; treat earlier chat as light background context
-- make each document feel purpose-built, not like a clone of other project docs
-- use strong headings, concise paragraphs, and clear visual rhythm
-- prefer summary bands, KPI rows, comparison cards, process rails, pull quotes, and sidebars over long generic prose
-- default to a strong single-column reading flow for narrative content; only use side-by-side layouts for comparisons, KPI bands, or supporting rails
-- when you use grids or paired modules, make sure they can stack cleanly on narrow screens; avoid dense three-column prose layouts
-- keep media, figures, and charts fluid with max-width: 100%; avoid fixed pixel widths or heights that would clip inside a framed mobile viewport
-- keep hero/header sections concise enough that smaller screens still surface meaningful content without scrolling past a giant intro block
-- for notes, wikis, and reference material: use a clean minimal layout — no decorative elements, just clear hierarchy
-- no JavaScript, remote assets, or external stylesheets
-- when data visualization is needed, emit structured chart placeholders:
-  <script type="application/json" data-aura-chart-spec>{...ChartSpec JSON...}</script>
-  <div data-aura-chart="matching-id"></div>
-- chart placeholder script must use type="application/json" and data-aura-chart-spec
-- output only the document content`;
-
-const EDIT_DOCUMENT_SYSTEM_PROMPT = `You are a professional document editor.
-Return the complete updated document while preserving the existing layout quality, hierarchy, and visual identity.
-Keep the document focused on the current request, prefer the smallest necessary change, preserve mobile-safe stacking and fluid media behavior, and output only the updated content.`;
-
-function withMemoryContext(prompt: string, memoryContext?: string): string {
-  const sections = [prompt];
-  if (memoryContext) {
-    sections.push(`Relevant memory context:\n${memoryContext}\n\nUse this memory only when it improves the current document.`);
-  }
-  return sections.join('\n\n');
-}
-
-function withProjectRules(systemPrompt: string, projectRulesBlock?: string): string {
-  if (!projectRulesBlock?.trim()) {
-    return systemPrompt;
-  }
-
-  return `${systemPrompt}\n\n${projectRulesBlock}\n\nFollow these project rules unless the user explicitly overrides them.`;
-}
-
-function withTemplateGuidance(systemPrompt: string, templateGuidance?: TemplateGuidanceProfile): string {
-  if (!templateGuidance) {
-    return systemPrompt;
-  }
-
-  const stylePack = templateGuidance.referenceStylePackId
-    ? getReferenceStylePack(templateGuidance.referenceStylePackId)
-    : null;
-
-  return `${systemPrompt}
-
-Workflow guidance:
-- intent family: ${templateGuidance.intentFamily}
-- provider tier: ${templateGuidance.providerTier}
-- document family: ${templateGuidance.documentThemeFamily ?? 'auto'}
-- selected template: ${templateGuidance.selectedTemplateId ?? 'n/a'}
-- design constraints:
-${templateGuidance.designConstraints.map((constraint) => `  - ${constraint}`).join('\n')}
-- must avoid:
-${templateGuidance.antiPatterns.map((pattern) => `  - ${pattern}`).join('\n')}
-${stylePack ? `- sanitized style pack: ${stylePack.label}
-- style pack summary: ${stylePack.summary}
-- typography cues: ${stylePack.typography.join(' ')}
-- palette cues: ${stylePack.paletteRules.join(' ')}
-- layout cues: ${stylePack.layoutRules.join(' ')}
-- confidentiality rules:
-${stylePack.confidentialityRules.map((rule) => `  - ${rule}`).join('\n')}
-- synthetic style example:
-\`\`\`html
-${stylePack.syntheticExample}
-\`\`\`` : ''}`;
-}
 
 interface DocumentTheme {
   name: string;
@@ -453,296 +381,6 @@ function planDocumentRequest(input: DocumentInput): DocumentPlan {
     preferHtml: shouldPreferDesignedHtml(documentType, input.prompt, input.styleHint),
     isEdit: !!input.existingHtml,
   };
-}
-
-function getArtDirectionGuidance(tier: ArtDirection): string {
-  switch (tier) {
-    case 'clean':
-      return 'Clean: minimal, reference-friendly, strong hierarchy, very light surfaces.';
-    case 'polished':
-      return 'Polished: subtle cards, callouts, stats, tables, and professional spacing.';
-    case 'editorial':
-      return 'Editorial: premium hero header, pull quote or feature grid, richer contrast, and magazine-style rhythm.';
-  }
-}
-
-function getComponentHints(documentType: ResolvedDocumentType, tier: ArtDirection, prompt: string): string[] {
-  const normalized = prompt.toLowerCase();
-  const isProcessDocument = /\b(step|process|workflow|runbook|playbook|checklist|sop|setup|configure|deploy|onboard)\b/.test(normalized);
-  const hints = [
-    'Give this document its own layout identity; do not mirror unrelated project docs unless explicitly asked.',
-    'Use accent-bar section headers and consistent section colors: blue=context, green=process, coral=warnings, slate=reference.',
-    'Bias toward one strong reading column for narrative content; reserve side-by-side layouts for comparisons, KPIs, or supporting context.',
-    'Keep media and structured modules wrap-safe on narrow screens; avoid fixed-width visuals and dense three-column prose blocks.',
-  ];
-
-  if (documentType === 'readme' || documentType === 'wiki') {
-    hints.push('Use a compact overview, a clean reference block, and inline type tags for fields or API terms when useful.');
-    hints.push(isProcessDocument
-      ? 'Use numbered step pills and, for multi-stage setup guides, a small progress row at the top.'
-      : 'Keep surfaces subtle and use one note/tip callout only when it genuinely helps.');
-    return hints;
-  }
-
-  if (documentType === 'notes') {
-    hints.push('Use a summary block followed by highlights, decisions, and action items.');
-    hints.push('One compact callout or divider is enough; keep notes fast to scan.');
-    return hints;
-  }
-
-  if (documentType === 'report' || documentType === 'brief' || documentType === 'proposal') {
-    hints.push('Use a strong title row with an optional status badge and a two-column metadata grid when facts like owner/date/version exist.');
-    hints.push('Use one callout for the biggest recommendation or risk, plus a comparison table or key-metrics row when numbers exist.');
-    return hints;
-  }
-
-  return tier === 'editorial'
-    ? [
-        ...hints,
-        'Open with a premium hero header and short lead paragraph.',
-        'Use one feature grid, pull quote, or timeline to break up long prose.',
-        'Keep paragraphs short and use visual rhythm every 2–3 sections.',
-      ]
-    : [
-        ...hints,
-        'Use a clean header, concise sections, and one visual break element.',
-      ];
-}
-
-function getExampleSnippet(documentType: ResolvedDocumentType, tier: ArtDirection): string {
-  if (tier === 'clean') {
-    return `<header class="doc-header"><div class="doc-eyebrow">Reference</div><h1>Setup Guide</h1><p class="doc-lead">Quick orientation and the few steps that matter most.</p></header>`;
-  }
-
-  if (documentType === 'report' || documentType === 'brief' || documentType === 'proposal') {
-    return `<header class="doc-header"><div class="doc-eyebrow">Quarterly Report</div><h1>Operational Performance Summary</h1><p class="doc-lead">The three trends, risks, and decisions leadership should focus on this month.</p></header><div class="doc-callout"><strong>Recommendation:</strong><p>Prioritize onboarding automation to remove the current fulfillment bottleneck.</p></div>`;
-  }
-
-  return `<header class="doc-header"><div class="doc-eyebrow">Editorial Brief</div><h1 class="doc-title-gradient">The Future of Distributed Systems</h1><p class="doc-lead">A concise, high-signal narrative with strong hierarchy and visual breathing room.</p></header><figure class="doc-pullquote"><blockquote>“Architecture quality shows up first in readability.”</blockquote></figure>`;
-}
-
-class DocumentPromptComposer {
-  private sections: string[] = [];
-
-  addBase(plan: DocumentPlan): this {
-    this.sections.push(`## Document Brief
-Type: ${plan.documentType}
-Visual tone: ${plan.theme.label}
-Art direction: ${getArtDirectionGuidance(plan.artDirection)}
-Layout blueprint: ${plan.blueprint.label}
-Output mode: ${plan.preferHtml ? 'Designed HTML-first' : 'Clean reference-friendly'}`);
-    return this;
-  }
-
-  addBlueprint(blueprint: DocumentBlueprint, preferHtml: boolean): this {
-    this.sections.push(`## Layout Blueprint
-Name: ${blueprint.label}
-Description: ${blueprint.description}
-Visual thesis: ${blueprint.visualThesis}
-
-Composition rules:
-- ${blueprint.compositionRules.join('\n- ')}
-
-Component rules:
-- ${blueprint.componentRules.join('\n- ')}
-
-Recommended modules:
-- ${blueprint.recommendedModules.join('\n- ')}
-
-Reusable class patterns you may use when helpful:
-- \`.doc-kpi-grid > .doc-kpi\` for stats or headline facts
-- \`.doc-story-grid > .doc-story-card\` for narrative + insight blocks
-- \`.doc-comparison > .doc-compare-card\` for current-vs-future or option comparisons
-- \`.doc-timeline > .doc-timeline-item\` or \`.doc-progress\` for processes and journeys
-- \`.doc-proof-strip\` or \`.doc-infographic-band\` for full-width summary bands
-- \`.doc-sidebar-layout\` with \`.doc-main\` and \`.doc-aside\` for editorial layouts
-
-${preferHtml
-  ? 'Default to semantic HTML. Use one compact <style> block and these modules to make the document feel designed, graphic, and easy to scan.'
-  : 'Keep the layout cleaner and more reference-friendly, but still use one or two modules to avoid a wall of text.'}`);
-    return this;
-  }
-
-  addStructure(documentType: ResolvedDocumentType): this {
-    this.sections.push(getDocumentStructureGuide(documentType));
-    return this;
-  }
-
-  addComponentHints(documentType: ResolvedDocumentType, tier: ArtDirection, prompt: string): this {
-    const hints = getComponentHints(documentType, tier, prompt);
-    if (hints.length > 0) {
-      this.sections.push(`## Visual Pattern Hints\n- ${hints.join('\n- ')}`);
-    }
-    return this;
-  }
-
-  addPalette(theme: DocumentTheme): this {
-    this.sections.push(`## Theme Palette
-\`\`\`css
---doc-primary: ${theme.primary};
---doc-accent: ${theme.accent};
---doc-text: ${theme.text};
---doc-muted: ${theme.muted};
---doc-bg: ${theme.bg};
---doc-surface: ${theme.surface};
---doc-surface-alt: ${theme.surfaceAlt};
---doc-border: ${theme.border};
-\`\`\``);
-    return this;
-  }
-
-  addExample(blueprint: DocumentBlueprint, documentType: ResolvedDocumentType, tier: ArtDirection, includeExample: boolean): this {
-    if (!includeExample) return this;
-    const example = blueprint.exampleHtml || getExampleSnippet(documentType, tier);
-    this.sections.push(`## Compact Example\n\`\`\`html\n${example}\n\`\`\``);
-    return this;
-  }
-
-  addExistingDocument(summary: string): this {
-    this.sections.push(`## Existing Document\n\`\`\`markdown
-${summary}
-\`\`\``);
-    return this;
-  }
-
-  addProjectLinks(links: DocumentProjectLink[]): this {
-    const documentLinks = (links ?? []).filter((link) => link.type === 'document');
-    if (documentLinks.length === 0) return this;
-    const lines = documentLinks.map(({ id, title }) => `- <a href="#${id}">${title}</a>`);
-    this.sections.push(`## Available Project Documents\nYou may reference the following documents using HTML anchor links (e.g. \`<a href="#id">Title</a>\`). Only link when it genuinely adds value — do not force links into the content.\n${lines.join('\n')}`);
-    return this;
-  }
-
-  addRequest(label: 'User Request' | 'User Instruction', value: string): this {
-    this.sections.push(`## ${label}\n${value}`);
-    return this;
-  }
-
-  addText(value: string): this {
-    if (value.trim()) {
-      this.sections.push(value);
-    }
-    return this;
-  }
-
-  addRules(isEdit: boolean, plan: DocumentPlan): this {
-    const isClean = plan.artDirection === 'clean';
-    this.sections.push(`## Rules
-- ${plan.preferHtml ? 'Return a complete HTML document body with semantic layout and one compact inline <style> block.' : 'Use HTML when it improves readability; markdown is acceptable only for very plain reference notes or readmes.'}
-- Keep reusable --doc-* variables and class-based layout modules so the document feels intentional rather than improvised
-- Focus on this single document; treat other project context as light background only
-- ${isClean
-  ? 'This is a reference/notes document: keep it clean and minimal — clear hierarchy, one accent color, no decorative bands or animations. Favour whitespace and readability over visuals.'
-  : 'Make the document feel distinct by mixing 2–4 suitable patterns: hero summary, KPI rail, comparison cards, progress rows, timeline, pull quote, sidebar, or metadata grid'}
-- Prefer ${isClean ? 'functional clarity' : 'infographic-style clarity'} over decoration; every visual element should communicate something
-- Treat narrow screens as a first-class reading mode: default to single-column narrative flow, let supporting modules stack cleanly, and avoid dense three-across prose layouts
-- Keep media fluid with max-width: 100% and avoid hard pixel widths/heights that could clip inside the framed document viewport
-- ${isClean ? 'Avoid animations, heavy gradients, and decorative components.' : 'Subtle Aura-only motion is welcome on key containers via classes like aura-rise-in, aura-fade-in, or aura-pulse-soft'}
-- ${isEdit ? 'Preserve the existing structure and make the smallest necessary change.' : 'Prefer polished structure over decorative excess.'}
-- Avoid walls of text, generic headings, and repeated identical component blocks`);
-    return this;
-  }
-
-  build(): string {
-    return this.sections.join('\n\n');
-  }
-}
-
-async function buildCreatePrompt(input: DocumentInput, plan: DocumentPlan): Promise<string> {
-  const includeExample = plan.preferHtml || plan.artDirection !== 'clean';
-  const requestedTitle = extractRequestedDocumentTitle(input.prompt);
-
-  return new DocumentPromptComposer()
-    .addBase(plan)
-    .addBlueprint(plan.blueprint, plan.preferHtml)
-    .addStructure(plan.documentType)
-    .addComponentHints(plan.documentType, plan.artDirection, input.prompt)
-    .addPalette(plan.theme)
-    .addExample(plan.blueprint, plan.documentType, plan.artDirection, includeExample)
-    .addProjectLinks(input.projectLinks ?? [])
-    .addText(requestedTitle
-      ? `## Required Title\nUse this exact document title verbatim as the first \`<h1>\`: ${requestedTitle}\nDo not rename, paraphrase, or swap in a more generic alternative.`
-      : '')
-    .addRequest('User Request', input.prompt)
-    .addRules(false, plan)
-    .build();
-}
-
-async function buildEditPrompt(input: DocumentInput, plan: DocumentPlan): Promise<string> {
-  const existingSummary = input.existingMarkdown?.trim() || summarizeExistingDocument(input.existingHtml ?? '');
-  const shouldIncludeExample =
-    input.templateGuidance?.intentFamily === 'restyle' ||
-    /restyle|redesign|make it look|polish|visual|infographic|more graphic/i.test(input.prompt);
-  const targetSummary = input.editing?.targetSummary.length
-    ? `## Targeted Edit Scope\nOnly modify these target areas unless the user explicitly asked for a full rewrite:\n- ${input.editing.targetSummary.join('\n- ')}`
-    : '';
-  const boundedEditRules = input.editing && !input.editing.allowFullRegeneration
-    ? 'Preserve all non-targeted blocks exactly where possible. Prefer block-local edits over document-wide rewrites.'
-    : 'A full rewrite is allowed if it best satisfies the request.';
-
-  return new DocumentPromptComposer()
-    .addBase(plan)
-    .addBlueprint(plan.blueprint, plan.preferHtml)
-    .addExistingDocument(existingSummary)
-    .addComponentHints(plan.documentType, plan.artDirection, input.prompt)
-    .addPalette(plan.theme)
-    .addExample(plan.blueprint, plan.documentType, plan.artDirection, shouldIncludeExample)
-    .addProjectLinks(input.projectLinks ?? [])
-    .addText(targetSummary)
-    .addRequest('User Instruction', input.prompt)
-    .addRules(true, plan)
-    .addText(`## Edit Execution Rules\n- ${boundedEditRules}`)
-    .build();
-}
-
-function getDocumentStructureGuide(documentType: ResolvedDocumentType): string {
-  switch (documentType) {
-    case 'report':
-      return `Suggested structure:
-- # Title
-- > Executive summary
-- ## Key findings
-- ## Analysis
-- ## Recommendations / next steps
-Use bullets and compact tables where useful.`;
-    case 'proposal':
-      return `Suggested structure:
-- # Title
-- > Short value proposition
-- ## Context / problem
-- ## Proposed approach
-- ## Benefits / outcomes
-- ## Next steps`;
-    case 'brief':
-      return `Suggested structure:
-- # Title
-- > One-paragraph overview
-- ## Context
-- ## Key points
-- ## Recommended action`;
-    case 'notes':
-      return `Suggested structure:
-- # Title
-- > Short summary
-- ## Highlights
-- ## Decisions / takeaways
-- ## Action items`;
-    case 'wiki':
-    case 'readme':
-      return `Suggested structure:
-- # Title
-- > Quick overview
-- ## Overview / purpose
-- ## Key sections or steps
-- ## Reference details
-Use numbered lists and code fences where helpful.`;
-    default:
-      return `Suggested structure:
-- # Title
-- > Lead summary
-- ## Main sections with concise paragraphs and bullets
-- ## Closing takeaway or next steps`;
-  }
 }
 
 function pickDocumentTheme(
@@ -1119,19 +757,31 @@ export async function runDocumentWorkflow(
     const getSingleStreamRequestMessages = async (): Promise<ModelMessage[]> => {
       if (singleStreamRequestMessages) return singleStreamRequestMessages;
 
-      const systemPrompt = withTemplateGuidance(
-        withProjectRules(
-          isEdit ? EDIT_DOCUMENT_SYSTEM_PROMPT : DOCUMENT_SYSTEM_PROMPT,
-          input.projectRulesBlock,
-        ),
-        input.templateGuidance,
-      );
-      const baseUserPrompt = isEdit ? await buildEditPrompt(input, planResult) : await buildCreatePrompt(input, planResult);
-      const runtimePartPrompt = buildDocumentRuntimePartPrompt(runtimeParts);
-      const userPrompt = withMemoryContext(
-        [baseUserPrompt, runtimePartPrompt].filter(Boolean).join('\n\n'),
-        input.memoryContext,
-      );
+      const documentDesignFamily = input.artifactRunPlan?.designManifest.family ?? input.templateGuidance?.documentThemeFamily;
+      const existingDocumentSummary = isEdit
+        ? input.existingMarkdown?.trim() || summarizeExistingDocument(input.existingHtml ?? '')
+        : undefined;
+      const systemPrompt = buildDocumentRuntimeSingleStreamSystemPrompt({
+        documentType: planResult.documentType,
+        blueprintLabel: planResult.blueprint.label,
+        mode: isEdit ? 'edit' : 'create',
+        ...(documentDesignFamily ? { designFamily: documentDesignFamily } : {}),
+        ...(input.projectRulesBlock ? { projectRulesBlock: input.projectRulesBlock } : {}),
+      });
+      const userPrompt = buildDocumentRuntimeSingleStreamUserPrompt({
+        taskBrief: input.prompt,
+        documentType: planResult.documentType,
+        blueprintLabel: planResult.blueprint.label,
+        artDirection: planResult.artDirection,
+        preferHtml: planResult.preferHtml,
+        memoryContext: input.memoryContext,
+        projectLinks: input.projectLinks ?? [],
+        runtimeParts,
+        targetSummary: input.editing?.targetSummary ?? [],
+        allowFullRegeneration: input.editing?.allowFullRegeneration ?? false,
+        ...(requestedTitle ? { requestedTitle } : {}),
+        ...(existingDocumentSummary ? { existingDocumentSummary } : {}),
+      });
       const userMessage: ModelMessage = input.imageParts && input.imageParts.length > 0
         ? {
             role: 'user',

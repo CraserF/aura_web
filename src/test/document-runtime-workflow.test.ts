@@ -106,9 +106,12 @@ describe('document runtime workflow orchestration', () => {
     const workflowSource = readFileSync(join(process.cwd(), 'src/services/ai/workflow/document.ts'), 'utf8');
 
     expect(workflowSource).toContain("from '@/services/artifactRuntime/documentStreaming'");
+    expect(workflowSource).toContain("from '@/services/artifactRuntime/documentPrompts'");
     expect(workflowSource).not.toMatch(/function\s+streamDocumentRuntimeText/);
     expect(workflowSource).not.toMatch(/buildDocumentRuntime(?:Outline|Module|ModuleRepair)Prompt/);
     expect(workflowSource).not.toMatch(/assembleDocumentRuntimeHtml|applyDocumentRuntimeModuleEdits|validateDocumentRuntimeModules/);
+    expect(workflowSource).not.toMatch(/class\s+DocumentPromptComposer|DOCUMENT_SYSTEM_PROMPT|EDIT_DOCUMENT_SYSTEM_PROMPT/);
+    expect(workflowSource).not.toMatch(/getReferenceStylePack|synthetic style example|ADDITIONAL REFERENCE MATERIAL/);
   });
 
   it('uses images only in the queued outline step for image-based creates', async () => {

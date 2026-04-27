@@ -12,6 +12,8 @@ import {
   buildDocumentRuntimeModuleUserPrompt,
   buildDocumentRuntimeOutlineUserPrompt,
   buildDocumentRuntimeRepairUserPrompt,
+  buildDocumentRuntimeSingleStreamSystemPrompt,
+  buildDocumentRuntimeSingleStreamUserPrompt,
   buildDocumentRuntimeSystemPrompt,
   buildPresentationFragmentContractPack,
 } from '@/services/artifactRuntime';
@@ -195,5 +197,54 @@ describe('artifact prompt contracts', () => {
     expect(modulePrompt).toContain('mobile-safe');
     expect(repairPrompt).toContain('VALIDATOR FEEDBACK');
     expect(repairPrompt).toContain('fix only the failed module issues');
+  });
+
+  it('builds compact runtime document single-stream prompts without the old broad composer surface', () => {
+    const part = {
+      id: 'document-module-1',
+      artifactType: 'document' as const,
+      kind: 'document-module' as const,
+      orderIndex: 1,
+      title: 'Decision summary',
+      brief: 'Summarize the recommended path and tradeoffs.',
+      status: 'pending' as const,
+    };
+    const systemPrompt = buildDocumentRuntimeSingleStreamSystemPrompt({
+      documentType: 'brief',
+      designFamily: 'executive-light',
+      blueprintLabel: 'Executive Brief',
+      mode: 'edit',
+      projectRulesBlock: 'Audience: board reviewers.',
+    });
+    const userPrompt = buildDocumentRuntimeSingleStreamUserPrompt({
+      taskBrief: 'Tighten the recommendation and keep the document concise.',
+      documentType: 'brief',
+      blueprintLabel: 'Executive Brief',
+      artDirection: 'polished',
+      preferHtml: true,
+      requestedTitle: 'Market Expansion Brief',
+      existingDocumentSummary: '# Old brief\n\nExisting content.',
+      targetSummary: ['Recommendation section'],
+      runtimeParts: [part],
+      memoryContext: 'The organization prefers evidence-led recommendations.',
+      projectLinks: [{ id: 'source-doc', title: 'Research Notes', type: 'document' }],
+      allowFullRegeneration: false,
+    });
+
+    expect(systemPrompt).toContain('DOCUMENT SINGLE-STREAM ROLE');
+    expect(systemPrompt).toContain('DOCUMENT IFRAME CONTRACT');
+    expect(systemPrompt).toContain('Audience: board reviewers.');
+    expect(userPrompt).toContain('Existing Document');
+    expect(userPrompt).toContain('Targeted Edit Scope');
+    expect(userPrompt).toContain('DOCUMENT RUNTIME PART QUEUE');
+    expect(userPrompt).toContain(`data-runtime-part="..."`);
+    expect(userPrompt).toContain('Market Expansion Brief');
+    expect(userPrompt).toContain('<a href="#source-doc">Research Notes</a>');
+    expect(`${systemPrompt}\n${userPrompt}`).not.toContain('synthetic style example');
+    expect(`${systemPrompt}\n${userPrompt}`).not.toContain('TEMPLATE EXAMPLES');
+    expect(`${systemPrompt}\n${userPrompt}`).not.toContain('ADDITIONAL REFERENCE MATERIAL');
+    expect(`${systemPrompt}\n${userPrompt}`).not.toContain('Google Fonts');
+    expect(systemPrompt.length).toBeLessThanOrEqual(3200);
+    expect(userPrompt.length).toBeLessThanOrEqual(4500);
   });
 });

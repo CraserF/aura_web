@@ -15,6 +15,8 @@ export {
   buildDocumentRuntimeModuleUserPrompt,
   buildDocumentRuntimeOutlineUserPrompt,
   buildDocumentRuntimeRepairUserPrompt,
+  buildDocumentRuntimeSingleStreamSystemPrompt,
+  buildDocumentRuntimeSingleStreamUserPrompt,
   buildDocumentRuntimeSystemPrompt,
 } from './documentPrompts';
 export {
@@ -106,7 +108,10 @@ export type {
   DocumentQualityChecklistResult,
 } from './documentQualityChecklist';
 export type {
+  BuildDocumentRuntimeSingleStreamSystemPromptInput,
+  BuildDocumentRuntimeSingleStreamUserPromptInput,
   BuildDocumentRuntimeSystemPromptInput,
+  DocumentRuntimeProjectLink,
 } from './documentPrompts';
 export type {
   BuildDocumentRuntimePartsInput,

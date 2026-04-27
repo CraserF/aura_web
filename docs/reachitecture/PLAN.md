@@ -682,7 +682,7 @@ Last updated: 2026-04-27.
 - A deterministic release-smoke test now covers the prompt-cutover baseline for starter presentation initialization, fresh 3-slide queued presentation generation, and queued edit preservation. This is not a replacement for the remaining manual browser/provider smoke gate.
 - Manual browser/provider smoke is still required before calling a build deploy-ready, but it is no longer blocking architecture implementation slices because the current direction is to keep moving on runtime milestones without the manual smoke gate.
 - Presentation production templates now have a static viewport contract harness covering desktop, desktop wide, tablet portrait, mobile portrait, and mobile landscape. The first deterministic checks cover unsafe wrappers, viewport-unit layout/type usage, oversized fixed dimensions, risky large `min-width`, tiny source type, missing section backgrounds, and dense-grid risk. Browser/canvas screenshot automation is still a later layer.
-- Create-mode documents with runtime plans now use queued outline/module generation, runtime shell assembly, module validation/repair, document QA, and runtime telemetry. Image-based create requests also use the queued path by planning from images in the outline step. Targeted edit requests use queued module-local regeneration when existing runtime module wrappers can be resolved, with fallback to the existing targeted patcher when they cannot. Module validation failures now attempt queued per-module repair before deterministic module repair. Runtime telemetry now reports document run mode plus queued, completed, repaired module counts, and deterministic document quality summaries. Document module create/repair prompts now share compact prompt packs and a runtime-owned document design-system vocabulary.
+- Create-mode documents with runtime plans now use queued outline/module generation, runtime shell assembly, module validation/repair, document QA, and runtime telemetry. Image-based create requests also use the queued path by planning from images in the outline step. Targeted edit requests use queued module-local regeneration when existing runtime module wrappers can be resolved, with fallback to the existing targeted patcher when they cannot. Module validation failures now attempt queued per-module repair before deterministic module repair. Runtime telemetry now reports document run mode plus queued, completed, repaired module counts, and deterministic document quality summaries. Document module create/repair prompts and single-stream fallback create/edit prompts now share compact runtime prompt packs and a runtime-owned document design-system vocabulary.
 - Runtime benchmark diagnostics can now summarize prompt token estimates, first-preview coverage, validation pass rates, repair totals, queued/repaired part counts, generic quality pass rates, quality issue counts, spreadsheet action kinds, changed sheet counts, and refreshed sheet counts by artifact type.
 - Spreadsheets still use deterministic workbook execution, but result summaries now map into shared runtime events and telemetry with first-class workbook action, formula, query, chart, validation, and finalization diagnostics.
 - Workflow presets still exist in the advanced UI and storage model. They are hidden from the default user surface but not removed yet.
@@ -773,7 +773,7 @@ Last updated: 2026-04-27.
 4. Done for active presentation generation: Replace presentation prompt composition with compact prompt packs and design manifests. The old presentation composer has been removed from active create/edit/batch/revision paths.
 5. Done for presentation starters: Convert starter kits to use the same presentation runtime and production design families. Starter decks now create runtime plans, runtime parts, deterministic section assembly, and runtime finalization.
 6. Partially done: Simplify user-facing project settings into guided style/preferences, with current technical controls moved to Advanced. Curated Output Mode now feeds runtime plan defaults for presentation recipes and document design families.
-7. Mostly done: Move document generation onto the same run engine. Create-mode documents now generate outline and modules through runtime-owned queued calls; image create, queued module edit, edit fallback, per-module repair, module validation, workflow-level orchestration tests, document design-system constants, and document quality summaries are covered. Outline/module/repair prompts now compose compact document packs, and the document workflow shell delegates generation selection, fallback edit delegation, structure/module repair, final QA repair, finalization events, and telemetry assembly into `artifactRuntime`.
+7. Mostly done: Move document generation onto the same run engine. Create-mode documents now generate outline and modules through runtime-owned queued calls; image create, queued module edit, edit fallback, per-module repair, module validation, workflow-level orchestration tests, document design-system constants, and document quality summaries are covered. Outline/module/repair prompts and the remaining single-stream create/edit prompts now compose compact runtime-owned document packs, and the document workflow shell delegates generation selection, fallback edit delegation, structure/module repair, final QA repair, finalization events, and telemetry assembly into `artifactRuntime`.
 8. Started: Keep spreadsheet execution deterministic but emit the same run events and validation summaries. Workbook actions, formulas, query views, charts, validation, and finalization now attach as first-class runtime parts and report deterministic runtime telemetry, action kind, changed/refreshed sheet counts, quality summaries, and fallback validation-by-part diagnostics for blocked/clarification/no-intent results. Fallback spreadsheet results now replace the generic default workbook placeholder with concrete runtime parts before telemetry is built.
 9. Started: Delete or convert legacy templates after production routing is stable. Production-vs-legacy metadata, routing guards, bundle-size notes, production replacements, and convert/archive/delete recommendations are recorded; the first safe delete-later legacy templates have been removed while production routing and starter ids remain intact.
 10. Started for presentations and expanded to documents/spreadsheets: Runtime benchmark diagnostics exist, production presentation templates pass a deterministic static viewport contract, reusable presentation and document quality checklists report readiness, and spreadsheet diagnostics report deterministic action/validation summaries. Manual/browser canvas automation remains skipped for now by request.
@@ -823,6 +823,12 @@ Last updated: 2026-04-27.
 - Tightened spreadsheet runtime ownership so planned deterministic actions use concrete runtime parts before event/telemetry emission, with fallback part attachment reserved for no-plan results.
 - Extended active-generation import-boundary coverage across runtime builders and chat handlers to keep `services/adapters/*` and `services/executionSpec/*` out of active generation paths.
 
+## Completed In Current Document Prompt Surface Cleanup Slice
+- Added compact runtime-owned single-stream document prompt builders for create/edit fallback paths.
+- Replaced the old local `DocumentPromptComposer`, document system prompt constants, template style-pack injection, and broad example/style-pack prompt surface in `runDocumentWorkflow()`.
+- Kept single-stream behavior intact: fallback edits still receive existing-document summaries, target scopes, runtime part queues, project links, memory context, requested titles, and image parts when provided.
+- Extended prompt contract coverage for compact single-stream document prompts and import-boundary coverage proving the active document workflow no longer owns the old broad composer surface.
+
 Legacy template decision table:
 
 | Legacy template | Production replacement | Bundle note | Decision |
@@ -859,6 +865,20 @@ Removed legacy templates:
   - `npm run build`
   - Changed-file ESLint across modified template, runtime, workflow, handler, and test files.
   - `git diff --check`
+- Current document-prompt-surface-cleanup slice:
+  - `npm test -- prompt-contracts document-runtime-workflow artifact-runtime`
+    - Passed: 3 files, 32 tests.
+  - `npm run typecheck`
+    - Passed.
+  - `npm test`
+    - Passed: 105 files, 589 tests.
+  - `npm run build`
+    - Passed.
+    - Existing Vite warnings remain for DuckDB/export dynamic imports, `crypto` externalization from `isomorphic-git`, and large vendor/document runtime chunks.
+  - Changed-file ESLint via `npx eslint src/services/ai/workflow/document.ts src/services/artifactRuntime/documentPrompts.ts src/services/artifactRuntime/index.ts src/test/document-runtime-workflow.test.ts src/test/prompt-contracts.test.ts`
+    - Passed.
+  - `git diff --check`
+    - Passed.
 - Current runtime-ownership-before-cleanup slice:
   - `npm test -- document-runtime-workflow artifact-runtime runtime-telemetry spreadsheet-runtime workflow-progress ux-simplification presentation-template-design-system run-result run-history-panel`
   - `npm run typecheck`
@@ -1008,15 +1028,12 @@ Build notes:
 - Start with presentations, then extend to documents and spreadsheets.
 
 ## Immediate Next Implementation Slice
-- Continue document prompt-surface cleanup:
-  - replace the remaining broad single-stream document prompt composer path with compact document prompt packs where behavior can stay unchanged;
-  - keep the broad fallback path only as a temporary compatibility escape hatch until compact prompts cover create/edit parity.
-- Continue controlled legacy-template cleanup:
-  - choose the next archive-later candidate group only after checking active imports and build output;
-  - prefer archive/removal of non-starter legacy templates before touching convert-later templates that may need production-format migrations.
 - Continue spreadsheet runtime consolidation:
   - move spreadsheet planning/part attachment closer to `artifactRuntime` while keeping workbook execution deterministic;
   - keep blocked, clarification, and no-intent paths deterministic and model-free.
+- Continue controlled legacy-template cleanup:
+  - choose the next archive-later candidate group only after checking active imports and build output;
+  - prefer archive/removal of non-starter legacy templates before touching convert-later templates that may need production-format migrations.
 - Continue UX simplification:
   - audit default ChatBar and Project Style controls for any remaining technical wording;
   - keep provider/model/context/raw-rule controls Advanced-only while preserving expert access.
