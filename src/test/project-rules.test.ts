@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildDesignerPrompt, buildEditDesignerPrompt } from '@/services/ai/prompts/composer';
 import { resolveProjectRulesSnapshot } from '@/services/projectRules/resolve';
-import { getTemplateBlueprint } from '@/services/ai/templates';
+import {
+  buildArtifactRunPlan,
+  buildPresentationCreateSystemPrompt,
+  buildPresentationEditSystemPrompt,
+} from '@/services/artifactRuntime';
+import { getTemplateBlueprint, resolveTemplatePlan } from '@/services/ai/templates';
+import type { PlanResult } from '@/services/ai/workflow/agents/planner';
 import type { ProjectData, ProjectDocument } from '@/types/project';
 
 function makeDocument(overrides: Partial<ProjectDocument> = {}): ProjectDocument {
@@ -36,6 +41,34 @@ function makeProject(overrides: Partial<ProjectData> = {}): ProjectData {
     updatedAt: 1,
     ...overrides,
   };
+}
+
+function makePresentationPromptInputs(prompt = 'Create a launch presentation') {
+  const runPlan = buildArtifactRunPlan({
+    runId: 'project-rules-prompt-run',
+    prompt,
+    artifactType: 'presentation',
+    operation: 'create',
+    activeDocument: null,
+    mode: 'execute',
+    providerId: 'openai',
+    providerModel: 'gpt-4o',
+    allowFullRegeneration: false,
+  });
+  const templatePlan = resolveTemplatePlan(prompt);
+  const planResult = {
+    intent: 'create',
+    blocked: false,
+    style: templatePlan.style,
+    selectedTemplate: templatePlan.templateId,
+    exemplarPackId: templatePlan.exemplarPackId,
+    animationLevel: 2,
+    blueprint: getTemplateBlueprint(templatePlan.style),
+    styleManifest: templatePlan.styleManifest,
+    enhancedPrompt: prompt,
+  } as PlanResult;
+
+  return { runPlan, planResult };
 }
 
 describe('project rules resolution', () => {
@@ -88,21 +121,11 @@ describe('project rules resolution', () => {
 });
 
 describe('project rules prompt injection', () => {
-  it('injects the shared project rules block exactly once into create and edit prompts', async () => {
+  it('injects the shared project rules block exactly once into create and edit prompts', () => {
     const projectRulesBlock = '## PROJECT RULES\n\nKeep slides tightly aligned to the launch theme.';
-    const createPrompt = await buildDesignerPrompt(
-      getTemplateBlueprint('keynote'),
-      'keynote',
-      'default-template',
-      2,
-      undefined,
-      projectRulesBlock,
-    );
-    const editPrompt = buildEditDesignerPrompt(
-      getTemplateBlueprint('keynote').palette,
-      2,
-      projectRulesBlock,
-    );
+    const { runPlan, planResult } = makePresentationPromptInputs();
+    const createPrompt = buildPresentationCreateSystemPrompt({ runPlan, planResult, projectRulesBlock });
+    const editPrompt = buildPresentationEditSystemPrompt({ runPlan, planResult, projectRulesBlock });
 
     expect(createPrompt.match(/## PROJECT RULES/g)).toHaveLength(1);
     expect(editPrompt.match(/## PROJECT RULES/g)).toHaveLength(1);

@@ -140,7 +140,7 @@ export const GOTCHAS = [
   'NEVER draw recognizable real objects (dogs, people, buildings) in SVG or CSS — the result is always ugly blobs. For real-world subjects, use large emoji (5-8em) as the focal visual with abstract animated SVG accents (hearts, flowing lines, pulsing dots) around them.',
   'On light-mode slides, the LLM sometimes applies backdrop-filter:blur() which makes everything look muddy. Light mode uses solid surfaces with box-shadow for depth.',
   'The LLM defaults to card-grid layout for everything. A good deck uses at least 4 different layout types across its slides.',
-  'Font links are often omitted from the output. The FIRST line of output must be the Google Fonts <link> tag.',
+  'Custom web-font links are not allowed in runtime presentation fragments. Use system font stacks or local @font-face only.',
 ] as const;
 
 // ── Review Prompt Builder ───────────────────────────────────

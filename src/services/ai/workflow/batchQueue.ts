@@ -6,9 +6,9 @@ import type { LanguageModel } from 'ai';
 import type { PlanResult, SlideBrief } from './agents/planner';
 import type { EventListener } from './types';
 import { design } from './agents/designer';
-import { buildBatchSlidePrompt } from '../prompts/composer';
 import { sanitizeInnerHtml } from '@/services/html/sanitizer';
-import type { TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
+import { buildPresentationBatchSlidePrompt } from '@/services/artifactRuntime/presentationPrompts';
+import type { ArtifactRunPlan, TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
 
 export interface BatchQueueOptions {
   planResult: PlanResult;
@@ -17,6 +17,7 @@ export interface BatchQueueOptions {
   onSlideComplete: (combinedHtml: string, slideIndex: number, totalSlides: number) => void;
   initialHtml?: string;
   guidanceProfile?: TemplateGuidanceProfile;
+  runPlan?: ArtifactRunPlan;
   signal?: AbortSignal;
 }
 
@@ -31,7 +32,7 @@ export interface BatchQueueResult {
  * can display progressive results.
  */
 export async function runBatchQueue(opts: BatchQueueOptions): Promise<BatchQueueResult> {
-  const { planResult, model, onEvent, onSlideComplete, initialHtml, guidanceProfile, signal } = opts;
+  const { planResult, model, onEvent, onSlideComplete, initialHtml, guidanceProfile, runPlan, signal } = opts;
   const briefs: SlideBrief[] = planResult.slideBriefs ?? [];
   const totalSlides = briefs.length;
 
@@ -70,12 +71,14 @@ export async function runBatchQueue(opts: BatchQueueOptions): Promise<BatchQueue
     });
 
     // Build the enhanced prompt for this slide
-    const slidePrompt = buildBatchSlidePrompt(
-      planResult.enhancedPrompt,
+    const slidePrompt = buildPresentationBatchSlidePrompt({
       brief,
       totalSlides,
-      i === 0 ? undefined : sharedStyleBlock,
-    );
+      planResult,
+      ...(runPlan ? { runPlan } : {}),
+      ...(i === 0 ? {} : { sharedStyleBlock }),
+      ...(guidanceProfile ? { guidanceProfile } : {}),
+    });
 
     // Create a modified plan result with the slide-specific prompt
     const slidePlanResult: PlanResult = {
@@ -94,6 +97,8 @@ export async function runBatchQueue(opts: BatchQueueOptions): Promise<BatchQueue
       undefined,
       guidanceProfile,
       signal,
+      runPlan,
+      slidePrompt,
     );
 
     const cleanHtml = sanitizeInnerHtml(slideResult.html);
@@ -104,9 +109,9 @@ export async function runBatchQueue(opts: BatchQueueOptions): Promise<BatchQueue
     }
     const styleMatch = cleanHtml.match(/<style[\s\S]*?<\/style>/i)?.[0] ?? '';
 
-    // Extract shared <link> and <style> from the first newly generated slide if
-    // we are building a fresh deck. Existing decks keep their original style
-    // block and treat new style blocks as incremental extensions.
+    // Extract shared style from the first newly generated slide if we are
+    // building a fresh deck. Existing decks keep their original style block and
+    // treat new style blocks as incremental extensions.
     if (i === 0 && !sharedStyleBlock) {
       sharedStyleBlock = styleMatch;
       batchTitle = slideResult.title ?? brief.title;

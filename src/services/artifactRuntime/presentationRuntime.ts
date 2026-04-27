@@ -339,6 +339,7 @@ async function runBoundedLlmPresentationRepair(input: {
     input.projectRulesBlock,
     input.signal,
     remainingPasses,
+    input.runPlan,
   );
   const repairedValidation = validatePresentationRuntimeOutput(
     repairedHtml,
@@ -694,6 +695,7 @@ export async function runQueuedPresentationRuntime(
     onEvent,
     ...(isEdit && input.existingSlidesHtml ? { initialHtml: input.existingSlidesHtml } : {}),
     ...(guidanceProfile ? { guidanceProfile } : {}),
+    ...(runPlan ? { runPlan } : {}),
     onSlideComplete: (combinedHtml, slideIndex, totalSlides) => {
       firstPreviewAt ??= performance.now();
       onEvent({ type: 'batch-slide-complete', html: combinedHtml, slideIndex, totalSlides });
@@ -879,6 +881,7 @@ export async function runSinglePresentationRuntime(
             input.editing,
             editCorrectionPolicy,
             signal,
+            runPlan,
           )
         : await design(
             planResult,
@@ -889,6 +892,7 @@ export async function runSinglePresentationRuntime(
             input.projectRulesBlock,
             guidanceProfile,
             signal,
+            runPlan,
           );
     } finally {
       stopDesignHeartbeat();
@@ -970,6 +974,8 @@ export async function runSinglePresentationRuntime(
         runtimeOnEvent,
         input.projectRulesBlock,
         signal,
+        1,
+        runPlan,
       );
       emitArtifactRunEvent(onEvent, {
         runId: runtimeRunId,

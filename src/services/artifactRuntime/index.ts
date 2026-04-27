@@ -38,6 +38,21 @@ export {
   validatePresentationRuntimeOutput,
 } from './presentationRuntime';
 export {
+  buildPresentationAddSlidesUserPrompt,
+  buildPresentationBatchSlidePrompt,
+  buildPresentationCreateSystemPrompt,
+  buildPresentationCreateUserPrompt,
+  buildPresentationEditSystemPrompt,
+  buildPresentationEditUserPrompt,
+  buildPresentationRevisionSystemPrompt,
+} from './presentationPrompts';
+export {
+  buildCoreArtifactContractPack,
+  buildDocumentModuleContractPack,
+  buildPresentationFragmentContractPack,
+  buildValidatorFeedbackPack,
+} from './promptPacks';
+export {
   PRESENTATION_VIEWPORT_MATRIX,
   validatePresentationViewportContract,
 } from './presentationViewport';

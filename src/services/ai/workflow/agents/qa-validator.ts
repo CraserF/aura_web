@@ -482,7 +482,7 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
       slide: 0,
       rule: 'google-fonts',
       severity: 'warning',
-      detail: `Custom font family used without a source declaration: ${customFamilies.slice(0, 3).join(', ')}. Add a Google Fonts <link> or @font-face, or switch to system fonts.`,
+      detail: `Custom font family used without a local source declaration: ${customFamilies.slice(0, 3).join(', ')}. Add @font-face or switch to system fonts.`,
     });
   }
 

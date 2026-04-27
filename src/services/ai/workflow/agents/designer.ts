@@ -17,25 +17,25 @@ import type { LanguageModel, ModelMessage } from 'ai';
 import { z } from 'zod';
 import type { AIMessage } from '../../types';
 import {
-  buildDesignerPrompt,
-  buildEditDesignerPrompt,
-} from '../../prompts';
-import { getExemplarPack } from '../../templates';
+  buildPresentationAddSlidesUserPrompt,
+  buildPresentationCreateSystemPrompt,
+  buildPresentationCreateUserPrompt,
+  buildPresentationEditSystemPrompt,
+  buildPresentationEditUserPrompt,
+} from '@/services/artifactRuntime/presentationPrompts';
 import { extractHtmlFromResponse, countSlides, extractTitle } from '../../utils/extractHtml';
 import { sanitizeSlideHtml } from '../../utils/sanitizeHtml';
 import { injectFonts } from '../../utils/injectFonts';
-import { ensureFontSourceDeclaration } from '../../utils/ensureFontSource';
 import { validateSlides } from './qa-validator';
 import { parsePatchBlocks, applyPatches } from '../patchUtils';
 import type { PlanResult } from './planner';
-import type { StyleManifest } from '../../templates';
 import type { EventListener } from '../types';
 import { toModelMessages, CACHE_CONTROL } from '../engine';
 import { aiDebugLog, logPromptMetrics } from '../../debug';
 import { withRetry } from '../../fallbackModel';
 import type { EditStrategy, EditingTelemetry } from '@/services/editing/types';
 import { applyPresentationPatchBlocks } from '@/services/editing/patchPresentation';
-import type { TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
+import type { ArtifactRunPlan, TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
 
 export interface DesignResult {
   html: string;
@@ -69,43 +69,12 @@ interface EditCorrectionPolicy {
   maxCorrectionSteps: number;
 }
 
-/**
- * Extract the last N <section> elements from accumulated HTML for continuity context.
- */
-function extractLastNSections(html: string, n: number): string {
-  const sectionRegex = /<section[\s\S]*?<\/section>/gi;
-  const matches = html.match(sectionRegex);
-  if (!matches || matches.length === 0) return '';
-  return matches.slice(-n).join('\n');
-}
-
 function extractSections(html: string): string[] {
   return html.match(/<section[\s\S]*?<\/section>/gi) ?? [];
 }
 
 function extractStyleBlock(html: string): string {
   return html.match(/<style[^>]*>[\s\S]*?<\/style>/i)?.[0] ?? '';
-}
-
-function summarizeExistingClasses(html: string, maxClasses = 18): string[] {
-  const classMatches = [...html.matchAll(/class=["']([^"']+)["']/gi)];
-  const classCounts = new Map<string, number>();
-
-  for (const match of classMatches) {
-    const classList = (match[1] ?? '')
-      .split(/\s+/)
-      .map((name) => name.trim())
-      .filter(Boolean);
-
-    for (const className of classList) {
-      classCounts.set(className, (classCounts.get(className) ?? 0) + 1);
-    }
-  }
-
-  return [...classCounts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, maxClasses)
-    .map(([className]) => className);
 }
 
 function extractClassNames(html: string): string[] {
@@ -216,24 +185,6 @@ function assessContinuity(existingSlidesHtml: string, newSlideHtml: string): Con
   };
 }
 
-function buildStyleContinuityContext(existingSlidesHtml: string): string {
-  const styleBlock = extractStyleBlock(existingSlidesHtml);
-  const styleExcerpt = styleBlock ? styleBlock.slice(0, 3500) : '';
-  const existingClasses = summarizeExistingClasses(existingSlidesHtml);
-
-  const parts: string[] = [];
-
-  if (styleExcerpt) {
-    parts.push(`**Existing style system excerpt** (reuse this visual language, typography, spacing, and motion):\n\`\`\`html\n${styleExcerpt}\n\`\`\``);
-  }
-
-  if (existingClasses.length > 0) {
-    parts.push(`**Existing class vocabulary** (prefer reusing these instead of inventing new classes): ${existingClasses.join(', ')}`);
-  }
-
-  return parts.join('\n\n');
-}
-
 /**
  * For add-slide intent, keep existing slides untouched and append only newly generated sections.
  */
@@ -281,9 +232,10 @@ function normalizeAttributeQuotes(html: string): string {
 /**
  * Post-process raw LLM output into clean, validated slide HTML.
  */
-function postProcess(raw: string, fontImport?: string): { html: string; fontLinks: string[] } {
+function postProcess(raw: string, _fontImport?: string): { html: string; fontLinks: string[] } {
   const { html: rawHtml, fontLinks } = extractHtmlFromResponse(raw);
-  const html = sanitizeSlideHtml(ensureFontSourceDeclaration(normalizeAttributeQuotes(rawHtml), fontImport));
+  void _fontImport;
+  const html = sanitizeSlideHtml(normalizeAttributeQuotes(rawHtml));
   return { html, fontLinks };
 }
 
@@ -307,7 +259,7 @@ function createDesignAgent(
       validateSlideHtml: tool({
         description: 'Validate slide HTML against quality rules. Call this AFTER generating your slide to check for blocking issues and advisory quality guidance. Fix blocking issues first; advisory items are optional improvements.',
         inputSchema: z.object({
-          html: z.string().describe('The complete slide HTML including <link>, <style>, and <section> elements'),
+          html: z.string().describe('The complete slide fragment containing only <style> and <section> elements'),
         }),
         execute: async ({ html }) => {
           // Post-process before validation (same pipeline as final output)
@@ -354,7 +306,7 @@ function createDesignAgent(
         },
       }),
       submitFinalSlide: tool({
-        description: 'Submit the final slide HTML when validation passes (0 errors). Include the complete HTML with <link>, <style>, and <section> elements.',
+        description: 'Submit the final slide fragment when validation passes (0 errors). Include only the complete <style> and <section> elements.',
         inputSchema: z.object({
           html: z.string().describe('The final validated slide HTML'),
           title: z.string().describe('A short descriptive title for this slide'),
@@ -423,18 +375,25 @@ export async function design(
   projectRulesBlock?: string,
   guidanceProfile?: TemplateGuidanceProfile,
   signal?: AbortSignal,
+  runPlan?: ArtifactRunPlan,
+  taskBrief?: string,
 ): Promise<DesignResult> {
   const t0 = performance.now();
-  // Build the system prompt with all sections
-  const systemPrompt = await buildDesignerPrompt(
-    planResult.blueprint,
-    planResult.selectedTemplate,
-    planResult.exemplarPackId,
-    planResult.animationLevel,
-    undefined,
-    projectRulesBlock,
-    guidanceProfile,
-  );
+  const systemPrompt = buildPresentationCreateSystemPrompt({
+    planResult,
+    ...(runPlan ? { runPlan } : {}),
+    ...(guidanceProfile ? { guidanceProfile } : {}),
+    ...(projectRulesBlock ? { projectRulesBlock } : {}),
+  });
+
+  const userPrompt = buildPresentationCreateUserPrompt({
+    planResult,
+    ...(runPlan ? { runPlan } : {}),
+    ...(existingSlidesHtml ? { existingSlidesHtml } : {}),
+    ...(guidanceProfile ? { guidanceProfile } : {}),
+    ...(taskBrief ? { taskBrief } : {}),
+    ...(projectRulesBlock ? { projectRulesBlock } : {}),
+  });
 
   // Build conversation messages
   const messages: ModelMessage[] = [];
@@ -443,39 +402,7 @@ export async function design(
     messages.push(...toModelMessages(recentHistory));
   }
 
-  // Build the user message with art direction context
-  const exemplarPack = getExemplarPack(planResult.exemplarPackId);
-  const artDirection = buildArtDirectionBlock(
-    planResult.styleManifest,
-    exemplarPack.name,
-    exemplarPack.visualThesis,
-  );
-
-  let userContent: string;
-  if (existingSlidesHtml) {
-    const lastSlides = extractLastNSections(existingSlidesHtml, 2);
-    userContent = `Create a new slide for this topic: ${planResult.enhancedPrompt}
-
-${artDirection}
-
-Here are the most recent existing slides (for visual continuity — match their style):
-\`\`\`html
-${lastSlides}
-\`\`\`
-
-Output the NEW slide only (with its own <style> block if needed). The slide should complement the existing deck's visual language.
-
-After generating the slide HTML, call the validateSlideHtml tool to check for issues. Fix any errors found, then call submitFinalSlide with the validated HTML.`;
-  } else {
-    userContent = `Create a stunning slide for this topic: ${planResult.enhancedPrompt}
-
-${artDirection}
-
-Remember: Output a <link> tag, then a <style> block with CSS classes and @keyframes, then a single <section> with rich class-based HTML content and inline SVG illustrations. Make it breathtaking.
-
-After generating the slide HTML, call the validateSlideHtml tool to check for issues. Fix any errors found, then call submitFinalSlide with the validated HTML.`;
-  }
-  messages.push({ role: 'user', content: userContent });
+  messages.push({ role: 'user', content: userPrompt });
 
   // Phase 1: Stream the initial generation for instant canvas preview
   const requestMessages = [
@@ -617,17 +544,18 @@ export async function designEdit(
     maxCorrectionSteps: 5,
   },
   signal?: AbortSignal,
+  runPlan?: ArtifactRunPlan,
 ): Promise<DesignResult> {
   const t0 = performance.now();
   const existingSlideCount = countSlides(existingSlidesHtml);
   const isAddSlides = planResult.intent === 'add_slides';
 
-  const systemPrompt = buildEditDesignerPrompt(
-    planResult.blueprint.palette,
-    planResult.animationLevel,
-    projectRulesBlock,
-    guidanceProfile,
-  );
+  const systemPrompt = buildPresentationEditSystemPrompt({
+    planResult,
+    ...(runPlan ? { runPlan } : {}),
+    ...(guidanceProfile ? { guidanceProfile } : {}),
+    ...(projectRulesBlock ? { projectRulesBlock } : {}),
+  });
 
   const messages: ModelMessage[] = [];
   const recentHistory = chatHistory.slice(-10);
@@ -637,8 +565,23 @@ export async function designEdit(
 
   // Build the user prompt — add_slides gets a focused "new slide only" prompt
   const userContent = isAddSlides
-    ? buildAddSlidesPrompt(planResult, existingSlidesHtml, existingSlideCount)
-    : buildEditPrompt(planResult, existingSlidesHtml, existingSlideCount, editing?.targetSummary);
+    ? buildPresentationAddSlidesUserPrompt({
+        planResult,
+        existingSlidesHtml,
+        existingSlideCount,
+        ...(runPlan ? { runPlan } : {}),
+        ...(guidanceProfile ? { guidanceProfile } : {}),
+        ...(projectRulesBlock ? { projectRulesBlock } : {}),
+      })
+    : buildPresentationEditUserPrompt({
+        planResult,
+        existingSlidesHtml,
+        existingSlideCount,
+        ...(editing?.targetSummary ? { targetSummary: editing.targetSummary } : {}),
+        ...(runPlan ? { runPlan } : {}),
+        ...(guidanceProfile ? { guidanceProfile } : {}),
+        ...(projectRulesBlock ? { projectRulesBlock } : {}),
+      });
 
   messages.push({ role: 'user', content: userContent });
 
@@ -870,113 +813,4 @@ export async function designEdit(
       },
     } : {}),
   };
-}
-
-/**
- * Build an art direction block from the style manifest for the user message.
- */
-function buildArtDirectionBlock(
-  manifest: StyleManifest,
-  exemplarName: string,
-  visualThesis?: string,
-): string {
-  return `Art direction:
-- Exemplar: ${exemplarName}
-${visualThesis ? `- Visual thesis: ${visualThesis}
-` : ''}- Composition: ${manifest.compositionMode}
-- Background: ${manifest.backgroundTreatment}
-- Typography mood: ${manifest.typographyMood}
-- Motion: ${manifest.motionLanguage}
-- SVG strategy: ${manifest.svgStrategy}
-- Hero pattern: ${manifest.heroPattern}
-- Component patterns: ${manifest.componentPatterns.join('; ')}`;
-}
-
-/**
- * Build the user prompt for a standard edit operation (modify/refine_style).
- */
-function buildEditPrompt(
-  planResult: PlanResult,
-  existingSlidesHtml: string,
-  existingSlideCount: number,
-  targetSummary?: string[],
-): string {
-  const targetedScope = targetSummary && targetSummary.length > 0
-    ? `\n**Target only these areas unless the user explicitly asked for a full rewrite:**\n- ${targetSummary.join('\n- ')}\n`
-    : '';
-  return `## EDIT MODE — Modify Existing Slide(s)
-
-Here are the current slides (${existingSlideCount} slide(s) total):
-
-\`\`\`html
-${existingSlidesHtml}
-\`\`\`
-
-**User request:** ${planResult.enhancedPrompt}
-${targetedScope}
-
-**CRITICAL RULES:**
-- Output the COMPLETE deck: \`<style>\` block and ALL \`<section>\` elements.
-- Preserve slides not affected by the request — output them unchanged.
-- Keep the same CSS architecture, palette, fonts, and animation patterns.
-- Output a single code block. NOTHING else.
-
-After generating the HTML, call validateSlideHtml, fix any errors, then call submitFinalSlide.`;
-}
-
-/**
- * Build the user prompt for an add-slides operation.
- * Asks the agent to generate ONLY the new section(s) — they will be appended
- * to the existing deck automatically. This prevents overwrite bugs.
- *
- * Deck structure guidance:
- *   Slide 1 — Title/hero
- *   Slide 2 — Agenda/overview
- *   Slide 3+ — Content slides (one topic per slide)
- *   Last — Summary/CTA/closing
- */
-function buildAddSlidesPrompt(
-  planResult: PlanResult,
-  existingSlidesHtml: string,
-  existingSlideCount: number,
-): string {
-  const lastSlides = extractLastNSections(existingSlidesHtml, 2);
-  const styleContinuity = buildStyleContinuityContext(existingSlidesHtml);
-
-  // Suggest what slide type comes next based on deck position
-  const nextSlideHint = existingSlideCount === 1
-    ? 'This is slide 2 — make it an Agenda/Overview slide listing the topics to be covered.'
-    : existingSlideCount === 2
-    ? 'This is slide 3 — start the first content slide diving into the main topic.'
-    : `This is slide ${existingSlideCount + 1} — continue with the next content point or transition toward a closing slide.`;
-
-  const preferredRecipe = existingSlideCount === 1
-    ? 'agenda-overview'
-    : existingSlideCount === 2
-    ? 'editorial-infographic / metrics-dashboard / process-timeline (choose the best fit for the content)'
-    : 'match the current deck’s established recipe and visual system';
-
-  return `## ADD NEW SLIDE — Append to existing ${existingSlideCount}-slide deck
-
-${styleContinuity}
-
-**Existing deck context** (last ${Math.min(existingSlideCount, 2)} slide(s) — match this visual style):
-\`\`\`html
-${lastSlides}
-\`\`\`
-
-**User request:** ${planResult.enhancedPrompt}
-
-**Slide position hint:** ${nextSlideHint}
-**Preferred recipe:** ${preferredRecipe}
-
-**OUTPUT RULES — CRITICAL:**
-- Output ONLY the NEW \`<section>\` element(s) to append. Do NOT repeat existing slides.
-- Do NOT output a \`<style>\` block — the new section uses the existing deck's CSS classes.
-- Reuse the existing class vocabulary and visual system. Prefer using the deck's existing classes, spacing rhythm, typography scale, and animation cadence.
-- Match the background color, CSS class naming patterns, and animation style of the existing slides.
-- The new section MUST have a \`data-background-color\` attribute.
-- Make it visually consistent and breathtaking.
-
-After generating the new section(s), call validateSlideHtml, fix any errors, then call submitFinalSlide.`;
 }

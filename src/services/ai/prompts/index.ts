@@ -1,9 +1,2 @@
-/**
- * Barrel export for the modular prompt system.
- * Backward-compatible: re-exports buildSystemPrompt for existing consumers.
- */
-
-export { PromptComposer, buildDesignerPrompt, buildRevisionSystemPrompt, buildEditDesignerPrompt } from './composer';
-
-// Backward compatibility — existing code imports buildSystemPrompt
+/** Legacy prompt export retained only for non-runtime compatibility. */
 export { buildSystemPrompt } from './legacy';

@@ -514,6 +514,20 @@ Last updated: 2026-04-27.
     - Passed.
   - `git diff --check`
     - Passed.
+- Current eighteenth-slice focused validation:
+  - `npm run typecheck`
+    - Passed.
+  - `npm test -- prompt-contracts presentation-runtime-workflow artifact-runtime presentation-template-design-system project-starter-kits presentation-runtime-policy`
+    - Passed: 6 files, 37 tests.
+  - `npm test`
+    - Passed: 98 files, 548 tests.
+  - `npm run build`
+    - Passed.
+    - Existing Vite warnings remain for chunk size, `crypto` externalization from `isomorphic-git`, and mixed static/dynamic imports.
+  - Changed-file ESLint via `npx eslint src/services/ai/prompts/index.ts src/services/ai/workflow/agents/designer.ts src/services/ai/workflow/agents/evaluator.ts src/services/ai/workflow/agents/qa-validator.ts src/services/ai/workflow/agents/reviewer.ts src/services/ai/workflow/batchQueue.ts src/services/ai/workflow/skills/design-rules.ts src/services/artifactRuntime/index.ts src/services/artifactRuntime/presentationRuntime.ts src/services/artifactRuntime/presentationPrompts.ts src/test/mobile-guidance.test.ts src/test/project-rules.test.ts src/test/prompt-contracts.test.ts`
+    - Passed.
+  - `git diff --check`
+    - Passed.
 
 ### Current Open State
 - The active runtime now has an internal plan object, and queued plus single-slide presentation generation are controlled by the runtime layer.
@@ -523,6 +537,9 @@ Last updated: 2026-04-27.
 - Legacy external execution-spec files still exist in the repository as quarantined code, but active chat generation no longer imports them.
 - Starter presentation generation now creates runtime plans and uses runtime-owned template parsing, token replacement, section assembly, sanitize/validate/finalize behavior, and telemetry.
 - Active generated presentation routing now normalizes onto the production template family list. Legacy template files still exist in the registry/build output, but generated and starter routing should no longer select them directly.
+- Active presentation prompt composition is now runtime-owned through compact prompt builders that read `ArtifactRunPlan.designManifest`. Create, edit, batch slide, and revision prompts use the core artifact contract, presentation fragment contract, design manifest, selected style family, task brief, and validator feedback only.
+- The old presentation `PromptComposer` path has been removed from active code. `src/services/ai/prompts/index.ts` no longer exports presentation composer functions, and active designer, batch, evaluator, and prompt tests no longer import `src/services/ai/prompts/composer.ts`.
+- Active presentation prompts no longer require Google Fonts links or `<link>` output. Runtime prompt contract tests now enforce compact prompt size ceilings and guard against old broad prompt sections returning to active generation.
 - The current presentation repair stage performs queued per-slide deterministic repair before whole-deck validation, then a deck-level deterministic repair pass, then a bounded LLM repair pass when deterministic repair cannot recover the fragment and a model is available. Presentation runtime telemetry now includes run mode, queued/completed slide counts, repaired slide counts, and deck/slide validation summaries. Repair-started workflow progress events now carry `partId` and `runId`, and successful queued slide repairs emit `runtime.repair-completed` as a slide-specific step update.
 - Presentation production templates now have a static viewport contract harness covering desktop, desktop wide, tablet portrait, mobile portrait, and mobile landscape. The first deterministic checks cover unsafe wrappers, viewport-unit layout/type usage, oversized fixed dimensions, risky large `min-width`, tiny source type, missing section backgrounds, and dense-grid risk. Browser/canvas screenshot automation is still a later layer.
 - Create-mode documents with runtime plans now use queued outline/module generation, runtime shell assembly, module validation/repair, document QA, and runtime telemetry. Image-based create requests also use the queued path by planning from images in the outline step. Targeted edit requests use queued module-local regeneration when existing runtime module wrappers can be resolved, with fallback to the existing targeted patcher when they cannot. Module validation failures now attempt queued per-module repair before deterministic module repair. Runtime telemetry now reports document run mode plus queued, completed, and repaired module counts. Document module create/repair prompts now share a compact module contract pack.
@@ -613,7 +630,7 @@ Last updated: 2026-04-27.
 1. Done: Remove/quarantine external API/MCP/automation seams and dry-run/explain complexity from the active runtime.
 2. Done: Define the new `ArtifactRunPlan`, `ArtifactRunEvent`, `ArtifactPart`, `DesignManifest`, and `ValidationGate` types.
 3. Mostly done for presentations: Rebuild presentation generation around the new run engine while keeping the current UI entry point. Queued decks and single-slide create/edit now dispatch through the runtime; outline/design-manifest-first generation still needs a deeper planner pass.
-4. In progress: Replace presentation prompt composition with compact prompt packs and design manifests.
+4. Done for active presentation generation: Replace presentation prompt composition with compact prompt packs and design manifests. The old presentation composer has been removed from active create/edit/batch/revision paths.
 5. Done for presentation starters: Convert starter kits to use the same presentation runtime and production design families. Starter decks now create runtime plans, runtime parts, deterministic section assembly, and runtime finalization.
 6. Partially done: Simplify user-facing project settings into guided style/preferences, with current technical controls moved to Advanced.
 7. In progress: Move document generation onto the same run engine. Create-mode documents now generate outline and modules through runtime-owned queued calls; image create, queued module edit, edit fallback, per-module repair, module validation, and workflow-level orchestration tests are now covered. The next step is compatibility cleanup, stronger benchmark diagnostics, and continuing to shrink broad document prompt surfaces.
@@ -750,9 +767,13 @@ Last updated: 2026-04-27.
 - Start with presentations, then extend to documents and spreadsheets.
 
 ## Immediate Next Implementation Slice
-- Continue presentation runtime hardening beyond deterministic per-slide repair:
+- Complete production-readiness smoke for the prompt cutover before starting another architecture slice:
+  - create the executive starter deck and launch starter deck in the app and confirm slide count, scoped HTML, and canvas rendering;
+  - generate a fresh 3-slide presentation and confirm first preview, queued slide progress, no duplicated CSS, and no unresolved placeholders;
+  - edit one generated slide and confirm the compact edit prompt preserves unaffected slides;
+  - check desktop plus one mobile viewport manually, then record pass/fail notes here.
+- After smoke passes, continue presentation runtime hardening:
   - surface slide-specific repair progress in the generation UI where `partId`/`runId` can drive clearer step labels;
-  - audit prompt paths that still call template selection or planner helpers without going through the runtime plan and add routing assertions where gaps remain;
   - extend viewport validation from static CSS/fragment checks into a browser/canvas screenshot harness for production templates and starter decks;
   - collect bundle impact data for legacy presentation templates before deciding whether to archive, convert, or delete them.
 - Continue compatibility cleanup without deleting compatibility files yet:

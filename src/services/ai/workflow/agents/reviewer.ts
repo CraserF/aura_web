@@ -235,7 +235,7 @@ export function buildCombinedRevisionPrompt(
   return `A design reviewer and automated QA found issues with the slides.
 Fix ALL errors while keeping the overall design intact.
 Do NOT modify visual elements that are not required to fix a listed issue.
-Output the complete corrected HTML including the \`<link>\`, \`<style>\`, and all \`<section>\` elements.
+Output the complete corrected fragment with only the \`<style>\` block and all \`<section>\` elements.
 
 ${parts.join('\n\n')}`;
 }

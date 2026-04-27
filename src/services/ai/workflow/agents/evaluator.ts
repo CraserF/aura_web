@@ -12,7 +12,7 @@
 import { generateObject, generateText } from 'ai';
 import type { LanguageModel, ModelMessage } from 'ai';
 import { z } from 'zod';
-import { buildRevisionSystemPrompt } from '../../prompts';
+import { buildPresentationRevisionSystemPrompt } from '@/services/artifactRuntime/presentationPrompts';
 import { extractHtmlFromResponse } from '../../utils/extractHtml';
 import { sanitizeSlideHtml } from '../../utils/sanitizeHtml';
 import { CACHE_CONTROL } from '../engine';
@@ -20,6 +20,7 @@ import { aiDebugLog, toErrorInfo } from '../../debug';
 import type { PlanResult } from './planner';
 import type { EventListener } from '../types';
 import { withRetry } from '../../fallbackModel';
+import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
 
 const EvaluationSchema = z.object({
   score: z.number().min(1).max(10),
@@ -89,6 +90,7 @@ export async function evaluateAndRevise(
   projectRulesBlock?: string,
   signal?: AbortSignal,
   maxIterations = 1,
+  runPlan?: ArtifactRunPlan,
 ): Promise<string> {
   let currentHtml = html;
   const t0 = performance.now();
@@ -158,11 +160,12 @@ export async function evaluateAndRevise(
     });
 
     // Revision pass
-    const revisionSystem = buildRevisionSystemPrompt(
-      planResult.blueprint.palette,
-      planResult.animationLevel,
-      projectRulesBlock,
-    );
+    const revisionSystem = buildPresentationRevisionSystemPrompt({
+      planResult,
+      ...(runPlan ? { runPlan } : {}),
+      ...(projectRulesBlock ? { projectRulesBlock } : {}),
+      feedback: actionableIssues.map((issue) => `${issue.category}: ${issue.description} Fix: ${issue.suggestedFix}`),
+    });
 
     const revisionPrompt = buildRevisionUserPrompt(currentHtml, actionableIssues);
     const revT0 = performance.now();
@@ -220,5 +223,5 @@ Current HTML:
 ${html}
 \`\`\`
 
-Output the complete corrected HTML including <link>, <style>, and all <section> elements.`;
+Output the complete corrected fragment with only <style> and <section> elements.`;
 }
