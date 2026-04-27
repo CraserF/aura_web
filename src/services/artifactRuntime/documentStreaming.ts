@@ -5,15 +5,18 @@ import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
 import {
   applyDocumentRuntimeModuleEdits,
   assembleDocumentRuntimeHtml,
-  buildDocumentRuntimeModulePrompt,
-  buildDocumentRuntimeModuleRepairPrompt,
-  buildDocumentRuntimeOutlinePrompt,
   validateDocumentRuntimeModules,
   type DocumentRuntimeDraftResult,
   type DocumentRuntimeEditModuleMatch,
   type DocumentRuntimeValidationResult,
   type QueuedDocumentRuntimeModuleRepairResult,
 } from '@/services/artifactRuntime/documentRuntime';
+import {
+  buildDocumentRuntimeModuleUserPrompt,
+  buildDocumentRuntimeOutlineUserPrompt,
+  buildDocumentRuntimeRepairUserPrompt,
+  buildDocumentRuntimeSystemPrompt,
+} from '@/services/artifactRuntime/documentPrompts';
 import type { ArtifactPart } from '@/services/artifactRuntime/types';
 import type { EventListener } from '@/services/ai/workflow/types';
 
@@ -25,7 +28,6 @@ export interface DocumentRuntimeImagePart {
 
 export interface RunQueuedDocumentRuntimeCreateDraftInput {
   model: LanguageModel;
-  systemPrompt: string;
   systemProviderOptions?: ModelMessage['providerOptions'];
   historyMessages: ModelMessage[];
   taskBrief: string;
@@ -44,7 +46,6 @@ export interface RunQueuedDocumentRuntimeCreateDraftInput {
 
 export interface RunQueuedDocumentRuntimeEditDraftInput {
   model: LanguageModel;
-  systemPrompt: string;
   systemProviderOptions?: ModelMessage['providerOptions'];
   taskBrief: string;
   documentType: string;
@@ -60,7 +61,6 @@ export interface RunQueuedDocumentRuntimeEditDraftInput {
 
 export interface RunQueuedDocumentRuntimeModuleRepairInput {
   model: LanguageModel;
-  systemPrompt: string;
   systemProviderOptions?: ModelMessage['providerOptions'];
   html: string;
   taskBrief: string;
@@ -147,7 +147,7 @@ export async function runQueuedDocumentRuntimeCreateDraft(
     pct: 30,
   });
   const outlinePrompt = withMemoryContext(
-    buildDocumentRuntimeOutlinePrompt({
+    buildDocumentRuntimeOutlineUserPrompt({
       taskBrief: input.taskBrief,
       documentType: input.documentType,
       blueprintLabel: input.blueprintLabel,
@@ -172,7 +172,12 @@ export async function runQueuedDocumentRuntimeCreateDraft(
   const outline = await streamDocumentRuntimeText({
     model: input.model,
     messages: [
-      buildSystemMessage(input.systemPrompt, input.systemProviderOptions),
+      buildSystemMessage(buildDocumentRuntimeSystemPrompt({
+        documentType: input.documentType,
+        designFamily: input.designFamily,
+        blueprintLabel: input.blueprintLabel,
+        mode: 'queued-create',
+      }), input.systemProviderOptions),
       ...input.historyMessages,
       outlineUserMessage,
     ],
@@ -200,7 +205,7 @@ export async function runQueuedDocumentRuntimeCreateDraft(
       partId: part.id,
       pct,
     });
-    const modulePrompt = buildDocumentRuntimeModulePrompt({
+    const modulePrompt = buildDocumentRuntimeModuleUserPrompt({
       taskBrief: input.taskBrief,
       documentType: input.documentType,
       outline,
@@ -210,7 +215,12 @@ export async function runQueuedDocumentRuntimeCreateDraft(
     const html = await streamDocumentRuntimeText({
       model: input.model,
       messages: [
-        buildSystemMessage(input.systemPrompt, input.systemProviderOptions),
+        buildSystemMessage(buildDocumentRuntimeSystemPrompt({
+          documentType: input.documentType,
+          designFamily: input.designFamily,
+          blueprintLabel: input.blueprintLabel,
+          mode: 'queued-create',
+        }), input.systemProviderOptions),
         { role: 'user', content: modulePrompt },
       ],
       maxOutputTokens: input.maxModuleOutputTokens,
@@ -278,10 +288,14 @@ export async function runQueuedDocumentRuntimeEditDraft(
     const html = await streamDocumentRuntimeText({
       model: input.model,
       messages: [
-        buildSystemMessage(input.systemPrompt, input.systemProviderOptions),
+        buildSystemMessage(buildDocumentRuntimeSystemPrompt({
+          documentType: input.documentType,
+          designFamily: input.designFamily,
+          mode: 'queued-edit',
+        }), input.systemProviderOptions),
         {
           role: 'user',
-          content: buildDocumentRuntimeModulePrompt({
+          content: buildDocumentRuntimeModuleUserPrompt({
             taskBrief: input.taskBrief,
             documentType: input.documentType,
             outline,
@@ -370,10 +384,14 @@ export async function runQueuedDocumentRuntimeModuleRepair(
     const repairedModule = await streamDocumentRuntimeText({
       model: input.model,
       messages: [
-        buildSystemMessage(input.systemPrompt, input.systemProviderOptions),
+        buildSystemMessage(buildDocumentRuntimeSystemPrompt({
+          documentType: input.documentType,
+          designFamily: input.designFamily,
+          mode: 'queued-repair',
+        }), input.systemProviderOptions),
         {
           role: 'user',
-          content: buildDocumentRuntimeModuleRepairPrompt({
+          content: buildDocumentRuntimeRepairUserPrompt({
             taskBrief: input.taskBrief,
             documentType: input.documentType,
             part,

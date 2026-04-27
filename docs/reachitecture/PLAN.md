@@ -775,7 +775,7 @@ Last updated: 2026-04-27.
 6. Partially done: Simplify user-facing project settings into guided style/preferences, with current technical controls moved to Advanced. Curated Output Mode now feeds runtime plan defaults for presentation recipes and document design families.
 7. Mostly done: Move document generation onto the same run engine. Create-mode documents now generate outline and modules through runtime-owned queued calls; image create, queued module edit, edit fallback, per-module repair, module validation, workflow-level orchestration tests, document design-system constants, and document quality summaries are covered. Outline/module/repair prompts now compose compact document packs, and the document workflow shell delegates generation selection, fallback edit delegation, structure/module repair, final QA repair, finalization events, and telemetry assembly into `artifactRuntime`.
 8. Started: Keep spreadsheet execution deterministic but emit the same run events and validation summaries. Workbook actions, formulas, query views, charts, validation, and finalization now attach as first-class runtime parts and report deterministic runtime telemetry, action kind, changed/refreshed sheet counts, quality summaries, and fallback validation-by-part diagnostics for blocked/clarification/no-intent results. Fallback spreadsheet results now replace the generic default workbook placeholder with concrete runtime parts before telemetry is built.
-9. Prepared: Delete or convert legacy templates after production routing is stable. Production-vs-legacy metadata, routing guards, bundle-size notes, production replacements, and convert/archive/delete recommendations are recorded; archival/deletion remains deferred.
+9. Started: Delete or convert legacy templates after production routing is stable. Production-vs-legacy metadata, routing guards, bundle-size notes, production replacements, and convert/archive/delete recommendations are recorded; the first safe delete-later legacy templates have been removed while production routing and starter ids remain intact.
 10. Started for presentations and expanded to documents/spreadsheets: Runtime benchmark diagnostics exist, production presentation templates pass a deterministic static viewport contract, reusable presentation and document quality checklists report readiness, and spreadsheet diagnostics report deterministic action/validation summaries. Manual/browser canvas automation remains skipped for now by request.
 
 ## Completed In Current Runtime Hardening Slice
@@ -815,6 +815,14 @@ Last updated: 2026-04-27.
 - Added no-op legacy cleanup verification for the first delete-later candidates: `minimal`, `comparison`, and `pitch-deck`; no templates were removed in this slice.
 - Extended UX guard coverage so default Project Style controls stay non-technical and Rules Markdown, Context Policy, and Advanced Workflow Modes remain behind Advanced.
 
+## Completed In Current Controlled Cleanup And Prompt Consolidation Slice
+- Removed the first safe legacy presentation template ids/files: `minimal`, legacy template `comparison`, and legacy template `pitch-deck`.
+- Preserved the `pitch-deck` starter id and launch starter routing; prompts that previously selected removed legacy styles now route to production families.
+- Added runtime-owned compact document prompt builders and switched queued create/edit/module repair streaming onto compact runtime prompts instead of the broad document prompt composer.
+- Kept the broad document prompt composer only for the single-stream fallback path in this slice.
+- Tightened spreadsheet runtime ownership so planned deterministic actions use concrete runtime parts before event/telemetry emission, with fallback part attachment reserved for no-plan results.
+- Extended active-generation import-boundary coverage across runtime builders and chat handlers to keep `services/adapters/*` and `services/executionSpec/*` out of active generation paths.
+
 Legacy template decision table:
 
 | Legacy template | Production replacement | Bundle note | Decision |
@@ -827,13 +835,10 @@ Legacy template decision table:
 | `creative-portfolio` | `launch-narrative-light` | not singled out | archive later |
 | `storytelling` | `editorial-light` | not singled out | archive later |
 | `educational` | `stage-setting-light` | 40.96 kB before gzip | convert later |
-| `minimal` | `executive-briefing-light` | not singled out | delete later |
 | `cinematic` | `launch-narrative-light` | not singled out | archive later |
-| `pitch-deck` | `launch-narrative-light` | not singled out | delete later |
 | `workshop` | `stage-setting-light` | not singled out | archive later |
 | `code-walkthrough` | `editorial-light` | not singled out | archive later |
 | `product-demo` | `launch-narrative-light` | 30.16 kB before gzip | convert later |
-| `comparison` | `split-world` | not singled out | delete later |
 | `timeline` | `stage-setting-light` | not singled out | archive later |
 | `editorial-magazine` | `editorial-light` | not singled out | archive later |
 | `infographic-grid` | `finance-grid-light` | 34.69 kB before gzip | convert later |
@@ -841,7 +846,19 @@ Legacy template decision table:
 | `multi-panel-dashboard` | `finance-grid-light` | 46.43 kB before gzip | convert later |
 | `sidebar-cards` | `executive-briefing-light` | 47.59 kB before gzip | convert later |
 
+Removed legacy templates:
+- `minimal` -> `executive-briefing-light`;
+- template `pitch-deck` -> `launch-narrative-light` (starter id preserved);
+- template `comparison` -> `split-world`.
+
 ## Validation Completed
+- Current controlled-cleanup-and-prompt-consolidation slice:
+  - `npm test -- presentation-template-design-system project-starter-kits prompt-contracts document-runtime-workflow artifact-runtime spreadsheet-runtime ux-simplification presentation-runtime-policy`
+  - `npm run typecheck`
+  - `npm test`
+  - `npm run build`
+  - Changed-file ESLint across modified template, runtime, workflow, handler, and test files.
+  - `git diff --check`
 - Current runtime-ownership-before-cleanup slice:
   - `npm test -- document-runtime-workflow artifact-runtime runtime-telemetry spreadsheet-runtime workflow-progress ux-simplification presentation-template-design-system run-result run-history-panel`
   - `npm run typecheck`
@@ -859,6 +876,7 @@ Legacy template decision table:
 
 Build notes:
 - Vite still reports existing non-blocking chunk/dynamic-import warnings for DuckDB/export/data bundles.
+- The legacy `minimal`, template `comparison`, and template `pitch-deck` chunks are no longer emitted in the latest build snapshot.
 - Manual browser/provider smoke remains intentionally skipped for this slice per request, so this is architecture-progress validation rather than a deploy-ready visual signoff.
 
 ## Next Steps
@@ -990,14 +1008,14 @@ Build notes:
 - Start with presentations, then extend to documents and spreadsheets.
 
 ## Immediate Next Implementation Slice
-- Start the first controlled legacy-template cleanup patch:
-  - remove or archive `minimal`, `comparison`, and `pitch-deck` only after confirming no active runtime, starter, or generation route imports them directly;
-  - rerun production routing, starter kit, template design-system, and build checks immediately after the cleanup.
 - Continue document prompt-surface cleanup:
   - replace the remaining broad single-stream document prompt composer path with compact document prompt packs where behavior can stay unchanged;
   - keep the broad fallback path only as a temporary compatibility escape hatch until compact prompts cover create/edit parity.
+- Continue controlled legacy-template cleanup:
+  - choose the next archive-later candidate group only after checking active imports and build output;
+  - prefer archive/removal of non-starter legacy templates before touching convert-later templates that may need production-format migrations.
 - Continue spreadsheet runtime consolidation:
-  - attach deterministic spreadsheet action parts to `ArtifactRunPlan` before execution where the planner can resolve an action safely;
+  - move spreadsheet planning/part attachment closer to `artifactRuntime` while keeping workbook execution deterministic;
   - keep blocked, clarification, and no-intent paths deterministic and model-free.
 - Continue UX simplification:
   - audit default ChatBar and Project Style controls for any remaining technical wording;

@@ -9,6 +9,10 @@ import {
   buildPresentationRevisionSystemPrompt,
   buildArtifactRunPlan,
   buildCoreArtifactContractPack,
+  buildDocumentRuntimeModuleUserPrompt,
+  buildDocumentRuntimeOutlineUserPrompt,
+  buildDocumentRuntimeRepairUserPrompt,
+  buildDocumentRuntimeSystemPrompt,
   buildPresentationFragmentContractPack,
 } from '@/services/artifactRuntime';
 import { getTemplateBlueprint, resolveTemplatePlan } from '@/services/ai/templates';
@@ -131,5 +135,65 @@ describe('artifact prompt contracts', () => {
     expect(activeSources).not.toMatch(/buildDesignerPrompt|buildEditDesignerPrompt|buildBatchSlidePrompt|buildRevisionSystemPrompt/);
     expect(activeSources).not.toMatch(/PromptComposer/);
     expect(activeSources).not.toMatch(/Google Fonts `<link>`|Output a <link>|including <link>/);
+  });
+
+  it('builds compact runtime document prompts for queued create, edit, and repair', () => {
+    const part = {
+      id: 'document-module-1',
+      artifactType: 'document' as const,
+      kind: 'document-module' as const,
+      orderIndex: 1,
+      title: 'Executive summary',
+      brief: 'Summarize the core decision and evidence.',
+      status: 'pending' as const,
+    };
+    const systemPrompt = buildDocumentRuntimeSystemPrompt({
+      documentType: 'brief',
+      designFamily: 'executive-light',
+      blueprintLabel: 'Executive Brief',
+      mode: 'queued-create',
+    });
+    const outlinePrompt = buildDocumentRuntimeOutlineUserPrompt({
+      taskBrief: 'Create a board-ready market expansion brief.',
+      documentType: 'brief',
+      blueprintLabel: 'Executive Brief',
+      parts: [part],
+      designFamily: 'executive-light',
+    });
+    const modulePrompt = buildDocumentRuntimeModuleUserPrompt({
+      taskBrief: 'Create a board-ready market expansion brief.',
+      documentType: 'brief',
+      outline: 'Thesis sentence\n- Executive summary',
+      part,
+      designFamily: 'executive-light',
+    });
+    const repairPrompt = buildDocumentRuntimeRepairUserPrompt({
+      taskBrief: 'Create a board-ready market expansion brief.',
+      documentType: 'brief',
+      part,
+      issues: [{
+        partId: part.id,
+        title: part.title,
+        severity: 'blocking',
+        reason: 'missing',
+        summary: 'Executive summary is missing its runtime module wrapper.',
+      }],
+      designFamily: 'executive-light',
+    });
+
+    for (const prompt of [systemPrompt, outlinePrompt, modulePrompt, repairPrompt]) {
+      expect(prompt).toMatch(/no .*remote assets/i);
+      expect(prompt).toMatch(/no .*JavaScript/i);
+      expect(prompt).not.toContain('Google Fonts');
+      expect(prompt).not.toContain('TEMPLATE EXAMPLES');
+      expect(prompt).not.toContain('ADDITIONAL REFERENCE MATERIAL');
+      expect(prompt.length).toBeLessThanOrEqual(4500);
+    }
+    expect(systemPrompt).toContain('DOCUMENT IFRAME CONTRACT');
+    expect(systemPrompt).toContain('no <script>');
+    expect(modulePrompt).toContain(`data-runtime-part="${part.id}"`);
+    expect(modulePrompt).toContain('mobile-safe');
+    expect(repairPrompt).toContain('VALIDATOR FEEDBACK');
+    expect(repairPrompt).toContain('fix only the failed module issues');
   });
 });

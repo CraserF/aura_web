@@ -12,6 +12,12 @@ export {
   buildDocumentQualityTelemetry,
 } from './documentQualityChecklist';
 export {
+  buildDocumentRuntimeModuleUserPrompt,
+  buildDocumentRuntimeOutlineUserPrompt,
+  buildDocumentRuntimeRepairUserPrompt,
+  buildDocumentRuntimeSystemPrompt,
+} from './documentPrompts';
+export {
   attachDocumentRuntimeParts,
   applyDocumentRuntimeModuleEdits,
   assembleDocumentRuntimeHtml,
@@ -99,6 +105,9 @@ export type {
   DocumentQualityChecklistInput,
   DocumentQualityChecklistResult,
 } from './documentQualityChecklist';
+export type {
+  BuildDocumentRuntimeSystemPromptInput,
+} from './documentPrompts';
 export type {
   BuildDocumentRuntimePartsInput,
   BuildDocumentRuntimeTelemetryInput,

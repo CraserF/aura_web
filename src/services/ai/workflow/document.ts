@@ -1089,20 +1089,7 @@ export async function runDocumentWorkflow(
     });
     onEvent({ type: 'progress', message: isEdit ? 'Applying changes…' : 'Crafting your document…', pct: 28 });
 
-    const systemPrompt = withTemplateGuidance(
-      withProjectRules(
-        isEdit ? EDIT_DOCUMENT_SYSTEM_PROMPT : DOCUMENT_SYSTEM_PROMPT,
-        input.projectRulesBlock,
-      ),
-      input.templateGuidance,
-    );
     const requestedTitle = extractRequestedDocumentTitle(input.prompt);
-    const baseUserPrompt = isEdit ? await buildEditPrompt(input, planResult) : await buildCreatePrompt(input, planResult);
-    const runtimePartPrompt = buildDocumentRuntimePartPrompt(runtimeParts);
-    const userPrompt = withMemoryContext(
-      [baseUserPrompt, runtimePartPrompt].filter(Boolean).join('\n\n'),
-      input.memoryContext,
-    );
     const useQueuedDocumentRuntime = canRunQueuedDocumentRuntime({
       ...(input.artifactRunPlan ? { runPlan: input.artifactRunPlan } : {}),
       parts: runtimeParts,
@@ -1128,33 +1115,51 @@ export async function runDocumentWorkflow(
     );
 
     let accumulated = '';
+    let singleStreamRequestMessages: ModelMessage[] | undefined;
+    const getSingleStreamRequestMessages = async (): Promise<ModelMessage[]> => {
+      if (singleStreamRequestMessages) return singleStreamRequestMessages;
 
-    // Build the final user message — multi-modal if images were attached
-    const userMessage: ModelMessage = input.imageParts && input.imageParts.length > 0
-      ? {
-          role: 'user',
-          content: [
-            { type: 'text' as const, text: userPrompt },
-            ...input.imageParts.map((img) => ({
-              type: 'image' as const,
-              image: img.image,
-              mimeType: img.mimeType as `image/${string}`,
-            })),
-          ],
-        }
-      : { role: 'user', content: userPrompt };
+      const systemPrompt = withTemplateGuidance(
+        withProjectRules(
+          isEdit ? EDIT_DOCUMENT_SYSTEM_PROMPT : DOCUMENT_SYSTEM_PROMPT,
+          input.projectRulesBlock,
+        ),
+        input.templateGuidance,
+      );
+      const baseUserPrompt = isEdit ? await buildEditPrompt(input, planResult) : await buildCreatePrompt(input, planResult);
+      const runtimePartPrompt = buildDocumentRuntimePartPrompt(runtimeParts);
+      const userPrompt = withMemoryContext(
+        [baseUserPrompt, runtimePartPrompt].filter(Boolean).join('\n\n'),
+        input.memoryContext,
+      );
+      const userMessage: ModelMessage = input.imageParts && input.imageParts.length > 0
+        ? {
+            role: 'user',
+            content: [
+              { type: 'text' as const, text: userPrompt },
+              ...input.imageParts.map((img) => ({
+                type: 'image' as const,
+                image: img.image,
+                mimeType: img.mimeType as `image/${string}`,
+              })),
+            ],
+          }
+        : { role: 'user', content: userPrompt };
 
-    const requestMessages: ModelMessage[] = [
-      { role: 'system', content: systemPrompt, providerOptions: CACHE_CONTROL } as ModelMessage,
-      ...historyMessages,
-      userMessage,
-    ];
+      singleStreamRequestMessages = [
+        { role: 'system', content: systemPrompt, providerOptions: CACHE_CONTROL } as ModelMessage,
+        ...historyMessages,
+        userMessage,
+      ];
 
-    logPromptMetrics('document', requestMessages, {
-      isEdit,
-      documentType: planResult.documentType,
-      artDirection: planResult.artDirection,
-    });
+      logPromptMetrics('document', singleStreamRequestMessages, {
+        isEdit,
+        documentType: planResult.documentType,
+        artDirection: planResult.artDirection,
+      });
+
+      return singleStreamRequestMessages;
+    };
 
     const stopHeartbeat = startProgressHeartbeat({
       onEvent,
@@ -1202,7 +1207,6 @@ export async function runDocumentWorkflow(
         onEvent,
         runQueuedEdit: () => runQueuedDocumentRuntimeEditDraft({
           model,
-          systemPrompt,
           systemProviderOptions: CACHE_CONTROL,
           taskBrief: input.prompt,
           documentType: planResult.documentType,
@@ -1218,7 +1222,6 @@ export async function runDocumentWorkflow(
         runQueuedCreate: () => runQueuedDocumentRuntimeCreateDraft({
           model,
           runtimeParts,
-          systemPrompt,
           systemProviderOptions: CACHE_CONTROL,
           historyMessages,
           taskBrief: input.prompt,
@@ -1234,6 +1237,7 @@ export async function runDocumentWorkflow(
           runId: runtimeRunId,
         }),
         runSingleStream: async () => {
+          const requestMessages = await getSingleStreamRequestMessages();
           const stream = streamText({
             model,
             messages: requestMessages,
@@ -1345,7 +1349,6 @@ export async function runDocumentWorkflow(
         validation,
         maxRepairPasses: input.artifactRunPlan?.providerPolicy.maxRepairPasses ?? 0,
         maxRepairOutputTokens: input.artifactRunPlan?.providerPolicy.mode === 'local-constrained' ? 2048 : 3072,
-        systemPrompt,
         systemProviderOptions: CACHE_CONTROL,
         onEvent,
         ...(signal ? { signal } : {}),

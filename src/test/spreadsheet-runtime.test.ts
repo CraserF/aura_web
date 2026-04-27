@@ -225,6 +225,7 @@ describe('spreadsheet runtime bridge', () => {
 
     expect(parts.map((part) => part.id)).toEqual([expectedId, 'validation', 'finalize']);
     expect(parts[0]?.kind).toBe(expectedKind);
+    expect(parts.map((part) => part.id)).not.toContain('spreadsheet-part-1');
     expect(runPlan.workQueue).toEqual(parts);
     expect(runPlan.workflow.queuedWorkItems).toHaveLength(1);
     expect(runPlan.workflow.queuedWorkItems[0]?.targetType).toBe('sheet');

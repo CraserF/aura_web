@@ -76,7 +76,7 @@ const SELECTION_PATTERNS: SelectionPattern[] = [
     weight: 10,
   },
   {
-    templateId: 'pitch-deck',
+    templateId: 'launch-narrative-light',
     patterns: [/\b(pitch\s*deck|investor|startup|funding|series\s*[abc]|venture|fundrais|vc|seed\s*round)\b/i],
     weight: 10,
   },
@@ -91,7 +91,7 @@ const SELECTION_PATTERNS: SelectionPattern[] = [
     weight: 8,
   },
   {
-    templateId: 'minimal',
+    templateId: 'executive-briefing-light',
     patterns: [/\b(minimal|clean|simple|whitespace|swiss|brief|quick\s*update)\b/i],
     weight: 8,
   },
@@ -131,7 +131,7 @@ const SELECTION_PATTERNS: SelectionPattern[] = [
     weight: 8,
   },
   {
-    templateId: 'comparison',
+    templateId: 'split-world',
     patterns: [/\b(compare|comparison|comparative|vs\.?|versus|pros?\s*(and|&)\s*cons?|evaluat|benchmark)\b/i],
     weight: 8,
   },

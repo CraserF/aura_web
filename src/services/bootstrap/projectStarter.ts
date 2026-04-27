@@ -191,15 +191,6 @@ const TEMPLATE_STARTER_CONTENT: Partial<Record<TemplateId, StarterContentFactory
     INSTRUCTOR: 'Your Name',
     FACILITATOR_NAME: 'Your Name',
   }),
-  'pitch-deck': ({ title, today }) => ({
-    TITLE: title,
-    COMPANY: title,
-    ONE_LINE_DESCRIPTION: 'One sentence that explains what you do.',
-    STAGE: 'Seed',
-    DATE: today,
-    PRESENTER: 'Your Name',
-    SUBTITLE: '',
-  }),
 };
 
 async function buildPresentationStarterResult(

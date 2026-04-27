@@ -57,6 +57,12 @@ describe('presentation runtime policy', () => {
     const activeSources = [
       'services/chat/buildRunRequest.ts',
       'services/chat/submitPrompt.ts',
+      'services/artifactRuntime/build.ts',
+      'services/artifactRuntime/planner.ts',
+      'services/artifactRuntime/presentationRuntime.ts',
+      'services/artifactRuntime/documentRuntime.ts',
+      'services/artifactRuntime/documentStreaming.ts',
+      'services/artifactRuntime/spreadsheetRuntime.ts',
       'components/chat/handlers/presentationHandler.ts',
       'components/chat/handlers/documentHandler.ts',
       'components/chat/handlers/spreadsheetHandler.ts',
@@ -66,6 +72,7 @@ describe('presentation runtime policy', () => {
     ].map(readSource).join('\n');
 
     expect(activeSources).not.toMatch(/services\/executionSpec|@\/services\/executionSpec/);
+    expect(activeSources).not.toMatch(/services\/adapters|@\/services\/adapters/);
     expect(activeSources).not.toMatch(/run\.spec-built|run\.explained/);
     expect(activeSources).not.toMatch(/runRequest\.workflowPlan|workflowPlan:\s*runRequest/);
     expect(activeSources).not.toMatch(/@\/services\/workflowPlanner/);

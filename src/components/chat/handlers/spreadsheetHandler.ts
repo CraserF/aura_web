@@ -214,10 +214,12 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
       isDefaultSheet: docIsDefaultSheet,
       artifactRunPlan: runRequest.artifactRunPlan,
     });
-    attachSpreadsheetRuntimeResultParts({
-      runPlan: runRequest.artifactRunPlan,
-      result,
-    });
+    if (!result.plan) {
+      attachSpreadsheetRuntimeResultParts({
+        runPlan: runRequest.artifactRunPlan,
+        result,
+      });
+    }
     runtimeTelemetry = buildSpreadsheetRuntimeTelemetry({
       result,
       totalRuntimeMs: Math.round(performance.now() - workflowStart),

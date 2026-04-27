@@ -9,6 +9,7 @@ import {
   PRESENTATION_TEMPLATE_AUDIT,
   PRODUCTION_PRESENTATION_TEMPLATE_IDS,
   resolveTemplatePlan,
+  selectTemplate,
   TEMPLATE_REGISTRY,
   toProductionPresentationTemplate,
   type TemplateId,
@@ -105,18 +106,20 @@ describe('production presentation templates', () => {
     }
     expect(audit.some((entry) => entry.decision === 'convert later')).toBe(true);
     expect(audit.some((entry) => entry.decision === 'archive later')).toBe(true);
-    expect(audit.some((entry) => entry.decision === 'delete later')).toBe(true);
+    expect(audit.some((entry) => entry.decision === 'archive later')).toBe(true);
   });
 
-  it('keeps first legacy cleanup candidates audited but inactive before deletion', () => {
-    const auditById = new Map(listLegacyPresentationTemplateAudit().map((entry) => [entry.templateId, entry]));
+  it('removes first legacy cleanup candidates from the registry while preserving production routing', () => {
+    const removedTemplateIds = ['minimal', 'comparison', 'pitch-deck'];
+    const auditIds = listLegacyPresentationTemplateAudit().map((entry) => entry.templateId);
 
-    for (const templateId of ['minimal', 'comparison', 'pitch-deck'] as const) {
-      const auditEntry = auditById.get(templateId);
-      expect(auditEntry).toMatchObject({ decision: 'delete later' });
-      expect(isLegacyPresentationTemplate(templateId)).toBe(true);
-      expect(isProductionPresentationTemplate(toProductionPresentationTemplate(templateId))).toBe(true);
+    for (const templateId of removedTemplateIds) {
+      expect(templateId in TEMPLATE_REGISTRY).toBe(false);
+      expect(auditIds).not.toContain(templateId);
     }
+    expect(selectTemplate('Create a minimal clean quick update')).toBe('executive-briefing-light');
+    expect(selectTemplate('Create a comparison deck with two options')).toBe('split-world');
+    expect(selectTemplate('Create an investor pitch deck for a seed round')).toBe('launch-narrative-light');
   });
 
   it('routes generated presentation plans through production template families', async () => {

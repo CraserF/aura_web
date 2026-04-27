@@ -106,7 +106,6 @@ const TEMPLATE_STYLE_COMPATIBILITY: Partial<Record<TemplateId, TemplateStyle[]>>
   'data-dashboard': ['data', 'dashboard', 'corporate'],
   storytelling: ['editorial', 'creative'],
   cinematic: ['keynote', 'creative', 'scifi'],
-  'pitch-deck': ['pitch', 'keynote'],
 };
 
 export function resolveTemplatePlan(

@@ -8,8 +8,8 @@ export type TemplateId =
   | 'executive-briefing-light' | 'launch-narrative-light'
   | 'keynote' | 'corporate' | 'tech-architecture' | 'data-dashboard'
   | 'sci-fi' | 'creative-portfolio' | 'storytelling' | 'educational'
-  | 'minimal' | 'cinematic' | 'pitch-deck' | 'workshop'
-  | 'code-walkthrough' | 'product-demo' | 'comparison' | 'timeline'
+  | 'cinematic' | 'workshop'
+  | 'code-walkthrough' | 'product-demo' | 'timeline'
   | 'editorial-magazine' | 'infographic-grid' | 'interactive-quiz'
   | 'split-world' | 'landscape-illustration' | 'multi-panel-dashboard'
   | 'sidebar-cards';
@@ -37,13 +37,10 @@ export const LEGACY_PRESENTATION_TEMPLATE_IDS = [
   'creative-portfolio',
   'storytelling',
   'educational',
-  'minimal',
   'cinematic',
-  'pitch-deck',
   'workshop',
   'code-walkthrough',
   'product-demo',
-  'comparison',
   'timeline',
   'editorial-magazine',
   'infographic-grid',
@@ -93,13 +90,10 @@ const LEGACY_TEMPLATE_AUDIT_DECISIONS: Record<
   'creative-portfolio': 'archive later',
   storytelling: 'archive later',
   educational: 'convert later',
-  minimal: 'delete later',
   cinematic: 'archive later',
-  'pitch-deck': 'delete later',
   workshop: 'archive later',
   'code-walkthrough': 'archive later',
   'product-demo': 'convert later',
-  comparison: 'delete later',
   timeline: 'archive later',
   'editorial-magazine': 'archive later',
   'infographic-grid': 'convert later',
@@ -124,21 +118,18 @@ export function toProductionPresentationTemplate(templateId: TemplateId): Produc
   if (isProductionPresentationTemplate(templateId)) return templateId;
 
   switch (templateId) {
-    case 'pitch-deck':
     case 'keynote':
     case 'product-demo':
     case 'creative-portfolio':
     case 'cinematic':
       return 'launch-narrative-light';
     case 'corporate':
-    case 'minimal':
     case 'sidebar-cards':
       return 'executive-briefing-light';
     case 'data-dashboard':
     case 'infographic-grid':
     case 'multi-panel-dashboard':
       return 'finance-grid-light';
-    case 'comparison':
     case 'sci-fi':
       return 'split-world';
     case 'timeline':
@@ -186,13 +177,10 @@ const TEMPLATE_HTML_PATHS: Record<TemplateId, string> = {
   'creative-portfolio': './html/creative-portfolio.html',
   storytelling: './html/storytelling.html',
   educational: './html/educational.html',
-  minimal: './html/minimal.html',
   cinematic: './html/cinematic.html',
-  'pitch-deck': './html/pitch-deck.html',
   workshop: './html/workshop.html',
   'code-walkthrough': './html/code-walkthrough.html',
   'product-demo': './html/product-demo.html',
-  comparison: './html/comparison.html',
   timeline: './html/timeline.html',
   'editorial-magazine': './html/editorial-magazine.html',
   'infographic-grid': './html/infographic-grid.html',
@@ -308,14 +296,6 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
     bestFor: ['lecture', 'training', 'educational'],
     slideCount: { min: 8, max: 15 },
   },
-  minimal: {
-    id: 'minimal',
-    htmlPath: TEMPLATE_HTML_PATHS.minimal,
-    animationLevel: 1,
-    description: 'Ultra-clean minimal design for quick updates and simple briefs',
-    bestFor: ['quick update', 'brief', 'summary'],
-    slideCount: { min: 5, max: 8 },
-  },
   cinematic: {
     id: 'cinematic',
     htmlPath: TEMPLATE_HTML_PATHS.cinematic,
@@ -323,14 +303,6 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
     description: 'Cinematic presentation for photography, art, and high-impact storytelling',
     bestFor: ['photography', 'art', 'cinematic storytelling'],
     slideCount: { min: 6, max: 10 },
-  },
-  'pitch-deck': {
-    id: 'pitch-deck',
-    htmlPath: TEMPLATE_HTML_PATHS['pitch-deck'],
-    animationLevel: 3,
-    description: 'Investor pitch deck with compelling metrics and clear narrative',
-    bestFor: ['investor pitch', 'startup', 'fundraising'],
-    slideCount: { min: 10, max: 15 },
   },
   workshop: {
     id: 'workshop',
@@ -355,14 +327,6 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
     description: 'Product demonstration with feature highlights and comparisons',
     bestFor: ['product demo', 'SaaS demo', 'feature showcase'],
     slideCount: { min: 10, max: 15 },
-  },
-  comparison: {
-    id: 'comparison',
-    htmlPath: TEMPLATE_HTML_PATHS.comparison,
-    animationLevel: 2,
-    description: 'Side-by-side comparison format for evaluating options',
-    bestFor: ['comparison', 'evaluation', 'A vs B analysis'],
-    slideCount: { min: 8, max: 12 },
   },
   timeline: {
     id: 'timeline',
