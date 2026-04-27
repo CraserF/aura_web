@@ -52,6 +52,60 @@ export interface DocumentRuntimeModuleDraft {
   html: string;
 }
 
+export interface DocumentRuntimeDraftResult {
+  rawContent: string;
+  renderedHtml: string;
+  firstPreviewAt?: number;
+}
+
+export interface DocumentRuntimeGenerationResult extends DocumentRuntimeDraftResult {
+  usedQueuedDocumentEdit: boolean;
+  runMode: ArtifactRuntimeTelemetry['runMode'];
+  completedPartCount: number;
+  selectedMode: 'queued-runtime-edit' | 'queued-runtime' | 'single-stream';
+}
+
+export interface RunDocumentRuntimeGenerationInput {
+  useQueuedDocumentRuntime: boolean;
+  useQueuedDocumentEditRuntime: boolean;
+  queuedCreatePartCount: number;
+  queuedEditModuleCount: number;
+  onEvent: EventListener;
+  runQueuedCreate: () => Promise<DocumentRuntimeDraftResult>;
+  runQueuedEdit: () => Promise<DocumentRuntimeDraftResult>;
+  runSingleStream: () => Promise<DocumentRuntimeDraftResult>;
+}
+
+export interface QueuedDocumentRuntimeModuleRepairResult {
+  html: string;
+  repairCount: number;
+  repairedPartCount: number;
+  repaired: boolean;
+  validation: DocumentRuntimeValidationResult;
+  summary: string;
+}
+
+export interface RepairDocumentRuntimeStructureInput {
+  html: string;
+  title: string;
+  parts: ArtifactPart[];
+  runPlan?: ArtifactRunPlan;
+  onEvent: EventListener;
+  sanitizeHtml: (html: string) => string;
+  runQueuedModuleRepair: (input: {
+    html: string;
+    validation: DocumentRuntimeValidationResult;
+  }) => Promise<QueuedDocumentRuntimeModuleRepairResult>;
+}
+
+export interface DocumentRuntimeStructureRepairResult {
+  html: string;
+  validation: DocumentRuntimeValidationResult;
+  moduleRepairCount: number;
+  repairedPartCount: number;
+  finalizedChanged: boolean;
+}
+
 export interface DocumentRuntimeEditModuleMatch {
   part: ArtifactPart;
   existingHtml: string;
@@ -131,6 +185,43 @@ export interface ApplyDocumentRuntimeModuleEditsInput {
   existingHtml: string;
   parts: ArtifactPart[];
   modules: DocumentRuntimeModuleDraft[];
+}
+
+export async function runDocumentRuntimeGeneration(
+  input: RunDocumentRuntimeGenerationInput,
+): Promise<DocumentRuntimeGenerationResult> {
+  if (input.useQueuedDocumentEditRuntime) {
+    input.onEvent({ type: 'progress', message: 'Updating targeted document modules…', pct: 30 });
+    const draft = await input.runQueuedEdit();
+    return {
+      ...draft,
+      usedQueuedDocumentEdit: true,
+      runMode: 'queued-edit',
+      completedPartCount: input.queuedEditModuleCount,
+      selectedMode: 'queued-runtime-edit',
+    };
+  }
+
+  if (input.useQueuedDocumentRuntime) {
+    input.onEvent({ type: 'progress', message: 'Creating document outline and modules…', pct: 30 });
+    const draft = await input.runQueuedCreate();
+    return {
+      ...draft,
+      usedQueuedDocumentEdit: false,
+      runMode: 'queued-create',
+      completedPartCount: input.queuedCreatePartCount,
+      selectedMode: 'queued-runtime',
+    };
+  }
+
+  const draft = await input.runSingleStream();
+  return {
+    ...draft,
+    usedQueuedDocumentEdit: false,
+    runMode: 'single-stream',
+    completedPartCount: 0,
+    selectedMode: 'single-stream',
+  };
 }
 
 function normalizeModuleTitle(value: string, index: number): string {
@@ -770,6 +861,66 @@ export function repairDocumentRuntimeModules(input: {
     summary: repairedValidation.passed
       ? 'Deterministic document module repair passed validation.'
       : `Deterministic document module repair completed with ${repairedValidation.blockingCount} blocking issue(s) and ${repairedValidation.advisoryCount} advisory issue(s) remaining.`,
+  };
+}
+
+export async function repairDocumentRuntimeStructure(
+  input: RepairDocumentRuntimeStructureInput,
+): Promise<DocumentRuntimeStructureRepairResult> {
+  let html = input.html;
+  let moduleRepairCount = 0;
+  let repairedPartCount = 0;
+
+  const finalized = finalizeDocumentRuntimeHtml({
+    html,
+    title: input.title,
+  });
+  if (finalized.changed) {
+    html = input.sanitizeHtml(finalized.html);
+  }
+
+  let validation = validateDocumentRuntimeModules(html, input.parts);
+  if (!validation.passed) {
+    input.onEvent({ type: 'progress', message: validation.summary, pct: 82 });
+    const queuedModuleRepair = await input.runQueuedModuleRepair({
+      html,
+      validation,
+    });
+
+    if (queuedModuleRepair.repaired) {
+      html = input.sanitizeHtml(queuedModuleRepair.html);
+      moduleRepairCount += queuedModuleRepair.repairCount;
+      repairedPartCount += queuedModuleRepair.repairedPartCount;
+      validation = queuedModuleRepair.validation;
+      input.onEvent({ type: 'progress', message: queuedModuleRepair.summary, pct: 84 });
+    }
+
+    if (!validation.passed) {
+      const moduleRepair = repairDocumentRuntimeModules({
+        html,
+        parts: input.parts,
+        validation,
+        runPlan: input.runPlan,
+        onEvent: input.onEvent,
+      });
+      if (moduleRepair.repaired) {
+        html = input.sanitizeHtml(moduleRepair.html);
+        moduleRepairCount += moduleRepair.repairCount;
+        repairedPartCount += validation.moduleIssues
+          ? new Set(validation.moduleIssues.map((issue) => issue.partId)).size
+          : 0;
+        validation = moduleRepair.validation;
+        input.onEvent({ type: 'progress', message: moduleRepair.summary, pct: 84 });
+      }
+    }
+  }
+
+  return {
+    html,
+    validation,
+    moduleRepairCount,
+    repairedPartCount,
+    finalizedChanged: finalized.changed,
   };
 }
 

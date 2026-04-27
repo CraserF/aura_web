@@ -22,9 +22,12 @@ export {
   getTemplateEntry,
   isLegacyPresentationTemplate,
   isProductionPresentationTemplate,
+  listLegacyPresentationTemplateAudit,
   toProductionPresentationTemplate,
   type TemplateId,
   type TemplateEntry,
+  type LegacyPresentationTemplateAuditDecision,
+  type LegacyPresentationTemplateAuditEntry,
   type LegacyPresentationTemplateId,
   type ProductionPresentationTemplateId,
 } from './registry';

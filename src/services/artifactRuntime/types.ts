@@ -33,6 +33,15 @@ export type DocumentThemeFamily =
   | 'playbook-light'
   | 'infographic-light';
 
+export type RuntimeOutputMode =
+  | 'Executive'
+  | 'Editorial'
+  | 'Proposal'
+  | 'Research'
+  | 'Launch'
+  | 'Teaching'
+  | 'Data Story';
+
 export type QueuedWorkStatus = 'pending' | 'active' | 'done' | 'blocked';
 
 export interface QueuedWorkItem {
@@ -102,6 +111,8 @@ export interface BuildArtifactWorkflowPlanInput {
   providerModel?: string;
   editStrategyHint?: string;
   allowFullRegeneration: boolean;
+  guidedOutputMode?: RuntimeOutputMode;
+  projectRulesBlock?: string;
 }
 
 export type ArtifactRunPlanVersion = 1;

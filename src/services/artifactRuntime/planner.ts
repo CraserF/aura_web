@@ -9,6 +9,7 @@ import type {
   WorkflowPreservationIntent,
   PresentationRecipeId,
   DocumentThemeFamily,
+  RuntimeOutputMode,
 } from '@/services/artifactRuntime/types';
 import { parseSlideBriefs } from '@/services/ai/workflow/agents/planner';
 
@@ -23,6 +24,40 @@ const METRICS_RE = /\b(kpi|metric|scorecard|dashboard|stats?|performance)\b/i;
 const COMPARISON_RE = /\b(compare|comparison|versus|vs\.?|before\b.*\bafter|trade[- ]?off)\b/i;
 const QUIZ_RE = /\b(quiz|trivia|knowledge check|multiple choice|interactive reveal|game show)\b/i;
 const CLOSING_RE = /\b(closing|conclusion|next steps|call to action|summary slide|thank you)\b/i;
+
+const OUTPUT_MODE_DEFAULTS: Record<RuntimeOutputMode, {
+  presentationRecipeId: PresentationRecipeId;
+  documentThemeFamily: DocumentThemeFamily;
+}> = {
+  Executive: {
+    presentationRecipeId: 'general-polished',
+    documentThemeFamily: 'executive-light',
+  },
+  Editorial: {
+    presentationRecipeId: 'editorial-explainer',
+    documentThemeFamily: 'editorial-light',
+  },
+  Proposal: {
+    presentationRecipeId: 'comparison',
+    documentThemeFamily: 'proposal-light',
+  },
+  Research: {
+    presentationRecipeId: 'finance-grid',
+    documentThemeFamily: 'research-light',
+  },
+  Launch: {
+    presentationRecipeId: 'title-opening',
+    documentThemeFamily: 'proposal-light',
+  },
+  Teaching: {
+    presentationRecipeId: 'stage-setting',
+    documentThemeFamily: 'playbook-light',
+  },
+  'Data Story': {
+    presentationRecipeId: 'metrics-summary',
+    documentThemeFamily: 'infographic-light',
+  },
+};
 
 function resolveDocumentTypeHint(prompt: string): string {
   const normalized = prompt.toLowerCase();
@@ -304,11 +339,12 @@ export function buildArtifactWorkflowPlan(input: BuildArtifactWorkflowPlanInput)
   const requestKind = resolveRequestKind(input);
   const preservationIntent = resolvePreservationIntent(input, requestKind);
   const queuedWorkItems = buildQueuedWorkItems(input, requestKind);
+  const guidedDefaults = input.guidedOutputMode ? OUTPUT_MODE_DEFAULTS[input.guidedOutputMode] : undefined;
   const presentationRecipeId = input.artifactType === 'presentation'
-    ? resolvePresentationRecipe(input.prompt)
+    ? guidedDefaults?.presentationRecipeId ?? resolvePresentationRecipe(input.prompt)
     : undefined;
   const documentThemeFamily = input.artifactType === 'document'
-    ? resolveDocumentThemeFamily(input)
+    ? guidedDefaults?.documentThemeFamily ?? resolveDocumentThemeFamily(input)
     : undefined;
   const templatePlan = input.artifactType === 'presentation'
     ? resolveTemplatePlan(input.prompt, { recipeHint: presentationRecipeId })

@@ -5,6 +5,7 @@ import {
   isProductionPresentationTemplate,
   isLegacyPresentationTemplate,
   LEGACY_PRESENTATION_TEMPLATE_IDS,
+  listLegacyPresentationTemplateAudit,
   PRESENTATION_TEMPLATE_AUDIT,
   PRODUCTION_PRESENTATION_TEMPLATE_IDS,
   resolveTemplatePlan,
@@ -88,6 +89,23 @@ describe('production presentation templates', () => {
       expect(isLegacyPresentationTemplate(legacyTemplateId)).toBe(true);
       expect(isProductionPresentationTemplate(toProductionPresentationTemplate(legacyTemplateId))).toBe(true);
     }
+  });
+
+  it('records legacy template archival decisions with production replacements', () => {
+    const audit = listLegacyPresentationTemplateAudit();
+
+    expect(audit.map((entry) => entry.templateId).sort()).toEqual(
+      [...LEGACY_PRESENTATION_TEMPLATE_IDS].sort(),
+    );
+    for (const entry of audit) {
+      expect(isLegacyPresentationTemplate(entry.templateId)).toBe(true);
+      expect(isProductionPresentationTemplate(entry.productionReplacement)).toBe(true);
+      expect(entry.chunkSizeNote.length).toBeGreaterThan(12);
+      expect(['convert later', 'archive later', 'delete later']).toContain(entry.decision);
+    }
+    expect(audit.some((entry) => entry.decision === 'convert later')).toBe(true);
+    expect(audit.some((entry) => entry.decision === 'archive later')).toBe(true);
+    expect(audit.some((entry) => entry.decision === 'delete later')).toBe(true);
   });
 
   it('routes generated presentation plans through production template families', async () => {

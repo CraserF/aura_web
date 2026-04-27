@@ -61,6 +61,53 @@ export const PRESENTATION_TEMPLATE_AUDIT = {
   legacy: LEGACY_PRESENTATION_TEMPLATE_IDS,
 } as const;
 
+export type LegacyPresentationTemplateAuditDecision = 'convert later' | 'archive later' | 'delete later';
+
+export interface LegacyPresentationTemplateAuditEntry {
+  templateId: LegacyPresentationTemplateId;
+  productionReplacement: ProductionPresentationTemplateId;
+  chunkSizeNote: string;
+  decision: LegacyPresentationTemplateAuditDecision;
+}
+
+const LEGACY_TEMPLATE_CHUNK_SIZE_NOTES: Partial<Record<LegacyPresentationTemplateId, string>> = {
+  'sidebar-cards': '47.59 kB before gzip in the latest recorded Vite snapshot.',
+  corporate: '47.40 kB before gzip in the latest recorded Vite snapshot.',
+  'multi-panel-dashboard': '46.43 kB before gzip in the latest recorded Vite snapshot.',
+  educational: '40.96 kB before gzip in the latest recorded Vite snapshot.',
+  'landscape-illustration': '37.44 kB before gzip in the latest recorded Vite snapshot.',
+  keynote: '35.05 kB before gzip in the latest recorded Vite snapshot.',
+  'infographic-grid': '34.69 kB before gzip in the latest recorded Vite snapshot.',
+  'product-demo': '30.16 kB before gzip in the latest recorded Vite snapshot.',
+};
+
+const LEGACY_TEMPLATE_AUDIT_DECISIONS: Record<
+  LegacyPresentationTemplateId,
+  LegacyPresentationTemplateAuditDecision
+> = {
+  keynote: 'convert later',
+  corporate: 'convert later',
+  'tech-architecture': 'archive later',
+  'data-dashboard': 'archive later',
+  'sci-fi': 'archive later',
+  'creative-portfolio': 'archive later',
+  storytelling: 'archive later',
+  educational: 'convert later',
+  minimal: 'delete later',
+  cinematic: 'archive later',
+  'pitch-deck': 'delete later',
+  workshop: 'archive later',
+  'code-walkthrough': 'archive later',
+  'product-demo': 'convert later',
+  comparison: 'delete later',
+  timeline: 'archive later',
+  'editorial-magazine': 'archive later',
+  'infographic-grid': 'convert later',
+  'landscape-illustration': 'convert later',
+  'multi-panel-dashboard': 'convert later',
+  'sidebar-cards': 'convert later',
+};
+
 export function isProductionPresentationTemplate(
   templateId: TemplateId,
 ): templateId is ProductionPresentationTemplateId {
@@ -105,6 +152,15 @@ export function toProductionPresentationTemplate(templateId: TemplateId): Produc
     default:
       return 'editorial-light';
   }
+}
+
+export function listLegacyPresentationTemplateAudit(): LegacyPresentationTemplateAuditEntry[] {
+  return LEGACY_PRESENTATION_TEMPLATE_IDS.map((templateId) => ({
+    templateId,
+    productionReplacement: toProductionPresentationTemplate(templateId),
+    chunkSizeNote: LEGACY_TEMPLATE_CHUNK_SIZE_NOTES[templateId] ?? 'Not singled out in the latest recorded Vite snapshot.',
+    decision: LEGACY_TEMPLATE_AUDIT_DECISIONS[templateId],
+  }));
 }
 
 export interface TemplateEntry {

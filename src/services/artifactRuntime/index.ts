@@ -25,7 +25,9 @@ export {
   finalizeDocumentRuntimeHtml,
   repairDocumentRuntimeModules,
   repairDocumentRuntimeOutput,
+  repairDocumentRuntimeStructure,
   resolveDocumentRuntimeEditModules,
+  runDocumentRuntimeGeneration,
   validateDocumentRuntimeModules,
   validateDocumentRuntimeOutput,
 } from './documentRuntime';
@@ -71,6 +73,9 @@ export {
   buildPresentationQualityTelemetry,
 } from './presentationQualityChecklist';
 export {
+  formatRuntimeQualityDiagnostics,
+} from './qualityDiagnostics';
+export {
   PRESENTATION_VIEWPORT_MATRIX,
   validatePresentationViewportContract,
 } from './presentationViewport';
@@ -95,9 +100,15 @@ export type {
   BuildDocumentRuntimeOutlinePromptInput,
   CanRunQueuedDocumentRuntimeInput,
   ApplyDocumentRuntimeModuleEditsInput,
+  DocumentRuntimeDraftResult,
   DocumentRuntimeEditModuleMatch,
+  DocumentRuntimeGenerationResult,
   DocumentRuntimeModuleDraft,
   DocumentRuntimeModuleIssue,
+  DocumentRuntimeStructureRepairResult,
+  QueuedDocumentRuntimeModuleRepairResult,
+  RepairDocumentRuntimeStructureInput,
+  RunDocumentRuntimeGenerationInput,
   ResolveDocumentRuntimeEditModulesInput,
   DocumentRuntimeFinalizeResult,
   DocumentRuntimeRepairResult,
@@ -129,6 +140,9 @@ export type {
   PresentationViewportValidationResult,
 } from './presentationViewport';
 export type {
+  RuntimeQualityDiagnosticLine,
+} from './qualityDiagnostics';
+export type {
   StaticPresentationStarterRuntimeInput,
   StaticPresentationStarterRuntimeResult,
   StarterTokenValues,
@@ -142,5 +156,6 @@ export type {
   ArtifactRunEvent,
   ArtifactRunPlan,
   DesignManifest,
+  RuntimeOutputMode,
   ValidationGate,
 } from './types';

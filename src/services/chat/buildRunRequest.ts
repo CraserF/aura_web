@@ -143,6 +143,7 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
     mode,
     providerId: providerConfig.id,
     providerModel: providerConfig.model,
+    projectRulesBlock: projectRulesSnapshot.promptBlock,
     editStrategyHint: intent.editStrategyHint,
     allowFullRegeneration: intent.allowFullRegeneration,
   });

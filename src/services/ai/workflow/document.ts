@@ -40,10 +40,10 @@ import {
   buildDocumentRuntimePartPrompt,
   buildDocumentRuntimeTelemetry,
   canRunQueuedDocumentRuntime,
-  finalizeDocumentRuntimeHtml,
-  repairDocumentRuntimeModules,
   repairDocumentRuntimeOutput,
+  repairDocumentRuntimeStructure,
   resolveDocumentRuntimeEditModules,
+  runDocumentRuntimeGeneration,
   validateDocumentRuntimeModules,
   validateDocumentRuntimeOutput,
 } from '@/services/artifactRuntime/documentRuntime';
@@ -1558,16 +1558,16 @@ export async function runDocumentWorkflow(
           ],
     });
 
-    let rawContent = '';
-    let renderedHtml = '';
-    let usedQueuedDocumentEdit = false;
-    let runtimeRunMode: ArtifactRuntimeTelemetry['runMode'] = 'single-stream';
-    let completedPartCount = 0;
+    let generationResult: Awaited<ReturnType<typeof runDocumentRuntimeGeneration>> | undefined;
 
     try {
-      if (useQueuedDocumentEditRuntime) {
-        onEvent({ type: 'progress', message: 'Updating targeted document modules…', pct: 30 });
-        const queuedEditDraft = await runQueuedDocumentRuntimeEditDraft({
+      generationResult = await runDocumentRuntimeGeneration({
+        useQueuedDocumentRuntime,
+        useQueuedDocumentEditRuntime,
+        queuedCreatePartCount: runtimeParts.filter((part) => part.kind === 'document-module').length,
+        queuedEditModuleCount: queuedEditModules.length,
+        onEvent,
+        runQueuedEdit: () => runQueuedDocumentRuntimeEditDraft({
           model,
           workflowInput: input,
           plan: planResult,
@@ -1576,22 +1576,8 @@ export async function runDocumentWorkflow(
           onEvent,
           ...(signal ? { signal } : {}),
           runId: runtimeRunId,
-        });
-        rawContent = queuedEditDraft.rawContent;
-        renderedHtml = queuedEditDraft.renderedHtml;
-        usedQueuedDocumentEdit = true;
-        runtimeRunMode = 'queued-edit';
-        completedPartCount = queuedEditModules.length;
-        if (queuedEditDraft.firstPreviewAt) firstPreviewAt = queuedEditDraft.firstPreviewAt;
-        aiDebugLog('document', 'document render mode', {
-          mode: 'queued-runtime-edit',
-          rawChars: rawContent.length,
-          renderedChars: renderedHtml.length,
-          moduleCount: queuedEditModules.length,
-        });
-      } else if (useQueuedDocumentRuntime) {
-        onEvent({ type: 'progress', message: 'Creating document outline and modules…', pct: 30 });
-        const queuedDraft = await runQueuedDocumentRuntimeDraft({
+        }),
+        runQueuedCreate: () => runQueuedDocumentRuntimeDraft({
           model,
           workflowInput: input,
           plan: planResult,
@@ -1602,42 +1588,55 @@ export async function runDocumentWorkflow(
           onEvent,
           ...(signal ? { signal } : {}),
           runId: runtimeRunId,
-        });
-        rawContent = queuedDraft.rawContent;
-        renderedHtml = queuedDraft.renderedHtml;
-        runtimeRunMode = 'queued-create';
-        completedPartCount = runtimeParts.filter((part) => part.kind === 'document-module').length;
-        if (queuedDraft.firstPreviewAt) firstPreviewAt = queuedDraft.firstPreviewAt;
-        aiDebugLog('document', 'document render mode', {
-          mode: 'queued-runtime',
-          rawChars: rawContent.length,
-          renderedChars: renderedHtml.length,
-        });
-      } else {
-        const stream = streamText({
-          model,
-          messages: requestMessages,
-          maxOutputTokens: 16384,
-          ...(signal ? { abortSignal: signal } : {}),
-        });
+        }),
+        runSingleStream: async () => {
+          const stream = streamText({
+            model,
+            messages: requestMessages,
+            maxOutputTokens: 16384,
+            ...(signal ? { abortSignal: signal } : {}),
+          });
 
-        for await (const chunk of stream.textStream) {
-          if (signal?.aborted) break;
-          firstPreviewAt ??= performance.now();
-          accumulated += chunk;
-          onEvent({ type: 'streaming', stepId: 'generate', chunk });
-        }
-        rawContent = extractDocumentSource(accumulated);
-        renderedHtml = renderDocumentContent(rawContent, input);
-        aiDebugLog('document', 'document render mode', {
-          mode: looksLikeHtml(rawContent) ? 'html' : 'markdown',
-          rawChars: rawContent.length,
-          renderedChars: renderedHtml.length,
-        });
-      }
+          for await (const chunk of stream.textStream) {
+            if (signal?.aborted) break;
+            firstPreviewAt ??= performance.now();
+            accumulated += chunk;
+            onEvent({ type: 'streaming', stepId: 'generate', chunk });
+          }
+
+          const rawContent = extractDocumentSource(accumulated);
+          const renderedHtml = renderDocumentContent(rawContent, input);
+          return {
+            rawContent,
+            renderedHtml,
+            ...(firstPreviewAt ? { firstPreviewAt } : {}),
+          };
+        },
+      });
     } finally {
       stopHeartbeat();
     }
+
+    if (!generationResult) {
+      throw new Error('Document runtime generation did not produce a draft.');
+    }
+
+    const rawContent = generationResult.rawContent;
+    const renderedHtml = generationResult.renderedHtml;
+    const usedQueuedDocumentEdit = generationResult.usedQueuedDocumentEdit;
+    const runtimeRunMode = generationResult.runMode;
+    const completedPartCount = generationResult.completedPartCount;
+    if (generationResult.firstPreviewAt) firstPreviewAt = generationResult.firstPreviewAt;
+    aiDebugLog('document', 'document render mode', {
+      mode: generationResult.selectedMode === 'single-stream'
+        ? looksLikeHtml(rawContent) ? 'html' : 'markdown'
+        : generationResult.selectedMode,
+      rawChars: rawContent.length,
+      renderedChars: renderedHtml.length,
+      ...(generationResult.selectedMode === 'queued-runtime-edit'
+        ? { moduleCount: queuedEditModules.length }
+        : {}),
+    });
 
     onEvent({ type: 'progress', message: 'Structuring document…', pct: 72 });
 
@@ -1690,58 +1689,29 @@ export async function runDocumentWorkflow(
     }
 
     const title = requestedTitle || extractDocumentTitle(finalHtml) || extractTitleFromPrompt(input.prompt);
-    const finalizedRuntimeHtml = finalizeDocumentRuntimeHtml({
+    const structureRepair = await repairDocumentRuntimeStructure({
       html: finalHtml,
       title,
-    });
-    if (finalizedRuntimeHtml.changed) {
-      finalHtml = sanitizeHtml(finalizedRuntimeHtml.html);
-    }
-
-    let moduleRepairCount = 0;
-    let repairedPartCount = 0;
-    let moduleValidation = validateDocumentRuntimeModules(finalHtml, runtimeParts);
-    if (!moduleValidation.passed) {
-      onEvent({ type: 'progress', message: moduleValidation.summary, pct: 82 });
-      const queuedModuleRepair = await runQueuedDocumentRuntimeModuleRepair({
+      parts: runtimeParts,
+      runPlan: input.artifactRunPlan,
+      onEvent,
+      sanitizeHtml,
+      runQueuedModuleRepair: ({ html, validation }) => runQueuedDocumentRuntimeModuleRepair({
         model,
-        html: finalHtml,
+        html,
         workflowInput: input,
         plan: planResult,
         runtimeParts,
-        validation: moduleValidation,
+        validation,
         systemPrompt,
         onEvent,
         ...(signal ? { signal } : {}),
         runId: runtimeRunId,
-      });
-      if (queuedModuleRepair.repaired) {
-        finalHtml = sanitizeHtml(queuedModuleRepair.html);
-        moduleRepairCount += queuedModuleRepair.repairCount;
-        repairedPartCount += queuedModuleRepair.repairedPartCount;
-        moduleValidation = queuedModuleRepair.validation;
-        onEvent({ type: 'progress', message: queuedModuleRepair.summary, pct: 84 });
-      }
-
-      if (!moduleValidation.passed) {
-        const moduleRepair = repairDocumentRuntimeModules({
-          html: finalHtml,
-          parts: runtimeParts,
-          validation: moduleValidation,
-          runPlan: input.artifactRunPlan,
-          onEvent,
-        });
-        if (moduleRepair.repaired) {
-          finalHtml = sanitizeHtml(moduleRepair.html);
-          moduleRepairCount += moduleRepair.repairCount;
-          repairedPartCount += moduleValidation.moduleIssues
-            ? new Set(moduleValidation.moduleIssues.map((issue) => issue.partId)).size
-            : 0;
-          moduleValidation = moduleRepair.validation;
-          onEvent({ type: 'progress', message: moduleRepair.summary, pct: 84 });
-        }
-      }
-    }
+      }),
+    });
+    finalHtml = structureRepair.html;
+    const moduleRepairCount = structureRepair.moduleRepairCount;
+    const repairedPartCount = structureRepair.repairedPartCount;
 
     const sourceMarkdown = looksLikeHtml(rawContent)
       ? summarizeExistingDocument(finalHtml)

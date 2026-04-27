@@ -1,5 +1,5 @@
 import { buildArtifactWorkflowPlan } from '@/services/artifactRuntime/planner';
-import type { BuildArtifactWorkflowPlanInput, PresentationRecipeId } from '@/services/artifactRuntime/types';
+import type { BuildArtifactWorkflowPlanInput, PresentationRecipeId, RuntimeOutputMode } from '@/services/artifactRuntime/types';
 import type {
   ArtifactPart,
   ArtifactProviderPolicy,
@@ -11,6 +11,16 @@ import type {
 export interface BuildArtifactRunPlanInput extends BuildArtifactWorkflowPlanInput {
   runId: string;
 }
+
+const RUNTIME_OUTPUT_MODES: RuntimeOutputMode[] = [
+  'Executive',
+  'Editorial',
+  'Proposal',
+  'Research',
+  'Launch',
+  'Teaching',
+  'Data Story',
+];
 
 const PRESENTATION_RECIPE_LAYOUTS: Record<PresentationRecipeId, string[]> = {
   'title-opening': ['polished title lockup', 'animated seam', 'ambient background system'],
@@ -40,6 +50,18 @@ function buildProviderPolicy(tier: ArtifactProviderPolicy['tier']): ArtifactProv
         secondaryEvaluation: 'enabled',
         generationGranularity: 'part',
       };
+}
+
+function extractGuidedOutputMode(projectRulesBlock?: string): RuntimeOutputMode | undefined {
+  if (!projectRulesBlock) return undefined;
+  const match = projectRulesBlock.match(/-\s*Output mode:\s*([^\n]+)/i);
+  const rawMode = match?.[1]?.trim().toLowerCase();
+  return RUNTIME_OUTPUT_MODES.find((mode) => mode.toLowerCase() === rawMode);
+}
+
+function withGuidedOutputMode(input: BuildArtifactRunPlanInput): BuildArtifactRunPlanInput {
+  const guidedOutputMode = input.guidedOutputMode ?? extractGuidedOutputMode(input.projectRulesBlock);
+  return guidedOutputMode ? { ...input, guidedOutputMode } : input;
 }
 
 function buildDesignManifest(input: BuildArtifactRunPlanInput, workflow = buildArtifactWorkflowPlan(input)): DesignManifest {
@@ -211,16 +233,17 @@ function buildValidationGates(workflow: ArtifactRunPlan['workflow']): Validation
 }
 
 export function buildArtifactRunPlan(input: BuildArtifactRunPlanInput): ArtifactRunPlan {
-  const workflow = buildArtifactWorkflowPlan(input);
+  const planInput = withGuidedOutputMode(input);
+  const workflow = buildArtifactWorkflowPlan(planInput);
   const providerPolicy = buildProviderPolicy(workflow.templateGuidance.providerTier);
-  const designManifest = buildDesignManifest(input, workflow);
+  const designManifest = buildDesignManifest(planInput, workflow);
 
   return {
     version: 1,
-    runId: input.runId,
+    runId: planInput.runId,
     artifactType: workflow.artifactType,
-    operation: input.operation,
-    userIntent: input.prompt,
+    operation: planInput.operation,
+    userIntent: planInput.prompt,
     intentSummary: workflow.summary,
     requestKind: workflow.requestKind,
     preservationIntent: workflow.preservationIntent,

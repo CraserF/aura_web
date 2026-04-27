@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildDocumentRuntimeTelemetry,
   estimateRuntimePromptTokens,
+  formatRuntimeQualityDiagnostics,
   summarizeRuntimeDiagnostics,
 } from '@/services/artifactRuntime';
 import type { DocumentRuntimeValidationResult } from '@/services/artifactRuntime';
@@ -256,5 +257,64 @@ describe('runtime telemetry diagnostics', () => {
     expect(summary.spreadsheetActionKinds).toEqual(['create-formula-column']);
     expect(summary.changedSheetCount).toBe(1);
     expect(summary.refreshedSheetCount).toBe(2);
+  });
+
+  it('formats quality diagnostics for advanced summaries without changing default content', () => {
+    expect(formatRuntimeQualityDiagnostics({
+      totalRuntimeMs: 50,
+      validationPassed: false,
+      validationBlockingCount: 1,
+      validationAdvisoryCount: 1,
+      repairCount: 0,
+      qualityPassed: false,
+      qualityBlockingCount: 1,
+      qualityAdvisoryCount: 2,
+      qualityChecks: [
+        {
+          id: 'iframe-contract',
+          label: 'Iframe contract',
+          passed: false,
+          blockingCount: 1,
+          advisoryCount: 0,
+        },
+        {
+          id: 'mobile-safety',
+          label: 'Mobile safety',
+          passed: true,
+          blockingCount: 0,
+          advisoryCount: 2,
+        },
+      ],
+    })).toEqual([
+      {
+        severity: 'blocking',
+        message: 'Quality blocked by 1 issue across Iframe contract.',
+      },
+      {
+        severity: 'advisory',
+        message: 'Quality advisories: 2 issues across Mobile safety.',
+      },
+    ]);
+
+    expect(formatRuntimeQualityDiagnostics({
+      totalRuntimeMs: 20,
+      validationPassed: true,
+      validationBlockingCount: 0,
+      validationAdvisoryCount: 0,
+      repairCount: 0,
+      qualityPassed: true,
+      qualityBlockingCount: 0,
+      qualityAdvisoryCount: 0,
+      qualityChecks: [{
+        id: 'typography',
+        label: 'Typography',
+        passed: true,
+        blockingCount: 0,
+        advisoryCount: 0,
+      }],
+    })).toEqual([{
+      severity: 'pass',
+      message: 'Quality passed across 1 check.',
+    }]);
   });
 });

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { buildArtifactRunPlan } from '@/services/artifactRuntime';
 
 function readSource(relativePath: string): string {
   return readFileSync(join(process.cwd(), 'src', relativePath), 'utf8');
@@ -31,5 +32,38 @@ describe('non-technical UX simplification', () => {
     expect(chatBarSource).not.toContain('Choose workflow preset');
     expect(chatBarSource).not.toContain('Project default');
     expect(chatBarSource).not.toContain('Save current as preset');
+  });
+
+  it('maps curated output modes into runtime plan design defaults', () => {
+    const launchPlan = buildArtifactRunPlan({
+      runId: 'launch-mode-run',
+      prompt: 'Create a concise product update deck',
+      artifactType: 'presentation',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+      projectRulesBlock: '## Project Style\n\n- Output mode: Launch',
+    });
+    const researchPlan = buildArtifactRunPlan({
+      runId: 'research-mode-run',
+      prompt: 'Create a concise market document',
+      artifactType: 'document',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+      projectRulesBlock: '## Project Style\n\n- Output mode: Research',
+    });
+
+    expect(launchPlan.presentationRecipeId).toBe('title-opening');
+    expect(launchPlan.templateGuidance.selectedTemplateId).toBe('launch-narrative-light');
+    expect(launchPlan.designManifest.family).toBe('launch-narrative-light');
+    expect(researchPlan.documentThemeFamily).toBe('research-light');
+    expect(researchPlan.designManifest.family).toBe('research-light');
   });
 });

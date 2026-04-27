@@ -236,6 +236,7 @@ export function buildSpreadsheetRuntimeTelemetry(input: {
   const queuedPartCount = workQueue.length || 1;
   const completedPartCount = isBlockingKind ? 1 : queuedPartCount;
   const validationIssueRules = input.result.planValidation?.issues.map((issue) => issue.code) ?? [];
+  const spreadsheetActionKind = input.result.plan?.kind ?? input.result.kind;
   const validationByPart = workQueue.length > 0
     ? workQueue.map((part) => ({
         partId: part.id,
@@ -245,8 +246,14 @@ export function buildSpreadsheetRuntimeTelemetry(input: {
         advisoryCount: 0,
         rules: part.kind === 'validation-result' ? validationIssueRules : [],
       }))
-    : undefined;
-  const spreadsheetActionKind = input.result.plan?.kind ?? input.result.kind;
+    : [{
+        partId: getPartId(input.result),
+        label: spreadsheetActionKind,
+        validationPassed,
+        blockingCount: validationBlockingCount,
+        advisoryCount: 0,
+        rules: validationIssueRules,
+      }];
   const changedSheetCount = countChangedSheets(input.result);
   const refreshedSheetCount = countRefreshedSheets(input.result);
   const qualityCheck = {
@@ -275,6 +282,6 @@ export function buildSpreadsheetRuntimeTelemetry(input: {
     spreadsheetActionKind,
     changedSheetCount,
     refreshedSheetCount,
-    ...(validationByPart ? { validationByPart } : {}),
+    validationByPart,
   };
 }

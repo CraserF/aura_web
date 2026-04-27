@@ -436,6 +436,57 @@ describe('spreadsheet runtime bridge', () => {
       spreadsheetActionKind: 'blocked',
       changedSheetCount: 0,
       refreshedSheetCount: 0,
+      validationByPart: [{
+        partId: 'workbook-action',
+        label: 'blocked',
+        validationPassed: false,
+        blockingCount: 0,
+        advisoryCount: 0,
+        rules: [],
+      }],
     });
+  });
+
+  it.each([
+    {
+      kind: 'clarification-needed' as const,
+      message: 'Which column should the formula use?',
+      expectedActionKind: 'clarification-needed',
+    },
+    {
+      kind: 'no-intent' as const,
+      message: 'Ask me to change, analyze, or create something in the workbook.',
+      expectedActionKind: 'no-intent',
+    },
+  ])('records fallback diagnostics for $kind spreadsheet results without a work queue', ({ kind, message, expectedActionKind }) => {
+    const telemetry = buildSpreadsheetRuntimeTelemetry({
+      result: {
+        kind,
+        message,
+        planValidation: {
+          passed: false,
+          issues: [{ code: 'missing-intent', message: 'No deterministic spreadsheet action could be selected.' }],
+        },
+      } as SpreadsheetOutput,
+      totalRuntimeMs: 12,
+    });
+
+    expect(telemetry).toEqual(expect.objectContaining({
+      runMode: 'deterministic-action',
+      queuedPartCount: 1,
+      completedPartCount: 1,
+      qualityPassed: false,
+      spreadsheetActionKind: expectedActionKind,
+      changedSheetCount: 0,
+      refreshedSheetCount: 0,
+    }));
+    expect(telemetry.validationByPart).toEqual([{
+      partId: 'workbook-action',
+      label: expectedActionKind,
+      validationPassed: false,
+      blockingCount: 1,
+      advisoryCount: 0,
+      rules: ['missing-intent'],
+    }]);
   });
 });

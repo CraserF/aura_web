@@ -772,10 +772,10 @@ Last updated: 2026-04-27.
 3. Done for Presentation Runtime V1 ownership: Rebuild presentation generation around the new run engine while keeping the current UI entry point. `runPresentationWorkflow()` is now a provider/model setup shell, while the runtime owns plan interpretation, design-manifest events, queued/single selection, validation, repair, finalization, and telemetry.
 4. Done for active presentation generation: Replace presentation prompt composition with compact prompt packs and design manifests. The old presentation composer has been removed from active create/edit/batch/revision paths.
 5. Done for presentation starters: Convert starter kits to use the same presentation runtime and production design families. Starter decks now create runtime plans, runtime parts, deterministic section assembly, and runtime finalization.
-6. Partially done: Simplify user-facing project settings into guided style/preferences, with current technical controls moved to Advanced.
-7. In progress: Move document generation onto the same run engine. Create-mode documents now generate outline and modules through runtime-owned queued calls; image create, queued module edit, edit fallback, per-module repair, module validation, workflow-level orchestration tests, document design-system constants, and document quality summaries are covered. Outline/module/repair prompts now compose compact document packs for the core contract, iframe/mobile/print contract, design family, module contract, and validator feedback.
-8. Started: Keep spreadsheet execution deterministic but emit the same run events and validation summaries. Workbook actions, formulas, query views, charts, validation, and finalization now attach as first-class runtime parts and report deterministic runtime telemetry, action kind, changed/refreshed sheet counts, and quality summaries.
-9. Prepared: Delete or convert legacy templates after production routing is stable. Production-vs-legacy metadata and routing guards are in place; archival/deletion is deferred.
+6. Partially done: Simplify user-facing project settings into guided style/preferences, with current technical controls moved to Advanced. Curated Output Mode now feeds runtime plan defaults for presentation recipes and document design families.
+7. In progress: Move document generation onto the same run engine. Create-mode documents now generate outline and modules through runtime-owned queued calls; image create, queued module edit, edit fallback, per-module repair, module validation, workflow-level orchestration tests, document design-system constants, and document quality summaries are covered. Outline/module/repair prompts now compose compact document packs, and the document workflow shell delegates queued/single generation selection plus structure/module repair coordination into `artifactRuntime`.
+8. Started: Keep spreadsheet execution deterministic but emit the same run events and validation summaries. Workbook actions, formulas, query views, charts, validation, and finalization now attach as first-class runtime parts and report deterministic runtime telemetry, action kind, changed/refreshed sheet counts, quality summaries, and fallback validation-by-part diagnostics for blocked/clarification/no-intent results.
+9. Prepared: Delete or convert legacy templates after production routing is stable. Production-vs-legacy metadata, routing guards, bundle-size notes, production replacements, and convert/archive/delete recommendations are recorded; archival/deletion remains deferred.
 10. Started for presentations and expanded to documents/spreadsheets: Runtime benchmark diagnostics exist, production presentation templates pass a deterministic static viewport contract, reusable presentation and document quality checklists report readiness, and spreadsheet diagnostics report deterministic action/validation summaries. Manual/browser canvas automation remains skipped for now by request.
 
 ## Completed In Current Runtime Hardening Slice
@@ -785,12 +785,55 @@ Last updated: 2026-04-27.
 - Added explicit production-vs-legacy template metadata and routing tests while keeping legacy templates in place.
 - Added deterministic document quality, runtime telemetry, spreadsheet diagnostics, workflow progress, and template audit coverage.
 
+## Completed In Current Document Ownership Slice
+- Added runtime-owned document orchestration helpers for queued edit/create/single-stream draft selection and structure/module repair coordination.
+- Reduced `runDocumentWorkflow()` so the shell still handles provider setup and UI wiring, while `artifactRuntime` decides the active document generation mode and repair sequence.
+- Added advanced-only quality diagnostic formatting from runtime quality telemetry without adding noisy validation text to default assistant responses.
+- Completed spreadsheet fallback diagnostics for blocked, clarification, and no-intent results when no work queue is attached.
+- Bound guided Output Mode values into `ArtifactRunPlan` defaults:
+  - Executive -> executive/general polished;
+  - Editorial -> editorial;
+  - Proposal -> proposal/comparison;
+  - Research -> research/finance grid;
+  - Launch -> launch/title opening;
+  - Teaching -> playbook/stage setting;
+  - Data Story -> infographic/metrics.
+- Added a legacy presentation template audit helper with bundle-size notes, production replacements, and cleanup recommendations.
+
+Legacy template decision table:
+
+| Legacy template | Production replacement | Bundle note | Decision |
+| --- | --- | --- | --- |
+| `keynote` | `launch-narrative-light` | 35.05 kB before gzip | convert later |
+| `corporate` | `executive-briefing-light` | 47.40 kB before gzip | convert later |
+| `tech-architecture` | `stage-setting-light` | not singled out | archive later |
+| `data-dashboard` | `finance-grid-light` | not singled out | archive later |
+| `sci-fi` | `split-world` | not singled out | archive later |
+| `creative-portfolio` | `launch-narrative-light` | not singled out | archive later |
+| `storytelling` | `editorial-light` | not singled out | archive later |
+| `educational` | `stage-setting-light` | 40.96 kB before gzip | convert later |
+| `minimal` | `executive-briefing-light` | not singled out | delete later |
+| `cinematic` | `launch-narrative-light` | not singled out | archive later |
+| `pitch-deck` | `launch-narrative-light` | not singled out | delete later |
+| `workshop` | `stage-setting-light` | not singled out | archive later |
+| `code-walkthrough` | `editorial-light` | not singled out | archive later |
+| `product-demo` | `launch-narrative-light` | 30.16 kB before gzip | convert later |
+| `comparison` | `split-world` | not singled out | delete later |
+| `timeline` | `stage-setting-light` | not singled out | archive later |
+| `editorial-magazine` | `editorial-light` | not singled out | archive later |
+| `infographic-grid` | `finance-grid-light` | 34.69 kB before gzip | convert later |
+| `landscape-illustration` | `editorial-light` | 37.44 kB before gzip | convert later |
+| `multi-panel-dashboard` | `finance-grid-light` | 46.43 kB before gzip | convert later |
+| `sidebar-cards` | `executive-briefing-light` | 47.59 kB before gzip | convert later |
+
 ## Validation Completed
+- `npm test -- document-runtime-workflow artifact-runtime runtime-telemetry spreadsheet-runtime presentation-template-design-system ux-simplification`
 - `npm test -- presentation-runtime-workflow presentation-runtime-policy presentation-template-design-system presentation-quality-checklist release-smoke artifact-runtime document-runtime-workflow runtime-telemetry spreadsheet-runtime prompt-to-formula prompt-to-query ux-simplification`
-- `npm test`
 - `npm run typecheck`
+- `npm test`
 - `npm run build`
-- Changed-file ESLint passed.
+- Changed-file ESLint passed across modified runtime, workflow, template, chat request, and test files.
+- `git diff --check`
 
 Build notes:
 - Vite still reports existing non-blocking chunk/dynamic-import warnings for DuckDB/export/data bundles.
@@ -925,22 +968,22 @@ Build notes:
 - Start with presentations, then extend to documents and spreadsheets.
 
 ## Immediate Next Implementation Slice
-- Continue document runtime ownership:
-  - move more document workflow orchestration out of `src/services/ai/workflow/document.ts` and into `artifactRuntime`;
-  - keep queued create, image create, queued edit, fallback edit, and module repair behavior unchanged while reducing the workflow shell.
-- Surface quality diagnostics:
-  - decide where runtime quality summaries should appear in run summaries or advanced diagnostics;
-  - keep the default UX simple and avoid exposing technical validation noise to non-technical users.
-- Prepare the legacy-template archival decision:
-  - use the repeated Vite bundle snapshots and production-vs-legacy metadata to choose convert/archive/delete candidates;
-  - do not delete templates until active routing, starter kits, and tests remain stable with the audit metadata.
-- Continue spreadsheet runtime expansion carefully:
-  - keep execution deterministic and low-token;
-  - add any missing validation-by-part summaries for blocked/clarification flows where a run plan has no attached work queue.
+- Close Document Runtime V1:
+  - move outline/module prompt construction and final telemetry assembly behind one runtime orchestrator boundary;
+  - keep provider/model setup, abort signal forwarding, and UI entry wiring in the document workflow shell;
+  - keep queued create, image create, queued edit, fallback edit, and repair behavior unchanged.
+- Wire advanced diagnostics display:
+  - expose `formatRuntimeQualityDiagnostics()` through the existing advanced/run-summary surface;
+  - keep default generation messages simple and non-technical.
+- Finish spreadsheet run-plan attachment gaps:
+  - attach lightweight runtime parts for blocked, clarification, and no-intent flows before telemetry is built;
+  - keep deterministic execution and avoid model calls.
+- Prepare the legacy-template cleanup slice:
+  - use the recorded audit table to choose the first no-risk archive/delete candidates;
+  - do not delete templates until production routing and starter tests stay green after the archival patch.
 - Continue UX simplification:
-  - connect curated output modes more directly to run-plan design families;
-  - move provider/model/context tuning behind an Advanced affordance everywhere it still appears in the default path;
-  - keep the default generation labels simple: planning, designing, creating, checking quality, finishing.
+  - audit remaining provider/model/context controls in default UI;
+  - move any remaining technical controls behind Advanced without removing expert access.
 
 ## Test Plan
 - Add planner tests proving each user prompt produces exactly one authoritative `ArtifactRunPlan`.
