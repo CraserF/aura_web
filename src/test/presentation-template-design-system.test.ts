@@ -92,7 +92,7 @@ describe('production presentation templates', () => {
     }
   });
 
-  it('records legacy template archival decisions with production replacements', () => {
+  it('records remaining legacy templates as converted to production routing', () => {
     const audit = listLegacyPresentationTemplateAudit();
 
     expect(audit.map((entry) => entry.templateId).sort()).toEqual(
@@ -102,15 +102,27 @@ describe('production presentation templates', () => {
       expect(isLegacyPresentationTemplate(entry.templateId)).toBe(true);
       expect(isProductionPresentationTemplate(entry.productionReplacement)).toBe(true);
       expect(entry.chunkSizeNote.length).toBeGreaterThan(12);
-      expect(['convert later', 'archive later', 'delete later']).toContain(entry.decision);
+      expect(entry.decision).toBe('converted to production routing');
     }
-    expect(audit.some((entry) => entry.decision === 'convert later')).toBe(true);
-    expect(audit.some((entry) => entry.decision === 'archive later')).toBe(true);
-    expect(audit.some((entry) => entry.decision === 'archive later')).toBe(true);
+    expect(audit.some((entry) => entry.decision.includes('archive'))).toBe(false);
   });
 
-  it('removes first legacy cleanup candidates from the registry while preserving production routing', () => {
-    const removedTemplateIds = ['minimal', 'comparison', 'pitch-deck', 'tech-architecture', 'data-dashboard', 'sci-fi'];
+  it('removes legacy cleanup candidates from the registry while preserving production routing', () => {
+    const removedTemplateIds = [
+      'minimal',
+      'comparison',
+      'pitch-deck',
+      'tech-architecture',
+      'data-dashboard',
+      'sci-fi',
+      'creative-portfolio',
+      'storytelling',
+      'cinematic',
+      'workshop',
+      'code-walkthrough',
+      'timeline',
+      'editorial-magazine',
+    ];
     const auditIds = listLegacyPresentationTemplateAudit().map((entry) => entry.templateId);
 
     for (const templateId of removedTemplateIds) {
@@ -123,6 +135,20 @@ describe('production presentation templates', () => {
     expect(selectTemplate('Create a cloud architecture review deck')).toBe('stage-setting-light');
     expect(selectTemplate('Create a dashboard metrics report')).toBe('finance-grid-light');
     expect(selectTemplate('Create a sci-fi cyber strategy deck')).toBe('split-world');
+    expect(selectTemplate('Create a creative portfolio deck')).toBe('launch-narrative-light');
+    expect(selectTemplate('Create a narrative case study deck')).toBe('editorial-light');
+    expect(selectTemplate('Create a cinematic visual story deck')).toBe('launch-narrative-light');
+    expect(selectTemplate('Create a workshop exercise deck')).toBe('stage-setting-light');
+    expect(selectTemplate('Create a code walkthrough deck')).toBe('editorial-light');
+    expect(selectTemplate('Create a timeline roadmap deck')).toBe('stage-setting-light');
+    expect(selectTemplate('Create a magazine editorial deck')).toBe('editorial-light');
+  });
+
+  it('falls back to a production starter template for removed stored template ids', async () => {
+    const html = await getTemplateHtml('creative-portfolio' as TemplateId);
+
+    expect(html.trim().startsWith('<style>')).toBe(true);
+    expect(html).toContain('exec-stage');
   });
 
   it('routes generated presentation plans through production template families', async () => {

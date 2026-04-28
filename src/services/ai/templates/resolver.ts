@@ -94,7 +94,6 @@ const TEMPLATE_STYLE_COMPATIBILITY: Partial<Record<TemplateId, TemplateStyle[]>>
   'editorial-light': ['editorial', 'corporate', 'pitch', 'keynote'],
   'finance-grid-light': ['data', 'ocean', 'dashboard', 'corporate', 'tech'],
   'stage-setting-light': ['corporate', 'editorial', 'ocean', 'minimal', 'tech', 'educational'],
-  'editorial-magazine': ['editorial', 'luxury'],
   'infographic-grid': ['data', 'ocean', 'dashboard', 'corporate'],
   'split-world': ['neon', 'scifi', 'creative', 'keynote', 'corporate', 'editorial', 'data', 'dashboard', 'tech'],
   'multi-panel-dashboard': ['dashboard', 'data', 'corporate'],
@@ -102,8 +101,6 @@ const TEMPLATE_STYLE_COMPATIBILITY: Partial<Record<TemplateId, TemplateStyle[]>>
   'landscape-illustration': ['nature', 'ocean', 'creative'],
   keynote: ['keynote', 'pitch', 'tech'],
   corporate: ['corporate', 'dashboard'],
-  storytelling: ['editorial', 'creative'],
-  cinematic: ['keynote', 'creative', 'scifi'],
 };
 
 export function resolveTemplatePlan(
@@ -234,7 +231,7 @@ function getExemplarPackId(
     return 'executive-starter-deck';
   }
 
-  if (templateId === 'split-world' || templateId === 'keynote' || templateId === 'cinematic') {
+  if (templateId === 'split-world' || templateId === 'keynote') {
     return 'split-world-title';
   }
 
@@ -242,7 +239,6 @@ function getExemplarPackId(
     templateId === 'finance-grid-light'
     || templateId === 'stage-setting-light'
     || templateId === 'editorial-light'
-    || templateId === 'editorial-magazine'
     || templateId === 'infographic-grid'
     || templateId === 'multi-panel-dashboard'
     || style === 'editorial'

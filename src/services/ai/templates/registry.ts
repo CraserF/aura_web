@@ -7,10 +7,9 @@ export type TemplateId =
   | 'editorial-light' | 'finance-grid-light' | 'stage-setting-light'
   | 'executive-briefing-light' | 'launch-narrative-light'
   | 'keynote' | 'corporate'
-  | 'creative-portfolio' | 'storytelling' | 'educational'
-  | 'cinematic' | 'workshop'
-  | 'code-walkthrough' | 'product-demo' | 'timeline'
-  | 'editorial-magazine' | 'infographic-grid' | 'interactive-quiz'
+  | 'educational'
+  | 'product-demo'
+  | 'infographic-grid' | 'interactive-quiz'
   | 'split-world' | 'landscape-illustration' | 'multi-panel-dashboard'
   | 'sidebar-cards';
 
@@ -31,15 +30,8 @@ const PRODUCTION_PRESENTATION_TEMPLATE_SET = new Set<TemplateId>(PRODUCTION_PRES
 export const LEGACY_PRESENTATION_TEMPLATE_IDS = [
   'keynote',
   'corporate',
-  'creative-portfolio',
-  'storytelling',
   'educational',
-  'cinematic',
-  'workshop',
-  'code-walkthrough',
   'product-demo',
-  'timeline',
-  'editorial-magazine',
   'infographic-grid',
   'landscape-illustration',
   'multi-panel-dashboard',
@@ -50,12 +42,14 @@ export type LegacyPresentationTemplateId = typeof LEGACY_PRESENTATION_TEMPLATE_I
 
 const LEGACY_PRESENTATION_TEMPLATE_SET = new Set<TemplateId>(LEGACY_PRESENTATION_TEMPLATE_IDS);
 
+const TEMPLATE_HTML_FALLBACK_ID: ProductionPresentationTemplateId = 'executive-briefing-light';
+
 export const PRESENTATION_TEMPLATE_AUDIT = {
   production: PRODUCTION_PRESENTATION_TEMPLATE_IDS,
   legacy: LEGACY_PRESENTATION_TEMPLATE_IDS,
 } as const;
 
-export type LegacyPresentationTemplateAuditDecision = 'convert later' | 'archive later' | 'delete later';
+export type LegacyPresentationTemplateAuditDecision = 'converted to production routing';
 
 export interface LegacyPresentationTemplateAuditEntry {
   templateId: LegacyPresentationTemplateId;
@@ -79,21 +73,14 @@ const LEGACY_TEMPLATE_AUDIT_DECISIONS: Record<
   LegacyPresentationTemplateId,
   LegacyPresentationTemplateAuditDecision
 > = {
-  keynote: 'convert later',
-  corporate: 'convert later',
-  'creative-portfolio': 'archive later',
-  storytelling: 'archive later',
-  educational: 'convert later',
-  cinematic: 'archive later',
-  workshop: 'archive later',
-  'code-walkthrough': 'archive later',
-  'product-demo': 'convert later',
-  timeline: 'archive later',
-  'editorial-magazine': 'archive later',
-  'infographic-grid': 'convert later',
-  'landscape-illustration': 'convert later',
-  'multi-panel-dashboard': 'convert later',
-  'sidebar-cards': 'convert later',
+  keynote: 'converted to production routing',
+  corporate: 'converted to production routing',
+  educational: 'converted to production routing',
+  'product-demo': 'converted to production routing',
+  'infographic-grid': 'converted to production routing',
+  'landscape-illustration': 'converted to production routing',
+  'multi-panel-dashboard': 'converted to production routing',
+  'sidebar-cards': 'converted to production routing',
 };
 
 export function isProductionPresentationTemplate(
@@ -114,8 +101,6 @@ export function toProductionPresentationTemplate(templateId: TemplateId): Produc
   switch (templateId) {
     case 'keynote':
     case 'product-demo':
-    case 'creative-portfolio':
-    case 'cinematic':
       return 'launch-narrative-light';
     case 'corporate':
     case 'sidebar-cards':
@@ -123,12 +108,8 @@ export function toProductionPresentationTemplate(templateId: TemplateId): Produc
     case 'infographic-grid':
     case 'multi-panel-dashboard':
       return 'finance-grid-light';
-    case 'timeline':
-    case 'workshop':
     case 'educational':
       return 'stage-setting-light';
-    case 'editorial-magazine':
-    case 'storytelling':
     case 'landscape-illustration':
     default:
       return 'editorial-light';
@@ -161,15 +142,8 @@ const TEMPLATE_HTML_PATHS: Record<TemplateId, string> = {
   'launch-narrative-light': './html/launch-narrative-light.html',
   keynote: './html/keynote.html',
   corporate: './html/corporate.html',
-  'creative-portfolio': './html/creative-portfolio.html',
-  storytelling: './html/storytelling.html',
   educational: './html/educational.html',
-  cinematic: './html/cinematic.html',
-  workshop: './html/workshop.html',
-  'code-walkthrough': './html/code-walkthrough.html',
   'product-demo': './html/product-demo.html',
-  timeline: './html/timeline.html',
-  'editorial-magazine': './html/editorial-magazine.html',
   'infographic-grid': './html/infographic-grid.html',
   'interactive-quiz': './html/interactive-quiz.html',
   'split-world': './html/split-world.html',
@@ -235,22 +209,6 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
     bestFor: ['board meeting', 'quarterly review', 'business update'],
     slideCount: { min: 8, max: 15 },
   },
-  'creative-portfolio': {
-    id: 'creative-portfolio',
-    htmlPath: TEMPLATE_HTML_PATHS['creative-portfolio'],
-    animationLevel: 3,
-    description: 'Vibrant creative showcase for portfolios and design presentations',
-    bestFor: ['portfolio', 'design showcase', 'creative work'],
-    slideCount: { min: 8, max: 12 },
-  },
-  storytelling: {
-    id: 'storytelling',
-    htmlPath: TEMPLATE_HTML_PATHS.storytelling,
-    animationLevel: 3,
-    description: 'Elegant storytelling format for case studies and narratives',
-    bestFor: ['case study', 'narrative', 'brand story'],
-    slideCount: { min: 8, max: 12 },
-  },
   educational: {
     id: 'educational',
     htmlPath: TEMPLATE_HTML_PATHS.educational,
@@ -259,30 +217,6 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
     bestFor: ['lecture', 'training', 'educational'],
     slideCount: { min: 8, max: 15 },
   },
-  cinematic: {
-    id: 'cinematic',
-    htmlPath: TEMPLATE_HTML_PATHS.cinematic,
-    animationLevel: 4,
-    description: 'Cinematic presentation for photography, art, and high-impact storytelling',
-    bestFor: ['photography', 'art', 'cinematic storytelling'],
-    slideCount: { min: 6, max: 10 },
-  },
-  workshop: {
-    id: 'workshop',
-    htmlPath: TEMPLATE_HTML_PATHS.workshop,
-    animationLevel: 2,
-    description: 'Interactive workshop format with exercises and timing',
-    bestFor: ['workshop', 'interactive training', 'hands-on session'],
-    slideCount: { min: 8, max: 15 },
-  },
-  'code-walkthrough': {
-    id: 'code-walkthrough',
-    htmlPath: TEMPLATE_HTML_PATHS['code-walkthrough'],
-    animationLevel: 3,
-    description: 'Developer-focused code walkthrough with syntax highlighting',
-    bestFor: ['code review', 'developer talk', 'API walkthrough'],
-    slideCount: { min: 8, max: 12 },
-  },
   'product-demo': {
     id: 'product-demo',
     htmlPath: TEMPLATE_HTML_PATHS['product-demo'],
@@ -290,22 +224,6 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
     description: 'Product demonstration with feature highlights and comparisons',
     bestFor: ['product demo', 'SaaS demo', 'feature showcase'],
     slideCount: { min: 10, max: 15 },
-  },
-  timeline: {
-    id: 'timeline',
-    htmlPath: TEMPLATE_HTML_PATHS.timeline,
-    animationLevel: 3,
-    description: 'Timeline-focused presentation for roadmaps and histories',
-    bestFor: ['roadmap', 'project timeline', 'history'],
-    slideCount: { min: 8, max: 12 },
-  },
-  'editorial-magazine': {
-    id: 'editorial-magazine',
-    htmlPath: TEMPLATE_HTML_PATHS['editorial-magazine'],
-    animationLevel: 2,
-    description: 'Magazine-style editorial with serif typography and asymmetric layouts',
-    bestFor: ['editorial', 'magazine', 'long-form article', 'thought leadership'],
-    slideCount: { min: 6, max: 10 },
   },
   'infographic-grid': {
     id: 'infographic-grid',
@@ -367,7 +285,7 @@ export async function getTemplateHtml(id: TemplateId): Promise<string> {
   const loader = htmlPath ? TEMPLATE_HTML_MODULES[htmlPath] : undefined;
 
   if (!loader) {
-    if (id !== 'keynote') return getTemplateHtml('keynote');
+    if (id !== TEMPLATE_HTML_FALLBACK_ID) return getTemplateHtml(TEMPLATE_HTML_FALLBACK_ID);
     throw new Error(`Missing template HTML loader for ${id}`);
   }
 
@@ -376,7 +294,7 @@ export async function getTemplateHtml(id: TemplateId): Promise<string> {
     templateHtmlCache.set(id, html);
     return html;
   } catch (error) {
-    if (id !== 'keynote') return getTemplateHtml('keynote');
+    if (id !== TEMPLATE_HTML_FALLBACK_ID) return getTemplateHtml(TEMPLATE_HTML_FALLBACK_ID);
     throw error instanceof Error
       ? error
       : new Error(`Failed to load template HTML for ${id}`);

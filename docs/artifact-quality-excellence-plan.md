@@ -37,12 +37,14 @@ Aura should keep the new `ArtifactRuntime` structure, but generated artifacts mu
 - [x] Added explicit deterministic presentation polish advisories for weak title scenes, repeated grids, missing visuals, missing transitions, and weak class/token continuity.
 - [x] Added spreadsheet craft metadata for frozen headers, useful column formats, readable widths, summary rows, chart readiness, and downstream-ready action summaries.
 - [x] Added a normalized reference-quality corpus that routes quality bars to trait-only style targets for documents and presentations.
+- [x] Removed the remaining `archive later` legacy presentation templates while preserving production routing and starter kits.
 - [x] Verified with:
   - `npm test -- artifact-runtime prompt-contracts runtime-telemetry document-quality-checklist presentation-quality-checklist spreadsheet-runtime`
   - `npm test -- artifact-runtime prompt-contracts document-quality-checklist document-runtime-workflow runtime-telemetry quality-decision`
   - `npm test -- artifact-runtime prompt-contracts presentation-quality-checklist presentation-runtime-policy`
   - `npm test -- spreadsheet-runtime spreadsheet-create-craft prompt-to-formula prompt-to-query spreadsheet-starter runtime-telemetry`
   - `npm test -- reference-style-packs prompt-contracts document-quality-checklist presentation-quality-checklist workflow-planner artifact-runtime`
+  - `npm test -- presentation-template-design-system presentation-runtime-policy prompt-contracts workflow-planner`
   - `npm run typecheck`
   - `npm test`
   - `npm run build`
@@ -226,7 +228,7 @@ Acceptance criteria:
 
 ## Workstream 6: Legacy Cleanup
 
-Status: `[~]`
+Status: `[x]`
 
 Purpose: keep the active runtime free from legacy API/MCP/automation and old presentation-template drag.
 
@@ -238,16 +240,16 @@ Already started:
 
 Implementation checklist:
 
-- [ ] Continue controlled cleanup of remaining legacy presentation templates marked `archive later`.
-- [ ] Convert only templates that still contain valuable production-grade patterns.
-- [ ] Keep provider API access untouched; only external automation/API/MCP seams are out of scope.
-- [ ] Keep import-boundary regression tests proving removed external adapter paths stay gone.
+- [x] Continue controlled cleanup of remaining legacy presentation templates marked `archive later`.
+- [x] Convert only templates that still contain valuable production-grade patterns.
+- [x] Keep provider API access untouched; only external automation/API/MCP seams are out of scope.
+- [x] Keep import-boundary regression tests proving removed external adapter paths stay gone.
 
 Acceptance criteria:
 
-- [ ] No active generation path imports external API/MCP/automation adapter code.
-- [ ] Legacy template chunks continue shrinking after safe archive/delete batches.
-- [ ] Production routing and starter kits remain intact after each cleanup batch.
+- [x] No active generation path imports external API/MCP/automation adapter code.
+- [x] Legacy template chunks continue shrinking after safe archive/delete batches.
+- [x] Production routing and starter kits remain intact after each cleanup batch.
 
 ## Manual Validation And Benchmarking
 
@@ -286,7 +288,7 @@ Acceptance criteria:
 
 ## Next Recommended Slice
 
-Continue with manual quality benchmarking and Workstream 5 now that the spreadsheet craft workstream is complete.
+Continue with manual quality benchmarking now that the implementation workstreams are complete.
 
 Recommended order:
 
@@ -294,6 +296,6 @@ Recommended order:
 2. Compare presentation art-director pre/post quality score and log whether the bounded pass visibly improves boring decks.
 3. Run one manual document benchmark to move Workstream 2 acceptance from `[~]` to `[x]`.
 4. Backfill Workstream 1 manual validation evidence from generated artifacts.
-5. Start Workstream 5 reference-quality corpus normalization.
+5. Run one spreadsheet craft benchmark to confirm formatting and downstream-readiness telemetry in a real workbook.
 
 This order builds on the active quality-decision foundation and moves the biggest remaining quality gains into the generated artifact structure itself.

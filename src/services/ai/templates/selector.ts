@@ -36,7 +36,7 @@ const SELECTION_PATTERNS: SelectionPattern[] = [
     weight: 10,
   },
   {
-    templateId: 'editorial-magazine',
+    templateId: 'editorial-light',
     patterns: [/\b(editorial|magazine|long.?form|thought\s*leader|serif|article|essay|literary)\b/i],
     weight: 9,
   },
@@ -86,7 +86,7 @@ const SELECTION_PATTERNS: SelectionPattern[] = [
     weight: 10,
   },
   {
-    templateId: 'creative-portfolio',
+    templateId: 'launch-narrative-light',
     patterns: [/\b(portfolio|creative|design\s*showcase|art\s*show|brand\s*book)\b/i],
     weight: 8,
   },
@@ -96,7 +96,7 @@ const SELECTION_PATTERNS: SelectionPattern[] = [
     weight: 8,
   },
   {
-    templateId: 'storytelling',
+    templateId: 'editorial-light',
     patterns: [/\b(story|editorial|narrative|journal|magazine|case\s*study)\b/i],
     weight: 8,
   },
@@ -116,12 +116,12 @@ const SELECTION_PATTERNS: SelectionPattern[] = [
     weight: 7,
   },
   {
-    templateId: 'workshop',
+    templateId: 'stage-setting-light',
     patterns: [/\b(workshop|hands-?on|exercise|interactive\s*session|bootcamp)\b/i],
     weight: 8,
   },
   {
-    templateId: 'code-walkthrough',
+    templateId: 'editorial-light',
     patterns: [/\b(code\s*walk|code\s*review|api\s*demo|developer\s*talk|live\s*coding)\b/i],
     weight: 9,
   },
@@ -136,12 +136,12 @@ const SELECTION_PATTERNS: SelectionPattern[] = [
     weight: 8,
   },
   {
-    templateId: 'timeline',
+    templateId: 'stage-setting-light',
     patterns: [/\b(timeline|roadmap|history|milestones|project\s*plan|phases)\b/i],
     weight: 8,
   },
   {
-    templateId: 'cinematic',
+    templateId: 'launch-narrative-light',
     patterns: [/\b(cinematic|photogra|visual\s*story|art\s*direct|film)\b/i],
     weight: 9,
   },

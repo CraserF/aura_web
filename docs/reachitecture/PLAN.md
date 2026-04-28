@@ -840,21 +840,14 @@ Legacy template decision table:
 
 | Legacy template | Production replacement | Bundle note | Decision |
 | --- | --- | --- | --- |
-| `keynote` | `launch-narrative-light` | 35.05 kB before gzip | convert later |
-| `corporate` | `executive-briefing-light` | 47.40 kB before gzip | convert later |
-| `creative-portfolio` | `launch-narrative-light` | not singled out | archive later |
-| `storytelling` | `editorial-light` | not singled out | archive later |
-| `educational` | `stage-setting-light` | 40.96 kB before gzip | convert later |
-| `cinematic` | `launch-narrative-light` | not singled out | archive later |
-| `workshop` | `stage-setting-light` | not singled out | archive later |
-| `code-walkthrough` | `editorial-light` | not singled out | archive later |
-| `product-demo` | `launch-narrative-light` | 30.16 kB before gzip | convert later |
-| `timeline` | `stage-setting-light` | not singled out | archive later |
-| `editorial-magazine` | `editorial-light` | not singled out | archive later |
-| `infographic-grid` | `finance-grid-light` | 34.69 kB before gzip | convert later |
-| `landscape-illustration` | `editorial-light` | 37.44 kB before gzip | convert later |
-| `multi-panel-dashboard` | `finance-grid-light` | 46.43 kB before gzip | convert later |
-| `sidebar-cards` | `executive-briefing-light` | 47.59 kB before gzip | convert later |
+| `keynote` | `launch-narrative-light` | 35.05 kB before gzip | converted to production routing |
+| `corporate` | `executive-briefing-light` | 47.40 kB before gzip | converted to production routing |
+| `educational` | `stage-setting-light` | 40.96 kB before gzip | converted to production routing |
+| `product-demo` | `launch-narrative-light` | 30.16 kB before gzip | converted to production routing |
+| `infographic-grid` | `finance-grid-light` | 34.69 kB before gzip | converted to production routing |
+| `landscape-illustration` | `editorial-light` | 37.44 kB before gzip | converted to production routing |
+| `multi-panel-dashboard` | `finance-grid-light` | 46.43 kB before gzip | converted to production routing |
+| `sidebar-cards` | `executive-briefing-light` | 47.59 kB before gzip | converted to production routing |
 
 Removed legacy templates:
 - `minimal` -> `executive-briefing-light`;
@@ -863,6 +856,13 @@ Removed legacy templates:
 - `tech-architecture` -> `stage-setting-light`;
 - `data-dashboard` -> `finance-grid-light`;
 - `sci-fi` -> `split-world`.
+- `creative-portfolio` -> `launch-narrative-light`;
+- `storytelling` -> `editorial-light`;
+- `cinematic` -> `launch-narrative-light`;
+- `workshop` -> `stage-setting-light`;
+- `code-walkthrough` -> `editorial-light`;
+- `timeline` -> `stage-setting-light`;
+- `editorial-magazine` -> `editorial-light`.
 
 ## Validation Completed
 - Current controlled-cleanup-and-prompt-consolidation slice:
@@ -1053,9 +1053,9 @@ Build notes:
 - Start with presentations, then extend to documents and spreadsheets.
 
 ## Immediate Next Implementation Slice
-- Continue controlled legacy-template cleanup:
-  - decide the next safe archive/removal group from `creative-portfolio`, `storytelling`, `cinematic`, `workshop`, `code-walkthrough`, `timeline`, or `editorial-magazine`;
-  - keep convert-later templates until production replacements are explicitly migrated or accepted.
+- Continue manual quality benchmarking:
+  - compare generated documents and decks against starter/reference-quality targets;
+  - backfill manual evidence for Workstreams 1-3 before moving those statuses to done.
 - Add final production-readiness signoff:
   - rerun the deterministic release gate after the cleanup batches;
   - keep manual browser/provider smoke as a separate local signoff before deployment.
