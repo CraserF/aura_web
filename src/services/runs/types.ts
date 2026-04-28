@@ -3,7 +3,6 @@ import type { ProjectDocument } from '@/types/project';
 
 import type { ResolvedIntent } from '@/services/ai/intent/types';
 import type { ContextBundle } from '@/services/context/types';
-import type { SerializableRunSpec } from '@/services/executionSpec/types';
 import type { AppliedWorkflowPreset } from '@/services/presets/types';
 import type { ResolvedProjectRulesSnapshot } from '@/services/projectRules/types';
 import type { RunStatus } from '@/services/runs/status';
@@ -33,8 +32,6 @@ export interface RunRequest {
   projectSnapshot: RunProjectSnapshot;
   artifactRunPlan: ArtifactRunPlan;
   mode: ExecutionMode;
-  /** @deprecated Quarantined legacy external-run contract. Active app runtime no longer writes this. */
-  serializableSpec?: SerializableRunSpec;
   createdAt: number;
 }
 
@@ -53,8 +50,6 @@ export interface RunRecord {
   policyActions: string[];
   finalOutputSummary?: string;
   outputBufferId?: string;
-  serializableSpecId?: string;
-  explainSummary?: string;
   createdAt: number;
   updatedAt: number;
 }

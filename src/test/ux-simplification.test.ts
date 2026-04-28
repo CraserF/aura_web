@@ -43,6 +43,15 @@ describe('non-technical UX simplification', () => {
     expect(chatBarSource).not.toContain('Save current as preset');
   });
 
+  it('keeps provider mechanics out of the default toolbar status label', () => {
+    const toolbarSource = readSource('components/Toolbar.tsx');
+
+    expect(toolbarSource).toContain('AI ready');
+    expect(toolbarSource).toContain('AI setup');
+    expect(toolbarSource).not.toContain('{providerId}');
+    expect(toolbarSource).not.toContain('providerId = useSettingsStore');
+  });
+
   it('maps curated output modes into runtime plan design defaults', () => {
     const launchPlan = buildArtifactRunPlan({
       runId: 'launch-mode-run',

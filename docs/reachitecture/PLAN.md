@@ -767,15 +767,15 @@ Last updated: 2026-04-27.
 - Show first usable preview early and update progressively.
 
 ## Implementation Order
-1. Done: Remove/quarantine external API/MCP/automation seams and dry-run/explain complexity from the active runtime.
+1. Done: Remove/quarantine external API/MCP/automation seams and dry-run/explain complexity from the active runtime. Quarantined adapter/execution-spec source has now been deleted from `src/services`.
 2. Done: Define the new `ArtifactRunPlan`, `ArtifactRunEvent`, `ArtifactPart`, `DesignManifest`, and `ValidationGate` types.
 3. Done for Presentation Runtime V1 ownership: Rebuild presentation generation around the new run engine while keeping the current UI entry point. `runPresentationWorkflow()` is now a provider/model setup shell, while the runtime owns plan interpretation, design-manifest events, queued/single selection, validation, repair, finalization, and telemetry.
 4. Done for active presentation generation: Replace presentation prompt composition with compact prompt packs and design manifests. The old presentation composer has been removed from active create/edit/batch/revision paths.
 5. Done for presentation starters: Convert starter kits to use the same presentation runtime and production design families. Starter decks now create runtime plans, runtime parts, deterministic section assembly, and runtime finalization.
-6. Partially done: Simplify user-facing project settings into guided style/preferences, with current technical controls moved to Advanced. Curated Output Mode now feeds runtime plan defaults for presentation recipes and document design families.
+6. Done for default surfaces: Simplify user-facing project settings into guided style/preferences, with current technical controls moved to Advanced or provider settings. Curated Output Mode now feeds runtime plan defaults for presentation recipes and document design families, and the toolbar uses non-technical AI readiness wording instead of raw provider ids.
 7. Mostly done: Move document generation onto the same run engine. Create-mode documents now generate outline and modules through runtime-owned queued calls; image create, queued module edit, edit fallback, per-module repair, module validation, workflow-level orchestration tests, document design-system constants, and document quality summaries are covered. Outline/module/repair prompts and the remaining single-stream create/edit prompts now compose compact runtime-owned document packs, and the document workflow shell delegates generation selection, fallback edit delegation, structure/module repair, final QA repair, finalization events, and telemetry assembly into `artifactRuntime`.
-8. Started: Keep spreadsheet execution deterministic but emit the same run events and validation summaries. Workbook actions, formulas, query views, charts, validation, and finalization now attach as first-class runtime parts and report deterministic runtime telemetry, action kind, changed/refreshed sheet counts, quality summaries, and fallback validation-by-part diagnostics for blocked/clarification/no-intent results. Fallback spreadsheet results now replace the generic default workbook placeholder with concrete runtime parts before telemetry is built.
-9. Started: Delete or convert legacy templates after production routing is stable. Production-vs-legacy metadata, routing guards, bundle-size notes, production replacements, and convert/archive/delete recommendations are recorded; the first safe delete-later legacy templates have been removed while production routing and starter ids remain intact.
+8. Done for Spreadsheet Runtime V1 diagnostics: Spreadsheet execution remains deterministic while runtime finalization now owns concrete parts, telemetry, runtime events, and advanced diagnostics for workbook actions, formulas, query views, charts, blocked, clarification, and no-intent results.
+9. Started: Delete or convert legacy templates after production routing is stable. Production-vs-legacy metadata, routing guards, bundle-size notes, production replacements, and convert/archive/delete recommendations are recorded; the first two safe archive/delete batches have been removed while production routing and starter ids remain intact.
 10. Started for presentations and expanded to documents/spreadsheets: Runtime benchmark diagnostics exist, production presentation templates pass a deterministic static viewport contract, reusable presentation and document quality checklists report readiness, and spreadsheet diagnostics report deterministic action/validation summaries. Manual/browser canvas automation remains skipped for now by request.
 
 ## Completed In Current Runtime Hardening Slice
@@ -829,15 +829,19 @@ Last updated: 2026-04-27.
 - Kept single-stream behavior intact: fallback edits still receive existing-document summaries, target scopes, runtime part queues, project links, memory context, requested titles, and image parts when provided.
 - Extended prompt contract coverage for compact single-stream document prompts and import-boundary coverage proving the active document workflow no longer owns the old broad composer surface.
 
+## Completed In Current Closeout Slice
+- Added `finalizeSpreadsheetRuntimeResult()` so `artifactRuntime` owns spreadsheet result part attachment, telemetry, runtime event emission, and advanced diagnostics.
+- Reduced the spreadsheet handler to call deterministic workflow execution, then delegate runtime finalization to `artifactRuntime`.
+- Removed legacy presentation template ids/files for `tech-architecture`, `data-dashboard`, and `sci-fi`; old matching prompts now route to `stage-setting-light`, `finance-grid-light`, and `split-world`.
+- Finished the default UX wording cleanup by replacing the toolbar's raw provider id with `AI ready` / `AI setup` while preserving provider/model settings behind the settings control.
+- Deleted quarantined `services/adapters/*` and `services/executionSpec/*` source files, removed obsolete external-spec type fields from active run/output types, and kept import-boundary tests guarding active generation.
+
 Legacy template decision table:
 
 | Legacy template | Production replacement | Bundle note | Decision |
 | --- | --- | --- | --- |
 | `keynote` | `launch-narrative-light` | 35.05 kB before gzip | convert later |
 | `corporate` | `executive-briefing-light` | 47.40 kB before gzip | convert later |
-| `tech-architecture` | `stage-setting-light` | not singled out | archive later |
-| `data-dashboard` | `finance-grid-light` | not singled out | archive later |
-| `sci-fi` | `split-world` | not singled out | archive later |
 | `creative-portfolio` | `launch-narrative-light` | not singled out | archive later |
 | `storytelling` | `editorial-light` | not singled out | archive later |
 | `educational` | `stage-setting-light` | 40.96 kB before gzip | convert later |
@@ -856,6 +860,9 @@ Removed legacy templates:
 - `minimal` -> `executive-briefing-light`;
 - template `pitch-deck` -> `launch-narrative-light` (starter id preserved);
 - template `comparison` -> `split-world`.
+- `tech-architecture` -> `stage-setting-light`;
+- `data-dashboard` -> `finance-grid-light`;
+- `sci-fi` -> `split-world`.
 
 ## Validation Completed
 - Current controlled-cleanup-and-prompt-consolidation slice:
@@ -879,6 +886,24 @@ Removed legacy templates:
     - Passed.
   - `git diff --check`
     - Passed.
+- Current closeout slice:
+  - `npm test -- spreadsheet-runtime runtime-telemetry workflow-progress prompt-to-formula prompt-to-query`
+    - Passed: 5 files, 35 tests.
+  - `npm test -- presentation-template-design-system project-starter-kits presentation-runtime-policy prompt-contracts`
+    - Passed: 4 files, 23 tests.
+  - `npm test -- ux-simplification presentation-runtime-policy run-request structured-run-outputs external-adapter-contracts serializable-run-spec run-explain run-dry-run`
+    - Passed: 8 files, 15 tests.
+  - `npm run typecheck`
+    - Passed.
+  - `npm test`
+    - Passed: 105 files, 597 tests.
+  - `npm run build`
+    - Passed.
+    - Existing Vite warnings remain for DuckDB/export dynamic imports, `crypto` externalization from `isomorphic-git`, and large vendor/document runtime chunks.
+  - Changed-file ESLint via `npx eslint` across modified TS/TSX test and runtime files
+    - Passed.
+  - `git diff --check`
+    - Passed.
 - Current runtime-ownership-before-cleanup slice:
   - `npm test -- document-runtime-workflow artifact-runtime runtime-telemetry spreadsheet-runtime workflow-progress ux-simplification presentation-template-design-system run-result run-history-panel`
   - `npm run typecheck`
@@ -896,7 +921,7 @@ Removed legacy templates:
 
 Build notes:
 - Vite still reports existing non-blocking chunk/dynamic-import warnings for DuckDB/export/data bundles.
-- The legacy `minimal`, template `comparison`, and template `pitch-deck` chunks are no longer emitted in the latest build snapshot.
+- The legacy `minimal`, template `comparison`, template `pitch-deck`, `tech-architecture`, `data-dashboard`, and `sci-fi` chunks are no longer emitted in the latest build snapshot.
 - Manual browser/provider smoke remains intentionally skipped for this slice per request, so this is architecture-progress validation rather than a deploy-ready visual signoff.
 
 ## Next Steps
@@ -1028,18 +1053,12 @@ Build notes:
 - Start with presentations, then extend to documents and spreadsheets.
 
 ## Immediate Next Implementation Slice
-- Continue spreadsheet runtime consolidation:
-  - move spreadsheet planning/part attachment closer to `artifactRuntime` while keeping workbook execution deterministic;
-  - keep blocked, clarification, and no-intent paths deterministic and model-free.
 - Continue controlled legacy-template cleanup:
-  - choose the next archive-later candidate group only after checking active imports and build output;
-  - prefer archive/removal of non-starter legacy templates before touching convert-later templates that may need production-format migrations.
-- Continue UX simplification:
-  - audit default ChatBar and Project Style controls for any remaining technical wording;
-  - keep provider/model/context/raw-rule controls Advanced-only while preserving expert access.
-- Prepare quarantined external adapter cleanup:
-  - audit API/MCP/automation adapter and execution-spec imports;
-  - plan the first deletion patch only after active generation import-boundary tests are already green.
+  - decide the next safe archive/removal group from `creative-portfolio`, `storytelling`, `cinematic`, `workshop`, `code-walkthrough`, `timeline`, or `editorial-magazine`;
+  - keep convert-later templates until production replacements are explicitly migrated or accepted.
+- Add final production-readiness signoff:
+  - rerun the deterministic release gate after the cleanup batches;
+  - keep manual browser/provider smoke as a separate local signoff before deployment.
 
 ## Test Plan
 - Add planner tests proving each user prompt produces exactly one authoritative `ArtifactRunPlan`.

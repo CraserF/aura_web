@@ -6,8 +6,8 @@ const TEMPLATE_HTML_MODULES = import.meta.glob('./html/*.html', {
 export type TemplateId =
   | 'editorial-light' | 'finance-grid-light' | 'stage-setting-light'
   | 'executive-briefing-light' | 'launch-narrative-light'
-  | 'keynote' | 'corporate' | 'tech-architecture' | 'data-dashboard'
-  | 'sci-fi' | 'creative-portfolio' | 'storytelling' | 'educational'
+  | 'keynote' | 'corporate'
+  | 'creative-portfolio' | 'storytelling' | 'educational'
   | 'cinematic' | 'workshop'
   | 'code-walkthrough' | 'product-demo' | 'timeline'
   | 'editorial-magazine' | 'infographic-grid' | 'interactive-quiz'
@@ -31,9 +31,6 @@ const PRODUCTION_PRESENTATION_TEMPLATE_SET = new Set<TemplateId>(PRODUCTION_PRES
 export const LEGACY_PRESENTATION_TEMPLATE_IDS = [
   'keynote',
   'corporate',
-  'tech-architecture',
-  'data-dashboard',
-  'sci-fi',
   'creative-portfolio',
   'storytelling',
   'educational',
@@ -84,9 +81,6 @@ const LEGACY_TEMPLATE_AUDIT_DECISIONS: Record<
 > = {
   keynote: 'convert later',
   corporate: 'convert later',
-  'tech-architecture': 'archive later',
-  'data-dashboard': 'archive later',
-  'sci-fi': 'archive later',
   'creative-portfolio': 'archive later',
   storytelling: 'archive later',
   educational: 'convert later',
@@ -126,16 +120,12 @@ export function toProductionPresentationTemplate(templateId: TemplateId): Produc
     case 'corporate':
     case 'sidebar-cards':
       return 'executive-briefing-light';
-    case 'data-dashboard':
     case 'infographic-grid':
     case 'multi-panel-dashboard':
       return 'finance-grid-light';
-    case 'sci-fi':
-      return 'split-world';
     case 'timeline':
     case 'workshop':
     case 'educational':
-    case 'tech-architecture':
       return 'stage-setting-light';
     case 'editorial-magazine':
     case 'storytelling':
@@ -171,9 +161,6 @@ const TEMPLATE_HTML_PATHS: Record<TemplateId, string> = {
   'launch-narrative-light': './html/launch-narrative-light.html',
   keynote: './html/keynote.html',
   corporate: './html/corporate.html',
-  'tech-architecture': './html/tech-architecture.html',
-  'data-dashboard': './html/data-dashboard.html',
-  'sci-fi': './html/sci-fi.html',
   'creative-portfolio': './html/creative-portfolio.html',
   storytelling: './html/storytelling.html',
   educational: './html/educational.html',
@@ -247,30 +234,6 @@ export const TEMPLATE_REGISTRY: Record<TemplateId, TemplateEntry> = {
     description: 'Clean professional presentation for board meetings and business updates',
     bestFor: ['board meeting', 'quarterly review', 'business update'],
     slideCount: { min: 8, max: 15 },
-  },
-  'tech-architecture': {
-    id: 'tech-architecture',
-    htmlPath: TEMPLATE_HTML_PATHS['tech-architecture'],
-    animationLevel: 3,
-    description: 'Modern tech presentation for architecture reviews and engineering talks',
-    bestFor: ['system design', 'architecture review', 'tech talk'],
-    slideCount: { min: 8, max: 12 },
-  },
-  'data-dashboard': {
-    id: 'data-dashboard',
-    htmlPath: TEMPLATE_HTML_PATHS['data-dashboard'],
-    animationLevel: 3,
-    description: 'Data-driven dashboard for analytics reviews and KPI reports',
-    bestFor: ['analytics review', 'KPI report', 'data presentation'],
-    slideCount: { min: 8, max: 12 },
-  },
-  'sci-fi': {
-    id: 'sci-fi',
-    htmlPath: TEMPLATE_HTML_PATHS['sci-fi'],
-    animationLevel: 4,
-    description: 'Futuristic sci-fi theme for AI, cybersecurity, and space topics',
-    bestFor: ['AI presentation', 'cybersecurity', 'futurism'],
-    slideCount: { min: 6, max: 10 },
   },
   'creative-portfolio': {
     id: 'creative-portfolio',

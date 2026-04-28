@@ -35,8 +35,8 @@ function makeProject(document: ProjectDocument): ProjectData {
   };
 }
 
-describe('external adapter quarantine', () => {
-  it('does not attach the legacy serializable external spec to active app runs', async () => {
+describe('active generation import boundary', () => {
+  it('does not attach removed external spec data to active app runs', async () => {
     const activeDocument = makeDocument();
     const result = await buildRunRequest({
       prompt: 'Tighten this document into an executive brief',
@@ -64,7 +64,7 @@ describe('external adapter quarantine', () => {
     });
 
     expect(result.runRequest.mode).toBe('execute');
-    expect(result.runRequest.serializableSpec).toBeUndefined();
+    expect('serializableSpec' in result.runRequest).toBe(false);
     expect(result.runRequest.artifactRunPlan.version).toBe(1);
     expect(result.runRequest.artifactRunPlan.workflow.requestKind).not.toBe('explain');
   });

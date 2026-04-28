@@ -40,7 +40,7 @@ function makeProject(documents: ProjectDocument[]): ProjectData {
   };
 }
 
-describe('legacy dry-run request mode', () => {
+describe('request mode normalization', () => {
   beforeEach(() => {
     clearRunEvents();
     clearRunRegistry();

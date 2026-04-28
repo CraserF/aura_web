@@ -23,10 +23,7 @@ import { validateArtifactAgainstProfile } from '@/services/validation';
 import { summarizeValidationResult } from '@/services/validation/profiles';
 import { deriveLifecycleFromValidation } from '@/services/lifecycle/state';
 import {
-  attachSpreadsheetRuntimeResultParts,
-  buildSpreadsheetRuntimeTelemetry,
-  emitSpreadsheetRuntimeResultEvents,
-  formatRuntimeQualityDiagnostics,
+  finalizeSpreadsheetRuntimeResult,
 } from '@/services/artifactRuntime';
 import type { ArtifactRuntimeTelemetry, WorkflowEvent } from '@/services/ai/workflow/types';
 
@@ -214,24 +211,14 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
       isDefaultSheet: docIsDefaultSheet,
       artifactRunPlan: runRequest.artifactRunPlan,
     });
-    if (!result.plan) {
-      attachSpreadsheetRuntimeResultParts({
-        runPlan: runRequest.artifactRunPlan,
-        result,
-      });
-    }
-    runtimeTelemetry = buildSpreadsheetRuntimeTelemetry({
+    const runtimeResult = finalizeSpreadsheetRuntimeResult({
+      runPlan: runRequest.artifactRunPlan,
       result,
       totalRuntimeMs: Math.round(performance.now() - workflowStart),
-      runPlan: runRequest.artifactRunPlan,
-    });
-    emitSpreadsheetRuntimeResultEvents({
-      runPlan: runRequest.artifactRunPlan,
-      result,
       onEvent: onRuntimeEvent,
     });
-    const advancedDiagnostics = formatRuntimeQualityDiagnostics(runtimeTelemetry)
-      .map((diagnostic) => diagnostic.message);
+    runtimeTelemetry = runtimeResult.runtime;
+    const { advancedDiagnostics } = runtimeResult;
 
     if (result.kind === 'clarification-needed') {
       return {

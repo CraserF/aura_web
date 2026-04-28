@@ -87,7 +87,7 @@ describe('buildRunRequest', () => {
     expect(result.runRequest.artifactRunPlan.templateGuidance.intentFamily).toBe('edit');
     expect('workflowPlan' in result.runRequest).toBe(false);
     expect(result.runRequest.mode).toBe('execute');
-    expect(result.runRequest.serializableSpec).toBeUndefined();
+    expect('serializableSpec' in result.runRequest).toBe(false);
   });
 
   it('routes explicit cross-artifact create prompts away from the active presentation', async () => {

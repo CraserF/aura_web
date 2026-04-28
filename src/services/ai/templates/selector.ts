@@ -81,7 +81,7 @@ const SELECTION_PATTERNS: SelectionPattern[] = [
     weight: 10,
   },
   {
-    templateId: 'sci-fi',
+    templateId: 'split-world',
     patterns: [/\b(sci-?fi|futurist|cyber|neon|matrix|holo|space|galaxy|quantum)\b/i],
     weight: 10,
   },
@@ -101,7 +101,7 @@ const SELECTION_PATTERNS: SelectionPattern[] = [
     weight: 8,
   },
   {
-    templateId: 'data-dashboard',
+    templateId: 'finance-grid-light',
     patterns: [/\b(data|analytics|dashboard|metrics|kpi|report)\b/i],
     weight: 7,
   },
@@ -146,7 +146,7 @@ const SELECTION_PATTERNS: SelectionPattern[] = [
     weight: 9,
   },
   {
-    templateId: 'tech-architecture',
+    templateId: 'stage-setting-light',
     patterns: [/\b(architect|system\s*design|infra|devops|cloud|microservice|tech\s*stack)\b/i],
     weight: 7,
   },

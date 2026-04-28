@@ -6,6 +6,7 @@ import {
   buildArtifactRunPlan,
   buildSpreadsheetRuntimeTelemetry,
   emitSpreadsheetRuntimeResultEvents,
+  finalizeSpreadsheetRuntimeResult,
 } from '@/services/artifactRuntime';
 import type { SpreadsheetOutput } from '@/services/ai/workflow/spreadsheet';
 import type { WorkflowEvent } from '@/services/ai/workflow/types';
@@ -541,5 +542,144 @@ describe('spreadsheet runtime bridge', () => {
         rules: [],
       },
     ]);
+  });
+
+  it.each([
+    {
+      name: 'formula',
+      result: {
+        kind: 'formula-column-created' as const,
+        message: 'Added computed column "Margin" using revenue minus cost.',
+        updatedSheets: [],
+        plan: {
+          kind: 'create-formula-column',
+          targets: [],
+          requiresClarification: false,
+          canAugmentProject: true,
+          formula: {
+            outputColumnName: 'Margin',
+            expression: 'Revenue - Cost',
+            dependsOn: ['Revenue', 'Cost'],
+            expressionLabel: 'revenue minus cost',
+          },
+        } as SpreadsheetPlan,
+        planValidation: { passed: true, issues: [] },
+      } as SpreadsheetOutput,
+      expectedPartId: 'formula',
+    },
+    {
+      name: 'query',
+      result: {
+        kind: 'query-view-created' as const,
+        message: 'Created query view "Revenue by Region" from "Sales".',
+        updatedSheets: [],
+        targetSheetId: 'query-sheet',
+        plan: {
+          kind: 'create-query-view',
+          targets: [],
+          requiresClarification: false,
+          canAugmentProject: true,
+          queryView: {
+            sourceSheetId: 'sales',
+            sourceSheetName: 'Sales',
+            outputSheetName: 'Revenue by Region',
+            selectColumns: ['Region'],
+            filters: [],
+            aggregates: [{ column: 'Revenue', operation: 'sum', alias: 'Total Revenue' }],
+          },
+        } as SpreadsheetPlan,
+        planValidation: { passed: true, issues: [] },
+      } as SpreadsheetOutput,
+      expectedPartId: 'query',
+    },
+    {
+      name: 'chart',
+      result: {
+        kind: 'chart-created' as const,
+        message: 'Created a bar chart from "Sales" with 12 rows.',
+        chartHtml: '<div data-aura-chart="chart-1"></div>',
+        chartType: 'bar',
+        rowCount: 12,
+        plan: {
+          kind: 'create-chart-pack',
+          targets: [],
+          requiresClarification: false,
+          canAugmentProject: false,
+          chartTarget: { sheetId: 'sales', sheetName: 'Sales' },
+        } as SpreadsheetPlan,
+        planValidation: { passed: true, issues: [] },
+      } as SpreadsheetOutput,
+      expectedPartId: 'chart',
+    },
+    {
+      name: 'workbook',
+      result: {
+        kind: 'action-executed' as const,
+        message: 'Sorted Sheet 1 by Amount descending.',
+        updatedSheets: [],
+        plan: {
+          kind: 'sheet-action',
+          targets: [],
+          requiresClarification: false,
+          canAugmentProject: true,
+          action: { type: 'sort', column: 'Amount', direction: 'desc' },
+        } as SpreadsheetPlan,
+        planValidation: { passed: true, issues: [] },
+      } as SpreadsheetOutput,
+      expectedPartId: 'workbook-action',
+    },
+    {
+      name: 'blocked',
+      result: {
+        kind: 'blocked' as const,
+        message: 'The requested sheet is unavailable.',
+        planValidation: { passed: false, issues: [{ code: 'missing-sheet', message: 'Missing sheet.' }] },
+      } as SpreadsheetOutput,
+      expectedPartId: 'workbook-action',
+    },
+    {
+      name: 'clarification',
+      result: {
+        kind: 'clarification-needed' as const,
+        message: 'Which column should the formula use?',
+        planValidation: { passed: false, issues: [] },
+      } as SpreadsheetOutput,
+      expectedPartId: 'workbook-action',
+    },
+    {
+      name: 'no-intent',
+      result: {
+        kind: 'no-intent' as const,
+        message: 'Ask me to change, analyze, or create something in the workbook.',
+      } as SpreadsheetOutput,
+      expectedPartId: 'workbook-action',
+    },
+  ])('finalizes $name results with concrete runtime parts', ({ result, expectedPartId }) => {
+    const runPlan = buildArtifactRunPlan({
+      runId: `${expectedPartId}-finalize-run`,
+      prompt: 'message' in result ? result.message : result.summary,
+      artifactType: 'spreadsheet',
+      operation: 'action',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    const events: WorkflowEvent[] = [];
+
+    const finalized = finalizeSpreadsheetRuntimeResult({
+      runPlan,
+      result,
+      totalRuntimeMs: 21,
+      onEvent: (event) => events.push(event),
+    });
+
+    expect(finalized.parts.map((part) => part.id)).toContain(expectedPartId);
+    expect(finalized.parts.map((part) => part.id)).not.toContain('spreadsheet-part-1');
+    expect(runPlan.workQueue.map((part) => part.id)).not.toContain('spreadsheet-part-1');
+    expect(finalized.runtime.runMode).toBe('deterministic-action');
+    expect(finalized.runtime.queuedPartCount).toBe(runPlan.workQueue.length);
+    expect(events.some((event) => 'stepId' in event && event.stepId === expectedPartId)).toBe(true);
   });
 });

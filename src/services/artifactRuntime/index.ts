@@ -99,6 +99,7 @@ export {
   attachSpreadsheetRuntimeResultParts,
   buildSpreadsheetRuntimeTelemetry,
   emitSpreadsheetRuntimeResultEvents,
+  finalizeSpreadsheetRuntimeResult,
 } from './spreadsheetRuntime';
 export type { BuildArtifactRunPlanInput } from './build';
 export type { CreateArtifactRunEventInput } from './events';
@@ -180,6 +181,8 @@ export type {
 export type {
   AttachSpreadsheetRuntimePartsInput,
   AttachSpreadsheetRuntimeResultPartsInput,
+  FinalizeSpreadsheetRuntimeResultInput,
+  FinalizeSpreadsheetRuntimeResultOutput,
 } from './spreadsheetRuntime';
 export type {
   ArtifactPart,

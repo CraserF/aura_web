@@ -35,8 +35,8 @@ function makeProject(document: ProjectDocument): ProjectData {
   };
 }
 
-describe('serializable run spec quarantine', () => {
-  it('does not expose provider secrets because active runs no longer build external specs', async () => {
+describe('internal runtime request privacy', () => {
+  it('does not expose provider secrets because active runs only build internal runtime plans', async () => {
     const activeDocument = makeDocument();
     const { runRequest } = await buildRunRequest({
       prompt: 'Tighten this document',
@@ -65,7 +65,7 @@ describe('serializable run spec quarantine', () => {
     });
 
     expect(runRequest.mode).toBe('execute');
-    expect(runRequest.serializableSpec).toBeUndefined();
+    expect('serializableSpec' in runRequest).toBe(false);
     expect(JSON.stringify(runRequest.artifactRunPlan)).not.toContain('super-secret-key');
     expect(runRequest.artifactRunPlan.intentSummary).toContain('document workflow');
   });

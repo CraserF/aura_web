@@ -1,6 +1,5 @@
 import type { DocumentType } from '@/types/project';
 
-import type { RunExplainResult } from '@/services/executionSpec/types';
 import type { EditingTelemetry } from '@/services/editing/types';
 import type {
   RunResultChangedTarget,
@@ -67,5 +66,4 @@ export interface RunOutputsEnvelope {
   presentation?: PresentationRunOutputs;
   spreadsheet?: SpreadsheetRunOutputs;
   project?: ProjectRunOutputs;
-  explain?: RunExplainResult;
 }

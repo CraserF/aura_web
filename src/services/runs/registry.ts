@@ -135,24 +135,6 @@ export function setRunOutputSummary(
   return updated;
 }
 
-export function setRunSpecMetadata(
-  runId: string,
-  serializableSpecId?: string,
-  explainSummary?: string,
-): RunRecord | null {
-  const record = registry.get(runId);
-  if (!record) return null;
-
-  const updated: RunRecord = {
-    ...record,
-    serializableSpecId,
-    explainSummary,
-    updatedAt: Date.now(),
-  };
-
-  registry.set(runId, updated);
-  return updated;
-}
 export function setRunRetryInfo(
   runId: string,
   retryChainRootId: string,

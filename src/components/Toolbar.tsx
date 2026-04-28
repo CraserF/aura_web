@@ -85,7 +85,6 @@ export function Toolbar({
   const setMessages = useChatStore((s) => s.setMessages);
 
   const setShowSettings = useSettingsStore((s) => s.setShowSettings);
-  const providerId = useSettingsStore((s) => s.providerId);
   const hasApiKey = useSettingsStore((s) => s.hasApiKey);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -105,6 +104,7 @@ export function Toolbar({
   const [isCreatingProject, setIsCreatingProject] = useState(false);
 
   const hasContent = project.documents.length > 0;
+  const aiStatusLabel = hasApiKey() ? 'AI ready' : 'AI setup';
 
   const handleNew = () => {
     setToolbarError(null);
@@ -399,7 +399,7 @@ export function Toolbar({
                 hasApiKey() ? 'bg-emerald-500' : 'bg-muted-foreground/40'
               }`}
             />
-            <span className="hidden sm:inline">{providerId}</span>
+            <span className="hidden sm:inline">{aiStatusLabel}</span>
             <Settings className="size-3.5" />
           </Button>
 

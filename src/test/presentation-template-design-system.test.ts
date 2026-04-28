@@ -110,7 +110,7 @@ describe('production presentation templates', () => {
   });
 
   it('removes first legacy cleanup candidates from the registry while preserving production routing', () => {
-    const removedTemplateIds = ['minimal', 'comparison', 'pitch-deck'];
+    const removedTemplateIds = ['minimal', 'comparison', 'pitch-deck', 'tech-architecture', 'data-dashboard', 'sci-fi'];
     const auditIds = listLegacyPresentationTemplateAudit().map((entry) => entry.templateId);
 
     for (const templateId of removedTemplateIds) {
@@ -120,6 +120,9 @@ describe('production presentation templates', () => {
     expect(selectTemplate('Create a minimal clean quick update')).toBe('executive-briefing-light');
     expect(selectTemplate('Create a comparison deck with two options')).toBe('split-world');
     expect(selectTemplate('Create an investor pitch deck for a seed round')).toBe('launch-narrative-light');
+    expect(selectTemplate('Create a cloud architecture review deck')).toBe('stage-setting-light');
+    expect(selectTemplate('Create a dashboard metrics report')).toBe('finance-grid-light');
+    expect(selectTemplate('Create a sci-fi cyber strategy deck')).toBe('split-world');
   });
 
   it('routes generated presentation plans through production template families', async () => {

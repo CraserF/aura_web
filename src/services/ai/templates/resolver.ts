@@ -102,8 +102,6 @@ const TEMPLATE_STYLE_COMPATIBILITY: Partial<Record<TemplateId, TemplateStyle[]>>
   'landscape-illustration': ['nature', 'ocean', 'creative'],
   keynote: ['keynote', 'pitch', 'tech'],
   corporate: ['corporate', 'dashboard'],
-  'tech-architecture': ['tech', 'corporate'],
-  'data-dashboard': ['data', 'dashboard', 'corporate'],
   storytelling: ['editorial', 'creative'],
   cinematic: ['keynote', 'creative', 'scifi'],
 };

@@ -36,7 +36,7 @@ function makeProject(documents: ProjectDocument[]): ProjectData {
   };
 }
 
-describe('legacy explain request mode', () => {
+describe('request mode normalization', () => {
   it('is normalized into an execution-oriented artifact run plan', async () => {
     const project = makeProject([
       makeDocument(),
@@ -86,6 +86,6 @@ describe('legacy explain request mode', () => {
     expect(runRequest.mode).toBe('execute');
     expect(runRequest.artifactRunPlan.version).toBe(1);
     expect(runRequest.artifactRunPlan.workflow.requestKind).toBe('edit');
-    expect(runRequest.serializableSpec).toBeUndefined();
+    expect('serializableSpec' in runRequest).toBe(false);
   });
 });

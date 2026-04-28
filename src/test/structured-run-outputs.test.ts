@@ -104,6 +104,6 @@ describe('structured artifact runtime parts', () => {
     expect(documentRun.artifactRunPlan.workQueue[0]?.kind).toBe('document-shell');
     expect(presentationRun.artifactRunPlan.workQueue.map((part) => part.kind)).toEqual(['slide', 'slide']);
     expect(spreadsheetRun.artifactRunPlan.workQueue[0]?.kind).toBe('workbook-action');
-    expect([documentRun, presentationRun, spreadsheetRun].every((run) => run.serializableSpec === undefined)).toBe(true);
+    expect([documentRun, presentationRun, spreadsheetRun].every((run) => !('serializableSpec' in run))).toBe(true);
   });
 });

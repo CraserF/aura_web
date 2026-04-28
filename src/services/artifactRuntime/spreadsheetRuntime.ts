@@ -1,4 +1,5 @@
 import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
+import { formatRuntimeQualityDiagnostics } from '@/services/artifactRuntime/qualityDiagnostics';
 import type { ArtifactPart, ArtifactPartKind, ArtifactRunPlan } from '@/services/artifactRuntime/types';
 import type { ArtifactRuntimeTelemetry, EventListener } from '@/services/ai/workflow/types';
 import type { SpreadsheetOutput } from '@/services/ai/workflow/spreadsheet';
@@ -12,6 +13,19 @@ export interface AttachSpreadsheetRuntimePartsInput {
 export interface AttachSpreadsheetRuntimeResultPartsInput {
   runPlan: ArtifactRunPlan;
   result: SpreadsheetOutput;
+}
+
+export interface FinalizeSpreadsheetRuntimeResultInput {
+  runPlan: ArtifactRunPlan;
+  result: SpreadsheetOutput;
+  totalRuntimeMs: number;
+  onEvent: EventListener;
+}
+
+export interface FinalizeSpreadsheetRuntimeResultOutput {
+  parts: ArtifactPart[];
+  runtime: ArtifactRuntimeTelemetry;
+  advancedDiagnostics: string[];
 }
 
 function resolveSpreadsheetRuntimeActionPart(plan: SpreadsheetPlan): ArtifactPart {
@@ -382,5 +396,32 @@ export function buildSpreadsheetRuntimeTelemetry(input: {
     changedSheetCount,
     refreshedSheetCount,
     validationByPart,
+  };
+}
+
+export function finalizeSpreadsheetRuntimeResult(
+  input: FinalizeSpreadsheetRuntimeResultInput,
+): FinalizeSpreadsheetRuntimeResultOutput {
+  const parts = attachSpreadsheetRuntimeResultParts({
+    runPlan: input.runPlan,
+    result: input.result,
+  });
+  const runtime = buildSpreadsheetRuntimeTelemetry({
+    result: input.result,
+    totalRuntimeMs: input.totalRuntimeMs,
+    runPlan: input.runPlan,
+  });
+
+  emitSpreadsheetRuntimeResultEvents({
+    runPlan: input.runPlan,
+    result: input.result,
+    onEvent: input.onEvent,
+  });
+
+  return {
+    parts,
+    runtime,
+    advancedDiagnostics: formatRuntimeQualityDiagnostics(runtime)
+      .map((diagnostic) => diagnostic.message),
   };
 }

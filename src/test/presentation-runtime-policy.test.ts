@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -57,6 +57,8 @@ describe('presentation runtime policy', () => {
     const activeSources = [
       'services/chat/buildRunRequest.ts',
       'services/chat/submitPrompt.ts',
+      'services/contracts/outputEnvelope.ts',
+      'services/runs/types.ts',
       'services/artifactRuntime/build.ts',
       'services/artifactRuntime/planner.ts',
       'services/artifactRuntime/presentationRuntime.ts',
@@ -76,6 +78,15 @@ describe('presentation runtime policy', () => {
     expect(activeSources).not.toMatch(/run\.spec-built|run\.explained/);
     expect(activeSources).not.toMatch(/runRequest\.workflowPlan|workflowPlan:\s*runRequest/);
     expect(activeSources).not.toMatch(/@\/services\/workflowPlanner/);
+    for (const removedPath of [
+      'src/services/adapters/api.ts',
+      'src/services/adapters/mcp.ts',
+      'src/services/adapters/automation.ts',
+      'src/services/executionSpec/build.ts',
+      'src/services/executionSpec/types.ts',
+    ]) {
+      expect(existsSync(join(process.cwd(), removedPath))).toBe(false);
+    }
   });
 
   it('keeps workflow planner build as a compatibility export for runtime-owned planning', () => {
