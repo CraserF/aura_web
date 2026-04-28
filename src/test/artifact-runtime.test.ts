@@ -135,6 +135,13 @@ describe('ArtifactRuntime plan', () => {
     ]);
     expect(plan.queueMode).toBe('sequential');
     expect(plan.workQueue).toEqual(parts);
+    expect(parts[1]?.documentModuleBlueprint).toEqual(expect.objectContaining({
+      role: 'hero-summary',
+      componentPattern: expect.any(String),
+      evidenceRequirement: expect.any(String),
+      visualRhythmInstruction: expect.any(String),
+    }));
+    expect(parts[1]?.documentModuleBlueprint?.targetWordRange.min).toBeGreaterThan(0);
     expect(plan.workflow.queuedWorkItems.map((item) => item.targetType)).toEqual(['section', 'section', 'section', 'section']);
     expect(buildDocumentRuntimePartPrompt(parts)).toContain('DOCUMENT RUNTIME PART QUEUE');
     expect(buildDocumentRuntimePartPrompt(parts)).toContain('Create brief outline');
@@ -161,13 +168,15 @@ describe('ArtifactRuntime plan', () => {
     expect(outlinePrompt).toContain('ARTIFACT RUNTIME CONTRACT');
     expect(outlinePrompt).toContain('DOCUMENT IFRAME CONTRACT');
     expect(outlinePrompt).toContain('DOCUMENT DESIGN FAMILY');
-    expect(outlinePrompt).toContain('Return only a compact outline');
+    expect(outlinePrompt).toContain('CONTENT BLUEPRINT TASK');
+    expect(outlinePrompt).toContain('Return only a compact content blueprint');
+    expect(outlinePrompt).toContain('Target words:');
     expect(outlinePrompt).toContain('no <script>');
     expect(outlinePrompt).toContain('mobile-safe stacking');
     for (const className of DOCUMENT_RUNTIME_SHARED_MODULE_CLASSES) {
       expect(outlinePrompt).toContain(className);
     }
-    expect(outlinePrompt.length).toBeLessThan(2_500);
+    expect(outlinePrompt.length).toBeLessThan(3_200);
     const modulePrompt = buildDocumentRuntimeModulePrompt({
       taskBrief: 'Create an executive briefing document',
       documentType: 'brief',
@@ -176,6 +185,8 @@ describe('ArtifactRuntime plan', () => {
       designFamily: 'executive-light',
     });
     expect(modulePrompt).toContain('data-runtime-part="document-module-1"');
+    expect(modulePrompt).toContain('Runtime module blueprint');
+    expect(modulePrompt).toContain('Evidence:');
     expect(modulePrompt).toContain('doc-kpi-row');
     expect(modulePrompt).toContain('doc-sidebar-layout');
     for (const className of DOCUMENT_RUNTIME_SHARED_MODULE_CLASSES) {
@@ -608,6 +619,107 @@ describe('ArtifactRuntime plan', () => {
       type: 'progress',
       message: 'Done!',
       pct: 100,
+    }));
+  });
+
+  it('runs a bounded document LLM quality enrichment pass when premium quality remains low', async () => {
+    const plan = buildArtifactRunPlan({
+      runId: 'doc-llm-polish-run',
+      prompt: 'Create an executive briefing document',
+      artifactType: 'document',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    plan.qualityBar.polishingBudget.deterministicPasses = 0;
+    plan.qualityBar.polishingBudget.llmPasses = 1;
+    const parts = attachDocumentRuntimeParts({
+      runPlan: plan,
+      documentType: 'brief',
+      blueprintLabel: 'Executive Brief',
+      recommendedModules: ['hero summary'],
+      isEdit: false,
+    });
+    const events: unknown[] = [];
+    const deepCopy = Array.from({ length: 930 }, (_, index) => `evidence${index}`).join(' ');
+    const enrichedHtml = `<style>
+      body { font-size: 16px; }
+      .doc-section p, .doc-section li { font-size: 16px; }
+      img, table { max-width: 100%; }
+      @media print { .doc-section { break-inside: avoid; } }
+    </style>
+    <main class="doc-shell">
+      <header class="doc-header"><h1>Runtime Document</h1><p class="doc-lead">Premium decision brief with clear proof and action rhythm.</p></header>
+      <section class="doc-section doc-runtime-module doc-sidebar-layout" data-runtime-part="document-module-1">
+        <div class="doc-main"><h2>Hero summary</h2><p>${deepCopy}</p></div>
+        <aside class="doc-aside"><strong>Decision</strong><p>Use the evidence-led path and sequence the rollout by readiness.</p></aside>
+      </section>
+      <section class="doc-section doc-kpi-row"><h2>Signals</h2><article class="doc-kpi"><strong>High</strong><span>Decision confidence</span></article></section>
+      <section class="doc-section doc-proof-strip"><h2>Proof</h2><article class="doc-proof-item"><strong>Primary signal</strong><span>Ownership and timing are now visible.</span></article></section>
+      <section class="doc-section doc-comparison"><h2>Comparison</h2><article class="doc-compare-card"><strong>Before</strong><span>Flat summary.</span></article><article class="doc-compare-card"><strong>After</strong><span>Evidence-led recommendation.</span></article></section>
+      <section class="doc-section doc-timeline"><h2>Action rhythm</h2><article class="doc-timeline-item"><strong>Now</strong><span>Confirm owners.</span></article></section>
+      <section class="doc-section doc-recommendation"><h2>Recommendation</h2><strong>Recommended direction</strong><p>Move forward with the structured operating model.</p></section>
+      <section class="doc-section"><h2>Evidence table</h2><table class="doc-evidence-table"><thead><tr><th>Signal</th><th>Implication</th></tr></thead><tbody><tr><td>Readiness</td><td>Sequencing can start safely.</td></tr></tbody></table></section>
+    </main>`;
+
+    const result = await runDocumentRuntimeOrchestrator({
+      isEdit: false,
+      runtimeStartMs: 100,
+      nowMs: () => 320,
+      promptText: 'Create an executive briefing document',
+      parts,
+      runPlan: plan,
+      onEvent: (event) => events.push(event),
+      sanitizeHtml: (html) => html,
+      generation: {
+        useQueuedDocumentRuntime: false,
+        useQueuedDocumentEditRuntime: false,
+        queuedCreatePartCount: 1,
+        queuedEditModuleCount: 0,
+        onEvent: (event) => events.push(event),
+        runQueuedCreate: async () => {
+          throw new Error('queued create should not run');
+        },
+        runQueuedEdit: async () => {
+          throw new Error('queued edit should not run');
+        },
+        runSingleStream: async () => ({
+          rawContent: '# Runtime Document\nShort valid body.',
+          renderedHtml: '<main class="doc-shell"><h1>Runtime Document</h1><section class="doc-section doc-runtime-module" data-runtime-part="document-module-1"><h2>Hero summary</h2><p>Short valid body.</p></section></main>',
+          firstPreviewAt: 130,
+        }),
+      },
+      prepareGeneratedHtml: (html) => html,
+      resolveTitle: () => 'Runtime Document',
+      buildSourceMarkdown: (rawContent) => rawContent,
+      runQueuedModuleRepair: async ({ html, validation }) => ({
+        html,
+        repairCount: 0,
+        repairedPartCount: 0,
+        repaired: false,
+        validation,
+        summary: 'No queued repair needed.',
+      }),
+      runQualityLlmPolish: async () => ({
+        html: enrichedHtml,
+        repairCount: 1,
+        repaired: true,
+        validation: validateDocumentRuntimeOutput(enrichedHtml),
+        summary: 'Bounded document quality enrichment passed validation.',
+      }),
+    });
+
+    expect(result.html).toContain('doc-evidence-table');
+    expect(result.runtime.qualityPolishAction).toBe('llm-polish');
+    expect(result.runtime.repairCount).toBe(1);
+    expect(result.runtime.qualityScore).toBeGreaterThanOrEqual(plan.qualityBar.acceptanceThresholds.minimumScore);
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'step-start',
+      stepId: 'quality-polish',
+      label: 'Polishing quality…',
     }));
   });
 

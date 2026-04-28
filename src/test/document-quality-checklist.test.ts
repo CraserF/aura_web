@@ -95,6 +95,8 @@ describe('document quality checklist', () => {
     expect(polished.repaired).toBe(true);
     expect(polished.html).toContain('doc-proof-strip');
     expect(polished.html).toContain('doc-timeline');
+    expect(polished.html).toContain('doc-recommendation');
+    expect(polished.html).toContain('doc-evidence-table');
     expect(polished.validation.passed).toBe(true);
   });
 

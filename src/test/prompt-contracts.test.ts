@@ -9,6 +9,7 @@ import {
   buildPresentationRevisionSystemPrompt,
   buildArtifactRunPlan,
   buildCoreArtifactContractPack,
+  buildDocumentRuntimeQualityEnrichmentUserPrompt,
   buildDocumentRuntimeModuleUserPrompt,
   buildDocumentRuntimeOutlineUserPrompt,
   buildDocumentRuntimeRepairUserPrompt,
@@ -183,8 +184,27 @@ describe('artifact prompt contracts', () => {
       }],
       designFamily: 'executive-light',
     });
+    const qualityBar = buildArtifactRunPlan({
+      runId: 'doc-quality-enrichment-prompt',
+      prompt: 'Create a premium executive brief',
+      artifactType: 'document',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    }).qualityBar;
+    const qualityPrompt = buildDocumentRuntimeQualityEnrichmentUserPrompt({
+      taskBrief: 'Create a board-ready market expansion brief.',
+      documentType: 'brief',
+      title: 'Market Expansion Brief',
+      html: '<main class="doc-shell"><section class="doc-section" data-runtime-part="document-module-1"><h2>Executive summary</h2><p>Short but safe document.</p></section></main>',
+      runtimeParts: [part],
+      qualityBar,
+    });
 
-    for (const prompt of [systemPrompt, outlinePrompt, modulePrompt, repairPrompt]) {
+    for (const prompt of [systemPrompt, outlinePrompt, modulePrompt, repairPrompt, qualityPrompt]) {
       expect(prompt).toMatch(/no .*remote assets/i);
       expect(prompt).toMatch(/no .*JavaScript/i);
       expect(prompt).not.toContain('Google Fonts');
@@ -215,6 +235,9 @@ describe('artifact prompt contracts', () => {
     })).toContain('QUALITY BAR');
     expect(repairPrompt).toContain('VALIDATOR FEEDBACK');
     expect(repairPrompt).toContain('fix only the failed module issues');
+    expect(qualityPrompt).toContain('DOCUMENT QUALITY ENRICHMENT TASK');
+    expect(qualityPrompt).toContain('Preserve every existing data-runtime-part value');
+    expect(qualityPrompt).toContain('doc-evidence-table');
   });
 
   it('builds compact runtime document single-stream prompts without the old broad composer surface', () => {

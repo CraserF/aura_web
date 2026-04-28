@@ -42,6 +42,7 @@ import {
 import {
   runQueuedDocumentRuntimeCreateDraft,
   runQueuedDocumentRuntimeEditDraft,
+  runDocumentRuntimeQualityEnrichment,
   runQueuedDocumentRuntimeModuleRepair,
 } from '@/services/artifactRuntime/documentStreaming';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
@@ -1010,6 +1011,26 @@ export async function runDocumentWorkflow(
         ...(signal ? { signal } : {}),
         runId: runtimeRunId,
       }),
+      ...(input.artifactRunPlan?.providerPolicy.mode === 'frontier-quality' &&
+      (input.artifactRunPlan.qualityBar?.polishingBudget.llmPasses ?? 0) > 0
+        ? {
+            runQualityLlmPolish: ({ html, title }) => runDocumentRuntimeQualityEnrichment({
+              model,
+              html,
+              title,
+              taskBrief: input.prompt,
+              documentType: planResult.documentType,
+              designFamily: input.artifactRunPlan?.designManifest.family,
+              qualityBar: input.artifactRunPlan?.qualityBar,
+              runtimeParts,
+              maxOutputTokens: 8192,
+              systemProviderOptions: CACHE_CONTROL,
+              onEvent,
+              ...(signal ? { signal } : {}),
+              runId: runtimeRunId,
+            }),
+          }
+        : {}),
       finalProgressMessage: providerProfile.providerId === 'ollama'
         ? 'Done! Local baseline run complete.'
         : 'Done!',

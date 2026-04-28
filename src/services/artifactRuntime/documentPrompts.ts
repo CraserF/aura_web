@@ -19,7 +19,7 @@ export interface BuildDocumentRuntimeSystemPromptInput {
   documentType: string;
   designFamily?: string;
   blueprintLabel?: string;
-  mode: 'queued-create' | 'queued-edit' | 'queued-repair';
+  mode: 'queued-create' | 'queued-edit' | 'queued-repair' | 'quality-enrichment';
   qualityBar?: ArtifactQualityBar;
 }
 
@@ -54,11 +54,22 @@ export interface BuildDocumentRuntimeSingleStreamUserPromptInput {
   qualityBar?: ArtifactQualityBar;
 }
 
+export interface BuildDocumentRuntimeQualityEnrichmentUserPromptInput {
+  taskBrief: string;
+  documentType: string;
+  title: string;
+  html: string;
+  runtimeParts?: ArtifactPart[];
+  qualityBar?: ArtifactQualityBar;
+}
+
 export function buildDocumentRuntimeSystemPrompt(
   input: BuildDocumentRuntimeSystemPromptInput,
 ): string {
   const modeInstruction = input.mode === 'queued-repair'
     ? 'Repair only the failed runtime document module.'
+    : input.mode === 'quality-enrichment'
+      ? 'Enrich the complete document once, preserving safety, runtime module ids, and existing useful structure.'
     : input.mode === 'queued-edit'
       ? 'Edit only the targeted runtime document module.'
       : 'Create one runtime-owned document part at a time.';
@@ -195,4 +206,45 @@ export function buildDocumentRuntimeRepairUserPrompt(
   input: BuildDocumentRuntimeModuleRepairPromptInput,
 ): string {
   return buildDocumentRuntimeModuleRepairPrompt(input);
+}
+
+function truncateExistingDocumentHtml(html: string): string {
+  const trimmed = html.trim();
+  if (trimmed.length <= 24_000) return trimmed;
+  return `${trimmed.slice(0, 24_000)}\n<!-- Existing document truncated for bounded quality enrichment. Preserve the visible structure above and do not invent missing source facts. -->`;
+}
+
+export function buildDocumentRuntimeQualityEnrichmentUserPrompt(
+  input: BuildDocumentRuntimeQualityEnrichmentUserPromptInput,
+): string {
+  const runtimePartPrompt = buildDocumentRuntimePartPrompt(input.runtimeParts ?? []);
+  const qualityTarget = input.qualityBar
+    ? `${input.qualityBar.tier}, score ${input.qualityBar.acceptanceThresholds.minimumScore}+`
+    : 'runtime-selected';
+
+  return [
+    `## DOCUMENT QUALITY ENRICHMENT TASK
+
+Document type: ${input.documentType}
+Title: ${input.title}
+Quality target: ${qualityTarget}
+
+Task brief:
+${input.taskBrief}`,
+    runtimePartPrompt,
+    `## ENRICHMENT RULES
+
+- Return the complete improved document fragment only.
+- Preserve every existing data-runtime-part value and keep module wrappers valid.
+- Add substance, evidence rhythm, recommendation language, and component variety from the task brief and existing document only.
+- Prefer safe reusable classes: doc-sidebar-layout, doc-main, doc-aside, doc-kpi-row, doc-proof-strip, doc-comparison, doc-timeline, doc-recommendation, doc-evidence-table, doc-executive-callout.
+- Keep body copy at 16px or larger, tables/media fluid, and mobile/print layout safe.
+- Use no scripts, no JavaScript, no remote assets, no external CSS, no unsupported wrappers, no TODOs, no fake citations, and no invented metrics.
+
+## CURRENT DOCUMENT
+
+\`\`\`html
+${truncateExistingDocumentHtml(input.html)}
+\`\`\``,
+  ].filter(Boolean).join('\n\n');
 }

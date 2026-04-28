@@ -15,6 +15,7 @@ export {
   buildDocumentRuntimeModuleUserPrompt,
   buildDocumentRuntimeOutlineUserPrompt,
   buildDocumentRuntimeRepairUserPrompt,
+  buildDocumentRuntimeQualityEnrichmentUserPrompt,
   buildDocumentRuntimeSingleStreamSystemPrompt,
   buildDocumentRuntimeSingleStreamUserPrompt,
   buildDocumentRuntimeSystemPrompt,
@@ -44,6 +45,7 @@ export {
 export {
   runQueuedDocumentRuntimeCreateDraft,
   runQueuedDocumentRuntimeEditDraft,
+  runDocumentRuntimeQualityEnrichment,
   runQueuedDocumentRuntimeModuleRepair,
 } from './documentStreaming';
 export {
@@ -128,6 +130,7 @@ export type {
   BuildDocumentRuntimeSingleStreamSystemPromptInput,
   BuildDocumentRuntimeSingleStreamUserPromptInput,
   BuildDocumentRuntimeSystemPromptInput,
+  BuildDocumentRuntimeQualityEnrichmentUserPromptInput,
   DocumentRuntimeProjectLink,
 } from './documentPrompts';
 export type {
@@ -157,6 +160,7 @@ export type {
 } from './documentRuntime';
 export type {
   DocumentRuntimeImagePart,
+  RunDocumentRuntimeQualityEnrichmentInput,
   RunQueuedDocumentRuntimeCreateDraftInput,
   RunQueuedDocumentRuntimeEditDraftInput,
   RunQueuedDocumentRuntimeModuleRepairInput,
@@ -215,6 +219,8 @@ export type {
   ArtifactRunEvent,
   ArtifactRunPlan,
   DesignManifest,
+  DocumentModuleBlueprint,
+  DocumentModuleRole,
   RuntimeOutputMode,
   ValidationGate,
 } from './types';

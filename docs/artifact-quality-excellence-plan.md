@@ -31,8 +31,11 @@ Aura should keep the new `ArtifactRuntime` structure, but generated artifacts mu
 - [x] Added automated regression coverage for quality bars, prompt inclusion, scoring, telemetry, and docs expectations.
 - [x] Added active quality-polish decisions so runtimes classify outputs as excellent, needing polish, budget-exhausted, or safety-blocked.
 - [x] Added deterministic document quality polish and presentation LLM-polish routing for premium/frontier runs.
+- [x] Added document content blueprints with per-module role, word-budget, evidence, component, and rhythm guidance.
+- [x] Added bounded premium/frontier document LLM enrichment after deterministic polish when quality remains below the bar.
 - [x] Verified with:
   - `npm test -- artifact-runtime prompt-contracts runtime-telemetry document-quality-checklist presentation-quality-checklist spreadsheet-runtime`
+  - `npm test -- artifact-runtime prompt-contracts document-quality-checklist document-runtime-workflow runtime-telemetry quality-decision`
   - `npm run typecheck`
   - `npm test`
   - `npm run build`
@@ -86,20 +89,20 @@ Already started:
 
 Implementation checklist:
 
-- [ ] Change queued document planning from outline plus modules to content blueprint plus module budgets.
-- [ ] Give every document module:
+- [x] Change queued document planning from outline plus modules to content blueprint plus module budgets.
+- [x] Give every document module:
   - role;
   - target word range;
   - evidence requirement;
   - component pattern;
   - visual rhythm instruction.
-- [ ] Add deterministic document enrichment for outputs that are:
+- [x] Add deterministic document enrichment for outputs that are:
   - too short;
   - missing hero/summary/KPI/proof/comparison/timeline rhythm;
   - too visually flat;
   - below the quality-bar score threshold.
-- [ ] Add a bounded LLM enrichment pass for premium/frontier runs only.
-- [ ] Expand the document design-system vocabulary with safe classes for:
+- [x] Add a bounded LLM enrichment pass for premium/frontier runs only.
+- [x] Expand the document design-system vocabulary with safe classes for:
   - hero summary;
   - recommendation block;
   - KPI row;
@@ -112,10 +115,10 @@ Implementation checklist:
 
 Acceptance criteria:
 
-- [ ] Long-form reports meet target depth and component variety.
-- [ ] Executive briefs include hero, summary, KPI/proof/recommendation rhythm.
-- [ ] Enrichment improves short or flat documents without breaking iframe/mobile/print validation.
-- [ ] Document output can resemble starter/example quality through structure and rhythm without copying content.
+- [~] Long-form reports meet target depth and component variety. Runtime budgets and scoring now enforce this; generated benchmark evidence is still pending.
+- [x] Executive briefs include hero, summary, KPI/proof/recommendation rhythm in runtime guidance and deterministic enrichment.
+- [x] Enrichment improves short or flat documents without breaking iframe/mobile/print validation.
+- [~] Document output can resemble starter/example quality through structure and rhythm without copying content. Style-rhythm mechanics exist; reference-corpus benchmarking remains pending.
 
 ## Workstream 3: Presentation Excellence
 
@@ -276,14 +279,14 @@ Acceptance criteria:
 
 ## Next Recommended Slice
 
-Continue with Workstreams 2 and 3 now that Workstream 1 has active runtime decisions.
+Continue with Workstream 3 now that Workstream 2 has content blueprints, deterministic enrichment, and bounded premium/frontier document LLM enrichment.
 
 Recommended order:
 
-1. Add document content blueprints and module budgets.
-2. Add deck-level narrative plans with slide roles and layout maps.
-3. Expand deterministic document enrichment beyond rhythm modules.
-4. Strengthen presentation art-director prompts and compare pre/post quality score.
-5. Run one manual document and one manual deck benchmark.
+1. Add deck-level narrative plans with slide roles and layout maps.
+2. Ensure slide 1 establishes the deck motif and later slides vary layout while preserving tokens.
+3. Strengthen presentation art-director prompts and compare pre/post quality score.
+4. Run one manual document benchmark to move Workstream 2 acceptance from `[~]` to `[x]`.
+5. Run one manual deck benchmark against starter/example quality targets.
 
 This order builds on the active quality-decision foundation and moves the biggest remaining quality gains into the generated artifact structure itself.

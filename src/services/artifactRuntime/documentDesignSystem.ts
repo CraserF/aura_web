@@ -15,6 +15,9 @@ export const DOCUMENT_RUNTIME_SHARED_MODULE_CLASSES = [
   'doc-sidebar-layout',
   'doc-main',
   'doc-aside',
+  'doc-recommendation',
+  'doc-evidence-table',
+  'doc-executive-callout',
 ] as const;
 
 export const DOCUMENT_RUNTIME_MODULE_CANDIDATE_SELECTORS = [
@@ -29,6 +32,9 @@ export const DOCUMENT_RUNTIME_MODULE_CANDIDATE_SELECTORS = [
   '.doc-comparison',
   '.doc-timeline',
   '.doc-sidebar-layout',
+  '.doc-recommendation',
+  '.doc-evidence-table',
+  '.doc-executive-callout',
 ] as const;
 
 export const DOCUMENT_RUNTIME_SHELL_CSS = `
@@ -141,6 +147,20 @@ body {
   border-radius: 12px;
   background: color-mix(in srgb, var(--doc-surface) 72%, var(--doc-accent) 10%);
 }
+.doc-recommendation,
+.doc-executive-callout {
+  margin-top: 16px;
+  padding: 18px;
+  border-left: 4px solid var(--doc-accent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--doc-surface) 76%, var(--doc-accent) 12%);
+}
+.doc-recommendation strong,
+.doc-executive-callout strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--doc-primary);
+}
 img,
 svg,
 canvas,
@@ -150,6 +170,17 @@ table {
 table {
   width: 100%;
   border-collapse: collapse;
+}
+.doc-evidence-table th,
+.doc-evidence-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--doc-border);
+  text-align: left;
+  vertical-align: top;
+}
+.doc-evidence-table th {
+  color: var(--doc-primary);
+  background: color-mix(in srgb, var(--doc-surface) 70%, var(--doc-bg));
 }
 @media (max-width: 720px) {
   .doc-shell { padding: 32px 18px; }

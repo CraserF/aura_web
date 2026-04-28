@@ -135,12 +135,16 @@ describe('document runtime workflow orchestration', () => {
     const firstUserMessage = readLastMessage(firstCall?.messages);
     expect(firstUserMessage?.role).toBe('user');
     expect(Array.isArray(firstUserMessage?.content)).toBe(true);
-    expect(readLastUserText(0)).toContain('Create the runtime outline');
+    expect(readLastUserText(0)).toContain('Create the runtime content blueprint');
 
     for (let index = 1; index < streamTextMock.mock.calls.length; index += 1) {
       const call = streamTextMock.mock.calls[index]?.[0] as { messages?: ModelMessage[] } | undefined;
       expect(Array.isArray(readLastMessage(call?.messages)?.content)).toBe(false);
-      expect(readLastUserText(index)).toContain('Runtime part id: document-module-');
+      const userText = readLastUserText(index);
+      expect(
+        userText.includes('Runtime part id: document-module-') ||
+        userText.includes('DOCUMENT QUALITY ENRICHMENT TASK'),
+      ).toBe(true);
     }
 
     expect(result.runtime?.runMode).toBe('queued-create');

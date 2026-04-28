@@ -14,7 +14,13 @@ import {
 } from '@/services/artifactRuntime/documentDesignSystem';
 import { buildDocumentQualityTelemetry } from '@/services/artifactRuntime/documentQualityChecklist';
 import { decideArtifactQualityPolish, type ArtifactQualityPolishDecision } from '@/services/artifactRuntime/qualityDecision';
-import type { ArtifactPart, ArtifactQualityBar, ArtifactRunPlan } from '@/services/artifactRuntime/types';
+import type {
+  ArtifactPart,
+  ArtifactQualityBar,
+  ArtifactRunPlan,
+  DocumentModuleBlueprint,
+  DocumentModuleRole,
+} from '@/services/artifactRuntime/types';
 import { validateDocument } from '@/services/ai/workflow/agents/document-qa';
 import type { ArtifactRuntimeTelemetry, EventListener } from '@/services/ai/workflow/types';
 import type { EditingTelemetry, ResolvedTarget } from '@/services/editing/types';
@@ -132,6 +138,11 @@ export interface RunDocumentRuntimeOrchestratorInput {
   resolveTitle: (html: string) => string;
   buildSourceMarkdown: (rawContent: string, finalHtml: string) => string;
   runQueuedModuleRepair: RepairDocumentRuntimeStructureInput['runQueuedModuleRepair'];
+  runQualityLlmPolish?: (input: {
+    html: string;
+    title: string;
+    qualityDecision: ArtifactQualityPolishDecision;
+  }) => Promise<DocumentRuntimeRepairResult>;
   finalProgressMessage?: string;
 }
 
@@ -276,6 +287,120 @@ function normalizeModuleTitle(value: string, index: number): string {
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
+function resolveDocumentModuleRole(title: string, index: number): DocumentModuleRole {
+  const normalized = title.toLowerCase();
+  if (/\b(hero|opening|lead|thesis)\b/.test(normalized) || index === 0) return 'hero-summary';
+  if (/\b(kpi|metric|score|proof|signal)\b/.test(normalized)) return 'kpi-proof';
+  if (/\b(compare|comparison|versus|before|after|trade[- ]?off)\b/.test(normalized)) return 'comparison';
+  if (/\b(timeline|roadmap|next|phase|sequence|milestone|action)\b/.test(normalized)) return 'timeline';
+  if (/\b(recommend|decision|proposal|ask|next step)\b/.test(normalized)) return 'recommendation';
+  if (/\b(sidebar|risk|watchout|constraint|note)\b/.test(normalized)) return 'sidebar';
+  if (/\b(summary|brief|overview)\b/.test(normalized)) return 'executive-summary';
+  return 'evidence';
+}
+
+function componentPatternForDocumentRole(role: DocumentModuleRole): string {
+  switch (role) {
+    case 'hero-summary':
+    case 'executive-summary':
+      return 'doc-sidebar-layout with doc-main and doc-aside';
+    case 'kpi-proof':
+      return 'doc-kpi-row with doc-kpi cards, or doc-proof-strip when the prompt has no numbers';
+    case 'comparison':
+      return 'doc-comparison with doc-compare-card lanes';
+    case 'timeline':
+      return 'doc-timeline with doc-timeline-item steps';
+    case 'recommendation':
+      return 'doc-proof-strip plus a concise recommendation paragraph';
+    case 'sidebar':
+      return 'doc-sidebar-layout with a compact doc-aside';
+    case 'evidence':
+      return 'doc-proof-strip, evidence table, or structured list';
+  }
+}
+
+function evidenceRequirementForDocumentRole(role: DocumentModuleRole): string {
+  switch (role) {
+    case 'hero-summary':
+      return 'State the thesis, audience impact, and one decision/recommendation in concrete language.';
+    case 'executive-summary':
+      return 'Summarize the core decision path with at least two grounded proof points.';
+    case 'kpi-proof':
+      return 'Use concrete metrics when provided; otherwise use labeled proof signals without inventing numbers.';
+    case 'comparison':
+      return 'Compare at least two options, states, audiences, or tradeoffs with a clear verdict.';
+    case 'timeline':
+      return 'Show ordered next steps or phases with ownership, timing, or dependency cues when available.';
+    case 'recommendation':
+      return 'Make one recommendation and support it with rationale, risk, and next action.';
+    case 'sidebar':
+      return 'Surface constraints, risks, assumptions, or watchouts that sharpen the main argument.';
+    case 'evidence':
+      return 'Include specific evidence, examples, source-derived labels, or structured reasoning from the task brief.';
+  }
+}
+
+function visualRhythmForDocumentRole(role: DocumentModuleRole): string {
+  switch (role) {
+    case 'hero-summary':
+      return 'Open with a strong lead paragraph, then use a compact side rail for decision/proof/action.';
+    case 'executive-summary':
+      return 'Use short paragraphs plus a scannable proof/recommendation band.';
+    case 'kpi-proof':
+      return 'Lead with the strongest signal and group proof into 2-4 compact cards.';
+    case 'comparison':
+      return 'Use parallel lanes and end with a concise bridge or verdict.';
+    case 'timeline':
+      return 'Use sequential steps with short labels; keep the rhythm vertical on mobile.';
+    case 'recommendation':
+      return 'Make the recommendation visually dominant, then add proof and action cues.';
+    case 'sidebar':
+      return 'Keep the side rail compact and subordinate to the main argument.';
+    case 'evidence':
+      return 'Break evidence into labeled chunks instead of a flat prose block.';
+  }
+}
+
+function buildDocumentModuleBlueprint(input: {
+  title: string;
+  index: number;
+  qualityBar?: ArtifactQualityBar;
+}): DocumentModuleBlueprint {
+  const role = resolveDocumentModuleRole(input.title, input.index);
+  const minWords = input.qualityBar?.expectedDepth.minModuleWords ?? 90;
+  const isPremium = input.qualityBar?.tier === 'premium';
+
+  return {
+    role,
+    targetWordRange: {
+      min: minWords,
+      max: minWords + (isPremium ? 110 : 70),
+    },
+    evidenceRequirement: evidenceRequirementForDocumentRole(role),
+    componentPattern: componentPatternForDocumentRole(role),
+    visualRhythmInstruction: visualRhythmForDocumentRole(role),
+  };
+}
+
+function formatDocumentModuleBlueprint(blueprint?: DocumentModuleBlueprint): string {
+  if (!blueprint) return '';
+
+  return [
+    `Role: ${blueprint.role}`,
+    `Target words: ${blueprint.targetWordRange.min}-${blueprint.targetWordRange.max}`,
+    `Evidence: ${blueprint.evidenceRequirement}`,
+    `Component pattern: ${blueprint.componentPattern}`,
+    `Visual rhythm: ${blueprint.visualRhythmInstruction}`,
+  ].join('\n');
+}
+
+function formatDocumentModuleLine(part: ArtifactPart, index: number): string {
+  const blueprint = formatDocumentModuleBlueprint(part.documentModuleBlueprint);
+  return blueprint
+    ? `${index + 1}. ${part.title} [${part.id}]: ${part.brief}\n${blueprint.split('\n').map((line) => `   - ${line}`).join('\n')}`
+    : `${index + 1}. ${part.title} [${part.id}]: ${part.brief}`;
+}
+
 export function buildDocumentRuntimeParts(input: BuildDocumentRuntimePartsInput): ArtifactPart[] {
   const targetModuleCount = input.qualityBar?.expectedDepth.minModules ?? 3;
   const defaultModules = [
@@ -306,15 +431,23 @@ export function buildDocumentRuntimeParts(input: BuildDocumentRuntimePartsInput)
       brief: `${operation} the document structure using the ${input.blueprintLabel} blueprint.`,
       status: 'pending',
     },
-    ...modules.map((module, index) => ({
-      id: `document-module-${index + 1}`,
-      artifactType: 'document' as const,
-      kind: 'document-module' as const,
-      orderIndex: index + 1,
-      title: normalizeModuleTitle(module, index),
-      brief: `${operation} a ${module} for the ${input.documentType} document.`,
-      status: 'pending' as const,
-    })),
+    ...modules.map((module, index) => {
+      const title = normalizeModuleTitle(module, index);
+      return {
+        id: `document-module-${index + 1}`,
+        artifactType: 'document' as const,
+        kind: 'document-module' as const,
+        orderIndex: index + 1,
+        title,
+        brief: `${operation} a ${module} for the ${input.documentType} document.`,
+        status: 'pending' as const,
+        documentModuleBlueprint: buildDocumentModuleBlueprint({
+          title,
+          index,
+          qualityBar: input.qualityBar,
+        }),
+      };
+    }),
     {
       id: 'document-validation',
       artifactType: 'document',
@@ -358,8 +491,9 @@ export function buildDocumentRuntimePartPrompt(parts: ArtifactPart[]): string {
 
 Build the document by satisfying these runtime parts in order. Keep the final output as one complete document, but make each part visible in the structure.
 Mark each document module wrapper with its exact runtime id using data-runtime-part="...".
+Use each module blueprint as a content budget: meet the role, target word range, evidence requirement, component pattern, and rhythm.
 
-${documentParts.map((part, index) => `${index + 1}. ${part.title} [${part.id}]: ${part.brief}`).join('\n')}`;
+${documentParts.map((part, index) => formatDocumentModuleLine(part, index)).join('\n')}`;
 }
 
 function getDocumentModuleParts(parts: ArtifactPart[]): ArtifactPart[] {
@@ -388,19 +522,19 @@ export function buildDocumentRuntimeOutlinePrompt(input: BuildDocumentRuntimeOut
       blueprintLabel: input.blueprintLabel,
     }),
     buildQualityBarContractPack(input.qualityBar),
-    `## OUTLINE TASK
+    `## CONTENT BLUEPRINT TASK
 
-Create the runtime outline for this ${input.documentType} document.
+Create the runtime content blueprint for this ${input.documentType} document.
 
 Required modules:
-${moduleParts.map((part, index) => `${index + 1}. ${part.title} [${part.id}]: ${part.brief}`).join('\n')}
+${moduleParts.map((part, index) => formatDocumentModuleLine(part, index)).join('\n')}
 
 Task brief:
 ${input.taskBrief}
 
-Return only a compact outline in markdown:
+Return only a compact content blueprint in markdown:
 - one document thesis sentence
-- one bullet per required module
+- one bullet per required module with the module role, evidence angle, and intended component rhythm
 - if images were provided, use them only to infer structure, evidence, labels, or visual emphasis
 - no CSS, no full HTML document, no external assets`,
   ].join('\n\n');
@@ -423,6 +557,7 @@ ${input.taskBrief}
 Runtime part id: ${input.part.id}
 Runtime part title: ${input.part.title}
 Runtime part brief: ${input.part.brief}
+${input.part.documentModuleBlueprint ? `\nRuntime module blueprint:\n${formatDocumentModuleBlueprint(input.part.documentModuleBlueprint)}` : ''}
 
 Outline:
 ${input.outline}
@@ -458,6 +593,7 @@ ${input.taskBrief}
 Runtime part id: ${input.part.id}
 Runtime part title: ${input.part.title}
 Runtime part brief: ${input.part.brief}
+${input.part.documentModuleBlueprint ? `\nRuntime module blueprint:\n${formatDocumentModuleBlueprint(input.part.documentModuleBlueprint)}` : ''}
 
 ${input.existingModuleHtml ? `Existing module:
 \`\`\`html
@@ -774,6 +910,63 @@ function appendDocumentTimeline(doc: Document, root: HTMLElement, snippets: stri
   return true;
 }
 
+function appendDocumentRecommendation(doc: Document, root: HTMLElement, snippets: string[]): boolean {
+  if (hasDocumentQualityRhythm(doc, '.doc-recommendation, .doc-executive-callout')) {
+    return false;
+  }
+  const [primary, secondary] = snippets;
+  if (!primary) return false;
+
+  const section = doc.createElement('section');
+  section.className = 'doc-section doc-runtime-quality-polish';
+  section.setAttribute('data-runtime-polish', 'recommendation');
+  const heading = doc.createElement('h2');
+  heading.textContent = 'Recommendation';
+  const callout = doc.createElement('div');
+  callout.className = 'doc-recommendation';
+  const label = doc.createElement('strong');
+  label.textContent = 'Recommended direction';
+  const copy = doc.createElement('p');
+  copy.textContent = secondary
+    ? `${primary} ${secondary}`
+    : primary;
+  callout.append(label, copy);
+  section.append(heading, callout);
+  root.append(section);
+  return true;
+}
+
+function appendDocumentEvidenceTable(doc: Document, root: HTMLElement, snippets: string[]): boolean {
+  if (hasDocumentQualityRhythm(doc, '.doc-evidence-table, table, .doc-comparison')) {
+    return false;
+  }
+  if (snippets.length < 2) return false;
+
+  const section = doc.createElement('section');
+  section.className = 'doc-section doc-runtime-quality-polish';
+  section.setAttribute('data-runtime-polish', 'evidence-table');
+  const heading = doc.createElement('h2');
+  heading.textContent = 'Evidence Table';
+  const table = doc.createElement('table');
+  table.className = 'doc-evidence-table';
+  const thead = doc.createElement('thead');
+  thead.innerHTML = '<tr><th>Signal</th><th>Implication</th></tr>';
+  const tbody = doc.createElement('tbody');
+  for (const [index, snippet] of snippets.slice(0, 3).entries()) {
+    const row = doc.createElement('tr');
+    const signalCell = doc.createElement('td');
+    signalCell.textContent = index === 0 ? 'Core evidence' : index === 1 ? 'Supporting context' : 'Action cue';
+    const implicationCell = doc.createElement('td');
+    implicationCell.textContent = snippet;
+    row.append(signalCell, implicationCell);
+    tbody.append(row);
+  }
+  table.append(thead, tbody);
+  section.append(heading, table);
+  root.append(section);
+  return true;
+}
+
 export function polishDocumentRuntimeQuality(input: {
   html: string;
   title: string;
@@ -792,6 +985,8 @@ export function polishDocumentRuntimeQuality(input: {
   let changed = false;
   changed = appendDocumentProofStrip(doc, root, snippets) || changed;
   changed = appendDocumentTimeline(doc, root, snippets) || changed;
+  changed = appendDocumentRecommendation(doc, root, snippets) || changed;
+  changed = appendDocumentEvidenceTable(doc, root, snippets) || changed;
 
   const html = serializeDocumentRuntimeHtml(doc);
   const repaired = changed && html.trim() !== before.trim();
@@ -1246,7 +1441,39 @@ export async function runDocumentRuntimeOrchestrator(
 
   let qualityPolishDecision: ArtifactQualityPolishDecision | undefined;
   let qualityPolishAction: ArtifactRuntimeTelemetry['qualityPolishAction'] | undefined;
-  let deterministicQualityPolishCount = 0;
+  let deterministicQualityPolishAttemptCount = 0;
+  let deterministicQualityPolishRepairCount = 0;
+  let llmQualityPolishAttemptCount = 0;
+  let llmQualityPolishRepairCount = 0;
+  const llmPolishAvailable = Boolean(input.runQualityLlmPolish);
+  let qualityPolishStepStarted = false;
+
+  const startQualityPolishStep = () => {
+    if (qualityPolishStepStarted || !input.runPlan) return;
+    qualityPolishStepStarted = true;
+    input.onEvent({ type: 'step-start', stepId: 'quality-polish', label: 'Polishing quality…' });
+    emitArtifactRunEvent(input.onEvent, {
+      runId: input.runPlan.runId,
+      type: 'runtime.repair-started',
+      role: 'repairer',
+      message: 'Polishing document quality...',
+      partId: 'quality-polish',
+      pct: 92,
+    });
+  };
+
+  const finishQualityPolishStep = (message: string) => {
+    if (!qualityPolishStepStarted || !input.runPlan) return;
+    input.onEvent({ type: 'step-done', stepId: 'quality-polish', label: 'Polishing quality…' });
+    emitArtifactRunEvent(input.onEvent, {
+      runId: input.runPlan.runId,
+      type: 'runtime.repair-completed',
+      role: 'repairer',
+      message,
+      partId: 'quality-polish',
+      pct: 95,
+    });
+  };
 
   if (input.runPlan?.qualityBar) {
     const prePolishQuality = buildDocumentQualityTelemetry({
@@ -1262,29 +1489,22 @@ export async function runDocumentRuntimeOrchestrator(
       qualityScore: prePolishQuality.qualityScore,
       qualityBlockingCount: prePolishQuality.qualityBlockingCount,
       deterministicPolishAvailable: true,
-      llmPolishAvailable: false,
+      llmPolishAvailable,
     });
     qualityPolishAction = qualityPolishDecision.action;
 
     if (qualityPolishDecision.shouldPolish && qualityPolishDecision.action === 'deterministic-polish') {
-      input.onEvent({ type: 'step-start', stepId: 'quality-polish', label: 'Polishing quality…' });
-      emitArtifactRunEvent(input.onEvent, {
-        runId: input.runPlan.runId,
-        type: 'runtime.repair-started',
-        role: 'repairer',
-        message: 'Polishing document quality...',
-        partId: 'quality-polish',
-        pct: 92,
-      });
+      startQualityPolishStep();
 
       const polish = polishDocumentRuntimeQuality({
         html: finalHtml,
         title,
       });
+      deterministicQualityPolishAttemptCount = 1;
       if (polish.repaired) {
         finalHtml = input.sanitizeHtml(polish.html);
         qaResult = polish.validation;
-        deterministicQualityPolishCount = polish.repairCount;
+        deterministicQualityPolishRepairCount = polish.repairCount;
         input.onEvent({ type: 'progress', message: polish.summary, pct: 94 });
       }
 
@@ -1300,21 +1520,86 @@ export async function runDocumentRuntimeOrchestrator(
         qualityPassed: postPolishQuality.qualityPassed,
         qualityScore: postPolishQuality.qualityScore,
         qualityBlockingCount: postPolishQuality.qualityBlockingCount,
-        deterministicPolishCount: deterministicQualityPolishCount,
+        deterministicPolishCount: deterministicQualityPolishAttemptCount,
         deterministicPolishAvailable: true,
-        llmPolishAvailable: false,
+        llmPolishAvailable,
       });
       qualityPolishAction = polish.repaired ? 'deterministic-polish' : qualityPolishDecision.action;
-      input.onEvent({ type: 'step-done', stepId: 'quality-polish', label: 'Polishing quality…' });
-      emitArtifactRunEvent(input.onEvent, {
-        runId: input.runPlan.runId,
-        type: 'runtime.repair-completed',
-        role: 'repairer',
-        message: qualityPolishDecision.reason,
-        partId: 'quality-polish',
-        pct: 95,
+    }
+
+    if (
+      qualityPolishDecision.shouldPolish &&
+      qualityPolishDecision.action === 'llm-polish' &&
+      input.runQualityLlmPolish
+    ) {
+      startQualityPolishStep();
+      const qualityBeforeLlm = buildDocumentQualityTelemetry({
+        html: finalHtml,
+        promptText: input.promptText,
+        qualityBar: input.runPlan.qualityBar,
+      });
+      const llmPolish = await input.runQualityLlmPolish({
+        html: finalHtml,
+        title,
+        qualityDecision: qualityPolishDecision,
+      });
+      llmQualityPolishAttemptCount = 1;
+      qualityPolishAction = 'llm-polish';
+
+      const polishedHtml = input.sanitizeHtml(llmPolish.html);
+      const polishedOutputValidation = validateDocumentRuntimeOutput(polishedHtml);
+      const polishedModuleValidation = validateDocumentRuntimeModules(polishedHtml, input.parts);
+      const qualityAfterLlm = buildDocumentQualityTelemetry({
+        html: polishedHtml,
+        promptText: input.promptText,
+        qualityBar: input.runPlan.qualityBar,
+      });
+      const beforeScore = qualityBeforeLlm.qualityScore ?? 0;
+      const afterScore = qualityAfterLlm.qualityScore ?? 0;
+
+      if (
+        llmPolish.repaired &&
+        polishedOutputValidation.passed &&
+        polishedModuleValidation.passed &&
+        afterScore >= beforeScore
+      ) {
+        finalHtml = polishedHtml;
+        qaResult = polishedOutputValidation;
+        llmQualityPolishRepairCount = Math.max(1, llmPolish.repairCount);
+        input.onEvent({ type: 'progress', message: llmPolish.summary, pct: 96 });
+      } else {
+        const rejectionReason = !polishedOutputValidation.passed
+          ? polishedOutputValidation.summary
+          : !polishedModuleValidation.passed
+            ? polishedModuleValidation.summary
+            : `quality score would change from ${beforeScore} to ${afterScore}.`;
+        input.onEvent({
+          type: 'progress',
+          message: `Bounded document quality enrichment was discarded because ${rejectionReason}`,
+          pct: 96,
+        });
+      }
+
+      const postLlmQuality = buildDocumentQualityTelemetry({
+        html: finalHtml,
+        promptText: input.promptText,
+        qualityBar: input.runPlan.qualityBar,
+      });
+      qualityPolishDecision = decideArtifactQualityPolish({
+        qualityBar: input.runPlan.qualityBar,
+        validationPassed: qaResult.passed,
+        validationBlockingCount: qaResult.blockingCount,
+        qualityPassed: postLlmQuality.qualityPassed,
+        qualityScore: postLlmQuality.qualityScore,
+        qualityBlockingCount: postLlmQuality.qualityBlockingCount,
+        deterministicPolishCount: deterministicQualityPolishAttemptCount,
+        llmPolishCount: llmQualityPolishAttemptCount,
+        deterministicPolishAvailable: true,
+        llmPolishAvailable,
       });
     }
+
+    finishQualityPolishStep(qualityPolishDecision.reason);
   }
 
   input.onEvent({ type: 'step-done', stepId: 'qa', label: 'Checking document quality…' });
@@ -1334,7 +1619,7 @@ export async function runDocumentRuntimeOrchestrator(
     runtimeStartMs: input.runtimeStartMs,
     nowMs: input.nowMs(),
     validation: qaResult,
-    repairCount: structureRepair.moduleRepairCount + qaRepair.repairCount + editFallbackRepairCount + deterministicQualityPolishCount,
+    repairCount: structureRepair.moduleRepairCount + qaRepair.repairCount + editFallbackRepairCount + deterministicQualityPolishRepairCount + llmQualityPolishRepairCount,
     runMode,
     queuedPartCount: runMode === 'queued-create'
       ? input.generation.queuedCreatePartCount

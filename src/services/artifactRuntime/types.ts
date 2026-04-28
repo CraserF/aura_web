@@ -125,6 +125,27 @@ export interface ArtifactQualitySignalScore {
   detail: string;
 }
 
+export type DocumentModuleRole =
+  | 'hero-summary'
+  | 'executive-summary'
+  | 'kpi-proof'
+  | 'evidence'
+  | 'comparison'
+  | 'timeline'
+  | 'recommendation'
+  | 'sidebar';
+
+export interface DocumentModuleBlueprint {
+  role: DocumentModuleRole;
+  targetWordRange: {
+    min: number;
+    max: number;
+  };
+  evidenceRequirement: string;
+  componentPattern: string;
+  visualRhythmInstruction: string;
+}
+
 export type QueuedWorkStatus = 'pending' | 'active' | 'done' | 'blocked';
 
 export interface QueuedWorkItem {
@@ -269,6 +290,7 @@ export interface ArtifactPart {
   status: ArtifactPartStatus;
   sourceWorkItemId?: QueuedWorkItem['id'];
   recipeId?: PresentationRecipeId;
+  documentModuleBlueprint?: DocumentModuleBlueprint;
 }
 
 export interface ValidationGate {

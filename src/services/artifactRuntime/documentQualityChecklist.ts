@@ -208,6 +208,8 @@ function countDocumentComponentFamilies(html: string): number {
     /class=["'][^"']*(?:doc-comparison|doc-compare-card)|<table\b/i,
     /class=["'][^"']*(?:doc-timeline|doc-timeline-item)/i,
     /class=["'][^"']*(?:doc-sidebar-layout|doc-aside|doc-main)/i,
+    /class=["'][^"']*(?:doc-recommendation|doc-executive-callout)/i,
+    /class=["'][^"']*(?:doc-evidence-table)/i,
     /class=["'][^"']*(?:doc-story-card|doc-infographic-band)|<(?:ol|ul)\b/i,
   ];
   return families.filter((pattern) => hasPattern(html, pattern)).length;

@@ -5,13 +5,16 @@ import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
 import {
   applyDocumentRuntimeModuleEdits,
   assembleDocumentRuntimeHtml,
+  validateDocumentRuntimeOutput,
   validateDocumentRuntimeModules,
   type DocumentRuntimeDraftResult,
   type DocumentRuntimeEditModuleMatch,
+  type DocumentRuntimeRepairResult,
   type DocumentRuntimeValidationResult,
   type QueuedDocumentRuntimeModuleRepairResult,
 } from '@/services/artifactRuntime/documentRuntime';
 import {
+  buildDocumentRuntimeQualityEnrichmentUserPrompt,
   buildDocumentRuntimeModuleUserPrompt,
   buildDocumentRuntimeOutlineUserPrompt,
   buildDocumentRuntimeRepairUserPrompt,
@@ -73,6 +76,22 @@ export interface RunQueuedDocumentRuntimeModuleRepairInput {
   validation: DocumentRuntimeValidationResult;
   maxRepairPasses: number;
   maxRepairOutputTokens: number;
+  onEvent: EventListener;
+  signal?: AbortSignal;
+  runId: string;
+}
+
+export interface RunDocumentRuntimeQualityEnrichmentInput {
+  model: LanguageModel;
+  systemProviderOptions?: ModelMessage['providerOptions'];
+  html: string;
+  title: string;
+  taskBrief: string;
+  documentType: string;
+  designFamily?: string;
+  qualityBar?: ArtifactQualityBar;
+  runtimeParts: ArtifactPart[];
+  maxOutputTokens: number;
   onEvent: EventListener;
   signal?: AbortSignal;
   runId: string;
@@ -449,5 +468,51 @@ export async function runQueuedDocumentRuntimeModuleRepair(
     summary: repairedValidation.passed
       ? 'Queued document module repair passed validation.'
       : `Queued document module repair completed with ${repairedValidation.blockingCount} blocking issue(s) and ${repairedValidation.advisoryCount} advisory issue(s) remaining.`,
+  };
+}
+
+export async function runDocumentRuntimeQualityEnrichment(
+  input: RunDocumentRuntimeQualityEnrichmentInput,
+): Promise<DocumentRuntimeRepairResult> {
+  const enriched = await streamDocumentRuntimeText({
+    model: input.model,
+    messages: [
+      buildSystemMessage(buildDocumentRuntimeSystemPrompt({
+        documentType: input.documentType,
+        designFamily: input.designFamily,
+        mode: 'quality-enrichment',
+        qualityBar: input.qualityBar,
+      }), input.systemProviderOptions),
+      {
+        role: 'user',
+        content: buildDocumentRuntimeQualityEnrichmentUserPrompt({
+          taskBrief: input.taskBrief,
+          documentType: input.documentType,
+          title: input.title,
+          html: input.html,
+          runtimeParts: input.runtimeParts,
+          qualityBar: input.qualityBar,
+        }),
+      },
+    ],
+    maxOutputTokens: input.maxOutputTokens,
+    ...(input.signal ? { signal: input.signal } : {}),
+    onChunk: (chunk) => input.onEvent({ type: 'streaming', stepId: 'quality-polish', chunk }),
+  });
+
+  const html = extractDocumentSource(enriched);
+  const outputValidation = validateDocumentRuntimeOutput(html);
+  const moduleValidation = validateDocumentRuntimeModules(html, input.runtimeParts);
+  const validation = !outputValidation.passed ? outputValidation : moduleValidation;
+  const repaired = html.trim() !== input.html.trim() && outputValidation.passed && moduleValidation.passed;
+
+  return {
+    html,
+    repairCount: repaired ? 1 : 0,
+    repaired,
+    validation,
+    summary: repaired
+      ? 'Bounded document quality enrichment passed validation.'
+      : `Bounded document quality enrichment did not produce a valid improvement: ${validation.summary}`,
   };
 }
