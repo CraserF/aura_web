@@ -221,6 +221,9 @@ export type {
   DesignManifest,
   DocumentModuleBlueprint,
   DocumentModuleRole,
+  PresentationNarrativePlan,
+  PresentationSlideBlueprint,
+  PresentationSlideRole,
   RuntimeOutputMode,
   ValidationGate,
 } from './types';

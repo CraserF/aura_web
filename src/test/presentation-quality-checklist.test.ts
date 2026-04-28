@@ -113,5 +113,13 @@ describe('presentation quality checklist', () => {
     expect(checklist.qualityScore).toBeLessThan(plan.qualityBar.acceptanceThresholds.minimumScore);
     expect(checklist.qualitySignals?.find((signal) => signal.id === 'visual-richness')?.passed).toBe(false);
     expect(checklist.checks.map((check) => check.id)).toContain('excellence-visual');
+    expect(checklist.checks.find((check) => check.id === 'excellence-pattern-advisories')).toEqual(expect.objectContaining({
+      passed: false,
+      advisoryCount: expect.any(Number),
+      details: expect.arrayContaining([
+        expect.stringContaining('Repeated card grid risk'),
+        expect.stringContaining('No integrated visuals detected'),
+      ]),
+    }));
   });
 });

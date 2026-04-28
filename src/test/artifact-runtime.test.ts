@@ -70,14 +70,35 @@ describe('ArtifactRuntime plan', () => {
     expect(plan.designManifest.typography.coverH1Px).toBe('76-96');
     expect(plan.designManifest.motionBudget.reducedMotionRequired).toBe(true);
     expect(plan.workQueue).toHaveLength(3);
+    expect(plan.presentationNarrativePlan).toEqual(expect.objectContaining({
+      promise: expect.stringContaining('analytical reviewers'),
+      arc: expect.stringContaining('Open with a strong promise'),
+      visualMotif: expect.stringContaining(plan.designManifest.colors.accent),
+    }));
+    expect(plan.presentationNarrativePlan?.slideRoles.map((slide) => slide.role)).toEqual([
+      'title-scene',
+      'problem',
+      'closing-action',
+    ]);
+    expect(plan.workQueue[0]?.presentationSlideBlueprint).toEqual(expect.objectContaining({
+      role: 'title-scene',
+      layoutPattern: expect.stringContaining('title scene'),
+      motifInstruction: expect.stringContaining('Establish the reusable motif'),
+    }));
+    expect(plan.workQueue[1]?.presentationSlideBlueprint).toEqual(expect.objectContaining({
+      continuityInstruction: expect.stringContaining('Preserve shared tokens'),
+    }));
     expect(plan.validationGates[0]?.checks).toContain('Slide count matches assembled section count.');
     expect(plan.validationGates.map((gate) => gate.id)).toContain('presentation-excellence-contract');
 
-    expect(buildSlideBriefsFromRunPlan(plan).map((brief) => brief.title)).toEqual([
+    const slideBriefs = buildSlideBriefsFromRunPlan(plan);
+    expect(slideBriefs.map((brief) => brief.title)).toEqual([
       'Opening thesis',
       'Market gap',
       'Next steps',
     ]);
+    expect(slideBriefs[0]?.visualGuidance).toContain('Slide role: title-scene');
+    expect(slideBriefs[1]?.contentGuidance).toContain('Narrative beat:');
   });
 
   it('uses constrained provider policy for local presentation generation', () => {

@@ -6,7 +6,7 @@ import {
   buildQualityBarContractPack,
   buildValidatorFeedbackPack,
 } from '@/services/artifactRuntime/promptPacks';
-import type { ArtifactRunPlan, TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
+import type { ArtifactRunPlan, PresentationSlideBlueprint, TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
 
 interface PresentationPromptBaseInput {
   runPlan?: ArtifactRunPlan;
@@ -106,6 +106,42 @@ Avoid: ${antiPatterns}
 ${stylePack ? `Style traits: ${stylePack.summary} Typography: ${stylePack.typography.join(' ')} Layout: ${stylePack.layoutRules.join(' ')} Motion: ${stylePack.motionRules.join(' ')}` : ''}`;
 }
 
+function buildNarrativePlanPack(input: PresentationPromptBaseInput): string {
+  const narrativePlan = input.runPlan?.presentationNarrativePlan;
+  if (!narrativePlan) return '';
+
+  const roles = narrativePlan.slideRoles
+    .slice(0, 8)
+    .map((entry) => `${entry.slideId}: ${entry.role} (${entry.title})`)
+    .join('; ');
+  const layouts = narrativePlan.layoutMap
+    .slice(0, 8)
+    .map((entry) => `${entry.slideId}: ${entry.layoutPattern}`)
+    .join('; ');
+
+  return `## DECK NARRATIVE PLAN
+
+Promise: ${narrativePlan.promise}
+Audience: ${narrativePlan.audience}
+Arc: ${narrativePlan.arc}
+Visual motif: ${narrativePlan.visualMotif}
+Slide roles: ${roles}
+Layout map: ${layouts}
+Continuity rules: ${narrativePlan.continuityRules.join(' ')}`;
+}
+
+function buildSlideBlueprintPack(blueprint?: PresentationSlideBlueprint): string {
+  if (!blueprint) return '';
+
+  return `## SLIDE BLUEPRINT
+
+Role: ${blueprint.role}
+Narrative beat: ${blueprint.narrativeBeat}
+Layout pattern: ${blueprint.layoutPattern}
+Motif: ${blueprint.motifInstruction}
+Continuity: ${blueprint.continuityInstruction}`;
+}
+
 function buildFinalFormatPack(): string {
   return `## FINAL FORMAT CHECK
 
@@ -151,6 +187,7 @@ export function buildPresentationCreateSystemPrompt(input: PresentationPromptBas
     buildPresentationFragmentContractPack(guidanceFrom(input)),
     buildDesignManifestPack(input),
     buildStyleFamilyPack(input),
+    buildNarrativePlanPack(input),
     buildQualityBarContractPack(input.runPlan?.qualityBar),
     buildMobileStagePack(),
     `## CREATE MODE
@@ -190,6 +227,7 @@ export function buildPresentationEditSystemPrompt(input: PresentationPromptBaseI
     buildPresentationFragmentContractPack(guidanceFrom(input)),
     buildDesignManifestPack(input),
     buildStyleFamilyPack(input),
+    buildNarrativePlanPack(input),
     buildQualityBarContractPack(input.runPlan?.qualityBar),
     buildMobileStagePack(),
     isRestyle
@@ -266,15 +304,22 @@ ${input.brief.visualGuidance ? `Visual guidance: ${input.brief.visualGuidance}` 
 ${qualityLine}
 
 Generate exactly one \`<section>\` for this slide.`;
+  const slideBlueprint = input.runPlan?.workQueue
+    .find((part) => part.kind === 'slide' && part.orderIndex === input.brief.index - 1)
+    ?.presentationSlideBlueprint;
 
   if (input.brief.index === 1 || !input.sharedStyleBlock) {
     return buildPrompt([
+      buildNarrativePlanPack(input),
+      buildSlideBlueprintPack(slideBlueprint),
       slideTask,
       'This first slide establishes the reusable deck style system. Include the shared `<style>` block and one section.',
     ]);
   }
 
   return buildPrompt([
+    buildNarrativePlanPack(input),
+    buildSlideBlueprintPack(slideBlueprint),
     slideTask,
     `Shared deck style from slide 1:
 \`\`\`html

@@ -33,9 +33,12 @@ Aura should keep the new `ArtifactRuntime` structure, but generated artifacts mu
 - [x] Added deterministic document quality polish and presentation LLM-polish routing for premium/frontier runs.
 - [x] Added document content blueprints with per-module role, word-budget, evidence, component, and rhythm guidance.
 - [x] Added bounded premium/frontier document LLM enrichment after deterministic polish when quality remains below the bar.
+- [x] Added deck-level narrative plans with promise, audience, arc, motif, slide roles, layout map, and continuity rules.
+- [x] Added explicit deterministic presentation polish advisories for weak title scenes, repeated grids, missing visuals, missing transitions, and weak class/token continuity.
 - [x] Verified with:
   - `npm test -- artifact-runtime prompt-contracts runtime-telemetry document-quality-checklist presentation-quality-checklist spreadsheet-runtime`
   - `npm test -- artifact-runtime prompt-contracts document-quality-checklist document-runtime-workflow runtime-telemetry quality-decision`
+  - `npm test -- artifact-runtime prompt-contracts presentation-quality-checklist presentation-runtime-policy`
   - `npm run typecheck`
   - `npm test`
   - `npm run build`
@@ -134,7 +137,7 @@ Already started:
 
 Implementation checklist:
 
-- [ ] Add a deck-level narrative plan before slide generation:
+- [x] Add a deck-level narrative plan before slide generation:
   - promise;
   - audience;
   - arc;
@@ -142,10 +145,10 @@ Implementation checklist:
   - slide roles;
   - layout map;
   - continuity rules.
-- [ ] Ensure slide 1 establishes the design system and reusable motif.
-- [ ] Ensure later slides vary layout while preserving tokens, motif, and class vocabulary.
-- [ ] Add an art-director/evaluator pass for premium/frontier runs when quality score is below threshold, even if mechanical QA passed.
-- [ ] Add deterministic polish advisories for:
+- [x] Ensure slide 1 establishes the design system and reusable motif.
+- [x] Ensure later slides vary layout while preserving tokens, motif, and class vocabulary.
+- [x] Add an art-director/evaluator pass for premium/frontier runs when quality score is below threshold, even if mechanical QA passed.
+- [x] Add deterministic polish advisories for:
   - weak title scene;
   - repeated card grids;
   - no integrated visuals;
@@ -154,10 +157,10 @@ Implementation checklist:
 
 Acceptance criteria:
 
-- [ ] Queued decks produce varied slide roles and continuity.
-- [ ] Title/opening slides have strong scene composition.
-- [ ] Repeated-grid decks trigger quality advisories or polishing.
-- [ ] Premium/frontier decks get a bounded quality pass when needed.
+- [~] Queued decks produce varied slide roles and continuity. Runtime planning and prompt contracts are covered; generated-deck manual validation is pending.
+- [~] Title/opening slides have strong scene composition. Slide 1 prompt/blueprint rules are covered; generated-deck manual validation is pending.
+- [x] Repeated-grid decks trigger quality advisories or polishing.
+- [x] Premium/frontier decks get a bounded quality pass when needed.
 
 ## Workstream 4: Spreadsheet Craft
 
@@ -279,14 +282,14 @@ Acceptance criteria:
 
 ## Next Recommended Slice
 
-Continue with Workstream 3 now that Workstream 2 has content blueprints, deterministic enrichment, and bounded premium/frontier document LLM enrichment.
+Continue with the Workstream 3 benchmark slice now that presentation narrative planning and deterministic advisories are attached to runtime diagnostics.
 
 Recommended order:
 
-1. Add deck-level narrative plans with slide roles and layout maps.
-2. Ensure slide 1 establishes the deck motif and later slides vary layout while preserving tokens.
-3. Strengthen presentation art-director prompts and compare pre/post quality score.
-4. Run one manual document benchmark to move Workstream 2 acceptance from `[~]` to `[x]`.
-5. Run one manual deck benchmark against starter/example quality targets.
+1. Run one manual deck benchmark against starter/example quality targets.
+2. Compare presentation art-director pre/post quality score and log whether the bounded pass visibly improves boring decks.
+3. Run one manual document benchmark to move Workstream 2 acceptance from `[~]` to `[x]`.
+4. Backfill Workstream 1 manual validation evidence from generated artifacts.
+5. Start Workstream 4 spreadsheet craft once presentation manual benchmarks are logged.
 
 This order builds on the active quality-decision foundation and moves the biggest remaining quality gains into the generated artifact structure itself.

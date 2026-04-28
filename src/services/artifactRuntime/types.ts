@@ -146,6 +146,43 @@ export interface DocumentModuleBlueprint {
   visualRhythmInstruction: string;
 }
 
+export type PresentationSlideRole =
+  | 'title-scene'
+  | 'context'
+  | 'problem'
+  | 'metric-proof'
+  | 'comparison'
+  | 'mechanism'
+  | 'recommendation'
+  | 'timeline'
+  | 'closing-action'
+  | 'content';
+
+export interface PresentationSlideBlueprint {
+  role: PresentationSlideRole;
+  narrativeBeat: string;
+  layoutPattern: string;
+  motifInstruction: string;
+  continuityInstruction: string;
+}
+
+export interface PresentationNarrativePlan {
+  promise: string;
+  audience: string;
+  arc: string;
+  visualMotif: string;
+  slideRoles: Array<{
+    slideId: string;
+    title: string;
+    role: PresentationSlideRole;
+  }>;
+  layoutMap: Array<{
+    slideId: string;
+    layoutPattern: string;
+  }>;
+  continuityRules: string[];
+}
+
 export type QueuedWorkStatus = 'pending' | 'active' | 'done' | 'blocked';
 
 export interface QueuedWorkItem {
@@ -291,6 +328,7 @@ export interface ArtifactPart {
   sourceWorkItemId?: QueuedWorkItem['id'];
   recipeId?: PresentationRecipeId;
   documentModuleBlueprint?: DocumentModuleBlueprint;
+  presentationSlideBlueprint?: PresentationSlideBlueprint;
 }
 
 export interface ValidationGate {
@@ -327,6 +365,7 @@ export interface ArtifactRunPlan {
   providerPolicy: ArtifactProviderPolicy;
   designManifest: DesignManifest;
   qualityBar: ArtifactQualityBar;
+  presentationNarrativePlan?: PresentationNarrativePlan;
   workQueue: ArtifactPart[];
   validationGates: ValidationGate[];
   metricsBudget: ArtifactRuntimeMetricsBudget;

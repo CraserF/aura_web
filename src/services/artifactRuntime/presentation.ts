@@ -15,15 +15,24 @@ export function buildSlideBriefsFromRunPlan(runPlan: ArtifactRunPlan): SlideBrie
   return runPlan.workQueue
     .filter((part) => part.kind === 'slide')
     .sort((a, b) => a.orderIndex - b.orderIndex)
-    .map((part, index) => ({
-      index: index + 1,
-      title: part.title,
-      contentGuidance: part.brief,
-      visualGuidance: [
-        part.recipeId ? `Use the ${part.recipeId} slide recipe.` : undefined,
-        `Stay inside the ${runPlan.designManifest.family} deck design manifest.`,
-      ].filter(Boolean).join(' '),
-    }));
+    .map((part, index) => {
+      const blueprint = part.presentationSlideBlueprint;
+      return {
+        index: index + 1,
+        title: part.title,
+        contentGuidance: [
+          part.brief,
+          blueprint ? `Narrative beat: ${blueprint.narrativeBeat}` : undefined,
+        ].filter(Boolean).join(' '),
+        visualGuidance: [
+          part.recipeId ? `Use the ${part.recipeId} slide recipe.` : undefined,
+          blueprint ? `Slide role: ${blueprint.role}. Layout: ${blueprint.layoutPattern}.` : undefined,
+          blueprint?.motifInstruction,
+          blueprint?.continuityInstruction,
+          `Stay inside the ${runPlan.designManifest.family} deck design manifest.`,
+        ].filter(Boolean).join(' '),
+      };
+    });
 }
 
 export function applyArtifactRunPlanToPresentationPlan(
@@ -42,7 +51,10 @@ export function applyArtifactRunPlanToPresentationPlan(
     `Design family: ${runPlan.designManifest.family}`,
     `Provider mode: ${runPlan.providerPolicy.mode}`,
     `Validation gate: ${runPlan.validationGates[0]?.label ?? 'presentation quality'}`,
-  ].join('\n');
+    runPlan.presentationNarrativePlan
+      ? `Narrative promise: ${runPlan.presentationNarrativePlan.promise}`
+      : undefined,
+  ].filter(Boolean).join('\n');
   const selectedTemplate = runPlan.templateGuidance.selectedTemplateId ?? planResult.selectedTemplate;
   const exemplarPackId = runPlan.templateGuidance.exemplarPackId ?? planResult.exemplarPackId;
 

@@ -31,6 +31,7 @@ export interface PresentationQualityCheck {
     | 'prompt-estimate'
     | 'excellence-visual'
     | 'excellence-narrative'
+    | 'excellence-pattern-advisories'
     | 'excellence-score';
   label: string;
   passed: boolean;
@@ -242,6 +243,7 @@ function buildPresentationQualitySignals(input: {
 }
 
 function buildPresentationExcellenceChecks(input: {
+  html: string;
   qualityBar: ArtifactQualityBar;
   signals: ArtifactQualitySignalScore[];
   score: number;
@@ -257,6 +259,22 @@ function buildPresentationExcellenceChecks(input: {
     signal('narrative-coherence'),
     signal('continuity'),
   ].filter((entry): entry is ArtifactQualitySignalScore => Boolean(entry && !entry.passed));
+  const sections = extractSections(input.html);
+  const firstSection = sections[0] ?? '';
+  const hasStrongTitleScene = /<h1\b|title|cover|opening|lockup|hero/i.test(firstSection) && stripHtml(firstSection).length >= 24;
+  const repeatedGridRisk = countRepeatedCardGridRisk(sections);
+  const integratedVisualCount = sections.filter((section) => /<svg\b|diagram|scene|visual|map|path|node|timeline|chart/i.test(section)).length;
+  const sharedClassCount = countSharedClassContinuity(sections);
+  const transitionCount = sections.slice(1).filter((section) =>
+    /\b(?:therefore|next|now|then|because|bridge|path forward|leads to|sets up|shifts? from|moves? from)\b/i.test(stripHtml(section)),
+  ).length;
+  const patternAdvisories = [
+    !hasStrongTitleScene ? 'Weak title scene: opening slide lacks a clear hero/title composition.' : undefined,
+    repeatedGridRisk > 0 ? `Repeated card grid risk: ${repeatedGridRisk} slide(s) use card walls without integrated visuals.` : undefined,
+    integratedVisualCount === 0 ? 'No integrated visuals detected: add an inline SVG, diagram, timeline, chart, scene, or visual model when useful.' : undefined,
+    sections.length > 2 && transitionCount === 0 ? 'No narrative transition language detected between slides.' : undefined,
+    sections.length > 1 && sharedClassCount < 2 ? `Poor class/token continuity: only ${sharedClassCount} shared class token(s) detected.` : undefined,
+  ].filter((detail): detail is string => Boolean(detail));
 
   return [
     {
@@ -274,6 +292,14 @@ function buildPresentationExcellenceChecks(input: {
       blockingCount: 0,
       advisoryCount: narrativeFailures.length,
       details: narrativeFailures.map((entry) => `${entry.label}: ${entry.detail}`),
+    },
+    {
+      id: 'excellence-pattern-advisories',
+      label: 'Presentation deterministic polish advisories',
+      passed: patternAdvisories.length === 0,
+      blockingCount: 0,
+      advisoryCount: patternAdvisories.length,
+      details: patternAdvisories,
     },
     {
       id: 'excellence-score',
@@ -313,6 +339,7 @@ export function buildPresentationQualityChecklist(
     : undefined;
   if (input.qualityBar && qualitySignals && qualitySummary) {
     checks.push(...buildPresentationExcellenceChecks({
+      html: input.html,
       qualityBar: input.qualityBar,
       signals: qualitySignals,
       score: qualitySummary.score,

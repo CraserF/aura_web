@@ -109,10 +109,15 @@ describe('artifact prompt contracts', () => {
     });
 
     expect(createPrompt).toContain('DESIGN MANIFEST');
+    expect(createPrompt).toContain('DECK NARRATIVE PLAN');
     expect(createPrompt).toContain('QUALITY BAR');
     expect(createPrompt).toContain(`Family: ${runPlan.designManifest.family}`);
     expect(createPrompt).toContain('fixed 16:9 Reveal stage');
     expect(createPrompt).toContain('reduced-motion CSS is required');
+    expect(followUpPrompt).toContain('DECK NARRATIVE PLAN');
+    expect(followUpPrompt).toContain('SLIDE BLUEPRINT');
+    expect(followUpPrompt).toContain('Role:');
+    expect(followUpPrompt).toContain('Continuity:');
     expect(createPrompt.length).toBeLessThanOrEqual(6500);
     expect(editPrompt.length).toBeLessThanOrEqual(6500);
     expect(followUpPrompt.length).toBeLessThanOrEqual(3500);
