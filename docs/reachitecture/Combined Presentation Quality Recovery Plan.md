@@ -172,6 +172,7 @@ Status legend:
 | 1. Compact presentation design knowledge | `[x]` | Claude / 2026-04-28 | `prompt-contracts.test.ts` — 7 tests pass; createPrompt contains PRESENTATION DESIGN VOCABULARY, title/cover recipe, data-band, footer-rail; slide 1 batch prompt includes full vocabulary; editPrompt contains EDIT DESIGN GUIDANCE | Added `buildPresentationDesignKnowledgePack()` and `buildPresentationEditDesignGuidancePack()` to `presentationPrompts.ts`; wired into create, edit, and batch slide 1 prompts; cap updated to 8.5 KB. |
 | 2. Remove first-draft quality suppression | `[x]` | Claude / 2026-04-28 | `prompt-contracts.test.ts` — asserts old phrase absent, new phrase present; all 611 tests pass | Replaced "Keep structure simple enough for another agent pass to validate and repair." with "Produce finished, visually polished output. Do not simplify for a repair pass." in `promptPacks.ts`. |
 | 3. Shared single/queued finalization | `[ ]` | — | — | Must run deterministic repair, validation, quality scoring, and no-regression checks for single-slide path. |
+| 3A. CSS/design contract gate | `[ ]` | — | — | Add a named deterministic CSS/design validation step so style quality is not only prompt-dependent. |
 | 4. Soften `submitFinalSlide` after finalization is safe | `[ ]` | — | — | Must not begin until Step 3 is complete. |
 | 5. Evaluator context and deterministic-signal revision | `[~]` | Claude / 2026-04-28 | `evaluator.ts` truncation default raised from 800 to 3000 chars; all tests pass | CSS visibility fix done. Deterministic-signal-led revision (named failure signals, revision prompt routing) not yet implemented. |
 | 6. Queue real deck prompts by default | `[ ]` | — | — | Deck/keynote/presentation prompts should produce queued work unless clearly single-slide. |
@@ -259,6 +260,10 @@ Prompt placement:
 - Batch slide prompt:
   - slide 1 receives the full compact design knowledge and must establish shared variables/classes/motif;
   - later slides receive only the slide blueprint, shared style summary, previous-slide summary, and compact "reuse and vary" rules.
+- Fresh deck creation and add-slide edits must be distinguished:
+  - the first generated slide of a fresh deck may establish the shared `<style>` block;
+  - the first generated slide appended to an existing deck must receive the existing shared style summary and must not be prompted as a new style-system seed;
+  - `runBatchQueue()` should pass existing `initialHtml` style context into the first appended slide instead of relying only on loop index or `brief.index`.
 - Previous-slide summaries should include:
   - slide role;
   - main narrative beat;
@@ -375,6 +380,87 @@ Acceptance criteria:
 - Any LLM quality polish that lowers quality score is discarded.
 - `reviewPassed` reflects the final validation, not the pre-repair validation.
 - Tests prove queued and single paths use the same finalization semantics.
+
+### Step 3A: Add A CSS/Design Contract Gate
+
+Goal: make CSS and design-system correctness an explicit runtime step, not just a prompt instruction or a buried QA advisory.
+
+Rationale:
+
+- The current code has useful CSS checks in `qa-validator.ts`, including style block presence, viewport unit warnings, tiny source type, reduced motion, keyframe budget, CSS variable hints, and background-color validation.
+- Those checks are currently part of generic QA rather than a named workflow stage with clear telemetry and repair routing.
+- Step 1 adds stronger CSS/design prompt vocabulary, but prompt guidance alone cannot prevent invalid CSS, duplicated deck style systems, unreadable typography, or design drift across queued slides.
+
+Files:
+
+- `src/services/ai/workflow/agents/qa-validator.ts`
+- `src/services/artifactRuntime/presentationQualityChecklist.ts`
+- `src/services/artifactRuntime/presentationRuntime.ts`
+- `src/services/artifactRuntime/presentationPrompts.ts`
+- `src/services/ai/workflow/batchQueue.ts`
+- `src/services/chat/workflowProgress.ts`
+- `src/components/AIWorkingIndicator.tsx`
+- `src/test/prompt-contracts.test.ts`
+- `src/test/presentation-quality-checklist.test.ts`
+- `src/test/presentation-runtime-workflow.test.ts`
+- `src/test/workflow-progress.test.ts`
+
+Implementation details:
+
+- Add a named CSS/design contract result that can be computed for single-slide and queued deck output.
+- The contract should validate:
+  - one usable `<style>` block for a new deck or a clear shared style source for appended slides;
+  - no inline `style=` attributes on slide content;
+  - no external CSS, `@import`, remote `url(...)`, scripts, or asset links;
+  - no viewport-unit layout/type sizing inside the fixed 16:9 stage;
+  - no tiny source font sizes below the readable threshold;
+  - concrete `data-background-color` values on every section;
+  - reduced-motion fallback when animation exists;
+  - bounded keyframe/animation count;
+  - intentional motion, not mandatory motion; static slides should pass when visual quality is otherwise strong;
+  - reusable CSS variable tokens and semantic class families;
+  - no full duplicate root/style systems appended to every queued slide;
+  - shared class/token continuity across deck slides;
+  - extension style blocks are small and scoped when later slides need one new class.
+- Fix the add-slide prompt continuity edge case as part of this gate:
+  - when `initialHtml` exists, the first queued new slide is an appended slide, not a style-system seed;
+  - pass `sharedStyleBlock` or an explicit `existingDeckStyleBlock` into `buildPresentationBatchSlidePrompt()` for the first appended slide;
+  - avoid the "This first slide establishes the reusable deck style system" branch for appended slides even if `brief.index === 1` or it is the first loop iteration;
+  - assert that appended-slide prompts contain existing class/token guidance and do not contain the full fresh-deck design vocabulary unless a restyle request explicitly asks for it.
+- Emit a runtime part or progress event with a stable id such as `css-design-contract`.
+- Map the default UI label to "Checking quality" unless an advanced diagnostic view is open.
+- Route CSS/design failures into deterministic repair first when safe:
+  - strip unsupported external CSS;
+  - add reduced-motion fallback;
+  - replace variable `data-background-color` values with concrete hex values;
+  - remove empty optional shells;
+  - preserve structural/decorative containers.
+- Route non-deterministic CSS/design failures into Step 5's bounded revision path as named deterministic failures.
+- Keep this as a gate before optional quality polish. A model polish pass should not run on CSS that is mechanically unsafe.
+- Align the existing animation advisory with this contract: do not require every slide to contain 2-3 keyframe animations, but do require reduced-motion handling and bounded motion whenever animation is present.
+
+Named CSS/design issue ids:
+
+- `missing-style-system`
+- `inline-style-leak`
+- `external-css-or-asset`
+- `viewport-unit-layout`
+- `tiny-source-type`
+- `missing-reduced-motion`
+- `animation-budget-risk`
+- `duplicate-root-style-system`
+- `append-slide-style-reset`
+- `weak-class-continuity`
+- `unscoped-extension-style`
+
+Acceptance criteria:
+
+- Single-slide create and edit outputs record CSS/design contract telemetry.
+- Queued decks record CSS/design contract telemetry for the assembled deck and, where useful, by slide.
+- CSS/design failures are visible in advanced diagnostics and benchmark scorecards.
+- Mechanically unsafe CSS/design failures block optional polish until repaired or classified.
+- Tests cover viewport-unit CSS, missing reduced-motion, duplicated root styles across queued slides, weak class continuity, and the first appended queued slide preserving the existing deck style context.
+- Default user-facing progress remains simple and does not expose raw CSS jargon.
 
 ### Step 4: Then Soften `submitFinalSlide` Tool Rejection
 
@@ -734,13 +820,14 @@ Acceptance criteria:
 
 1. Step 1 plus Step 2: compact design knowledge and prompt wording.
 2. Step 3: shared finalization for single and queued presentation paths.
-3. Step 4: soften ToolLoopAgent submit gate after finalization is safe.
-4. Step 5: evaluator truncation and deterministic-signal-led revision.
-5. Step 6: default queued deck behavior for deck-like prompts.
-6. Step 7 plus Step 8: explicit budgets and calibrated provider policy.
-7. Step 9: automated Ollama benchmark harness.
-8. Step 10: surface outcomes and manual Improve.
-9. Step 11: manual visual validation and status-document updates.
+3. Step 3A: CSS/design contract gate and appended-slide style continuity.
+4. Step 4: soften ToolLoopAgent submit gate after finalization is safe.
+5. Step 5: evaluator truncation and deterministic-signal-led revision.
+6. Step 6: default queued deck behavior for deck-like prompts.
+7. Step 7 plus Step 8: explicit budgets and calibrated provider policy.
+8. Step 9: automated Ollama benchmark harness.
+9. Step 10: surface outcomes and manual Improve.
+10. Step 11: manual visual validation and status-document updates.
 
 This order keeps the first slice focused on the highest-confidence quality regression, then closes safety holes before changing loop behavior, then broadens into deck orchestration and benchmarking.
 
@@ -752,7 +839,9 @@ This order keeps the first slice focused on the highest-confidence quality regre
   - compact design knowledge is present;
   - old broad prompt markers stay absent;
   - old "simplify for repair" instruction stays absent;
-  - prompt sizes stay within explicit caps.
+  - prompt sizes stay within explicit caps;
+  - fresh deck slide 1 prompts may seed the style system;
+  - appended queued slide prompts reuse existing shared style and do not ask for a new style system.
 - `workflow-planner`
   - deck-like prompts without slide counts queue by default;
   - explicit single-slide prompts remain single-slide;
@@ -766,8 +855,12 @@ This order keeps the first slice focused on the highest-confidence quality regre
   - single-slide edit uses deterministic repair before finalization;
   - post-revision validation rejects unsafe output;
   - quality polish accepts only non-regressing output;
-  - soft ToolLoopAgent acceptance still results in final runtime validation.
+  - soft ToolLoopAgent acceptance still results in final runtime validation;
+  - queued add-slide edits pass existing style context to the first newly generated slide.
 - `presentation-quality-checklist`
+  - CSS/design contract issue ids are emitted for unsafe or drifting CSS;
+  - duplicated root styles and weak token continuity fail the right CSS/design signals;
+  - static but visually complete slides do not fail solely because they lack keyframes;
   - weak opening scenes fail the right signal;
   - repeated-grid risk remains detectable;
   - missing integrated visuals remain detectable;
@@ -783,7 +876,7 @@ This order keeps the first slice focused on the highest-confidence quality regre
 - stage-setting/context slide create;
 - narrative deck create without explicit slide count;
 - metrics-heavy deck create;
-- queued add-slides edit preserving old slides;
+- queued add-slides edit preserving old slides and existing style tokens;
 - restyle preserving text;
 - local/Ollama policy path using mocked provider capability;
 - visible quality outcome after budget exhaustion;
