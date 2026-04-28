@@ -33,7 +33,7 @@ describe('AIWorkingIndicator runtime progress labels', () => {
     useChatStore.getState().setStatus({ state: 'idle' });
   });
 
-  it('shows slide-specific repair completion labels as workflow steps', () => {
+  it('keeps runtime repair details out of public progress labels', () => {
     act(() => {
       useChatStore.getState().setStatus({
         state: 'generating',
@@ -51,8 +51,9 @@ describe('AIWorkingIndicator runtime progress labels', () => {
 
     const view = renderIndicator();
 
-    expect(view.container.textContent).toContain('Repairing slide 1 fragment.');
-    expect(view.container.textContent).toContain('Repaired slide 1 fragment.');
+    expect(view.container.textContent).toContain('Polishing quality');
+    expect(view.container.textContent).not.toContain('Repairing slide 1 fragment.');
+    expect(view.container.textContent).not.toContain('Repaired slide 1 fragment.');
 
     view.unmount();
   });

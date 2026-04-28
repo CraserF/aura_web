@@ -25,6 +25,9 @@ const GENERIC_RUNTIME_LABELS = [
   /^executing spreadsheet runtime part\.?$/i,
   /^spreadsheet runtime summary finalized\.?$/i,
   /^applying deterministic document (?:module )?repair\.?$/i,
+  /^repair(?:ing|ed) slide \d+/i,
+  /^running final qa checks/i,
+  /^slide \d+ of \d+ complete/i,
 ];
 
 export interface RuntimeWorkflowStepUpdate {
@@ -52,6 +55,43 @@ export function humanizeWorkflowStepId(stepId: string): string {
   return stepId
     .replace(/[-_]+/g, ' ')
     .replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+}
+
+/**
+ * Convert detailed runtime labels into the small public vocabulary used by the
+ * chat progress UI. Detailed scores, repair causes, and failure IDs stay in
+ * advanced diagnostics/run history.
+ */
+export function publicWorkflowProgressLabel(input: {
+  stepId?: string;
+  label?: string;
+}): string {
+  const stepId = input.stepId?.trim();
+  const label = input.label?.trim();
+  const text = `${stepId ?? ''} ${label ?? ''}`.trim();
+
+  if (stepId) {
+    if (/^(?:plan|document-outline)$/i.test(stepId)) return 'Planning';
+    if (/^document-modules$/i.test(stepId)) return label || 'Document modules';
+    if (/^(?:design|targeted-design|generate|slide-\d+)$/i.test(stepId)) {
+      return /\b(?:repair(?:ing|ed)?|revise|revised|revision|polish(?:ing|ed)?|retry(?:ing)?)\b/i.test(text)
+        ? 'Polishing quality'
+        : 'Creating slides';
+    }
+    if (/^(?:qa|qa-validate|evaluate|review|document-validation|validation)$/i.test(stepId)) {
+      return 'Checking quality';
+    }
+    if (/^(?:revise|document-repair)$/i.test(stepId)) return 'Polishing quality';
+    if (/^finalize$/i.test(stepId)) return 'Finishing';
+  }
+
+  if (/\b(?:plan|planning|understanding)\b/i.test(text)) return 'Planning';
+  if (/\b(?:repair(?:ing|ed)?|revise|revised|revision|polish(?:ing|ed)?|retry(?:ing)?)\b/i.test(text)) return 'Polishing quality';
+  if (/\b(?:quality|qa|check|checking|review|evaluate|validation|validate|safe|contract)\b/i.test(text)) return 'Checking quality';
+  if (/\b(?:finish|final|finalizing)\b/i.test(text)) return 'Finishing';
+  if (/\b(?:create|creating|generate|generating|craft|crafting|write|writing|slide|draft)\b/i.test(text)) return 'Creating slides';
+
+  return label || 'Working...';
 }
 
 export function workflowStepUpdateFromRuntimeEvent(

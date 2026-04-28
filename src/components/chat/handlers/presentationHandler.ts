@@ -10,7 +10,7 @@
  */
 
 import type { ProjectDocument } from '@/types/project';
-import type { GenerationStatus, WorkflowStep } from '@/types';
+import type { ClarifyOption, GenerationStatus, WorkflowStep } from '@/types';
 import type { AIMessage } from '@/services/ai/types';
 import type { LLMConfig } from '@/services/ai/workflow/types';
 import type { WorkflowEvent } from '@/services/ai/workflow';
@@ -22,11 +22,12 @@ import { useProjectStore } from '@/stores/projectStore';
 import type { RunRequest } from '@/services/runs/types';
 import type { RunResult } from '@/services/contracts/runResult';
 import { resolveTargets } from '@/services/editing/resolveTargets';
-import { workflowStepUpdateFromRuntimeEvent } from '@/services/chat/workflowProgress';
+import { publicWorkflowProgressLabel, workflowStepUpdateFromRuntimeEvent } from '@/services/chat/workflowProgress';
 import { validateArtifactAgainstProfile } from '@/services/validation';
 import { summarizeValidationResult } from '@/services/validation/profiles';
 import { deriveLifecycleFromValidation } from '@/services/lifecycle/state';
 import { formatRuntimeQualityDiagnostics } from '@/services/artifactRuntime';
+import { qualityOutcomeLabel } from '@/services/chat/renderRunResult';
 
 export interface PresentationHandlerContext {
   runRequest: RunRequest;
@@ -137,13 +138,23 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
 
       switch (event.type) {
         case 'step-start':
-          setStatus({ state: 'generating', startedAt: Date.now(), step: event.label, steps: [...workflowStepsRef.current] });
+          setStatus({
+            state: 'generating',
+            startedAt: Date.now(),
+            step: publicWorkflowProgressLabel({ stepId: event.stepId, label: event.label }),
+            steps: [...workflowStepsRef.current],
+          });
           break;
         case 'step-done':
           setStatus({ state: 'generating', startedAt: Date.now(), steps: [...workflowStepsRef.current] });
           break;
         case 'step-error':
-          setStatus({ state: 'generating', startedAt: Date.now(), step: event.error, steps: [...workflowStepsRef.current] });
+          setStatus({
+            state: 'generating',
+            startedAt: Date.now(),
+            step: publicWorkflowProgressLabel({ stepId: event.stepId, label: event.error }),
+            steps: [...workflowStepsRef.current],
+          });
           break;
         case 'step-skipped':
           setStatus({ state: 'generating', startedAt: Date.now(), steps: [...workflowStepsRef.current] });
@@ -152,24 +163,40 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
           workflowStepsRef.current = workflowStepsRef.current.map((s) =>
             s.id === event.stepId ? { ...s, retryAttempt: event.attempt } : s,
           );
-          setStatus({ state: 'generating', startedAt: Date.now(), step: `Retrying ${event.stepId}`, steps: [...workflowStepsRef.current] });
+          setStatus({
+            state: 'generating',
+            startedAt: Date.now(),
+            step: publicWorkflowProgressLabel({ stepId: event.stepId, label: `Retrying ${event.stepId}` }),
+            steps: [...workflowStepsRef.current],
+          });
           break;
         case 'streaming':
           appendStreamingContent(event.chunk);
           break;
         case 'draft-complete':
           if (event.html) setSlides(event.html);
-          setStatus({ state: 'generating', startedAt: Date.now(), step: 'Running final QA checks…', pct: 72, steps: [...workflowStepsRef.current] });
+          setStatus({ state: 'generating', startedAt: Date.now(), step: 'Checking quality', pct: 72, steps: [...workflowStepsRef.current] });
           break;
         case 'batch-slide-complete':
           setSlides(event.html);
-          setStatus({ state: 'generating', startedAt: Date.now(), step: `Slide ${event.slideIndex} of ${event.totalSlides} complete`, pct: Math.round(20 + (event.slideIndex / event.totalSlides) * 70), steps: [...workflowStepsRef.current] });
+          setStatus({ state: 'generating', startedAt: Date.now(), step: 'Creating slides', pct: Math.round(20 + (event.slideIndex / event.totalSlides) * 70), steps: [...workflowStepsRef.current] });
           break;
         case 'step-update':
-          setStatus({ state: 'generating', startedAt: Date.now(), step: event.label, steps: [...workflowStepsRef.current] });
+          setStatus({
+            state: 'generating',
+            startedAt: Date.now(),
+            step: publicWorkflowProgressLabel({ stepId: event.stepId, label: event.label }),
+            steps: [...workflowStepsRef.current],
+          });
           break;
         case 'progress':
-          setStatus({ state: 'generating', startedAt: Date.now(), step: event.message, pct: event.pct, steps: [...workflowStepsRef.current] });
+          setStatus({
+            state: 'generating',
+            startedAt: Date.now(),
+            step: publicWorkflowProgressLabel({ stepId: event.partId, label: event.message }),
+            pct: event.pct,
+            steps: [...workflowStepsRef.current],
+          });
           break;
       }
     };
@@ -311,6 +338,19 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
     const advancedDiagnostics = formatRuntimeQualityDiagnostics(result.runtime)
       .map((diagnostic) => diagnostic.message);
 
+    const qualityDecision = result.runtime?.qualityDecision;
+    const outcomeLabel = qualityOutcomeLabel(qualityDecision);
+    const slideCountText = result.slideCount > 0
+      ? `${result.slideCount} slide${result.slideCount !== 1 ? 's' : ''}`
+      : null;
+    const presentationContent = slideCountText
+      ? `Generated ${slideCountText}. ${outcomeLabel ?? (result.reviewPassed ? 'Looks polished.' : 'QA flagged issues.')}`
+      : 'Generation completed but no slides were produced.';
+    const improveOptions: ClarifyOption[] | undefined =
+      qualityDecision === 'safe-budget-exhausted' && result.html
+        ? [{ label: 'Improve', value: 'Please review and improve the quality of the presentation.' }]
+        : undefined;
+
     return {
       runId,
       status: 'completed',
@@ -343,9 +383,8 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         ...(publish ? { publish } : {}),
       },
       assistantMessage: {
-        content: result.html
-          ? `Generated ${result.slideCount} slides${result.reviewPassed ? '.' : ' (QA flagged issues).' }`
-          : 'Generation completed but no slides were produced.',
+        content: presentationContent,
+        ...(improveOptions ? { clarifyOptions: improveOptions } : {}),
       },
       validation,
       warnings: [

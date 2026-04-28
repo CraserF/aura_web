@@ -24,6 +24,7 @@ This document records shipped workflow-upgrade progress across the phased implem
 - `npm run lint` is still blocked by the repo-level ESLint 9 migration gap because `eslint.config.*` is missing.
 - Manual workflow validation should now use the protocol in `docs/validation/major-change-protocol.md` and the registry in `src/test/fixtures/major-change-cases.ts`; older ad hoc notes should be treated as partial evidence until backfilled through that protocol.
 - Latest Ollama baseline note (2026-04-24): the local presentation-edit path now has a bounded correction budget and best-effort draft fallback for `gemma4:e2b`, but a clean in-app scorecard rerun is still pending before the presentation-edit blocker can be cleared or reclassified.
+- Presentation quality recovery (2026-04-28): Steps 1–10 of the Combined Presentation Quality Recovery Plan are complete (110 test files, 675 tests pass). Step 11 manual visual validation is pending — at least one frontier single-slide, one frontier queued deck, one Ollama single-slide, and one Ollama queued deck benchmark run are required before the recovery workstreams can be declared complete. See `docs/validation/workflow-quality-benchmark.md` for the manual run protocol and minimum evidence requirements.
 
 ## Validation Debt
 

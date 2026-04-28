@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { WorkflowStep } from '@/types';
 import {
   humanizeWorkflowStepId,
+  publicWorkflowProgressLabel,
   upsertWorkflowStepStatus,
   workflowStepUpdateFromRuntimeEvent,
 } from '@/services/chat/workflowProgress';
+import { qualityOutcomeLabel } from '@/services/chat/renderRunResult';
 
 function seededPresentationSteps(): WorkflowStep[] {
   return [
@@ -102,7 +104,7 @@ describe('workflow progress helpers', () => {
     ]);
   });
 
-  it('preserves module-specific and slide-specific runtime labels', () => {
+  it('normalizes detailed runtime labels before they reach workflow steps', () => {
     expect(workflowStepUpdateFromRuntimeEvent({
       type: 'progress',
       message: 'Repairing slide 2 fragment.',
@@ -111,7 +113,7 @@ describe('workflow progress helpers', () => {
     })).toEqual({
       stepId: 'slide-2',
       status: 'active',
-      label: 'Repairing slide 2 fragment.',
+      label: 'Slide 2',
     });
 
     expect(workflowStepUpdateFromRuntimeEvent({
@@ -124,5 +126,53 @@ describe('workflow progress helpers', () => {
       status: 'active',
       label: 'Document module 3',
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// qualityOutcomeLabel
+// ---------------------------------------------------------------------------
+
+describe('qualityOutcomeLabel', () => {
+  it('maps safe-and-excellent to a polished label', () => {
+    expect(qualityOutcomeLabel('safe-and-excellent')).toBe('Looks polished.');
+  });
+
+  it('maps safe-needs-polish to a one-more-pass label', () => {
+    expect(qualityOutcomeLabel('safe-needs-polish')).toBe('Needs one more pass.');
+  });
+
+  it('maps safe-budget-exhausted to a plain quality miss label', () => {
+    expect(qualityOutcomeLabel('safe-budget-exhausted')).toBe('Could not meet the quality bar in time.');
+  });
+
+  it('maps blocked-by-safety to a safety failure label', () => {
+    expect(qualityOutcomeLabel('blocked-by-safety')).toBe('Could not produce a safe presentation.');
+  });
+
+  it('returns null when no quality decision is available', () => {
+    expect(qualityOutcomeLabel(undefined)).toBeNull();
+  });
+});
+
+describe('publicWorkflowProgressLabel', () => {
+  it('maps detailed presentation repair status to a simple public label', () => {
+    expect(publicWorkflowProgressLabel({
+      stepId: 'slide-1',
+      label: 'Repaired slide 1 fragment.',
+    })).toBe('Polishing quality');
+  });
+
+  it('maps final QA wording to the public quality check label', () => {
+    expect(publicWorkflowProgressLabel({
+      label: 'Running final QA checks...',
+    })).toBe('Checking quality');
+  });
+
+  it('does not label document module work as slide creation', () => {
+    expect(publicWorkflowProgressLabel({
+      stepId: 'document-modules',
+      label: 'Document modules',
+    })).toBe('Document modules');
   });
 });

@@ -64,6 +64,80 @@ describe('run result rendering and registry', () => {
     ]);
   });
 
+  it('passes clarifyOptions through when present on the assistant message', () => {
+    const result: RunResult = {
+      runId: 'run-budget-exhausted',
+      status: 'completed',
+      intent: baseIntent,
+      outputs: {
+        envelope: {
+          artifactType: 'presentation',
+          mode: 'execute',
+          targetSummary: [],
+          changedTargets: [],
+          validation: { passed: true, summary: 'Passed' },
+          presentation: { artifactType: 'presentation' },
+        },
+      },
+      assistantMessage: {
+        content: 'Generated 3 slides. Could not meet the quality bar in time.',
+        clarifyOptions: [{ label: 'Improve', value: 'Please review and improve the quality of the presentation.' }],
+      },
+      validation: { passed: true, summary: 'Passed' },
+      warnings: [],
+      changedTargets: [],
+      structuredStatus: {
+        title: 'Presentation created',
+        detail: 'Presentation workflow completed.',
+        advancedDiagnostics: ['Quality decision: safe-budget-exhausted; action: skipped-no-budget.'],
+      },
+    };
+
+    const rendered = renderRunResult(result);
+
+    // Plain outcome label visible in content
+    expect(rendered.content).toContain('Could not meet the quality bar in time.');
+    // Advanced diagnostics kept out of plain content
+    expect(rendered.content).not.toContain('safe-budget-exhausted');
+    // Improve option forwarded
+    expect(rendered.clarifyOptions).toHaveLength(1);
+    expect(rendered.clarifyOptions?.[0]?.label).toBe('Improve');
+    // Advanced diagnostics accessible via structuredStatus
+    expect(result.structuredStatus.advancedDiagnostics).toContain('Quality decision: safe-budget-exhausted; action: skipped-no-budget.');
+  });
+
+  it('does not include clarifyOptions when quality passed', () => {
+    const result: RunResult = {
+      runId: 'run-excellent',
+      status: 'completed',
+      intent: baseIntent,
+      outputs: {
+        envelope: {
+          artifactType: 'presentation',
+          mode: 'execute',
+          targetSummary: [],
+          changedTargets: [],
+          validation: { passed: true, summary: 'Passed' },
+          presentation: { artifactType: 'presentation' },
+        },
+      },
+      assistantMessage: {
+        content: 'Generated 3 slides. Looks polished.',
+      },
+      validation: { passed: true, summary: 'Passed' },
+      warnings: [],
+      changedTargets: [],
+      structuredStatus: {
+        title: 'Presentation created',
+        detail: 'Presentation workflow completed.',
+      },
+    };
+
+    const rendered = renderRunResult(result);
+    expect(rendered.clarifyOptions).toBeUndefined();
+    expect(rendered.content).toContain('Looks polished.');
+  });
+
   it('tracks run lifecycle status in the registry skeleton', () => {
     clearRunRegistry();
     clearRunEvents();

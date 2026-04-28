@@ -38,6 +38,18 @@ Aura should keep the new `ArtifactRuntime` structure, but generated artifacts mu
 - [x] Added spreadsheet craft metadata for frozen headers, useful column formats, readable widths, summary rows, chart readiness, and downstream-ready action summaries.
 - [x] Added a normalized reference-quality corpus that routes quality bars to trait-only style targets for documents and presentations.
 - [x] Removed the remaining `archive later` legacy presentation templates while preserving production routing and starter kits.
+- [x] Restored compact presentation design vocabulary (CSS/SVG/layout/animation/recipe rules) as runtime-owned prompt packs.
+- [x] Removed the "simplify for repair" first-draft suppression instruction from prompt packs.
+- [x] Unified single-slide and queued-deck finalization paths (validation → repair → quality polish).
+- [x] Added CSS/design contract gate with named failure IDs for missing style systems, inline styles, reduced-motion, viewport units, and poor continuity.
+- [x] Softened `submitFinalSlide` from a hard rejection to soft-accept with runtime-repair guidance after finalization is safe.
+- [x] Raised evaluator CSS visibility and added deterministic-signal-led revision when named failures exist.
+- [x] Defaulted deck-like prompts (deck, keynote, pitch deck, slideshow) to queued multi-slide generation.
+- [x] Added explicit runtime budget fields (`maxTotalRuntimeMs`, `maxRepairPasses`, `maxOptionalPolishPasses`, `maxToolLoopSteps`, `budgetEnforcement: boundary-only`).
+- [x] Documented and tested local/Ollama calibrated parity — same signals, same safety gate, calibrated score thresholds and budgets.
+- [x] Added opt-in Ollama benchmark harness (`npm run benchmark:ollama`) with deterministic scoring, failure classification, and scorecard generation.
+- [x] Surfaced plain-language quality outcome labels in chat (`Looks polished.`, `Needs one more pass.`, `Could not meet the quality bar in time.`, `Could not produce a safe presentation.`).
+- [x] Added a manual Improve action (`clarifyOptions`) after `safe-budget-exhausted` without starting hidden automatic second loops.
 - [x] Verified with:
   - `npm test -- artifact-runtime prompt-contracts runtime-telemetry document-quality-checklist presentation-quality-checklist spreadsheet-runtime`
   - `npm test -- artifact-runtime prompt-contracts document-quality-checklist document-runtime-workflow runtime-telemetry quality-decision`
@@ -45,9 +57,9 @@ Aura should keep the new `ArtifactRuntime` structure, but generated artifacts mu
   - `npm test -- spreadsheet-runtime spreadsheet-create-craft prompt-to-formula prompt-to-query spreadsheet-starter runtime-telemetry`
   - `npm test -- reference-style-packs prompt-contracts document-quality-checklist presentation-quality-checklist workflow-planner artifact-runtime`
   - `npm test -- presentation-template-design-system presentation-runtime-policy prompt-contracts workflow-planner`
+  - `npm test -- benchmark-harness workflow-progress ai-working-indicator run-result`
   - `npm run typecheck`
-  - `npm test`
-  - `npm run build`
+  - `npm test` — 110 files, 675 tests pass (2026-04-28)
 
 ## Workstream 1: Excellence Polishing Runtime
 
@@ -75,6 +87,8 @@ Implementation checklist:
   - quality grade;
   - failed signals;
   - whether polishing ran, skipped, or exhausted budget.
+- [x] Surface plain-language quality outcome labels in chat content.
+- [x] Expose one explicit Improve action (clarify option) after `safe-budget-exhausted`; no hidden second loops.
 - [ ] Backfill manual validation evidence from generated artifacts so this workstream can move from `[~]` to `[x]`.
 
 Acceptance criteria:

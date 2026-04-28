@@ -78,8 +78,31 @@ This benchmark complements the broader major-change protocol. It is the focused 
 - spreadsheet work should remain deterministic while reporting craft/readiness signals
 - explain and dry-run compatibility checks are not active benchmark gates unless the changed code directly touches those legacy paths
 
+## Quality Recovery Validation Targets
+
+The presentation quality recovery plan (Steps 1–10) is fully implemented as of 2026-04-28. Manual visual evidence is the remaining gate before the recovery can be declared complete.
+
+### Minimum Evidence Required
+
+- One frontier single-slide presentation (title or narrative) scoring above the old baseline.
+- One frontier queued deck (3–5 slides) with varied slide roles, design continuity, and no repeated-grid advisory.
+- One Ollama single-slide result scoring at or above the local quality threshold (`structured-premium-lite`), or a documented `safe-budget-exhausted` outcome with a valid failure classification.
+- One Ollama queued deck result or `npm run benchmark:ollama` scorecard for the same deck case.
+- Viewport spot-checks for at least desktop and mobile portrait for each artifact above.
+
+### How To Run
+
+Frontier runs: use the app in normal create mode. Capture quality telemetry from advanced diagnostics (run history panel → advanced diagnostics). Record `qualityDecision`, `qualityScore`, `failedSignals`, and whether a polish pass ran or was skipped.
+
+Ollama runs: `npm run benchmark:ollama` uses `WORKFLOW_BENCHMARK_CASES` fixture cases with a local Ollama instance. See `scripts/benchmark-ollama.ts` for env vars. Scorecard is written to `logs/ollama-benchmark/<timestamp>/scorecard.md`.
+
+### Scoring vs Human Judgment
+
+Any case where a high deterministic quality score produces output a human reviewer would rate as boring, incomplete, or not premium should be logged as a scoring bug candidate in this document. That gap is the primary signal the scoring system is miscalibrated and needs adjustment before the recovery is closed.
+
 ## Related Docs
 
 - [major-change-protocol.md](./major-change-protocol.md)
 - [scorecard-template.md](./scorecard-template.md)
 - [ollama-gemma4-baseline.md](./ollama-gemma4-baseline.md)
+- [Combined Presentation Quality Recovery Plan.md](../reachitecture/Combined%20Presentation%20Quality%20Recovery%20Plan.md)
