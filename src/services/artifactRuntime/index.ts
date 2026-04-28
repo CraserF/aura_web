@@ -31,6 +31,7 @@ export {
   buildDocumentRuntimeParts,
   canRunQueuedDocumentRuntime,
   finalizeDocumentRuntimeHtml,
+  polishDocumentRuntimeQuality,
   repairDocumentRuntimeModules,
   repairDocumentRuntimeOutput,
   repairDocumentRuntimeStructure,
@@ -93,6 +94,9 @@ export {
   scoreQualitySignal,
   summarizeQualitySignals,
 } from './qualityScoring';
+export {
+  decideArtifactQualityPolish,
+} from './qualityDecision';
 export {
   buildPresentationQualityChecklist,
   buildPresentationQualityTelemetry,
@@ -200,8 +204,10 @@ export type {
   ArtifactPart,
   ArtifactProviderPolicy,
   ArtifactQualityBar,
+  ArtifactQualityDecisionStatus,
   ArtifactQualityExpectedDepth,
   ArtifactQualityGrade,
+  ArtifactQualityPolishAction,
   ArtifactQualitySignalId,
   ArtifactQualitySignalScore,
   ArtifactQualitySignalTarget,
@@ -212,3 +218,7 @@ export type {
   RuntimeOutputMode,
   ValidationGate,
 } from './types';
+export type {
+  ArtifactQualityPolishDecision,
+  DecideArtifactQualityPolishInput,
+} from './qualityDecision';

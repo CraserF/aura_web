@@ -29,6 +29,8 @@ Aura should keep the new `ArtifactRuntime` structure, but generated artifacts mu
 - [x] Threaded quality-bar guidance into document and presentation prompt packs.
 - [x] Updated validation docs so explain/dry-run are legacy compatibility checks, not normal active quality gates.
 - [x] Added automated regression coverage for quality bars, prompt inclusion, scoring, telemetry, and docs expectations.
+- [x] Added active quality-polish decisions so runtimes classify outputs as excellent, needing polish, budget-exhausted, or safety-blocked.
+- [x] Added deterministic document quality polish and presentation LLM-polish routing for premium/frontier runs.
 - [x] Verified with:
   - `npm test -- artifact-runtime prompt-contracts runtime-telemetry document-quality-checklist presentation-quality-checklist spreadsheet-runtime`
   - `npm run typecheck`
@@ -37,37 +39,38 @@ Aura should keep the new `ArtifactRuntime` structure, but generated artifacts mu
 
 ## Workstream 1: Excellence Polishing Runtime
 
-Status: `[ ]`
+Status: `[~]`
 
 Purpose: convert quality scores from passive diagnostics into active runtime behavior.
 
 Implementation checklist:
 
-- [ ] Add a shared quality decision helper that classifies final output as:
+- [x] Add a shared quality decision helper that classifies final output as:
   - `safe-and-excellent`;
   - `safe-needs-polish`;
   - `safe-budget-exhausted`;
   - `blocked-by-safety`.
-- [ ] Replace the current “QA passed, skip evaluation” behavior with “safety passed, decide whether excellence polishing is needed.”
-- [ ] Treat safety gates as blocking output and excellence gates as polish/enrichment triggers.
-- [ ] Emit progress events using the simple UX language:
+- [x] Replace the current “QA passed, skip evaluation” behavior with “safety passed, decide whether excellence polishing is needed.”
+- [x] Treat safety gates as blocking output and excellence gates as polish/enrichment triggers.
+- [x] Emit progress events using the simple UX language:
   - Planning;
   - Designing;
   - Creating parts;
   - Polishing quality;
   - Finishing.
-- [ ] Add advanced diagnostics that explain:
+- [x] Add advanced diagnostics that explain:
   - quality score;
   - quality grade;
   - failed signals;
   - whether polishing ran, skipped, or exhausted budget.
+- [ ] Backfill manual validation evidence from generated artifacts so this workstream can move from `[~]` to `[x]`.
 
 Acceptance criteria:
 
-- [ ] A mechanically valid but low-scoring document triggers a polish/enrichment decision.
-- [ ] A mechanically valid but boring deck triggers a polish/evaluation decision.
-- [ ] Local/Ollama runs do not request LLM polish when their quality bar has no LLM budget.
-- [ ] The final runtime telemetry always records either a polish action or a clear skipped reason.
+- [x] A mechanically valid but low-scoring document triggers a polish/enrichment decision.
+- [~] A mechanically valid but boring deck triggers a polish/evaluation decision. Automated decision routing exists; manual generated-deck validation is still pending.
+- [x] Local/Ollama runs do not request LLM polish when their quality bar has no LLM budget.
+- [x] The final runtime telemetry always records either a polish action or a clear skipped reason.
 
 ## Workstream 2: Document Excellence
 
@@ -273,16 +276,14 @@ Acceptance criteria:
 
 ## Next Recommended Slice
 
-Start with Workstream 1, then immediately apply it to Workstreams 2 and 3.
+Continue with Workstreams 2 and 3 now that Workstream 1 has active runtime decisions.
 
 Recommended order:
 
-1. Add the shared quality decision helper.
-2. Add document deterministic enrichment for short/flat output.
-3. Add presentation art-director pass for boring/low-score decks.
-4. Add progress events for “Polishing quality.”
-5. Run the focused runtime tests.
-6. Run one manual document and one manual deck benchmark.
+1. Add document content blueprints and module budgets.
+2. Add deck-level narrative plans with slide roles and layout maps.
+3. Expand deterministic document enrichment beyond rhythm modules.
+4. Strengthen presentation art-director prompts and compare pre/post quality score.
+5. Run one manual document and one manual deck benchmark.
 
-This order turns the current passive scoring foundation into visible quality recovery fastest.
-
+This order builds on the active quality-decision foundation and moves the biggest remaining quality gains into the generated artifact structure itself.

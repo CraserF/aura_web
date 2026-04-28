@@ -13,6 +13,7 @@ import {
   getDocumentRuntimeModuleWrapperClassName,
 } from '@/services/artifactRuntime/documentDesignSystem';
 import { buildDocumentQualityTelemetry } from '@/services/artifactRuntime/documentQualityChecklist';
+import { decideArtifactQualityPolish, type ArtifactQualityPolishDecision } from '@/services/artifactRuntime/qualityDecision';
 import type { ArtifactPart, ArtifactQualityBar, ArtifactRunPlan } from '@/services/artifactRuntime/types';
 import { validateDocument } from '@/services/ai/workflow/agents/document-qa';
 import type { ArtifactRuntimeTelemetry, EventListener } from '@/services/ai/workflow/types';
@@ -695,6 +696,118 @@ function serializeDocumentRuntimeHtml(doc: Document): string {
   return `${Array.from(doc.head.querySelectorAll('style')).map((style) => style.outerHTML).join('\n')}\n${doc.body.innerHTML}`.trim();
 }
 
+function normalizeDocumentText(value: string | null | undefined): string {
+  return (value ?? '').replace(/\s+/g, ' ').trim();
+}
+
+function extractDocumentQualitySnippets(doc: Document): string[] {
+  const candidates = Array.from(doc.body.querySelectorAll<HTMLElement>('p, li, td, th'))
+    .map((element) => normalizeDocumentText(element.textContent))
+    .filter((text) => text.length >= 36);
+
+  return Array.from(new Set(candidates))
+    .slice(0, 6)
+    .map((text) => text.length > 170 ? `${text.slice(0, 167).trim()}...` : text);
+}
+
+function hasDocumentQualityRhythm(doc: Document, selector: string): boolean {
+  return Boolean(doc.body.querySelector(selector));
+}
+
+function appendDocumentProofStrip(doc: Document, root: HTMLElement, snippets: string[]): boolean {
+  if (hasDocumentQualityRhythm(doc, '.doc-proof-strip, .doc-kpi-row, .doc-kpi-grid, .doc-kpi')) {
+    return false;
+  }
+  if (snippets.length === 0) return false;
+
+  const section = doc.createElement('section');
+  section.className = 'doc-section doc-runtime-quality-polish';
+  section.setAttribute('data-runtime-polish', 'proof-strip');
+  const heading = doc.createElement('h2');
+  heading.textContent = 'Evidence Summary';
+  section.append(heading);
+
+  const strip = doc.createElement('div');
+  strip.className = 'doc-proof-strip';
+  for (const [index, snippet] of snippets.slice(0, 3).entries()) {
+    const item = doc.createElement('article');
+    item.className = 'doc-proof-item';
+    const label = doc.createElement('strong');
+    label.textContent = index === 0 ? 'Primary signal' : index === 1 ? 'Supporting signal' : 'Decision cue';
+    const copy = doc.createElement('span');
+    copy.textContent = snippet;
+    item.append(label, copy);
+    strip.append(item);
+  }
+  section.append(strip);
+  root.append(section);
+  return true;
+}
+
+function appendDocumentTimeline(doc: Document, root: HTMLElement, snippets: string[]): boolean {
+  if (hasDocumentQualityRhythm(doc, '.doc-timeline, .doc-comparison, table')) {
+    return false;
+  }
+  if (snippets.length < 2) return false;
+
+  const section = doc.createElement('section');
+  section.className = 'doc-section doc-runtime-quality-polish';
+  section.setAttribute('data-runtime-polish', 'timeline');
+  const heading = doc.createElement('h2');
+  heading.textContent = 'Action Rhythm';
+  section.append(heading);
+
+  const timeline = doc.createElement('div');
+  timeline.className = 'doc-timeline';
+  for (const [index, snippet] of snippets.slice(0, 3).entries()) {
+    const item = doc.createElement('article');
+    item.className = 'doc-timeline-item';
+    const label = doc.createElement('strong');
+    label.textContent = index === 0 ? 'Now' : index === 1 ? 'Next' : 'Then';
+    const copy = doc.createElement('span');
+    copy.textContent = snippet;
+    item.append(label, copy);
+    timeline.append(item);
+  }
+  section.append(timeline);
+  root.append(section);
+  return true;
+}
+
+export function polishDocumentRuntimeQuality(input: {
+  html: string;
+  title: string;
+}): DocumentRuntimeRepairResult {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(input.html, 'text/html');
+  const before = serializeDocumentRuntimeHtml(doc);
+
+  stripUnsupportedDocumentNodes(doc);
+  ensureDocumentRuntimeTitle(doc, input.title);
+  wrapLooseDocumentBody(doc);
+  ensureDocumentRuntimeStyle(doc);
+
+  const root = getDocumentModuleRoot(doc);
+  const snippets = extractDocumentQualitySnippets(doc);
+  let changed = false;
+  changed = appendDocumentProofStrip(doc, root, snippets) || changed;
+  changed = appendDocumentTimeline(doc, root, snippets) || changed;
+
+  const html = serializeDocumentRuntimeHtml(doc);
+  const repaired = changed && html.trim() !== before.trim();
+  const validation = validateDocumentRuntimeOutput(html);
+
+  return {
+    html,
+    repairCount: repaired ? 1 : 0,
+    repaired,
+    validation,
+    summary: repaired
+      ? 'Deterministic document quality polish added evidence rhythm modules.'
+      : 'Deterministic document quality polish found no safe content-derived enrichment.',
+  };
+}
+
 function findDocumentModuleCandidates(doc: Document): HTMLElement[] {
   const selector = DOCUMENT_RUNTIME_MODULE_CANDIDATE_SELECTORS.join(', ');
   const candidates = Array.from(doc.body.querySelectorAll<HTMLElement>(selector))
@@ -1131,6 +1244,79 @@ export async function runDocumentRuntimeOrchestrator(
     input.onEvent({ type: 'progress', message: qaRepair.summary, pct: 92 });
   }
 
+  let qualityPolishDecision: ArtifactQualityPolishDecision | undefined;
+  let qualityPolishAction: ArtifactRuntimeTelemetry['qualityPolishAction'] | undefined;
+  let deterministicQualityPolishCount = 0;
+
+  if (input.runPlan?.qualityBar) {
+    const prePolishQuality = buildDocumentQualityTelemetry({
+      html: finalHtml,
+      promptText: input.promptText,
+      qualityBar: input.runPlan.qualityBar,
+    });
+    qualityPolishDecision = decideArtifactQualityPolish({
+      qualityBar: input.runPlan.qualityBar,
+      validationPassed: qaResult.passed,
+      validationBlockingCount: qaResult.blockingCount,
+      qualityPassed: prePolishQuality.qualityPassed,
+      qualityScore: prePolishQuality.qualityScore,
+      qualityBlockingCount: prePolishQuality.qualityBlockingCount,
+      deterministicPolishAvailable: true,
+      llmPolishAvailable: false,
+    });
+    qualityPolishAction = qualityPolishDecision.action;
+
+    if (qualityPolishDecision.shouldPolish && qualityPolishDecision.action === 'deterministic-polish') {
+      input.onEvent({ type: 'step-start', stepId: 'quality-polish', label: 'Polishing quality…' });
+      emitArtifactRunEvent(input.onEvent, {
+        runId: input.runPlan.runId,
+        type: 'runtime.repair-started',
+        role: 'repairer',
+        message: 'Polishing document quality...',
+        partId: 'quality-polish',
+        pct: 92,
+      });
+
+      const polish = polishDocumentRuntimeQuality({
+        html: finalHtml,
+        title,
+      });
+      if (polish.repaired) {
+        finalHtml = input.sanitizeHtml(polish.html);
+        qaResult = polish.validation;
+        deterministicQualityPolishCount = polish.repairCount;
+        input.onEvent({ type: 'progress', message: polish.summary, pct: 94 });
+      }
+
+      const postPolishQuality = buildDocumentQualityTelemetry({
+        html: finalHtml,
+        promptText: input.promptText,
+        qualityBar: input.runPlan.qualityBar,
+      });
+      qualityPolishDecision = decideArtifactQualityPolish({
+        qualityBar: input.runPlan.qualityBar,
+        validationPassed: qaResult.passed,
+        validationBlockingCount: qaResult.blockingCount,
+        qualityPassed: postPolishQuality.qualityPassed,
+        qualityScore: postPolishQuality.qualityScore,
+        qualityBlockingCount: postPolishQuality.qualityBlockingCount,
+        deterministicPolishCount: deterministicQualityPolishCount,
+        deterministicPolishAvailable: true,
+        llmPolishAvailable: false,
+      });
+      qualityPolishAction = polish.repaired ? 'deterministic-polish' : qualityPolishDecision.action;
+      input.onEvent({ type: 'step-done', stepId: 'quality-polish', label: 'Polishing quality…' });
+      emitArtifactRunEvent(input.onEvent, {
+        runId: input.runPlan.runId,
+        type: 'runtime.repair-completed',
+        role: 'repairer',
+        message: qualityPolishDecision.reason,
+        partId: 'quality-polish',
+        pct: 95,
+      });
+    }
+  }
+
   input.onEvent({ type: 'step-done', stepId: 'qa', label: 'Checking document quality…' });
   emitArtifactRunEvent(input.onEvent, {
     runId: input.runPlan?.runId ?? 'document-runtime',
@@ -1148,7 +1334,7 @@ export async function runDocumentRuntimeOrchestrator(
     runtimeStartMs: input.runtimeStartMs,
     nowMs: input.nowMs(),
     validation: qaResult,
-    repairCount: structureRepair.moduleRepairCount + qaRepair.repairCount + editFallbackRepairCount,
+    repairCount: structureRepair.moduleRepairCount + qaRepair.repairCount + editFallbackRepairCount + deterministicQualityPolishCount,
     runMode,
     queuedPartCount: runMode === 'queued-create'
       ? input.generation.queuedCreatePartCount
@@ -1162,6 +1348,13 @@ export async function runDocumentRuntimeOrchestrator(
     qualityBar: input.runPlan?.qualityBar,
     ...(generation.firstPreviewAt ? { firstPreviewAtMs: generation.firstPreviewAt } : {}),
   });
+  if (qualityPolishDecision) {
+    runtime.qualityDecision = qualityPolishDecision.status;
+    runtime.qualityPolishAction = qualityPolishAction ?? qualityPolishDecision.action;
+    if (qualityPolishDecision.action !== 'skipped-excellent') {
+      runtime.qualityPolishingSkippedReason = qualityPolishDecision.reason;
+    }
+  }
 
   input.onEvent({ type: 'step-done', stepId: 'finalize', label: 'Finalizing document…' });
   emitArtifactRunEvent(input.onEvent, {

@@ -13,6 +13,7 @@ import {
   buildSlideBriefsFromRunPlan,
 } from '@/services/artifactRuntime/presentation';
 import { buildPresentationQualityTelemetry } from '@/services/artifactRuntime/presentationQualityChecklist';
+import { decideArtifactQualityPolish, type ArtifactQualityPolishDecision } from '@/services/artifactRuntime/qualityDecision';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { aiDebugLog, logEditingMetrics, toErrorInfo } from '@/services/ai/debug';
 import type { PlanResult } from '@/services/ai/workflow/agents/planner';
@@ -113,6 +114,22 @@ function startProgressHeartbeat(opts: {
   }, intervalMs);
 
   return () => clearInterval(timer);
+}
+
+function applyQualityDecisionTelemetry(
+  runtime: ArtifactRuntimeTelemetry,
+  decision: ArtifactQualityPolishDecision | undefined,
+  action?: ArtifactRuntimeTelemetry['qualityPolishAction'],
+): ArtifactRuntimeTelemetry {
+  if (!decision) return runtime;
+  return {
+    ...runtime,
+    qualityDecision: decision.status,
+    qualityPolishAction: action ?? decision.action,
+    ...(decision.action !== 'skipped-excellent'
+      ? { qualityPolishingSkippedReason: decision.reason }
+      : {}),
+  };
 }
 
 const STRUCTURAL_EMPTY_CLASSES = [
@@ -539,6 +556,10 @@ function buildQueuedPresentationPlanResult(
   };
 }
 
+function canRunPresentationQualityLlmPolish(planResult: PlanResult): boolean {
+  return Boolean(planResult.blueprint && planResult.styleManifest?.compositionMode);
+}
+
 export function validatePresentationRuntimeOutput(
   html: string,
   planResult: PlanResult,
@@ -814,38 +835,120 @@ export async function runQueuedPresentationRuntime(
   }
 
   onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing presentation…' });
-  const finalValidation = repair.validation ?? validation;
+  let finalValidation = repair.validation ?? validation;
+  let finalHtml = repair.html;
+  let llmQualityPolishCount = 0;
+  let qualityTelemetry = buildPresentationQualityTelemetry({
+    html: sanitizeInnerHtml(finalHtml),
+    promptText: input.prompt,
+    qualityBar: runPlan?.qualityBar,
+  });
+  let qualityDecision = runPlan?.qualityBar
+    ? decideArtifactQualityPolish({
+        qualityBar: runPlan.qualityBar,
+        validationPassed: finalValidation.passed,
+        validationBlockingCount: finalValidation.blockingCount,
+        qualityPassed: qualityTelemetry.qualityPassed,
+        qualityScore: qualityTelemetry.qualityScore,
+        qualityBlockingCount: qualityTelemetry.qualityBlockingCount,
+        deterministicPolishAvailable: false,
+        llmPolishAvailable: canRunPresentationQualityLlmPolish(effectivePlanResult),
+      })
+    : undefined;
+  let qualityPolishAction: ArtifactRuntimeTelemetry['qualityPolishAction'] | undefined = qualityDecision?.action;
 
-  const outputHtml = sanitizeInnerHtml(repair.html);
+  if (qualityDecision?.shouldPolish && qualityDecision.action === 'llm-polish') {
+    onEvent({ type: 'step-start', stepId: 'quality-polish', label: 'Polishing quality…' });
+    emitArtifactRunEvent(onEvent, {
+      runId: runtimeRunId,
+      type: 'runtime.repair-started',
+      role: 'repairer',
+      message: 'Polishing presentation quality...',
+      partId: 'quality-polish',
+      pct: 90,
+    });
+
+    const polishedHtml = await evaluateAndRevise(
+      model,
+      finalHtml,
+      effectivePlanResult,
+      onEvent,
+      input.projectRulesBlock,
+      signal,
+      1,
+      runPlan,
+    );
+    const polishedValidation = validatePresentationRuntimeOutput(
+      polishedHtml,
+      effectivePlanResult,
+      batchResult.slideCount,
+    );
+    const polishedQualityTelemetry = buildPresentationQualityTelemetry({
+      html: sanitizeInnerHtml(polishedHtml),
+      promptText: input.prompt,
+      qualityBar: runPlan?.qualityBar,
+    });
+    if (
+      polishedValidation.passed &&
+      (polishedQualityTelemetry.qualityScore ?? 0) >= (qualityTelemetry.qualityScore ?? 0)
+    ) {
+      finalHtml = polishedHtml;
+      finalValidation = polishedValidation;
+      qualityTelemetry = polishedQualityTelemetry;
+      llmQualityPolishCount = 1;
+      qualityPolishAction = 'llm-polish';
+    }
+    qualityDecision = runPlan?.qualityBar
+      ? decideArtifactQualityPolish({
+          qualityBar: runPlan.qualityBar,
+          validationPassed: finalValidation.passed,
+          validationBlockingCount: finalValidation.blockingCount,
+          qualityPassed: qualityTelemetry.qualityPassed,
+          qualityScore: qualityTelemetry.qualityScore,
+          qualityBlockingCount: qualityTelemetry.qualityBlockingCount,
+          llmPolishCount: llmQualityPolishCount,
+          deterministicPolishAvailable: false,
+          llmPolishAvailable: canRunPresentationQualityLlmPolish(effectivePlanResult),
+        })
+      : undefined;
+    onEvent({ type: 'step-done', stepId: 'quality-polish', label: 'Polishing quality…' });
+    emitArtifactRunEvent(onEvent, {
+      runId: runtimeRunId,
+      type: 'runtime.repair-completed',
+      role: 'repairer',
+      message: qualityDecision?.reason ?? 'Presentation quality polish completed.',
+      partId: 'quality-polish',
+      pct: 94,
+    });
+  }
+
+  const outputHtml = sanitizeInnerHtml(finalHtml);
+  const runtimeTelemetry = applyQualityDecisionTelemetry({
+    ...(firstPreviewAt ? { timeToFirstPreviewMs: Math.round(firstPreviewAt - runtimeStart) } : {}),
+    totalRuntimeMs: Math.round(performance.now() - runtimeStart),
+    validationPassed: finalValidation.passed,
+    validationBlockingCount: finalValidation.blockingCount,
+    validationAdvisoryCount: finalValidation.advisoryCount,
+    repairCount: slideRepair.repairCount + repair.repairCount + llmQualityPolishCount,
+    runMode: isEdit ? 'queued-edit' : 'queued-create',
+    queuedPartCount: slideBriefs.length,
+    completedPartCount: batchResult.slideCount,
+    repairedPartCount: slideRepair.repairedPartCount + (repair.repairedPartCount ?? 0),
+    ...qualityTelemetry,
+    validationByPart: finalValidation.validationByPart,
+  }, qualityDecision, qualityPolishAction);
   const output: PresentationOutput = {
     html: outputHtml,
     title: batchResult.title,
     slideCount: batchResult.slideCount,
     reviewPassed: finalValidation.passed,
-    runtime: {
-      ...(firstPreviewAt ? { timeToFirstPreviewMs: Math.round(firstPreviewAt - runtimeStart) } : {}),
-      totalRuntimeMs: Math.round(performance.now() - runtimeStart),
-      validationPassed: finalValidation.passed,
-      validationBlockingCount: finalValidation.blockingCount,
-      validationAdvisoryCount: finalValidation.advisoryCount,
-      repairCount: slideRepair.repairCount + repair.repairCount,
-      runMode: isEdit ? 'queued-edit' : 'queued-create',
-      queuedPartCount: slideBriefs.length,
-      completedPartCount: batchResult.slideCount,
-      repairedPartCount: slideRepair.repairedPartCount + (repair.repairedPartCount ?? 0),
-      ...buildPresentationQualityTelemetry({
-        html: outputHtml,
-        promptText: input.prompt,
-        qualityBar: runPlan?.qualityBar,
-      }),
-      validationByPart: finalValidation.validationByPart,
-    },
+    runtime: runtimeTelemetry,
   };
 
   onEvent({
     type: 'progress',
-    message: slideRepair.repairCount + repair.repairCount > 0
-      ? `Presentation finalized after ${slideRepair.repairCount + repair.repairCount} repair pass${slideRepair.repairCount + repair.repairCount === 1 ? '' : 'es'}.`
+    message: slideRepair.repairCount + repair.repairCount + llmQualityPolishCount > 0
+      ? `Presentation finalized after ${slideRepair.repairCount + repair.repairCount + llmQualityPolishCount} repair pass${slideRepair.repairCount + repair.repairCount + llmQualityPolishCount === 1 ? '' : 'es'}.`
       : 'Presentation finalized from queued runtime output.',
     pct: 96,
   });
@@ -1083,10 +1186,28 @@ export async function runSinglePresentationRuntime(
   }
 
   const canEvaluate = planResult.intent !== 'add_slides';
+  const initialQualityTelemetry = buildPresentationQualityTelemetry({
+    html: sanitizeInnerHtml(designResult.html),
+    promptText: input.prompt,
+    qualityBar: runPlan?.qualityBar,
+  });
+  let qualityDecision = runPlan?.qualityBar
+    ? decideArtifactQualityPolish({
+        qualityBar: runPlan.qualityBar,
+        validationPassed: qaResult.passed,
+        validationBlockingCount: qaResult.blockingCount,
+        qualityPassed: initialQualityTelemetry.qualityPassed,
+        qualityScore: initialQualityTelemetry.qualityScore,
+        qualityBlockingCount: initialQualityTelemetry.qualityBlockingCount,
+        deterministicPolishAvailable: false,
+        llmPolishAvailable: canEvaluate && designResult.fastPath && !skipSecondaryEvaluation && canRunPresentationQualityLlmPolish(planResult),
+      })
+    : undefined;
+  const needsExcellenceEvaluation = qualityDecision?.shouldPolish && qualityDecision.action === 'llm-polish';
   const shouldEvaluate =
     canEvaluate &&
     designResult.fastPath &&
-    (alwaysRunEvaluation || !qaResult.passed) &&
+    (alwaysRunEvaluation || !qaResult.passed || needsExcellenceEvaluation) &&
     !skipSecondaryEvaluation;
   aiDebugLog('workflow', 'phase 3 decision', {
     intent: planResult.intent,
@@ -1095,6 +1216,8 @@ export async function runSinglePresentationRuntime(
     blockingCount: qaResult.blockingCount,
     advisoryCount: qaResult.advisoryCount,
     alwaysRunEvaluation,
+    qualityDecision: qualityDecision?.status,
+    qualityPolishAction: qualityDecision?.action,
     canEvaluate,
     skipSecondaryEvaluation,
     shouldEvaluate,
@@ -1105,10 +1228,13 @@ export async function runSinglePresentationRuntime(
       runId: runtimeRunId,
       type: 'runtime.validation-started',
       role: 'validator',
-      message: 'Evaluating quality...',
+      message: needsExcellenceEvaluation ? 'Polishing quality...' : 'Evaluating quality...',
       partId: 'evaluate',
       pct: 74,
     });
+    if (needsExcellenceEvaluation) {
+      onEvent({ type: 'step-start', stepId: 'quality-polish', label: 'Polishing quality…' });
+    }
     try {
       finalHtml = await evaluateAndRevise(
         model,
@@ -1124,14 +1250,20 @@ export async function runSinglePresentationRuntime(
         runId: runtimeRunId,
         type: 'runtime.validation-completed',
         role: 'validator',
-        message: 'Evaluating quality...',
+        message: needsExcellenceEvaluation ? 'Polishing quality...' : 'Evaluating quality...',
         partId: 'evaluate',
         pct: 86,
       });
+      if (needsExcellenceEvaluation) {
+        onEvent({ type: 'step-done', stepId: 'quality-polish', label: 'Polishing quality…' });
+      }
     } catch (evalErr) {
       aiDebugLog('workflow', 'evaluator error, using designer output', toErrorInfo(evalErr));
       console.warn('[Workflow] evaluator error, using designer output:', evalErr);
       onEvent({ type: 'step-skipped', stepId: 'evaluate', label: 'Evaluating quality...' });
+      if (needsExcellenceEvaluation) {
+        onEvent({ type: 'step-skipped', stepId: 'quality-polish', label: 'Polishing quality…' });
+      }
     }
   } else {
     onEvent({ type: 'step-skipped', stepId: 'evaluate', label: 'Evaluating quality...' });
@@ -1139,7 +1271,7 @@ export async function runSinglePresentationRuntime(
       type: 'progress',
       message: skipSecondaryEvaluation
         ? 'Local model safe path - skipping secondary evaluation'
-        : 'QA passed - skipping evaluation',
+        : qualityDecision?.reason ?? 'QA passed - skipping evaluation',
       pct: 85,
     });
   }
@@ -1151,28 +1283,43 @@ export async function runSinglePresentationRuntime(
   onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing slide...' });
 
   const outputHtml = sanitizeInnerHtml(finalHtml);
+  const finalQualityTelemetry = buildPresentationQualityTelemetry({
+    html: outputHtml,
+    promptText: input.prompt,
+    qualityBar: runPlan?.qualityBar,
+  });
+  qualityDecision = runPlan?.qualityBar
+    ? decideArtifactQualityPolish({
+        qualityBar: runPlan.qualityBar,
+        validationPassed: qaResult.passed,
+        validationBlockingCount: qaResult.blockingCount,
+        qualityPassed: finalQualityTelemetry.qualityPassed,
+        qualityScore: finalQualityTelemetry.qualityScore,
+        qualityBlockingCount: finalQualityTelemetry.qualityBlockingCount,
+        llmPolishCount: needsExcellenceEvaluation && shouldEvaluate ? 1 : 0,
+        deterministicPolishAvailable: false,
+        llmPolishAvailable: canEvaluate && designResult.fastPath && !skipSecondaryEvaluation && canRunPresentationQualityLlmPolish(planResult),
+      })
+    : undefined;
+  const runtimeTelemetry = applyQualityDecisionTelemetry({
+    ...(firstPreviewAt ? { timeToFirstPreviewMs: Math.round(firstPreviewAt - runtimeStart) } : {}),
+    totalRuntimeMs: Math.round(performance.now() - runtimeStart),
+    validationPassed: qaResult.passed,
+    validationBlockingCount: qaResult.blockingCount,
+    validationAdvisoryCount: qaResult.advisoryCount,
+    repairCount: shouldEvaluate ? 1 : 0,
+    runMode: 'single-stream',
+    queuedPartCount: 1,
+    completedPartCount: designResult.slideCount,
+    ...finalQualityTelemetry,
+    validationByPart: summarizePresentationValidationByPart(qaResult.violations, designResult.slideCount),
+  }, qualityDecision, needsExcellenceEvaluation && shouldEvaluate ? 'llm-polish' : qualityDecision?.action);
   const output: PresentationOutput = {
     html: outputHtml,
     title: designResult.title,
     slideCount: designResult.slideCount,
     reviewPassed,
-    runtime: {
-      ...(firstPreviewAt ? { timeToFirstPreviewMs: Math.round(firstPreviewAt - runtimeStart) } : {}),
-      totalRuntimeMs: Math.round(performance.now() - runtimeStart),
-      validationPassed: qaResult.passed,
-      validationBlockingCount: qaResult.blockingCount,
-      validationAdvisoryCount: qaResult.advisoryCount,
-      repairCount: shouldEvaluate ? 1 : 0,
-      runMode: 'single-stream',
-      queuedPartCount: 1,
-      completedPartCount: designResult.slideCount,
-      ...buildPresentationQualityTelemetry({
-        html: outputHtml,
-        promptText: input.prompt,
-        qualityBar: runPlan?.qualityBar,
-      }),
-      validationByPart: summarizePresentationValidationByPart(qaResult.violations, designResult.slideCount),
-    },
+    runtime: runtimeTelemetry,
     ...(designResult.editing ? { editing: designResult.editing } : {}),
   };
 
@@ -1213,13 +1360,25 @@ export function finalizeStaticPresentationRuntime(
   const blockingCount = qaResult.violations.filter((violation) => violation.tier === 'blocking').length;
   const advisoryCount = qaResult.violations.length - blockingCount;
   const validationByPart = summarizePresentationValidationByPart(qaResult.violations, input.slideCount);
+  const qualityDecision = input.runPlan?.qualityBar
+    ? decideArtifactQualityPolish({
+        qualityBar: input.runPlan.qualityBar,
+        validationPassed: blockingCount === 0,
+        validationBlockingCount: blockingCount,
+        qualityPassed: qualityTelemetry.qualityPassed,
+        qualityScore: qualityTelemetry.qualityScore,
+        qualityBlockingCount: qualityTelemetry.qualityBlockingCount,
+        deterministicPolishAvailable: false,
+        llmPolishAvailable: false,
+      })
+    : undefined;
 
   return {
     html,
     title: input.title,
     slideCount: input.slideCount,
     reviewPassed: blockingCount === 0,
-    runtime: {
+    runtime: applyQualityDecisionTelemetry({
       timeToFirstPreviewMs: 0,
       totalRuntimeMs: Math.round(performance.now() - runtimeStart),
       validationPassed: blockingCount === 0,
@@ -1232,6 +1391,6 @@ export function finalizeStaticPresentationRuntime(
       repairedPartCount: 0,
       ...qualityTelemetry,
       validationByPart,
-    },
+    }, qualityDecision),
   };
 }

@@ -6,7 +6,12 @@ import type { AIMessage, ProviderEntry } from '../types';
 import type { EditStrategy, EditingTelemetry, ResolvedTarget } from '@/services/editing/types';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
 import type { TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
-import type { ArtifactQualityGrade, ArtifactQualitySignalScore } from '@/services/artifactRuntime/types';
+import type {
+  ArtifactQualityDecisionStatus,
+  ArtifactQualityGrade,
+  ArtifactQualityPolishAction,
+  ArtifactQualitySignalScore,
+} from '@/services/artifactRuntime/types';
 
 export type { AIMessage };
 
@@ -72,6 +77,8 @@ export interface ArtifactRuntimeTelemetry {
   qualityAdvisoryCount?: number;
   qualitySignals?: ArtifactQualitySignalScore[];
   qualityPolishingSkippedReason?: string;
+  qualityDecision?: ArtifactQualityDecisionStatus;
+  qualityPolishAction?: ArtifactQualityPolishAction;
   qualityChecks?: Array<{
     id: string;
     label: string;

@@ -53,5 +53,16 @@ export function formatRuntimeQualityDiagnostics(
     });
   }
 
+  if (telemetry.qualityDecision || telemetry.qualityPolishAction) {
+    lines.push({
+      severity: telemetry.qualityDecision === 'blocked-by-safety'
+        ? 'blocking'
+        : telemetry.qualityDecision === 'safe-needs-polish' || telemetry.qualityDecision === 'safe-budget-exhausted'
+          ? 'advisory'
+          : 'pass',
+      message: `Quality decision: ${telemetry.qualityDecision ?? 'unknown'}; action: ${telemetry.qualityPolishAction ?? 'none'}.`,
+    });
+  }
+
   return lines;
 }

@@ -63,6 +63,21 @@ export type ArtifactQualitySignalId =
 
 export type ArtifactQualityGrade = 'excellent' | 'strong' | 'adequate' | 'needs-polish';
 
+export type ArtifactQualityDecisionStatus =
+  | 'safe-and-excellent'
+  | 'safe-needs-polish'
+  | 'safe-budget-exhausted'
+  | 'blocked-by-safety';
+
+export type ArtifactQualityPolishAction =
+  | 'none'
+  | 'deterministic-polish'
+  | 'llm-polish'
+  | 'skipped-excellent'
+  | 'skipped-no-quality-bar'
+  | 'skipped-no-budget'
+  | 'safety-blocked';
+
 export interface ArtifactQualitySignalTarget {
   id: ArtifactQualitySignalId;
   label: string;

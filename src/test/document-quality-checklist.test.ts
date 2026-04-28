@@ -5,6 +5,7 @@ import {
   buildDocumentQualityChecklist,
   buildDocumentQualityTelemetry,
   finalizeDocumentRuntimeHtml,
+  polishDocumentRuntimeQuality,
 } from '@/services/artifactRuntime';
 
 describe('document quality checklist', () => {
@@ -73,6 +74,28 @@ describe('document quality checklist', () => {
     expect(checklist.qualityScore).toBeGreaterThanOrEqual(plan.qualityBar.acceptanceThresholds.minimumScore);
     expect(checklist.qualitySignals?.map((signal) => signal.id)).toContain('content-depth');
     expect(checklist.checks.map((check) => check.id)).toContain('excellence-score');
+  });
+
+  it('deterministically enriches flat safe documents with evidence rhythm modules', () => {
+    const polished = polishDocumentRuntimeQuality({
+      title: 'Flat Brief',
+      html: `<style>
+        body { font-size: 16px; }
+        .doc-section p, .doc-section li { font-size: 16px; }
+        img, table { max-width: 100%; }
+        @media print { .doc-section { break-inside: avoid; } }
+      </style>
+      <main class="doc-shell">
+        <header class="doc-header"><h1>Flat Brief</h1></header>
+        <section class="doc-section"><h2>Summary</h2><p>The operating model needs clearer ownership, faster review cycles, and a better path from analysis to action.</p></section>
+        <section class="doc-section"><h2>Evidence</h2><p>Teams have enough information to move, but current reporting makes the decision path feel diffuse and repetitive.</p></section>
+      </main>`,
+    });
+
+    expect(polished.repaired).toBe(true);
+    expect(polished.html).toContain('doc-proof-strip');
+    expect(polished.html).toContain('doc-timeline');
+    expect(polished.validation.passed).toBe(true);
   });
 
   it('blocks unsafe scripted, wrapped, remote, and fixed-width document output', () => {

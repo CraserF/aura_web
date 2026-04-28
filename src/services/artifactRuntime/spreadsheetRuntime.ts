@@ -4,6 +4,7 @@ import {
   scoreQualitySignal,
   summarizeQualitySignals,
 } from '@/services/artifactRuntime/qualityScoring';
+import { decideArtifactQualityPolish } from '@/services/artifactRuntime/qualityDecision';
 import type { ArtifactPart, ArtifactPartKind, ArtifactRunPlan } from '@/services/artifactRuntime/types';
 import type { ArtifactQualitySignalScore } from '@/services/artifactRuntime/types';
 import type { ArtifactRuntimeTelemetry, EventListener } from '@/services/ai/workflow/types';
@@ -453,6 +454,18 @@ export function buildSpreadsheetRuntimeTelemetry(input: {
   const qualitySummary = input.runPlan?.qualityBar && qualitySignals
     ? summarizeQualitySignals(input.runPlan.qualityBar, qualitySignals)
     : undefined;
+  const qualityDecision = input.runPlan?.qualityBar
+    ? decideArtifactQualityPolish({
+        qualityBar: input.runPlan.qualityBar,
+        validationPassed,
+        validationBlockingCount,
+        qualityPassed: qualitySummary?.passed,
+        qualityScore: qualitySummary?.score,
+        qualityBlockingCount: validationBlockingCount,
+        deterministicPolishAvailable: false,
+        llmPolishAvailable: false,
+      })
+    : undefined;
   const spreadsheetCraftCheck = qualitySummary
     ? {
         id: 'spreadsheet-craft',
@@ -484,9 +497,10 @@ export function buildSpreadsheetRuntimeTelemetry(input: {
     qualityBlockingCount: validationBlockingCount,
     qualityAdvisoryCount: craftAdvisoryCount,
     ...(qualitySignals ? { qualitySignals } : {}),
-    ...(qualitySummary?.polishingSkippedReason
-      ? { qualityPolishingSkippedReason: qualitySummary.polishingSkippedReason }
+    ...(qualityDecision?.reason || qualitySummary?.polishingSkippedReason
+      ? { qualityPolishingSkippedReason: qualityDecision?.reason ?? qualitySummary?.polishingSkippedReason }
       : {}),
+    ...(qualityDecision ? { qualityDecision: qualityDecision.status, qualityPolishAction: qualityDecision.action } : {}),
     qualityChecks,
     spreadsheetActionKind,
     changedSheetCount,
