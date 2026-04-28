@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildArtifactWorkflowPlan } from '@/services/workflowPlanner';
+import { buildArtifactRunPlan } from '@/services/artifactRuntime';
 
 describe('buildArtifactWorkflowPlan', () => {
   it('selects a polished title-opening recipe and style pack for opening slides', () => {
@@ -33,6 +34,9 @@ describe('buildArtifactWorkflowPlan', () => {
       allowFullRegeneration: false,
     });
 
+    expect(plan.requestKind).toBe('batch');
+    expect(plan.queueMode).toBe('sequential');
+    expect(plan.queuedWorkItems).toHaveLength(5);
     expect(plan.presentationRecipeId).toBe('general-polished');
     expect(plan.templateGuidance.selectedTemplateId).toBe('executive-briefing-light');
     expect(plan.templateGuidance.referenceStylePackId).toBe('presentation-executive-starter');
@@ -51,6 +55,8 @@ describe('buildArtifactWorkflowPlan', () => {
     });
 
     expect(plan.presentationRecipeId).toBe('stage-setting');
+    expect(plan.requestKind).toBe('create');
+    expect(plan.queueMode).toBe('none');
     expect(plan.templateGuidance.selectedTemplateId).toBe('stage-setting-light');
     expect(plan.templateGuidance.referenceStylePackId).toBe('presentation-stage-setting');
   });
@@ -138,6 +144,127 @@ describe('buildArtifactWorkflowPlan', () => {
     expect(plan.requestKind).toBe('restyle');
     expect(plan.templateGuidance.providerTier).toBe('local-best-effort');
     expect(plan.templateGuidance.designConstraints.some((constraint) => constraint.includes('1-3 major layout zones'))).toBe(true);
+  });
+
+  it('routes a keynote deck prompt to batch queued work without an explicit slide count', () => {
+    const plan = buildArtifactWorkflowPlan({
+      prompt: 'Create a narrative keynote deck about our product relaunch strategy.',
+      artifactType: 'presentation',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    expect(plan.requestKind).toBe('batch');
+    expect(plan.queueMode).toBe('sequential');
+    expect(plan.queuedWorkItems.map((item) => item.targetLabel)).toEqual([
+      'Opening',
+      'Context & Problem',
+      'Proof & Mechanism',
+      'Recommendation & Action',
+      'Closing',
+    ]);
+  });
+
+  it('keeps a single-slide title slide prompt as create, not batch', () => {
+    const plan = buildArtifactWorkflowPlan({
+      prompt: 'Create a polished opening title slide for a strategic transformation briefing.',
+      artifactType: 'presentation',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    expect(plan.requestKind).toBe('create');
+    expect(plan.queueMode).toBe('none');
+  });
+
+  it('routes deck-like create keywords to queued work without explicit slide counts', () => {
+    const prompts = [
+      'Create a slide deck about onboarding.',
+      'Create a presentation about renewable energy.',
+      'Create a PowerPoint about the sales kickoff.',
+      'Create a slideshow about product adoption.',
+    ];
+
+    for (const prompt of prompts) {
+      const plan = buildArtifactWorkflowPlan({
+        prompt,
+        artifactType: 'presentation',
+        operation: 'create',
+        activeDocument: null,
+        mode: 'execute',
+        providerId: 'openai',
+        providerModel: 'gpt-4o',
+        allowFullRegeneration: false,
+      });
+
+      expect(plan.requestKind).toBe('batch');
+      expect(plan.queueMode).toBe('sequential');
+      expect(plan.queuedWorkItems).toHaveLength(3);
+    }
+  });
+
+  it('uses a conservative three-slide default for local deck-like prompts', () => {
+    const plan = buildArtifactWorkflowPlan({
+      prompt: 'Create a narrative keynote deck about our product relaunch strategy.',
+      artifactType: 'presentation',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'ollama',
+      providerModel: 'gemma4:e2b',
+      allowFullRegeneration: false,
+    });
+
+    expect(plan.requestKind).toBe('batch');
+    expect(plan.templateGuidance.providerTier).toBe('local-best-effort');
+    expect(plan.queuedWorkItems.map((item) => item.targetLabel)).toEqual([
+      'Opening',
+      'Context & Problem',
+      'Recommendation & Action',
+    ]);
+  });
+
+  it('attaches narrative slide roles and continuity blueprints to default queued decks', () => {
+    const runPlan = buildArtifactRunPlan({
+      runId: 'run-default-keynote-deck',
+      prompt: 'Create a narrative keynote deck about our product relaunch strategy.',
+      artifactType: 'presentation',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    expect(runPlan.requestKind).toBe('batch');
+    expect(runPlan.queueMode).toBe('sequential');
+    expect(runPlan.workQueue.map((part) => part.title)).toEqual([
+      'Opening',
+      'Context & Problem',
+      'Proof & Mechanism',
+      'Recommendation & Action',
+      'Closing',
+    ]);
+    expect(runPlan.presentationNarrativePlan?.slideRoles.map((slide) => slide.role)).toEqual([
+      'title-scene',
+      'problem',
+      'metric-proof',
+      'recommendation',
+      'closing-action',
+    ]);
+    expect(runPlan.workQueue[0]?.presentationSlideBlueprint?.motifInstruction)
+      .toContain('Establish the reusable motif');
+    expect(runPlan.workQueue[1]?.presentationSlideBlueprint?.continuityInstruction)
+      .toContain('Preserve shared tokens');
   });
 
   it('keeps planner output execution-oriented even if a legacy non-execute mode is requested', () => {

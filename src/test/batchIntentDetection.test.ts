@@ -46,8 +46,16 @@ describe('batch intent detection', () => {
     expect(intentOf('Create a slide about our Q3 results')).toBe('create');
   });
 
-  it('does NOT fire for "create a presentation" without slide count or breakdown', () => {
-    expect(intentOf('Create a presentation about renewable energy')).toBe('create');
+  it('does NOT fire for explicit single-slide presentation benchmark prompts', () => {
+    expect(intentOf('Create a polished opening title slide for a strategic transformation briefing')).toBe('create');
+    expect(intentOf('Create a setting-the-stage slide that explains why the current shift matters')).toBe('create');
+    expect(intentOf('Create a finance-grid explainer slide with layered support mechanics')).toBe('create');
+  });
+
+  it('detects deck-like create prompts without slide count or breakdown', () => {
+    expect(intentOf('Create a presentation about renewable energy')).toBe('batch_create');
+    expect(intentOf('Create a slide deck about onboarding')).toBe('batch_create');
+    expect(intentOf('Create a PowerPoint about the sales kickoff')).toBe('batch_create');
   });
 
   it('does NOT fire when hasExistingSlides is true', () => {

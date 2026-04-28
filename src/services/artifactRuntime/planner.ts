@@ -11,7 +11,14 @@ import type {
   DocumentThemeFamily,
   RuntimeOutputMode,
 } from '@/services/artifactRuntime/types';
-import { parseSlideBriefs } from '@/services/ai/workflow/agents/planner';
+import {
+  hasExplicitSlideBriefStructure,
+  parseSlideBriefs,
+} from '@/services/ai/workflow/agents/planner';
+import {
+  hasExplicitPresentationSlideCount,
+  isDeckLikeCreatePrompt,
+} from '@/services/ai/validation';
 
 const STYLE_CHANGE_RE = /\b(style|theme|palette|color|font|typography|spacing|visual|design|look)\b/i;
 const STRUCTURE_CHANGE_RE = /\b(reorder|reorganize|restructure|re-layout|relayout|move section|insert section|add subsection|convert layout)\b/i;
@@ -77,7 +84,8 @@ function resolveRequestKind(input: BuildArtifactWorkflowPlanInput): ArtifactWork
 
   if (input.artifactType === 'presentation') {
     const hasQueuedSlides = parseSlideBriefs(input.prompt).length > 1 && MULTI_ARTIFACT_RE.test(input.prompt);
-    if (hasQueuedSlides) {
+    const isDeckLike = input.operation === 'create' && isDeckLikeCreatePrompt(input.prompt);
+    if (hasQueuedSlides || isDeckLike) {
       return input.operation === 'create' ? 'batch' : 'queue';
     }
   }
@@ -175,7 +183,7 @@ function resolvePreservationIntent(input: BuildArtifactWorkflowPlanInput, reques
 
 function buildQueuedWorkItems(input: BuildArtifactWorkflowPlanInput, requestKind: ArtifactWorkflowRequestKind): QueuedWorkItem[] {
   if (input.artifactType === 'presentation' && (requestKind === 'batch' || requestKind === 'queue')) {
-    const slideBriefs = parseSlideBriefs(input.prompt);
+    const slideBriefs = resolveQueuedPresentationSlideBriefs(input);
     return slideBriefs.map((brief, index) => ({
       id: `slide-${index + 1}`,
       orderIndex: index,
@@ -189,6 +197,18 @@ function buildQueuedWorkItems(input: BuildArtifactWorkflowPlanInput, requestKind
   }
 
   return [];
+}
+
+function resolveQueuedPresentationSlideBriefs(input: BuildArtifactWorkflowPlanInput) {
+  const shouldUseLocalDefaultCap = input.providerId === 'ollama'
+    && input.operation === 'create'
+    && isDeckLikeCreatePrompt(input.prompt)
+    && !hasExplicitPresentationSlideCount(input.prompt)
+    && !hasExplicitSlideBriefStructure(input.prompt);
+
+  return parseSlideBriefs(input.prompt, {
+    ...(shouldUseLocalDefaultCap ? { defaultSlideCount: 3 } : {}),
+  });
 }
 
 function buildDesignConstraints(

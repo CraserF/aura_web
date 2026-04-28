@@ -21,7 +21,11 @@ import type {
   TemplateBlueprint,
   TemplateStyle,
 } from '../../templates';
-import { classifyIntent } from '../../validation';
+import {
+  classifyIntent,
+  getExplicitPresentationSlideCount,
+  resolveDefaultDeckSlideCount,
+} from '../../validation';
 import type { RequestIntent } from '../../validation';
 import type { SlideOutline } from '../../schemas';
 
@@ -40,6 +44,29 @@ export interface SharedStyleContext {
   layoutStyle: string; // exemplar pack ID e.g. "editorial-infographic"
   tone: string;        // e.g. "professional, modern, high-contrast"
 }
+
+const DEFAULT_DECK_BRIEF_SEQUENCE = [
+  {
+    title: 'Opening',
+    contentGuidance: 'Title/opening slide: establish the deck thesis, audience promise, and the central challenge or opportunity.',
+  },
+  {
+    title: 'Context & Problem',
+    contentGuidance: 'Context/problem slide: explain the situation, why it matters now, and what tension the deck must resolve.',
+  },
+  {
+    title: 'Proof & Mechanism',
+    contentGuidance: 'Proof/mechanism slide: show the evidence, causal model, workflow, or proof points behind the argument.',
+  },
+  {
+    title: 'Recommendation & Action',
+    contentGuidance: 'Recommendation/action slide: name the recommended path, decision, priority, or next action path.',
+  },
+  {
+    title: 'Closing',
+    contentGuidance: 'Closing slide: synthesize the argument, clarify the next step, and finish with a confident call to action.',
+  },
+] as const satisfies readonly Omit<SlideBrief, 'index'>[];
 
 export interface PlanResult {
   intent: RequestIntent;
@@ -67,7 +94,13 @@ function canQueueSlideWork(prompt: string, intent: RequestIntent): boolean {
     return false;
   }
 
-  return /\b(\d+|several|multiple|few)\s+slides?\b/i.test(prompt) || /:\s*\w/.test(prompt) || /\d+\.\s+\w/.test(prompt);
+  // add_slides requires explicit count or content markers (no deck detection for edits)
+  if (intent === 'add_slides') {
+    return /\b(\d+|several|multiple|few)\s+slides?\b/i.test(prompt) || /:\s*\w/.test(prompt) || /\d+\.\s+\w/.test(prompt);
+  }
+
+  // batch_create was already validated by detectBatchIntent (explicit list or deck-like keyword)
+  return true;
 }
 
 type ExemplarBackedTemplateId = ReturnType<typeof resolveTemplatePlan>['templateId'];
@@ -374,8 +407,24 @@ function buildRecipeGuidance(
  * Parse user prompt into individual slide briefs.
  * Handles formats: "deck: intro, problem, solution" or numbered lists.
  */
-export function parseSlideBriefs(prompt: string): SlideBrief[] {
-  // Try to find content after colon
+export function parseSlideBriefs(
+  prompt: string,
+  options: { defaultSlideCount?: number } = {},
+): SlideBrief[] {
+  const explicitBriefs = parseExplicitSlideBriefs(prompt);
+  if (explicitBriefs.length > 0) return explicitBriefs;
+
+  const requestedCount = getExplicitPresentationSlideCount(prompt);
+  return buildDefaultDeckSlideBriefs(
+    requestedCount ?? options.defaultSlideCount ?? resolveDefaultDeckSlideCount(prompt),
+  );
+}
+
+export function hasExplicitSlideBriefStructure(prompt: string): boolean {
+  return parseExplicitSlideBriefs(prompt).length > 0;
+}
+
+function parseExplicitSlideBriefs(prompt: string): SlideBrief[] {
   const colonMatch = prompt.match(/:\s*(.+)$/s);
   const colonContent = colonMatch?.[1];
   if (colonContent) {
@@ -383,7 +432,7 @@ export function parseSlideBriefs(prompt: string): SlideBrief[] {
       .split(/,\s*|\n\s*\d+\.\s*/)
       .map((s) => s.trim())
       .filter(Boolean)
-      .slice(0, 10); // cap at 10 slides
+      .slice(0, 10);
 
     if (items.length >= 2) {
       return items.map((item, i) => ({
@@ -394,7 +443,6 @@ export function parseSlideBriefs(prompt: string): SlideBrief[] {
     }
   }
 
-  // Try numbered list extraction "1. Intro 2. Problem"
   const numberedMatches = [...prompt.matchAll(/\d+\.\s+([^\d.]+?)(?=\d+\.|$)/gs)];
   if (numberedMatches.length >= 2) {
     return numberedMatches.slice(0, 10).map((m, i) => ({
@@ -404,11 +452,45 @@ export function parseSlideBriefs(prompt: string): SlideBrief[] {
     }));
   }
 
-  // Fallback: 3-slide generic deck
+  return [];
+}
+
+function buildDefaultDeckSlideBriefs(count: number): SlideBrief[] {
+  const safeCount = Math.max(1, Math.min(count, 10));
+  const selected = selectDefaultDeckBriefSequence(safeCount);
+
+  return selected.map((brief, index) => ({
+    index: index + 1,
+    ...brief,
+  }));
+}
+
+function selectDefaultDeckBriefSequence(count: number): Array<Omit<SlideBrief, 'index'>> {
+  if (count === 1) return [DEFAULT_DECK_BRIEF_SEQUENCE[0]];
+  if (count === 2) return [DEFAULT_DECK_BRIEF_SEQUENCE[0], DEFAULT_DECK_BRIEF_SEQUENCE[4]];
+  if (count === 3) {
+    return [
+      DEFAULT_DECK_BRIEF_SEQUENCE[0],
+      DEFAULT_DECK_BRIEF_SEQUENCE[1],
+      DEFAULT_DECK_BRIEF_SEQUENCE[3],
+    ];
+  }
+  if (count === 4) return DEFAULT_DECK_BRIEF_SEQUENCE.slice(0, 4);
+  if (count === 5) return [...DEFAULT_DECK_BRIEF_SEQUENCE];
+
+  const deepDiveCount = count - 5;
+  const deepDives = Array.from({ length: deepDiveCount }, (_, index) => ({
+    title: `Deep Dive ${index + 1}`,
+    contentGuidance: `Deep-dive slide ${index + 1}: expand one important proof point, stakeholder concern, or implementation detail without repeating adjacent layouts.`,
+  }));
+
   return [
-    { index: 1, title: 'Introduction', contentGuidance: 'Introduction and overview' },
-    { index: 2, title: 'Main Content', contentGuidance: 'Main content and details' },
-    { index: 3, title: 'Conclusion', contentGuidance: 'Conclusion and next steps' },
+    DEFAULT_DECK_BRIEF_SEQUENCE[0],
+    DEFAULT_DECK_BRIEF_SEQUENCE[1],
+    DEFAULT_DECK_BRIEF_SEQUENCE[2],
+    ...deepDives,
+    DEFAULT_DECK_BRIEF_SEQUENCE[3],
+    DEFAULT_DECK_BRIEF_SEQUENCE[4],
   ];
 }
 

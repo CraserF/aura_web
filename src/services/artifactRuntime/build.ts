@@ -209,14 +209,14 @@ function resolvePresentationSlideRole(
 ): PresentationSlideRole {
   const text = `${part.title} ${part.brief} ${part.recipeId ?? ''}`.toLowerCase();
   if (index === 0 || /\b(title|opening|cover|thesis|launch)\b/.test(text)) return 'title-scene';
-  if (index === total - 1 || /\b(close|closing|next steps?|action|cta|recommend)\b/.test(text)) return 'closing-action';
+  if (index === total - 1 || /\b(close|closing|next steps?|cta)\b/.test(text)) return 'closing-action';
   if (/\b(metric|kpi|number|score|signal|proof|dashboard)\b/.test(text)) return 'metric-proof';
   if (/\b(compare|comparison|versus|before|after|trade[- ]?off)\b/.test(text)) return 'comparison';
   if (/\b(timeline|roadmap|phase|sequence|milestone)\b/.test(text)) return 'timeline';
   if (/\b(problem|gap|risk|barrier|challenge)\b/.test(text)) return 'problem';
   if (/\b(how|model|mechanism|system|flow|process|architecture)\b/.test(text)) return 'mechanism';
   if (/\b(context|market|background|why|setting)\b/.test(text)) return 'context';
-  if (/\b(decision|recommend|proposal|ask)\b/.test(text)) return 'recommendation';
+  if (/\b(action|decision|recommend|proposal|ask)\b/.test(text)) return 'recommendation';
 
   const middleRoles: PresentationSlideRole[] = ['context', 'metric-proof', 'comparison', 'mechanism', 'recommendation'];
   return middleRoles[(index - 1) % middleRoles.length] ?? 'content';

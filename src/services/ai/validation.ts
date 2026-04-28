@@ -28,6 +28,49 @@ export const OFF_TOPIC_PATTERNS = [
   /^(solve|calculate|compute|what\s+is\s+\d)/i,
 ];
 
+const DECK_LIKE_CREATE_RE = /\b(?:slide\s+deck|pitch\s+deck|deck|presentation|keynote|slideshow|power[-\s]?point|pptx?|ppt)\b/i;
+const SINGLE_SLIDE_CREATE_RE = /\b(?:(?:title|opening|cover|hero|context|framing|background|explainer)\s+slide|setting[-\s]+the[-\s]+stage\s+slide|finance[-\s]+grid(?:\s+explainer)?\s+slide|one[-\s]?slide|a\s+single\s+slide|single\s+slide|a\s+slide\b(?!\s+deck))\b/i;
+const RICH_DEFAULT_DECK_RE = /\b(?:keynote|pitch\s+deck|investor\s+deck|board\s+deck|executive\s+briefing\s+deck|leadership\s+review|strategy|strategic|product\s+relaunch|go[-\s]?to[-\s]?market|gtm|fundraising|roadmap)\b/i;
+const SLIDE_COUNT_WORDS: Record<string, number> = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+};
+
+export function getExplicitPresentationSlideCount(prompt: string): number | null {
+  const match = prompt.match(/\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)[-\s]+slides?\b/i);
+  if (!match?.[1]) return null;
+
+  const raw = match[1].toLowerCase();
+  const count = /^\d+$/.test(raw) ? Number(raw) : SLIDE_COUNT_WORDS[raw];
+  if (!count || !Number.isFinite(count)) return null;
+
+  return Math.max(1, Math.min(count, 10));
+}
+
+export function hasExplicitPresentationSlideCount(prompt: string): boolean {
+  return getExplicitPresentationSlideCount(prompt) !== null;
+}
+
+export function isExplicitSingleSlidePrompt(prompt: string): boolean {
+  return SINGLE_SLIDE_CREATE_RE.test(prompt);
+}
+
+export function isDeckLikeCreatePrompt(prompt: string): boolean {
+  return DECK_LIKE_CREATE_RE.test(prompt) && !isExplicitSingleSlidePrompt(prompt);
+}
+
+export function resolveDefaultDeckSlideCount(prompt: string): 3 | 5 {
+  return RICH_DEFAULT_DECK_RE.test(prompt) ? 5 : 3;
+}
+
 /** Classify user intent based on prompt content */
 export function classifyIntent(
   prompt: string,
@@ -132,6 +175,11 @@ function detectBatchIntent(prompt: string): boolean {
     if (hasSlideCount && hasContentList) return true;
     // also "4-slide pitch deck: intro, problem..." pattern
     if (hasSlideCount && /:\s*\w/.test(prompt)) return true;
+  }
+
+  // Deck-like create requests should queue by default unless the user clearly asks for one slide.
+  if (isDeckLikeCreatePrompt(prompt)) {
+    return true;
   }
 
   return false;
