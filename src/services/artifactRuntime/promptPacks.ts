@@ -1,4 +1,4 @@
-import type { TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
+import type { ArtifactQualityBar, TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
 import {
   DOCUMENT_RUNTIME_SHARED_MODULE_CLASSES,
   getDocumentRuntimeModuleWrapperClassName,
@@ -81,6 +81,29 @@ Return only one semantic HTML module:
 - keep module layout mobile-safe and readable in a framed iframe
 - ${input.repair ? 'fix only the failed module issues and preserve useful existing structure' : 'do not repeat the document shell'}
 - do not include <style>, <script>, <html>, <head>, <body>, remote assets, or JavaScript`;
+}
+
+export function buildQualityBarContractPack(qualityBar?: ArtifactQualityBar): string {
+  if (!qualityBar) return '';
+
+  const depth = [
+    qualityBar.expectedDepth.minWords ? `min words ${qualityBar.expectedDepth.minWords}` : undefined,
+    qualityBar.expectedDepth.minModuleWords ? `module words ${qualityBar.expectedDepth.minModuleWords}+` : undefined,
+    qualityBar.expectedDepth.minModules ? `modules ${qualityBar.expectedDepth.minModules}+` : undefined,
+    qualityBar.expectedDepth.minSlides ? `slides ${qualityBar.expectedDepth.minSlides}+` : undefined,
+    qualityBar.expectedDepth.minLayoutRoles ? `layout roles ${qualityBar.expectedDepth.minLayoutRoles}+` : undefined,
+    qualityBar.expectedDepth.minIntegratedVisuals ? `integrated visuals ${qualityBar.expectedDepth.minIntegratedVisuals}+` : undefined,
+    qualityBar.expectedDepth.summaryRequired ? 'summary required' : undefined,
+  ].filter(Boolean).join('; ');
+
+  return `## QUALITY BAR
+
+Tier: ${qualityBar.tier}; target score: ${qualityBar.acceptanceThresholds.minimumScore}+${qualityBar.referenceStylePackId ? `; style pack: ${qualityBar.referenceStylePackId}` : ''}
+Expected depth: ${depth || 'match runtime request depth'}
+Required variety: ${qualityBar.requiredComponentVariety.join('; ')}
+Score signals: ${qualityBar.signals.map((signal) => `${signal.label} ${signal.target}+`).join('; ')}
+Polish budget: ${qualityBar.polishingBudget.deterministicPasses} deterministic, ${qualityBar.polishingBudget.llmPasses} LLM.
+Safety blocks output; excellence misses trigger polish when budget remains.`;
 }
 
 export function buildValidatorFeedbackPack(feedback: string[]): string {

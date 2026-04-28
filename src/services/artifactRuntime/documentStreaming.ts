@@ -17,7 +17,7 @@ import {
   buildDocumentRuntimeRepairUserPrompt,
   buildDocumentRuntimeSystemPrompt,
 } from '@/services/artifactRuntime/documentPrompts';
-import type { ArtifactPart } from '@/services/artifactRuntime/types';
+import type { ArtifactPart, ArtifactQualityBar } from '@/services/artifactRuntime/types';
 import type { EventListener } from '@/services/ai/workflow/types';
 
 export interface DocumentRuntimeImagePart {
@@ -37,6 +37,7 @@ export interface RunQueuedDocumentRuntimeCreateDraftInput {
   blueprintLabel: string;
   runtimeParts: ArtifactPart[];
   designFamily?: string;
+  qualityBar?: ArtifactQualityBar;
   title: string;
   maxModuleOutputTokens: number;
   onEvent: EventListener;
@@ -50,6 +51,7 @@ export interface RunQueuedDocumentRuntimeEditDraftInput {
   taskBrief: string;
   documentType: string;
   designFamily?: string;
+  qualityBar?: ArtifactQualityBar;
   existingHtml: string;
   runtimeParts: ArtifactPart[];
   editModules: DocumentRuntimeEditModuleMatch[];
@@ -66,6 +68,7 @@ export interface RunQueuedDocumentRuntimeModuleRepairInput {
   taskBrief: string;
   documentType: string;
   designFamily?: string;
+  qualityBar?: ArtifactQualityBar;
   runtimeParts: ArtifactPart[];
   validation: DocumentRuntimeValidationResult;
   maxRepairPasses: number;
@@ -153,6 +156,7 @@ export async function runQueuedDocumentRuntimeCreateDraft(
       blueprintLabel: input.blueprintLabel,
       parts: input.runtimeParts,
       designFamily: input.designFamily,
+      qualityBar: input.qualityBar,
     }),
     input.memoryContext,
   );
@@ -177,6 +181,7 @@ export async function runQueuedDocumentRuntimeCreateDraft(
         designFamily: input.designFamily,
         blueprintLabel: input.blueprintLabel,
         mode: 'queued-create',
+        qualityBar: input.qualityBar,
       }), input.systemProviderOptions),
       ...input.historyMessages,
       outlineUserMessage,
@@ -211,6 +216,7 @@ export async function runQueuedDocumentRuntimeCreateDraft(
       outline,
       part,
       designFamily: input.designFamily,
+      qualityBar: input.qualityBar,
     });
     const html = await streamDocumentRuntimeText({
       model: input.model,
@@ -220,6 +226,7 @@ export async function runQueuedDocumentRuntimeCreateDraft(
           designFamily: input.designFamily,
           blueprintLabel: input.blueprintLabel,
           mode: 'queued-create',
+          qualityBar: input.qualityBar,
         }), input.systemProviderOptions),
         { role: 'user', content: modulePrompt },
       ],
@@ -292,6 +299,7 @@ export async function runQueuedDocumentRuntimeEditDraft(
           documentType: input.documentType,
           designFamily: input.designFamily,
           mode: 'queued-edit',
+          qualityBar: input.qualityBar,
         }), input.systemProviderOptions),
         {
           role: 'user',
@@ -302,6 +310,7 @@ export async function runQueuedDocumentRuntimeEditDraft(
             part: match.part,
             designFamily: input.designFamily,
             existingModuleHtml: match.existingHtml,
+            qualityBar: input.qualityBar,
           }),
         },
       ],
@@ -388,6 +397,7 @@ export async function runQueuedDocumentRuntimeModuleRepair(
           documentType: input.documentType,
           designFamily: input.designFamily,
           mode: 'queued-repair',
+          qualityBar: input.qualityBar,
         }), input.systemProviderOptions),
         {
           role: 'user',
@@ -398,6 +408,7 @@ export async function runQueuedDocumentRuntimeModuleRepair(
             issues: partIssues,
             designFamily: input.designFamily,
             existingModuleHtml: findRuntimePartHtml(input.html, partId),
+            qualityBar: input.qualityBar,
           }),
         },
       ],

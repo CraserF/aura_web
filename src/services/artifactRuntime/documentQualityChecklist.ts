@@ -1,14 +1,34 @@
 import type { ArtifactRuntimeTelemetry } from '@/services/ai/workflow/types';
 import { estimateRuntimePromptTokens } from '@/services/artifactRuntime/diagnostics';
+import {
+  scoreAgainstTarget,
+  scoreQualitySignal,
+  summarizeQualitySignals,
+} from '@/services/artifactRuntime/qualityScoring';
+import type {
+  ArtifactQualityBar,
+  ArtifactQualityGrade,
+  ArtifactQualitySignalId,
+  ArtifactQualitySignalScore,
+} from '@/services/artifactRuntime/types';
 
 export interface DocumentQualityChecklistInput {
   html: string;
   promptText?: string;
   promptChars?: number;
+  qualityBar?: ArtifactQualityBar;
 }
 
 export interface DocumentQualityCheck {
-  id: 'iframe-contract' | 'typography' | 'mobile-safety' | 'print-safety' | 'prompt-estimate';
+  id:
+    | 'iframe-contract'
+    | 'typography'
+    | 'mobile-safety'
+    | 'print-safety'
+    | 'prompt-estimate'
+    | 'excellence-depth'
+    | 'excellence-rhythm'
+    | 'excellence-score';
   label: string;
   passed: boolean;
   blockingCount: number;
@@ -22,6 +42,10 @@ export interface DocumentQualityChecklistResult {
   blockingCount: number;
   advisoryCount: number;
   checks: DocumentQualityCheck[];
+  qualityScore?: number;
+  qualityGrade?: ArtifactQualityGrade;
+  qualitySignals?: ArtifactQualitySignalScore[];
+  qualityPolishingSkippedReason?: string;
 }
 
 function buildIframeContractCheck(html: string): DocumentQualityCheck {
@@ -147,6 +171,157 @@ function buildPromptEstimateCheck(promptTokenEstimate: number): DocumentQualityC
   };
 }
 
+function visibleTextFromHtml(html: string): string {
+  return html
+    .replace(/<style\b[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script\b[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function countWords(value: string): number {
+  return value.match(/[A-Za-z0-9][A-Za-z0-9'-]*/g)?.length ?? 0;
+}
+
+function countMatches(html: string, pattern: RegExp): number {
+  return html.match(pattern)?.length ?? 0;
+}
+
+function hasPattern(html: string, pattern: RegExp): boolean {
+  return pattern.test(html);
+}
+
+function targetForSignal(qualityBar: ArtifactQualityBar, id: ArtifactQualitySignalId): number {
+  return qualityBar.signals.find((signal) => signal.id === id)?.target ?? qualityBar.acceptanceThresholds.minimumScore;
+}
+
+function countDocumentComponentFamilies(html: string): number {
+  const families = [
+    /class=["'][^"']*(?:doc-header|doc-hero|doc-lead|doc-runtime-outline)/i,
+    /class=["'][^"']*(?:doc-kpi-row|doc-kpi-grid|doc-kpi)/i,
+    /class=["'][^"']*(?:doc-proof-strip|doc-proof-item|doc-callout)|<blockquote\b/i,
+    /class=["'][^"']*(?:doc-comparison|doc-compare-card)|<table\b/i,
+    /class=["'][^"']*(?:doc-timeline|doc-timeline-item)/i,
+    /class=["'][^"']*(?:doc-sidebar-layout|doc-aside|doc-main)/i,
+    /class=["'][^"']*(?:doc-story-card|doc-infographic-band)|<(?:ol|ul)\b/i,
+  ];
+  return families.filter((pattern) => hasPattern(html, pattern)).length;
+}
+
+function buildDocumentQualitySignals(input: {
+  html: string;
+  checks: DocumentQualityCheck[];
+  qualityBar: ArtifactQualityBar;
+}): ArtifactQualitySignalScore[] {
+  const text = visibleTextFromHtml(input.html);
+  const wordCount = countWords(text);
+  const headingCount = countMatches(input.html, /<h[1-3]\b/gi);
+  const paragraphCount = countMatches(input.html, /<p\b/gi);
+  const componentFamilyCount = countDocumentComponentFamilies(input.html);
+  const hasHero = hasPattern(input.html, /class=["'][^"']*(?:doc-header|doc-hero|doc-lead)|<header\b/i);
+  const hasStyleBlock = /<style\b/i.test(input.html);
+  const hasEvidenceRhythm = hasPattern(input.html, /class=["'][^"']*(?:doc-kpi|doc-proof|doc-comparison|doc-timeline|doc-sidebar)|<(?:table|blockquote)\b/i);
+  const safetyBlocking = input.checks.reduce((sum, check) => sum + check.blockingCount, 0);
+  const safetyAdvisory = input.checks.reduce((sum, check) => sum + check.advisoryCount, 0);
+
+  return [
+    scoreQualitySignal({
+      id: 'content-depth',
+      label: 'Content depth',
+      score: scoreAgainstTarget(wordCount, input.qualityBar.expectedDepth.minWords ?? 600),
+      target: targetForSignal(input.qualityBar, 'content-depth'),
+      detail: `${wordCount} words against target ${input.qualityBar.expectedDepth.minWords ?? 600}.`,
+    }),
+    scoreQualitySignal({
+      id: 'component-variety',
+      label: 'Component variety',
+      score: scoreAgainstTarget(componentFamilyCount, Math.max(1, input.qualityBar.requiredComponentVariety.length)),
+      target: targetForSignal(input.qualityBar, 'component-variety'),
+      detail: `${componentFamilyCount} distinct document component families detected.`,
+    }),
+    scoreQualitySignal({
+      id: 'narrative-coherence',
+      label: 'Narrative coherence',
+      score: Math.min(100, (hasHero ? 25 : 0) + Math.min(35, headingCount * 10) + Math.min(40, paragraphCount * 8)),
+      target: targetForSignal(input.qualityBar, 'narrative-coherence'),
+      detail: `${headingCount} heading(s), ${paragraphCount} paragraph(s), hero ${hasHero ? 'present' : 'missing'}.`,
+    }),
+    scoreQualitySignal({
+      id: 'visual-richness',
+      label: 'Visual richness',
+      score: Math.min(100, (hasStyleBlock ? 22 : 0) + (hasEvidenceRhythm ? 28 : 0) + Math.min(50, componentFamilyCount * 12)),
+      target: targetForSignal(input.qualityBar, 'visual-richness'),
+      detail: hasEvidenceRhythm
+        ? 'Evidence rhythm uses KPI/proof/comparison/timeline/sidebar patterns.'
+        : 'Evidence rhythm is flat or missing premium component patterns.',
+    }),
+    scoreQualitySignal({
+      id: 'reference-style-match',
+      label: 'Reference style match',
+      score: Math.min(100, (hasHero ? 25 : 0) + (hasStyleBlock ? 25 : 0) + Math.min(50, componentFamilyCount * 10)),
+      target: targetForSignal(input.qualityBar, 'reference-style-match'),
+      detail: input.qualityBar.referenceStylePackId
+        ? `Matched against ${input.qualityBar.referenceStylePackId} traits.`
+        : 'Matched against runtime document design traits.',
+    }),
+    scoreQualitySignal({
+      id: 'viewport-safety',
+      label: 'Viewport safety',
+      score: safetyBlocking > 0 ? 35 : safetyAdvisory > 0 ? 78 : 100,
+      target: targetForSignal(input.qualityBar, 'viewport-safety'),
+      detail: `${safetyBlocking} blocking and ${safetyAdvisory} advisory safety issue(s).`,
+    }),
+  ];
+}
+
+function buildDocumentExcellenceChecks(input: {
+  qualityBar: ArtifactQualityBar;
+  signals: ArtifactQualitySignalScore[];
+  score: number;
+  passed: boolean;
+}): DocumentQualityCheck[] {
+  const signal = (id: ArtifactQualitySignalId) => input.signals.find((entry) => entry.id === id);
+  const failedRhythmSignals = [
+    signal('component-variety'),
+    signal('visual-richness'),
+    signal('narrative-coherence'),
+    signal('reference-style-match'),
+  ].filter((entry): entry is ArtifactQualitySignalScore => Boolean(entry && !entry.passed));
+  const depthSignal = signal('content-depth');
+
+  return [
+    {
+      id: 'excellence-depth',
+      label: 'Document content depth',
+      passed: depthSignal?.passed ?? true,
+      blockingCount: 0,
+      advisoryCount: depthSignal?.passed === false ? 1 : 0,
+      details: depthSignal ? [depthSignal.detail] : [],
+    },
+    {
+      id: 'excellence-rhythm',
+      label: 'Document module rhythm',
+      passed: failedRhythmSignals.length === 0,
+      blockingCount: 0,
+      advisoryCount: failedRhythmSignals.length,
+      details: failedRhythmSignals.map((entry) => `${entry.label}: ${entry.detail}`),
+    },
+    {
+      id: 'excellence-score',
+      label: 'Document excellence score',
+      passed: input.passed,
+      blockingCount: 0,
+      advisoryCount: input.passed ? 0 : 1,
+      details: [`Score ${input.score}; ${input.qualityBar.tier} target ${input.qualityBar.acceptanceThresholds.minimumScore}.`],
+    },
+  ];
+}
+
 export function buildDocumentQualityChecklist(
   input: DocumentQualityChecklistInput,
 ): DocumentQualityChecklistResult {
@@ -161,15 +336,41 @@ export function buildDocumentQualityChecklist(
     buildPrintSafetyCheck(input.html),
     buildPromptEstimateCheck(promptTokenEstimate),
   ];
+  const qualitySignals = input.qualityBar
+    ? buildDocumentQualitySignals({
+        html: input.html,
+        checks,
+        qualityBar: input.qualityBar,
+      })
+    : undefined;
+  const qualitySummary = input.qualityBar && qualitySignals
+    ? summarizeQualitySignals(input.qualityBar, qualitySignals)
+    : undefined;
+  if (input.qualityBar && qualitySignals && qualitySummary) {
+    checks.push(...buildDocumentExcellenceChecks({
+      qualityBar: input.qualityBar,
+      signals: qualitySignals,
+      score: qualitySummary.score,
+      passed: qualitySummary.passed,
+    }));
+  }
   const blockingCount = checks.reduce((sum, check) => sum + check.blockingCount, 0);
   const advisoryCount = checks.reduce((sum, check) => sum + check.advisoryCount, 0);
 
   return {
-    ready: blockingCount === 0,
+    ready: blockingCount === 0 && (qualitySummary?.passed ?? true),
     promptTokenEstimate,
     blockingCount,
     advisoryCount,
     checks,
+    ...(qualitySummary
+      ? {
+          qualityScore: qualitySummary.score,
+          qualityGrade: qualitySummary.grade,
+          qualityPolishingSkippedReason: qualitySummary.polishingSkippedReason,
+        }
+      : {}),
+    ...(qualitySignals ? { qualitySignals } : {}),
   };
 }
 
@@ -177,14 +378,28 @@ export function buildDocumentQualityTelemetry(
   input: DocumentQualityChecklistInput,
 ): Pick<
   ArtifactRuntimeTelemetry,
-  'promptTokenEstimate' | 'qualityPassed' | 'qualityBlockingCount' | 'qualityAdvisoryCount' | 'qualityChecks'
+  | 'promptTokenEstimate'
+  | 'qualityPassed'
+  | 'qualityScore'
+  | 'qualityGrade'
+  | 'qualityBlockingCount'
+  | 'qualityAdvisoryCount'
+  | 'qualitySignals'
+  | 'qualityPolishingSkippedReason'
+  | 'qualityChecks'
 > {
   const checklist = buildDocumentQualityChecklist(input);
   return {
     promptTokenEstimate: checklist.promptTokenEstimate,
     qualityPassed: checklist.ready,
+    ...(typeof checklist.qualityScore === 'number' ? { qualityScore: checklist.qualityScore } : {}),
+    ...(checklist.qualityGrade ? { qualityGrade: checklist.qualityGrade } : {}),
     qualityBlockingCount: checklist.blockingCount,
     qualityAdvisoryCount: checklist.advisoryCount,
+    ...(checklist.qualitySignals ? { qualitySignals: checklist.qualitySignals } : {}),
+    ...(checklist.qualityPolishingSkippedReason
+      ? { qualityPolishingSkippedReason: checklist.qualityPolishingSkippedReason }
+      : {}),
     qualityChecks: checklist.checks.map((check) => ({
       id: check.id,
       label: check.label,

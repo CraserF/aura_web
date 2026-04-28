@@ -37,7 +37,7 @@ This benchmark complements the broader major-change protocol. It is the focused 
 - formula column
 - query-derived sheet
 - schema/layout change
-- explain and dry-run correctness
+- deterministic correctness and craft telemetry
 
 ## Record For Every Run
 
@@ -46,6 +46,9 @@ This benchmark complements the broader major-change protocol. It is the focused 
 - total completion time
 - whether progress stayed continuous
 - quality score
+- quality grade
+- failed quality signals, if any
+- polishing skipped or triggered reason
 - consistency score
 - failure classification:
   - routing bug
@@ -53,6 +56,9 @@ This benchmark complements the broader major-change protocol. It is the focused 
   - provider capability mismatch
   - prompt/design-system issue
   - model-quality limitation
+  - quality-depth
+  - quality-visual
+  - quality-continuity
 
 ## Confidentiality Rules
 
@@ -67,8 +73,10 @@ This benchmark complements the broader major-change protocol. It is the focused 
 - long-running work should keep updating visible progress
 - queued work should expose which item is running and which items remain
 - presentation output should feel meaningfully more polished than a generic office deck
+- documents should meet target depth and component rhythm rather than collapsing into short generic prose
 - document edits should preserve user intent more reliably
-- spreadsheet work should remain deterministic
+- spreadsheet work should remain deterministic while reporting craft/readiness signals
+- explain and dry-run compatibility checks are not active benchmark gates unless the changed code directly touches those legacy paths
 
 ## Related Docs
 

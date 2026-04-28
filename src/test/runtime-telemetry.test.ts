@@ -228,6 +228,8 @@ describe('runtime telemetry diagnostics', () => {
           queuedPartCount: 3,
           completedPartCount: 3,
           qualityPassed: true,
+          qualityScore: 88,
+          qualityGrade: 'strong',
           qualityBlockingCount: 0,
           qualityAdvisoryCount: 0,
           spreadsheetActionKind: 'create-formula-column',
@@ -244,6 +246,8 @@ describe('runtime telemetry diagnostics', () => {
           validationAdvisoryCount: 0,
           repairCount: 1,
           qualityPassed: false,
+          qualityScore: 62,
+          qualityGrade: 'needs-polish',
           qualityBlockingCount: 1,
           qualityAdvisoryCount: 2,
         },
@@ -252,6 +256,11 @@ describe('runtime telemetry diagnostics', () => {
 
     expect(summary.qualitySampleCount).toBe(2);
     expect(summary.qualityPassRate).toBe(0.5);
+    expect(summary.averageQualityScore).toBe(75);
+    expect(summary.qualityGradeCounts).toEqual({
+      strong: 1,
+      'needs-polish': 1,
+    });
     expect(summary.qualityBlockingIssueCount).toBe(1);
     expect(summary.qualityAdvisoryIssueCount).toBe(2);
     expect(summary.spreadsheetActionKinds).toEqual(['create-formula-column']);

@@ -41,7 +41,9 @@ Check:
 - right artifact type
 - coherent content structure
 - visually acceptable layout
-- no broken readiness, export, explain, or dry-run behavior where applicable
+- quality score, grade, and failed quality signals make sense where runtime telemetry is present
+- no broken readiness or export behavior where applicable
+- no broken legacy explain/dry-run behavior only when the changed seam explicitly touches it
 
 ## Consistency Notes
 

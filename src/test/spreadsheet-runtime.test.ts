@@ -92,7 +92,8 @@ describe('spreadsheet runtime bridge', () => {
       'validation-result',
       'finalization',
     ]);
-    expect(buildSpreadsheetRuntimeTelemetry({ result, totalRuntimeMs: 42, runPlan })).toEqual({
+    const telemetry = buildSpreadsheetRuntimeTelemetry({ result, totalRuntimeMs: 42, runPlan });
+    expect(telemetry).toEqual(expect.objectContaining({
       timeToFirstPreviewMs: 0,
       totalRuntimeMs: 42,
       validationPassed: true,
@@ -104,19 +105,37 @@ describe('spreadsheet runtime bridge', () => {
       completedPartCount: 3,
       repairedPartCount: 0,
       qualityPassed: true,
+      qualityScore: expect.any(Number),
+      qualityGrade: expect.any(String),
       qualityBlockingCount: 0,
       qualityAdvisoryCount: 0,
-      qualityChecks: [{
-        id: 'spreadsheet-validation',
-        label: 'Spreadsheet deterministic validation',
-        passed: true,
-        blockingCount: 0,
-        advisoryCount: 0,
-      }],
+      qualityChecks: expect.arrayContaining([
+        {
+          id: 'spreadsheet-validation',
+          label: 'Spreadsheet deterministic validation',
+          passed: true,
+          blockingCount: 0,
+          advisoryCount: 0,
+        },
+        {
+          id: 'spreadsheet-craft',
+          label: 'Spreadsheet craft readiness',
+          passed: true,
+          blockingCount: 0,
+          advisoryCount: 0,
+        },
+      ]),
       spreadsheetActionKind: 'create-formula-column',
       changedSheetCount: 0,
       refreshedSheetCount: 0,
-      validationByPart: [
+    }));
+    expect(telemetry.qualitySignals?.map((signal) => signal.id)).toEqual([
+      'deterministic-correctness',
+      'target-clarity',
+      'formatting-usefulness',
+      'downstream-readiness',
+    ]);
+    expect(telemetry.validationByPart).toEqual([
         {
           partId: 'formula',
           label: 'Formula column: Margin',
@@ -141,8 +160,7 @@ describe('spreadsheet runtime bridge', () => {
           advisoryCount: 0,
           rules: [],
         },
-      ],
-    });
+      ]);
   });
 
   it.each([

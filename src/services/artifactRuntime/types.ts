@@ -42,6 +42,74 @@ export type RuntimeOutputMode =
   | 'Teaching'
   | 'Data Story';
 
+export type ArtifactQualityTier =
+  | 'fast'
+  | 'balanced'
+  | 'premium'
+  | 'structured-premium-lite';
+
+export type ArtifactQualitySignalId =
+  | 'content-depth'
+  | 'visual-richness'
+  | 'narrative-coherence'
+  | 'continuity'
+  | 'component-variety'
+  | 'reference-style-match'
+  | 'viewport-safety'
+  | 'deterministic-correctness'
+  | 'target-clarity'
+  | 'formatting-usefulness'
+  | 'downstream-readiness';
+
+export type ArtifactQualityGrade = 'excellent' | 'strong' | 'adequate' | 'needs-polish';
+
+export interface ArtifactQualitySignalTarget {
+  id: ArtifactQualitySignalId;
+  label: string;
+  target: number;
+  weight: number;
+}
+
+export interface ArtifactQualityExpectedDepth {
+  minWords?: number;
+  minModuleWords?: number;
+  minModules?: number;
+  minSlides?: number;
+  minLayoutRoles?: number;
+  minIntegratedVisuals?: number;
+  minSheets?: number;
+  summaryRequired?: boolean;
+}
+
+export interface ArtifactQualityBar {
+  artifactType: DocumentType;
+  outputMode?: RuntimeOutputMode;
+  tier: ArtifactQualityTier;
+  expectedDepth: ArtifactQualityExpectedDepth;
+  requiredComponentVariety: string[];
+  referenceStylePackId?: ReferenceStylePackId;
+  polishingBudget: {
+    deterministicPasses: number;
+    llmPasses: number;
+    maxTotalMs: number;
+  };
+  acceptanceThresholds: {
+    minimumScore: number;
+    excellenceTriggersPolishBelow: number;
+    safetyBlocksOutput: true;
+  };
+  signals: ArtifactQualitySignalTarget[];
+}
+
+export interface ArtifactQualitySignalScore {
+  id: ArtifactQualitySignalId;
+  label: string;
+  score: number;
+  target: number;
+  passed: boolean;
+  detail: string;
+}
+
 export type QueuedWorkStatus = 'pending' | 'active' | 'done' | 'blocked';
 
 export interface QueuedWorkItem {
@@ -221,6 +289,7 @@ export interface ArtifactRunPlan {
   roles: ArtifactRuntimeRole[];
   providerPolicy: ArtifactProviderPolicy;
   designManifest: DesignManifest;
+  qualityBar: ArtifactQualityBar;
   workQueue: ArtifactPart[];
   validationGates: ValidationGate[];
   metricsBudget: ArtifactRuntimeMetricsBudget;

@@ -1,6 +1,11 @@
 import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
 import { formatRuntimeQualityDiagnostics } from '@/services/artifactRuntime/qualityDiagnostics';
+import {
+  scoreQualitySignal,
+  summarizeQualitySignals,
+} from '@/services/artifactRuntime/qualityScoring';
 import type { ArtifactPart, ArtifactPartKind, ArtifactRunPlan } from '@/services/artifactRuntime/types';
+import type { ArtifactQualitySignalScore } from '@/services/artifactRuntime/types';
 import type { ArtifactRuntimeTelemetry, EventListener } from '@/services/ai/workflow/types';
 import type { SpreadsheetOutput } from '@/services/ai/workflow/spreadsheet';
 import type { SpreadsheetPlan } from '@/services/spreadsheet/plans';
@@ -274,6 +279,65 @@ function countRefreshedSheets(result: SpreadsheetOutput): number {
   return 'refreshedSheetIds' in result ? result.refreshedSheetIds?.length ?? 0 : 0;
 }
 
+function hasUsefulSpreadsheetFormattingIntent(result: SpreadsheetOutput): boolean {
+  return (
+    result.kind === 'spreadsheet-created' ||
+    result.kind === 'formula-column-created' ||
+    result.kind === 'query-view-created' ||
+    result.kind === 'chart-created'
+  );
+}
+
+function buildSpreadsheetQualitySignals(input: {
+  result: SpreadsheetOutput;
+  validationPassed: boolean;
+  validationBlockingCount: number;
+  spreadsheetActionKind: string;
+  changedSheetCount: number;
+  refreshedSheetCount: number;
+}): ArtifactQualitySignalScore[] {
+  const targetClarity = input.spreadsheetActionKind !== 'blocked' &&
+    input.spreadsheetActionKind !== 'clarification-needed' &&
+    input.spreadsheetActionKind !== 'no-intent';
+  const changedOrCharted = input.changedSheetCount > 0 || input.result.kind === 'chart-created';
+  const planImpactCount = input.result.planSummary?.downstreamAugmentationImpact.length ?? 0;
+
+  return [
+    scoreQualitySignal({
+      id: 'deterministic-correctness',
+      label: 'Deterministic correctness',
+      score: input.validationPassed ? 100 : input.validationBlockingCount > 0 ? 25 : 55,
+      target: 92,
+      detail: input.validationPassed
+        ? 'Spreadsheet plan validation passed.'
+        : `${input.validationBlockingCount} validation issue(s) remain.`,
+    }),
+    scoreQualitySignal({
+      id: 'target-clarity',
+      label: 'Target clarity',
+      score: targetClarity ? 90 : 35,
+      target: 80,
+      detail: `Runtime action kind: ${input.spreadsheetActionKind}.`,
+    }),
+    scoreQualitySignal({
+      id: 'formatting-usefulness',
+      label: 'Formatting usefulness',
+      score: hasUsefulSpreadsheetFormattingIntent(input.result) ? 82 : input.result.kind === 'sheet-summarized' ? 70 : 55,
+      target: 72,
+      detail: hasUsefulSpreadsheetFormattingIntent(input.result)
+        ? 'Workbook output has a structured created/formula/query/chart surface.'
+        : 'Workbook action has limited formatting signal.',
+    }),
+    scoreQualitySignal({
+      id: 'downstream-readiness',
+      label: 'Downstream readiness',
+      score: changedOrCharted || input.refreshedSheetCount > 0 || planImpactCount > 0 ? 88 : 62,
+      target: 74,
+      detail: `${input.changedSheetCount} changed sheet(s), ${input.refreshedSheetCount} refreshed derived sheet(s).`,
+    }),
+  ];
+}
+
 export function emitSpreadsheetRuntimeResultEvents(input: {
   runPlan: ArtifactRunPlan;
   result: SpreadsheetOutput;
@@ -376,6 +440,32 @@ export function buildSpreadsheetRuntimeTelemetry(input: {
     blockingCount: validationBlockingCount,
     advisoryCount: 0,
   };
+  const qualitySignals = input.runPlan?.qualityBar
+    ? buildSpreadsheetQualitySignals({
+        result: input.result,
+        validationPassed,
+        validationBlockingCount,
+        spreadsheetActionKind,
+        changedSheetCount,
+        refreshedSheetCount,
+      })
+    : undefined;
+  const qualitySummary = input.runPlan?.qualityBar && qualitySignals
+    ? summarizeQualitySignals(input.runPlan.qualityBar, qualitySignals)
+    : undefined;
+  const spreadsheetCraftCheck = qualitySummary
+    ? {
+        id: 'spreadsheet-craft',
+        label: 'Spreadsheet craft readiness',
+        passed: qualitySummary.passed,
+        blockingCount: 0,
+        advisoryCount: qualitySummary.passed ? 0 : qualitySummary.failedSignalCount || 1,
+      }
+    : undefined;
+  const qualityChecks = spreadsheetCraftCheck
+    ? [qualityCheck, spreadsheetCraftCheck]
+    : [qualityCheck];
+  const craftAdvisoryCount = spreadsheetCraftCheck?.advisoryCount ?? 0;
 
   return {
     timeToFirstPreviewMs: 0,
@@ -388,10 +478,16 @@ export function buildSpreadsheetRuntimeTelemetry(input: {
     queuedPartCount,
     completedPartCount,
     repairedPartCount: 0,
-    qualityPassed: validationPassed,
+    qualityPassed: validationPassed && (qualitySummary?.passed ?? true),
+    ...(typeof qualitySummary?.score === 'number' ? { qualityScore: qualitySummary.score } : {}),
+    ...(qualitySummary?.grade ? { qualityGrade: qualitySummary.grade } : {}),
     qualityBlockingCount: validationBlockingCount,
-    qualityAdvisoryCount: 0,
-    qualityChecks: [qualityCheck],
+    qualityAdvisoryCount: craftAdvisoryCount,
+    ...(qualitySignals ? { qualitySignals } : {}),
+    ...(qualitySummary?.polishingSkippedReason
+      ? { qualityPolishingSkippedReason: qualitySummary.polishingSkippedReason }
+      : {}),
+    qualityChecks,
     spreadsheetActionKind,
     changedSheetCount,
     refreshedSheetCount,

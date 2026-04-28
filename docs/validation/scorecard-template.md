@@ -58,7 +58,9 @@ Check:
 - right artifact type
 - correct visible behavior for the requested case
 - acceptable readability and layout
-- no broken readiness, export, explain, or dependency behavior where applicable
+- quality score, grade, and failed quality signals make sense where runtime telemetry is present
+- no broken readiness, export, or dependency behavior where applicable
+- no broken legacy explain behavior only when the changed seam explicitly touches it
 
 ## Consistency Notes
 

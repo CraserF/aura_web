@@ -1,6 +1,8 @@
 import { buildArtifactWorkflowPlan } from '@/services/artifactRuntime/planner';
+import { buildArtifactQualityBar } from '@/services/artifactRuntime/qualityBar';
 import type { BuildArtifactWorkflowPlanInput, PresentationRecipeId, RuntimeOutputMode } from '@/services/artifactRuntime/types';
 import type {
+  ArtifactQualityBar,
   ArtifactPart,
   ArtifactProviderPolicy,
   ArtifactRunPlan,
@@ -180,7 +182,7 @@ function buildWorkQueue(workflow: ArtifactRunPlan['workflow']): ArtifactPart[] {
   }];
 }
 
-function buildValidationGates(workflow: ArtifactRunPlan['workflow']): ValidationGate[] {
+function buildValidationGates(workflow: ArtifactRunPlan['workflow'], qualityBar: ArtifactQualityBar): ValidationGate[] {
   const sharedChecks = [
     'No unresolved template tokens.',
     'No unsupported HTML wrappers or JavaScript.',
@@ -188,48 +190,89 @@ function buildValidationGates(workflow: ArtifactRunPlan['workflow']): Validation
   ];
 
   if (workflow.artifactType === 'presentation') {
-    return [{
-      id: 'presentation-fragment-contract',
-      artifactType: 'presentation',
-      label: 'Presentation canvas contract',
-      severity: 'blocking',
-      status: 'pending',
-      checks: [
-        ...sharedChecks,
-        'Fragment contains <style> and <section> output only.',
-        'Reduced-motion handling exists when animations are present.',
-        'Slide count matches assembled section count.',
-      ],
-    }];
+    return [
+      {
+        id: 'presentation-fragment-contract',
+        artifactType: 'presentation',
+        label: 'Presentation canvas contract',
+        severity: 'blocking',
+        status: 'pending',
+        checks: [
+          ...sharedChecks,
+          'Fragment contains <style> and <section> output only.',
+          'Reduced-motion handling exists when animations are present.',
+          'Slide count matches assembled section count.',
+        ],
+      },
+      {
+        id: 'presentation-excellence-contract',
+        artifactType: 'presentation',
+        label: 'Presentation excellence bar',
+        severity: 'advisory',
+        status: 'pending',
+        checks: [
+          `Quality tier ${qualityBar.tier} reaches score ${qualityBar.acceptanceThresholds.minimumScore}+ before finalization or records a polishing reason.`,
+          'Deck has a narrative arc, strong opening scene, varied slide roles, and continuity tokens.',
+          'Boring repeated-grid patterns trigger polishing or quality advisories.',
+        ],
+      },
+    ];
   }
 
   if (workflow.artifactType === 'document') {
-    return [{
-      id: 'document-iframe-contract',
-      artifactType: 'document',
-      label: 'Document iframe contract',
+    return [
+      {
+        id: 'document-iframe-contract',
+        artifactType: 'document',
+        label: 'Document iframe contract',
+        severity: 'blocking',
+        status: 'pending',
+        checks: [
+          ...sharedChecks,
+          'Document modules stack safely on mobile.',
+          'No remote assets or fixed-width clipping risks.',
+        ],
+      },
+      {
+        id: 'document-excellence-contract',
+        artifactType: 'document',
+        label: 'Document excellence bar',
+        severity: 'advisory',
+        status: 'pending',
+        checks: [
+          `Quality tier ${qualityBar.tier} reaches score ${qualityBar.acceptanceThresholds.minimumScore}+ before finalization or records a polishing reason.`,
+          'Document meets target depth with a content blueprint, module budgets, and useful evidence rhythm.',
+          'Flat or too-short output triggers enrichment or quality advisories.',
+        ],
+      },
+    ];
+  }
+
+  return [
+    {
+      id: 'spreadsheet-deterministic-contract',
+      artifactType: 'spreadsheet',
+      label: 'Spreadsheet deterministic execution',
       severity: 'blocking',
       status: 'pending',
       checks: [
-        ...sharedChecks,
-        'Document modules stack safely on mobile.',
-        'No remote assets or fixed-width clipping risks.',
+        'Formula, query, chart, and refresh actions are explicit.',
+        'Workbook writes are deterministic runtime operations.',
+        'Validation summarizes changed sheets and dependencies.',
       ],
-    }];
-  }
-
-  return [{
-    id: 'spreadsheet-deterministic-contract',
-    artifactType: 'spreadsheet',
-    label: 'Spreadsheet deterministic execution',
-    severity: 'blocking',
-    status: 'pending',
-    checks: [
-      'Formula, query, chart, and refresh actions are explicit.',
-      'Workbook writes are deterministic runtime operations.',
-      'Validation summarizes changed sheets and dependencies.',
-    ],
-  }];
+    },
+    {
+      id: 'spreadsheet-craft-contract',
+      artifactType: 'spreadsheet',
+      label: 'Spreadsheet craft bar',
+      severity: 'advisory',
+      status: 'pending',
+      checks: [
+        `Quality tier ${qualityBar.tier} reaches score ${qualityBar.acceptanceThresholds.minimumScore}+ before finalization or records a polishing reason.`,
+        'Workbook output has clear targets, useful formatting intent, and downstream readiness telemetry.',
+      ],
+    },
+  ];
 }
 
 export function buildArtifactRunPlan(input: BuildArtifactRunPlanInput): ArtifactRunPlan {
@@ -237,6 +280,12 @@ export function buildArtifactRunPlan(input: BuildArtifactRunPlanInput): Artifact
   const workflow = buildArtifactWorkflowPlan(planInput);
   const providerPolicy = buildProviderPolicy(workflow.templateGuidance.providerTier);
   const designManifest = buildDesignManifest(planInput, workflow);
+  const qualityBar = buildArtifactQualityBar({
+    workflow,
+    providerPolicy,
+    designManifest,
+    guidedOutputMode: planInput.guidedOutputMode,
+  });
 
   return {
     version: 1,
@@ -255,8 +304,9 @@ export function buildArtifactRunPlan(input: BuildArtifactRunPlanInput): Artifact
     roles: ['planner', 'design-director', 'generator', 'validator', 'repairer', 'finalizer'],
     providerPolicy,
     designManifest,
+    qualityBar,
     workQueue: buildWorkQueue(workflow),
-    validationGates: buildValidationGates(workflow),
+    validationGates: buildValidationGates(workflow, qualityBar),
     metricsBudget: {
       targetFirstPreviewMs: workflow.artifactType === 'presentation' ? 30_000 : 45_000,
       targetRepairCount: providerPolicy.maxRepairPasses,

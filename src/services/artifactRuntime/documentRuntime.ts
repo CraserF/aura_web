@@ -4,6 +4,7 @@ import {
   buildDocumentDesignFamilyPack,
   buildDocumentIframeContractPack,
   buildDocumentModuleContractPack,
+  buildQualityBarContractPack,
   buildValidatorFeedbackPack,
 } from '@/services/artifactRuntime/promptPacks';
 import {
@@ -12,7 +13,7 @@ import {
   getDocumentRuntimeModuleWrapperClassName,
 } from '@/services/artifactRuntime/documentDesignSystem';
 import { buildDocumentQualityTelemetry } from '@/services/artifactRuntime/documentQualityChecklist';
-import type { ArtifactPart, ArtifactRunPlan } from '@/services/artifactRuntime/types';
+import type { ArtifactPart, ArtifactQualityBar, ArtifactRunPlan } from '@/services/artifactRuntime/types';
 import { validateDocument } from '@/services/ai/workflow/agents/document-qa';
 import type { ArtifactRuntimeTelemetry, EventListener } from '@/services/ai/workflow/types';
 import type { EditingTelemetry, ResolvedTarget } from '@/services/editing/types';
@@ -161,6 +162,7 @@ export interface BuildDocumentRuntimeTelemetryInput {
   html?: string;
   promptText?: string;
   promptChars?: number;
+  qualityBar?: ArtifactQualityBar;
 }
 
 export interface BuildDocumentRuntimePartsInput {
@@ -169,6 +171,7 @@ export interface BuildDocumentRuntimePartsInput {
   blueprintLabel: string;
   recommendedModules: string[];
   isEdit: boolean;
+  qualityBar?: ArtifactQualityBar;
 }
 
 export interface CanRunQueuedDocumentRuntimeInput {
@@ -184,6 +187,7 @@ export interface BuildDocumentRuntimeOutlinePromptInput {
   blueprintLabel: string;
   parts: ArtifactPart[];
   designFamily?: string;
+  qualityBar?: ArtifactQualityBar;
 }
 
 export interface BuildDocumentRuntimeModulePromptInput {
@@ -193,6 +197,7 @@ export interface BuildDocumentRuntimeModulePromptInput {
   part: ArtifactPart;
   designFamily?: string;
   existingModuleHtml?: string;
+  qualityBar?: ArtifactQualityBar;
 }
 
 export interface BuildDocumentRuntimeModuleRepairPromptInput {
@@ -202,6 +207,7 @@ export interface BuildDocumentRuntimeModuleRepairPromptInput {
   issues: DocumentRuntimeModuleIssue[];
   designFamily?: string;
   existingModuleHtml?: string;
+  qualityBar?: ArtifactQualityBar;
 }
 
 export interface AssembleDocumentRuntimeHtmlInput {
@@ -270,9 +276,23 @@ function normalizeModuleTitle(value: string, index: number): string {
 }
 
 export function buildDocumentRuntimeParts(input: BuildDocumentRuntimePartsInput): ArtifactPart[] {
+  const targetModuleCount = input.qualityBar?.expectedDepth.minModules ?? 3;
+  const defaultModules = [
+    'hero summary',
+    'KPI proof row',
+    'comparison or evidence module',
+    'next-step timeline',
+  ];
   const modules = input.recommendedModules.length > 0
-    ? input.recommendedModules.slice(0, 4)
-    : ['summary module', 'evidence module', 'next-step module'];
+    ? input.qualityBar
+      ? [
+          ...input.recommendedModules,
+          ...defaultModules.filter((module) => !input.recommendedModules.includes(module)),
+        ].slice(0, Math.max(3, targetModuleCount))
+      : input.recommendedModules.slice(0, 4)
+    : input.qualityBar
+      ? defaultModules.slice(0, Math.max(3, targetModuleCount))
+      : ['summary module', 'evidence module', 'next-step module'];
   const operation = input.isEdit ? 'Update' : 'Create';
 
   return [
@@ -366,6 +386,7 @@ export function buildDocumentRuntimeOutlinePrompt(input: BuildDocumentRuntimeOut
       designFamily: input.designFamily,
       blueprintLabel: input.blueprintLabel,
     }),
+    buildQualityBarContractPack(input.qualityBar),
     `## OUTLINE TASK
 
 Create the runtime outline for this ${input.documentType} document.
@@ -392,6 +413,7 @@ export function buildDocumentRuntimeModulePrompt(input: BuildDocumentRuntimeModu
       documentType: input.documentType,
       designFamily: input.designFamily,
     }),
+    buildQualityBarContractPack(input.qualityBar),
     `## MODULE TASK
 
 Task brief:
@@ -423,6 +445,7 @@ export function buildDocumentRuntimeModuleRepairPrompt(input: BuildDocumentRunti
       documentType: input.documentType,
       designFamily: input.designFamily,
     }),
+    buildQualityBarContractPack(input.qualityBar),
     buildValidatorFeedbackPack(input.issues.map((issue) => `${issue.severity}: ${issue.summary}`)),
     `## MODULE REPAIR TASK
 
@@ -586,6 +609,7 @@ export function buildDocumentRuntimeTelemetry(
         html: input.html,
         promptText: input.promptText,
         promptChars: input.promptChars,
+        qualityBar: input.qualityBar,
       })
     : {};
 
@@ -1135,6 +1159,7 @@ export async function runDocumentRuntimeOrchestrator(
     repairedPartCount: structureRepair.repairedPartCount,
     html: finalHtml,
     promptText: input.promptText,
+    qualityBar: input.runPlan?.qualityBar,
     ...(generation.firstPreviewAt ? { firstPreviewAtMs: generation.firstPreviewAt } : {}),
   });
 

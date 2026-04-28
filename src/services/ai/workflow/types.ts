@@ -6,6 +6,7 @@ import type { AIMessage, ProviderEntry } from '../types';
 import type { EditStrategy, EditingTelemetry, ResolvedTarget } from '@/services/editing/types';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
 import type { TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
+import type { ArtifactQualityGrade, ArtifactQualitySignalScore } from '@/services/artifactRuntime/types';
 
 export type { AIMessage };
 
@@ -65,8 +66,12 @@ export interface ArtifactRuntimeTelemetry {
   repairedPartCount?: number;
   promptTokenEstimate?: number;
   qualityPassed?: boolean;
+  qualityScore?: number;
+  qualityGrade?: ArtifactQualityGrade;
   qualityBlockingCount?: number;
   qualityAdvisoryCount?: number;
+  qualitySignals?: ArtifactQualitySignalScore[];
+  qualityPolishingSkippedReason?: string;
   qualityChecks?: Array<{
     id: string;
     label: string;

@@ -17,7 +17,7 @@ Use this protocol for any change that affects:
 - lifecycle or policy behavior
 - project augmentation
 - artifact creation flows
-- explain or dry-run behavior
+- legacy explain or dry-run compatibility only when the changed code explicitly touches those paths
 
 Do not use this protocol as the default gate for shell-only UI polish that does not affect workflow behavior.
 
@@ -45,10 +45,10 @@ For any workflow-affecting change:
 - run the full relevant case-family set for each touched artifact type
 - rerun shared cross-artifact cases when the change affects:
   - routing
-  - explain or dry-run
   - readiness or publish gating
   - lifecycle or policy
   - project augmentation
+  - runtime quality scoring or polishing
 - run the viewport matrix for changed document or presentation behaviors
 - compare at least one result against a previously validated case in the same family to catch drift
 
@@ -118,7 +118,9 @@ Check:
 - correct visible behavior for the case
 - acceptable structure and readability
 - no obvious degradation in layout or design quality
-- no broken export, readiness, explain, or dependency behavior where applicable
+- quality score, grade, and failed quality signals are understandable when runtime telemetry is present
+- no broken export, readiness, or dependency behavior where applicable
+- no broken legacy explain or dry-run behavior only where the changed seam explicitly affects those paths
 
 ### Consistency
 

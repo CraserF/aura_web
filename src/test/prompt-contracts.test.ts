@@ -108,6 +108,7 @@ describe('artifact prompt contracts', () => {
     });
 
     expect(createPrompt).toContain('DESIGN MANIFEST');
+    expect(createPrompt).toContain('QUALITY BAR');
     expect(createPrompt).toContain(`Family: ${runPlan.designManifest.family}`);
     expect(createPrompt).toContain('fixed 16:9 Reveal stage');
     expect(createPrompt).toContain('reduced-motion CSS is required');
@@ -195,6 +196,23 @@ describe('artifact prompt contracts', () => {
     expect(systemPrompt).toContain('no <script>');
     expect(modulePrompt).toContain(`data-runtime-part="${part.id}"`);
     expect(modulePrompt).toContain('mobile-safe');
+    expect(buildDocumentRuntimeSystemPrompt({
+      documentType: 'brief',
+      designFamily: 'executive-light',
+      blueprintLabel: 'Executive Brief',
+      mode: 'queued-create',
+      qualityBar: buildArtifactRunPlan({
+        runId: 'doc-prompt-quality',
+        prompt: 'Create a premium executive brief',
+        artifactType: 'document',
+        operation: 'create',
+        activeDocument: null,
+        mode: 'execute',
+        providerId: 'openai',
+        providerModel: 'gpt-4o',
+        allowFullRegeneration: false,
+      }).qualityBar,
+    })).toContain('QUALITY BAR');
     expect(repairPrompt).toContain('VALIDATOR FEEDBACK');
     expect(repairPrompt).toContain('fix only the failed module issues');
   });

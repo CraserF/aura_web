@@ -2,6 +2,7 @@ import {
   buildCoreArtifactContractPack,
   buildDocumentDesignFamilyPack,
   buildDocumentIframeContractPack,
+  buildQualityBarContractPack,
 } from '@/services/artifactRuntime/promptPacks';
 import {
   buildDocumentRuntimePartPrompt,
@@ -12,13 +13,14 @@ import {
   type BuildDocumentRuntimeModuleRepairPromptInput,
   type BuildDocumentRuntimeOutlinePromptInput,
 } from '@/services/artifactRuntime/documentRuntime';
-import type { ArtifactPart } from '@/services/artifactRuntime/types';
+import type { ArtifactPart, ArtifactQualityBar } from '@/services/artifactRuntime/types';
 
 export interface BuildDocumentRuntimeSystemPromptInput {
   documentType: string;
   designFamily?: string;
   blueprintLabel?: string;
   mode: 'queued-create' | 'queued-edit' | 'queued-repair';
+  qualityBar?: ArtifactQualityBar;
 }
 
 export interface DocumentRuntimeProjectLink {
@@ -33,6 +35,7 @@ export interface BuildDocumentRuntimeSingleStreamSystemPromptInput {
   blueprintLabel?: string;
   mode: 'create' | 'edit';
   projectRulesBlock?: string;
+  qualityBar?: ArtifactQualityBar;
 }
 
 export interface BuildDocumentRuntimeSingleStreamUserPromptInput {
@@ -48,6 +51,7 @@ export interface BuildDocumentRuntimeSingleStreamUserPromptInput {
   existingDocumentSummary?: string;
   targetSummary?: string[];
   allowFullRegeneration?: boolean;
+  qualityBar?: ArtifactQualityBar;
 }
 
 export function buildDocumentRuntimeSystemPrompt(
@@ -67,10 +71,11 @@ export function buildDocumentRuntimeSystemPrompt(
       designFamily: input.designFamily,
       blueprintLabel: input.blueprintLabel,
     }),
+    buildQualityBarContractPack(input.qualityBar),
     `## DOCUMENT RUNTIME ROLE
 
 ${modeInstruction}
-Keep output small, deterministic, and easy for Aura to validate.
+Keep output deterministic and easy for Aura to validate, while meeting the quality bar for depth, rhythm, and usefulness.
 Use semantic HTML fragments for modules and markdown only when the task asks for an outline.
 Never include remote assets, JavaScript, unsupported wrappers, unresolved placeholders, or inline event handlers.`,
   ].join('\n\n');
@@ -94,6 +99,7 @@ export function buildDocumentRuntimeSingleStreamSystemPrompt(
       designFamily: input.designFamily,
       blueprintLabel: input.blueprintLabel,
     }),
+    buildQualityBarContractPack(input.qualityBar),
     `## DOCUMENT SINGLE-STREAM ROLE
 
 ${modeInstruction}
@@ -152,6 +158,7 @@ Document type: ${input.documentType}
 Blueprint: ${input.blueprintLabel ?? 'runtime-selected'}
 Art direction: ${input.artDirection ?? 'runtime-selected'}
 Output mode: ${input.preferHtml === false ? 'clean reference-friendly document' : 'designed HTML-first document'}
+Quality bar: ${input.qualityBar ? `${input.qualityBar.tier}, score ${input.qualityBar.acceptanceThresholds.minimumScore}+` : 'runtime-selected'}
 
 Task brief:
 ${input.taskBrief}`,

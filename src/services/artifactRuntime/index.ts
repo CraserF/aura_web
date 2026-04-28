@@ -80,8 +80,19 @@ export {
   buildDocumentIframeContractPack,
   buildDocumentModuleContractPack,
   buildPresentationFragmentContractPack,
+  buildQualityBarContractPack,
   buildValidatorFeedbackPack,
 } from './promptPacks';
+export {
+  buildArtifactQualityBar,
+} from './qualityBar';
+export {
+  clampQualityScore,
+  qualityGradeFromScore,
+  scoreAgainstTarget,
+  scoreQualitySignal,
+  summarizeQualitySignals,
+} from './qualityScoring';
 export {
   buildPresentationQualityChecklist,
   buildPresentationQualityTelemetry,
@@ -103,6 +114,7 @@ export {
 } from './spreadsheetRuntime';
 export type { BuildArtifactRunPlanInput } from './build';
 export type { CreateArtifactRunEventInput } from './events';
+export type { BuildArtifactQualityBarInput } from './qualityBar';
 export type {
   DocumentQualityCheck,
   DocumentQualityChecklistInput,
@@ -187,6 +199,13 @@ export type {
 export type {
   ArtifactPart,
   ArtifactProviderPolicy,
+  ArtifactQualityBar,
+  ArtifactQualityExpectedDepth,
+  ArtifactQualityGrade,
+  ArtifactQualitySignalId,
+  ArtifactQualitySignalScore,
+  ArtifactQualitySignalTarget,
+  ArtifactQualityTier,
   ArtifactRunEvent,
   ArtifactRunPlan,
   DesignManifest,

@@ -17,7 +17,8 @@ Use this checklist after:
 - workflow-affecting provider changes
 - prompt changes likely to affect local-model quality
 - document or presentation generation changes
-- local-provider routing, validation, explain, or dry-run changes
+- local-provider routing, validation, quality scoring, or polishing changes
+- legacy explain/dry-run changes only when the changed code explicitly touches those compatibility paths
 
 Do not treat this as a replacement for the major workflow change protocol. This checklist sits beside it and adds a provider-specific local-model pass.
 
@@ -40,7 +41,7 @@ Do not treat this as a replacement for the major workflow change protocol. This 
 - typography or theme change
 - explicit full rewrite
 - readiness or export check
-- explain or dry-run where the changed seam affects them
+- quality-bar score and polishing diagnostics
 
 ### Presentations
 
@@ -51,15 +52,14 @@ Do not treat this as a replacement for the major workflow change protocol. This 
 - slide layout conversion
 - explicit full deck rewrite
 - readiness or export check
-- explain or dry-run where the changed seam affects them
+- quality-bar score and polishing diagnostics
 
 ### Spreadsheets
 
 - workbook creation
 - computed column
 - query-derived sheet
-- explain
-- dry-run with no mutation
+- deterministic correctness and craft telemetry
 
 ## Failure Classification
 

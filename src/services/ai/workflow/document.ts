@@ -697,6 +697,7 @@ export async function runDocumentWorkflow(
           blueprintLabel: planResult.blueprint.label,
           recommendedModules: planResult.blueprint.recommendedModules,
           isEdit,
+          qualityBar: input.artifactRunPlan.qualityBar,
         })
       : [];
     emitArtifactRunEvent(onEvent, {
@@ -767,6 +768,7 @@ export async function runDocumentWorkflow(
         mode: isEdit ? 'edit' : 'create',
         ...(documentDesignFamily ? { designFamily: documentDesignFamily } : {}),
         ...(input.projectRulesBlock ? { projectRulesBlock: input.projectRulesBlock } : {}),
+        ...(input.artifactRunPlan?.qualityBar ? { qualityBar: input.artifactRunPlan.qualityBar } : {}),
       });
       const userPrompt = buildDocumentRuntimeSingleStreamUserPrompt({
         taskBrief: input.prompt,
@@ -779,6 +781,7 @@ export async function runDocumentWorkflow(
         runtimeParts,
         targetSummary: input.editing?.targetSummary ?? [],
         allowFullRegeneration: input.editing?.allowFullRegeneration ?? false,
+        ...(input.artifactRunPlan?.qualityBar ? { qualityBar: input.artifactRunPlan.qualityBar } : {}),
         ...(requestedTitle ? { requestedTitle } : {}),
         ...(existingDocumentSummary ? { existingDocumentSummary } : {}),
       });
@@ -861,6 +864,7 @@ export async function runDocumentWorkflow(
           taskBrief: input.prompt,
           documentType: planResult.documentType,
           designFamily: input.artifactRunPlan?.designManifest.family,
+          qualityBar: input.artifactRunPlan?.qualityBar,
           existingHtml: input.existingHtml ?? '',
           runtimeParts,
           editModules: queuedEditModules,
@@ -880,6 +884,7 @@ export async function runDocumentWorkflow(
           documentType: planResult.documentType,
           blueprintLabel: planResult.blueprint.label,
           designFamily: input.artifactRunPlan?.designManifest.family,
+          qualityBar: input.artifactRunPlan?.qualityBar,
           title: requestedTitle || extractTitleFromPrompt(input.prompt),
           maxModuleOutputTokens: input.artifactRunPlan?.providerPolicy.mode === 'local-constrained' ? 3072 : 4096,
           onEvent,
@@ -995,6 +1000,7 @@ export async function runDocumentWorkflow(
         taskBrief: input.prompt,
         documentType: planResult.documentType,
         designFamily: input.artifactRunPlan?.designManifest.family,
+        qualityBar: input.artifactRunPlan?.qualityBar,
         runtimeParts,
         validation,
         maxRepairPasses: input.artifactRunPlan?.providerPolicy.maxRepairPasses ?? 0,

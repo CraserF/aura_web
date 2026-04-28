@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildArtifactRunPlan,
   buildDocumentQualityChecklist,
   buildDocumentQualityTelemetry,
   finalizeDocumentRuntimeHtml,
@@ -36,6 +37,42 @@ describe('document quality checklist', () => {
       qualityBlockingCount: 0,
       qualityAdvisoryCount: 0,
     }));
+  });
+
+  it('adds excellence scoring when a runtime quality bar is present', () => {
+    const plan = buildArtifactRunPlan({
+      runId: 'doc-quality-bar',
+      prompt: 'Create a premium executive briefing document',
+      artifactType: 'document',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    const longCopy = Array.from({ length: 930 }, (_, index) => `evidence${index}`).join(' ');
+    const checklist = buildDocumentQualityChecklist({
+      qualityBar: plan.qualityBar,
+      html: `<style>
+        body { font-size: 16px; }
+        .doc-section p, .doc-section li { font-size: 16px; }
+        img, table { max-width: 100%; }
+        @media print { .doc-section { break-inside: avoid; } }
+      </style>
+      <main class="doc-shell">
+        <header class="doc-header"><h1>Executive Brief</h1><p class="doc-lead">${longCopy}</p></header>
+        <section class="doc-section doc-kpi-row"><h2>Signal</h2><article class="doc-kpi"><strong>92%</strong><span>Confidence</span></article></section>
+        <section class="doc-section doc-proof-strip"><h2>Evidence</h2><article class="doc-proof-item"><span>Proof point</span></article></section>
+        <section class="doc-section doc-comparison"><h2>Comparison</h2><article class="doc-compare-card"><span>Before</span></article></section>
+        <section class="doc-section doc-timeline"><h2>Next Steps</h2><article class="doc-timeline-item"><strong>Now</strong></article></section>
+      </main>`,
+    });
+
+    expect(checklist.ready).toBe(true);
+    expect(checklist.qualityScore).toBeGreaterThanOrEqual(plan.qualityBar.acceptanceThresholds.minimumScore);
+    expect(checklist.qualitySignals?.map((signal) => signal.id)).toContain('content-depth');
+    expect(checklist.checks.map((check) => check.id)).toContain('excellence-score');
   });
 
   it('blocks unsafe scripted, wrapped, remote, and fixed-width document output', () => {

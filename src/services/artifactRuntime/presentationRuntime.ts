@@ -836,6 +836,7 @@ export async function runQueuedPresentationRuntime(
       ...buildPresentationQualityTelemetry({
         html: outputHtml,
         promptText: input.prompt,
+        qualityBar: runPlan?.qualityBar,
       }),
       validationByPart: finalValidation.validationByPart,
     },
@@ -1168,6 +1169,7 @@ export async function runSinglePresentationRuntime(
       ...buildPresentationQualityTelemetry({
         html: outputHtml,
         promptText: input.prompt,
+        qualityBar: runPlan?.qualityBar,
       }),
       validationByPart: summarizePresentationValidationByPart(qaResult.violations, designResult.slideCount),
     },
@@ -1202,6 +1204,7 @@ export function finalizeStaticPresentationRuntime(
   const qualityTelemetry = buildPresentationQualityTelemetry({
     html,
     promptText: input.title,
+    qualityBar: input.runPlan?.qualityBar,
   });
   const qaResult = validateSlides(html, {
     expectedSlideCount: input.slideCount,

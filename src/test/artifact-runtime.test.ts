@@ -61,10 +61,17 @@ describe('ArtifactRuntime plan', () => {
     expect(plan.workflow.requestKind).toBe('batch');
     expect(plan.roles).toEqual(['planner', 'design-director', 'generator', 'validator', 'repairer', 'finalizer']);
     expect(plan.providerPolicy.mode).toBe('frontier-quality');
+    expect(plan.qualityBar).toEqual(expect.objectContaining({
+      artifactType: 'presentation',
+      tier: 'premium',
+    }));
+    expect(plan.qualityBar.signals.map((signal) => signal.id)).toContain('visual-richness');
+    expect(plan.qualityBar.requiredComponentVariety).toContain('varied slide roles');
     expect(plan.designManifest.typography.coverH1Px).toBe('76-96');
     expect(plan.designManifest.motionBudget.reducedMotionRequired).toBe(true);
     expect(plan.workQueue).toHaveLength(3);
     expect(plan.validationGates[0]?.checks).toContain('Slide count matches assembled section count.');
+    expect(plan.validationGates.map((gate) => gate.id)).toContain('presentation-excellence-contract');
 
     expect(buildSlideBriefsFromRunPlan(plan).map((brief) => brief.title)).toEqual([
       'Opening thesis',
@@ -92,6 +99,8 @@ describe('ArtifactRuntime plan', () => {
       secondaryEvaluation: 'skip',
       generationGranularity: 'part',
     });
+    expect(plan.qualityBar.tier).toBe('structured-premium-lite');
+    expect(plan.qualityBar.polishingBudget.llmPasses).toBe(0);
     expect(plan.designManifest.motionBudget.maxAnimatedSystems).toBe(1);
     expect(plan.cancellation.source).toBe('user-only');
   });

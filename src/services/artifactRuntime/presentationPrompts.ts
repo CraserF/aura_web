@@ -3,6 +3,7 @@ import type { PlanResult, SlideBrief } from '@/services/ai/workflow/agents/plann
 import {
   buildCoreArtifactContractPack,
   buildPresentationFragmentContractPack,
+  buildQualityBarContractPack,
   buildValidatorFeedbackPack,
 } from '@/services/artifactRuntime/promptPacks';
 import type { ArtifactRunPlan, TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
@@ -150,6 +151,7 @@ export function buildPresentationCreateSystemPrompt(input: PresentationPromptBas
     buildPresentationFragmentContractPack(guidanceFrom(input)),
     buildDesignManifestPack(input),
     buildStyleFamilyPack(input),
+    buildQualityBarContractPack(input.runPlan?.qualityBar),
     buildMobileStagePack(),
     `## CREATE MODE
 
@@ -188,6 +190,7 @@ export function buildPresentationEditSystemPrompt(input: PresentationPromptBaseI
     buildPresentationFragmentContractPack(guidanceFrom(input)),
     buildDesignManifestPack(input),
     buildStyleFamilyPack(input),
+    buildQualityBarContractPack(input.runPlan?.qualityBar),
     buildMobileStagePack(),
     isRestyle
       ? `## RESTYLE MODE
@@ -251,12 +254,16 @@ Output only the new \`<section>\` element(s); do not repeat existing slides and 
 }
 
 export function buildPresentationBatchSlidePrompt(input: PresentationBatchSlidePromptInput): string {
+  const qualityLine = input.runPlan?.qualityBar
+    ? `Quality bar: ${input.runPlan.qualityBar.tier}, score ${input.runPlan.qualityBar.acceptanceThresholds.minimumScore}+; vary slide role while preserving motif and shared tokens.`
+    : 'Quality bar: preserve premium narrative continuity, role variety, and strong visual hierarchy.';
   const slideTask = `## BATCH SLIDE ${input.brief.index} OF ${input.totalSlides}
 
 Deck task: ${input.runPlan?.userIntent ?? input.planResult.enhancedPrompt}
 Slide title: ${input.brief.title}
 Content guidance: ${input.brief.contentGuidance}
 ${input.brief.visualGuidance ? `Visual guidance: ${input.brief.visualGuidance}` : ''}
+${qualityLine}
 
 Generate exactly one \`<section>\` for this slide.`;
 
@@ -282,6 +289,7 @@ export function buildPresentationRevisionSystemPrompt(input: PresentationRevisio
     buildCoreArtifactContractPack(),
     buildPresentationFragmentContractPack(guidanceFrom(input)),
     buildDesignManifestPack(input),
+    buildQualityBarContractPack(input.runPlan?.qualityBar),
     buildValidatorFeedbackPack(input.feedback ?? []),
     `## SURGICAL REVISION
 

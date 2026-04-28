@@ -34,9 +34,10 @@ Required families:
   - blocked export
   - override export
   - standalone artifact checks where applicable
-- **Explain and dry-run**
-  - explain mode
-  - dry-run with no mutation
+- **Runtime excellence**
+  - quality score and grade recorded
+  - content-depth and module-variety advisories are understandable
+  - polishing skipped or triggered reason is visible in advanced diagnostics
 - **Viewport**
   - mobile narrow portrait
   - mobile landscape
@@ -75,9 +76,10 @@ Required families:
   - blocked export
   - override export
   - standalone artifact checks
-- **Explain and dry-run**
-  - explain mode
-  - dry-run where the shared pipeline supports it
+- **Runtime excellence**
+  - quality score and grade recorded
+  - boring repeated-grid decks produce advisories or polishing
+  - narrative continuity and visual-richness signals are understandable
 - **Viewport**
   - mobile narrow portrait
   - mobile landscape
@@ -116,9 +118,10 @@ Required families:
   - readiness state
   - export or data compatibility checks
   - lifecycle or policy visibility after validation or publish
-- **Explain and dry-run**
-  - explain mode
-  - dry-run with no workbook mutation
+- **Runtime excellence**
+  - deterministic correctness score
+  - target clarity and formatting-usefulness score
+  - downstream readiness summary
 - **Performance-sensitive**
   - larger data scenario for responsiveness and deterministic completion
 
@@ -127,15 +130,15 @@ Required families:
 Rerun these when a change affects shared workflow seams:
 
 - routing and artifact selection
-- explain or dry-run mode
 - readiness or publish gating
 - lifecycle or policy behavior
 - project augmentation or dependency refresh
+- runtime quality score, grade, and polishing reason
 
 Minimum shared checks:
 
-- one document explain case
-- one spreadsheet dry-run case
+- one document create/edit case with quality-bar diagnostics
+- one presentation create/edit case with quality-bar diagnostics
 - one project-level summary, review, or readiness case
 - one consistency comparison against a previously validated case of the same family
 
@@ -143,4 +146,5 @@ Minimum shared checks:
 
 - Use the registry in `src/test/fixtures/major-change-cases.ts` as the canonical list of prompts and expected outcomes.
 - Use the existing Workstream F representative fixtures as the seed set for viewport-sensitive document and presentation behavior.
+- Explain and dry-run are legacy/quarantined compatibility surfaces, not active major-change gates, unless a change explicitly touches those paths.
 - If a case fails, leave the relevant phase `implemented` and log the exact blocker rather than downgrading the matrix itself.

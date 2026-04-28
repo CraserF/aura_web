@@ -4,7 +4,7 @@ import {
   PRODUCTION_PRESENTATION_TEMPLATE_IDS,
   getTemplateHtml,
 } from '@/services/ai/templates';
-import { buildPresentationQualityChecklist } from '@/services/artifactRuntime';
+import { buildArtifactRunPlan, buildPresentationQualityChecklist } from '@/services/artifactRuntime';
 import { buildStarterArtifact } from '@/services/bootstrap/projectStarter';
 import { listProjectStarterKits } from '@/services/bootstrap/starterKits';
 import type { ProjectStarterArtifact } from '@/services/bootstrap/types';
@@ -76,5 +76,42 @@ describe('presentation quality checklist', () => {
     expect(checklist.viewportContractPassed).toBe(false);
     expect(checklist.viewportBlockingCount).toBeGreaterThan(0);
     expect(checklist.checks.some((check) => check.id === 'viewport-contract' && !check.passed)).toBe(true);
+  });
+
+  it('scores boring repeated-grid decks below the premium excellence bar', () => {
+    const plan = buildArtifactRunPlan({
+      runId: 'deck-quality-bar',
+      prompt: 'Create 3 slides: opening, market proof, next steps',
+      artifactType: 'presentation',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    const repeatedGridDeck = `${VALID_STYLE}
+      <section data-background-color="#ffffff">
+        <h1 class="slide-title">Market Plan</h1>
+        <div class="card-grid"><article class="card">A</article><article class="card">B</article><article class="card">C</article><article class="card">D</article></div>
+      </section>
+      <section data-background-color="#ffffff">
+        <h2 class="slide-title">Proof</h2>
+        <div class="card-grid"><article class="card">A</article><article class="card">B</article><article class="card">C</article><article class="card">D</article></div>
+      </section>
+      <section data-background-color="#ffffff">
+        <h2 class="slide-title">Next Steps</h2>
+        <div class="card-grid"><article class="card">A</article><article class="card">B</article><article class="card">C</article><article class="card">D</article></div>
+      </section>`;
+    const checklist = buildPresentationQualityChecklist({
+      html: repeatedGridDeck,
+      promptText: plan.userIntent,
+      qualityBar: plan.qualityBar,
+    });
+
+    expect(checklist.ready).toBe(false);
+    expect(checklist.qualityScore).toBeLessThan(plan.qualityBar.acceptanceThresholds.minimumScore);
+    expect(checklist.qualitySignals?.find((signal) => signal.id === 'visual-richness')?.passed).toBe(false);
+    expect(checklist.checks.map((check) => check.id)).toContain('excellence-visual');
   });
 });

@@ -20,6 +20,13 @@ export function formatRuntimeQualityDiagnostics(
   const passedChecks = checks.filter((check) => check.passed);
   const lines: RuntimeQualityDiagnosticLine[] = [];
 
+  if (typeof telemetry.qualityScore === 'number') {
+    lines.push({
+      severity: telemetry.qualityPassed ? 'pass' : 'advisory',
+      message: `Quality score ${telemetry.qualityScore}${telemetry.qualityGrade ? ` (${telemetry.qualityGrade})` : ''}.`,
+    });
+  }
+
   if (telemetry.qualityPassed) {
     lines.push({
       severity: 'pass',
@@ -36,6 +43,13 @@ export function formatRuntimeQualityDiagnostics(
     lines.push({
       severity: 'advisory',
       message: `Quality advisories: ${pluralize(telemetry.qualityAdvisoryCount ?? 0, 'issue')} across ${advisoryChecks.map((check) => check.label).join(', ')}.`,
+    });
+  }
+
+  if (telemetry.qualityPolishingSkippedReason) {
+    lines.push({
+      severity: telemetry.qualityPassed ? 'pass' : 'advisory',
+      message: telemetry.qualityPolishingSkippedReason,
     });
   }
 
