@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck:benchmark": "tsc -p scripts/tsconfig.json --noEmit",
+    "benchmark:ollama": "node scripts/run-benchmark-ollama.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.68",

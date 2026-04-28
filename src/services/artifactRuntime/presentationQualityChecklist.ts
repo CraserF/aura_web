@@ -408,13 +408,37 @@ function buildPresentationExcellenceChecks(input: {
   const transitionCount = sections.slice(1).filter((section) =>
     /\b(?:therefore|next|now|then|because|bridge|path forward|leads to|sets up|shifts? from|moves? from)\b/i.test(stripHtml(section)),
   ).length;
-  const patternAdvisories: Array<{ id: PresentationNamedFailureId; message: string }> = [
-    !hasStrongTitleScene ? { id: 'weak-opening-scene' as const, message: 'Weak title scene: opening slide lacks a clear hero/title composition.' } : undefined,
-    repeatedGridRisk > 0 ? { id: 'repeated-card-grid' as const, message: `Repeated card grid risk: ${repeatedGridRisk} slide(s) use card walls without integrated visuals.` } : undefined,
-    integratedVisualCount === 0 ? { id: 'missing-integrated-visual' as const, message: 'No integrated visuals detected: add an inline SVG, diagram, timeline, chart, scene, or visual model when useful.' } : undefined,
-    sections.length > 2 && transitionCount === 0 ? { id: 'missing-narrative-transition' as const, message: 'No narrative transition language detected between slides.' } : undefined,
-    sections.length > 1 && sharedClassCount < 2 ? { id: 'poor-token-continuity' as const, message: `Poor class/token continuity: only ${sharedClassCount} shared class token(s) detected.` } : undefined,
-  ].filter((item): item is { id: PresentationNamedFailureId; message: string } => Boolean(item));
+  const patternAdvisories: Array<{ id: PresentationNamedFailureId; message: string }> = [];
+  if (!hasStrongTitleScene) {
+    patternAdvisories.push({
+      id: 'weak-opening-scene',
+      message: 'Weak title scene: opening slide lacks a clear hero/title composition.',
+    });
+  }
+  if (repeatedGridRisk > 0) {
+    patternAdvisories.push({
+      id: 'repeated-card-grid',
+      message: `Repeated card grid risk: ${repeatedGridRisk} slide(s) use card walls without integrated visuals.`,
+    });
+  }
+  if (integratedVisualCount === 0) {
+    patternAdvisories.push({
+      id: 'missing-integrated-visual',
+      message: 'No integrated visuals detected: add an inline SVG, diagram, timeline, chart, scene, or visual model when useful.',
+    });
+  }
+  if (sections.length > 2 && transitionCount === 0) {
+    patternAdvisories.push({
+      id: 'missing-narrative-transition',
+      message: 'No narrative transition language detected between slides.',
+    });
+  }
+  if (sections.length > 1 && sharedClassCount < 2) {
+    patternAdvisories.push({
+      id: 'poor-token-continuity',
+      message: `Poor class/token continuity: only ${sharedClassCount} shared class token(s) detected.`,
+    });
+  }
 
   return [
     {
