@@ -343,6 +343,16 @@ export interface ValidationGate {
 export interface ArtifactRuntimeMetricsBudget {
   targetFirstPreviewMs: number;
   targetRepairCount: number;
+  /** Maximum total runtime budget used for boundary checks before optional work starts. */
+  maxTotalRuntimeMs: number;
+  /** Maximum runtime repair passes before finalization. */
+  maxRepairPasses: number;
+  /** Maximum optional LLM quality polish passes. 0 = no polish (local/Ollama). */
+  maxOptionalPolishPasses: number;
+  /** Maximum ToolLoopAgent correction steps before finalization. */
+  maxToolLoopSteps: number;
+  /** Enforcement strategy: boundary-only = check budget before starting each step, no mid-flight aborts. */
+  budgetEnforcement: 'boundary-only';
   tokenBudgetPolicy: 'automatic';
 }
 

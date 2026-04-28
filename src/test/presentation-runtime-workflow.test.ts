@@ -6,6 +6,7 @@ import type { PlanResult } from '@/services/ai/workflow/agents/planner';
 import type { WorkflowEvent } from '@/services/ai/workflow/types';
 import { summarizeRuntimeDiagnostics } from '@/services/artifactRuntime/diagnostics';
 import { buildArtifactRunPlan } from '@/services/artifactRuntime/build';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 const batchQueueMocks = vi.hoisted(() => ({
   runBatchQueue: vi.fn(),
@@ -38,9 +39,11 @@ vi.mock('@/services/ai/workflow/agents/evaluator', () => ({
 }));
 
 const {
+  repairPresentationRuntimeOutput,
   runPresentationRuntime,
   runQueuedPresentationRuntime,
   runSinglePresentationRuntime,
+  validatePresentationRuntimeOutput,
 } = await import('@/services/artifactRuntime/presentationRuntime');
 const runBatchQueueMock = batchQueueMocks.runBatchQueue;
 
@@ -105,6 +108,7 @@ describe('presentation runtime workflow orchestration', () => {
     designerMocks.designEdit.mockReset();
     evaluatorMocks.evaluateAndRevise.mockReset();
     evaluatorMocks.evaluateAndRevise.mockImplementation(async (_model, html: string) => html);
+    useSettingsStore.getState().setAlwaysRunEvaluation(true);
   });
 
   it('records first-preview and queued slide telemetry for generated decks', async () => {
@@ -386,6 +390,30 @@ describe('presentation runtime workflow orchestration', () => {
     expect(output.reviewPassed).toBe(true);
   });
 
+  it('uses runtime repair budget before starting presentation repair', async () => {
+    const planResult = createPlanResult();
+    const runPlan = createRunPlan();
+    runPlan.metricsBudget.maxRepairPasses = 0;
+    runPlan.providerPolicy.maxRepairPasses = 2;
+    const brokenHtml = `${VALID_STYLE}
+      <section><h1 class="slide-title">Opening thesis</h1><p class="slide-body">Decision-ready opening.</p></section>`;
+    const validation = validatePresentationRuntimeOutput(brokenHtml, planResult, 1);
+
+    const repair = await repairPresentationRuntimeOutput(
+      brokenHtml,
+      validation,
+      planResult,
+      1,
+      runPlan,
+      () => {},
+    );
+
+    expect(validation.passed).toBe(false);
+    expect(repair.repaired).toBe(false);
+    expect(repair.html).toBe(brokenHtml);
+    expect(repair.summary).toContain('no runtime repair budget');
+  });
+
   it('add-slides reviewPassed follows final runtime validation instead of design fast path', async () => {
     const addSlidesPlanResult: PlanResult = {
       intent: 'add_slides',
@@ -470,5 +498,55 @@ describe('presentation runtime workflow orchestration', () => {
     expect(output.html).not.toContain('Regressed polish');
     expect(output.runtime?.validationPassed).toBe(true);
     expect(output.reviewPassed).toBe(true);
+  });
+
+  it('skips single-slide LLM quality polish when optional runtime polish budget is exhausted', async () => {
+    useSettingsStore.getState().setAlwaysRunEvaluation(false);
+    const singlePlanResult: PlanResult = {
+      intent: 'create',
+      blocked: false,
+      blueprint: { palette: { bg: '#ffffff' } },
+      styleManifest: { compositionMode: 'editorial' } as PlanResult['styleManifest'],
+      slideBriefs: [],
+    } as PlanResult;
+    const runPlan = buildArtifactRunPlan({
+      runId: 'single-polish-budget-exhausted-test',
+      prompt: 'Create an opening slide',
+      artifactType: 'presentation',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    runPlan.metricsBudget.maxOptionalPolishPasses = 0;
+    runPlan.qualityBar.polishingBudget.deterministicPasses = 0;
+    runPlan.qualityBar.polishingBudget.llmPasses = 1;
+    runPlan.qualityBar.acceptanceThresholds.minimumScore = 101;
+    const validHtml = `${VALID_STYLE}
+      <section data-background-color="#ffffff"><h1 class="slide-title">Opening thesis</h1><p class="slide-body">Decision-ready opening.</p></section>`;
+    designerMocks.design.mockResolvedValue({
+      html: validHtml,
+      slideCount: 1,
+      title: 'Opening thesis',
+      fastPath: true,
+    } as DesignResult);
+
+    const output = await runSinglePresentationRuntime({
+      runPlan,
+      planResult: singlePlanResult,
+      model: {} as LanguageModel,
+      input: { prompt: 'Create an opening slide', chatHistory: [] },
+      onEvent: () => {},
+      isEdit: false,
+      effectiveChatHistory: [],
+      skipSecondaryEvaluation: false,
+    });
+
+    expect(evaluatorMocks.evaluateAndRevise).not.toHaveBeenCalled();
+    expect(output.runtime?.qualityDecision).toBe('safe-budget-exhausted');
+    expect(output.runtime?.qualityPolishAction).toBe('skipped-no-budget');
+    expect(output.runtime?.qualityPolishingSkippedReason).toContain('no compatible excellence polish budget');
   });
 });

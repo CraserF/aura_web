@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { buildArtifactRunPlan } from '@/services/artifactRuntime';
 import {
   getProviderCapabilityProfile,
   OLLAMA_BASELINE_MODEL,
@@ -97,5 +98,48 @@ describe('presentation runtime policy', () => {
     expect(artifactRuntimeBuildSource).toMatch(/artifactRuntime\/planner/);
     expect(workflowPlannerBuildSource.trim()).toBe("export { buildArtifactWorkflowPlan } from '@/services/artifactRuntime/planner';");
     expect(workflowPlannerTypesSource).toMatch(/from '@\/services\/artifactRuntime\/types';/);
+  });
+
+  it('expresses explicit boundary-only budgets in the runtime plan and maps them from provider policy', () => {
+    const presentationRuntimeSource = readSource('services/artifactRuntime/presentationRuntime.ts');
+    const designerSource = readSource('services/ai/workflow/agents/designer.ts');
+    const frontierPlan = buildArtifactRunPlan({
+      runId: 'budget-frontier',
+      prompt: 'Create a 3-slide executive summary deck',
+      artifactType: 'presentation',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    expect(frontierPlan.metricsBudget.budgetEnforcement).toBe('boundary-only');
+    expect(frontierPlan.metricsBudget.maxTotalRuntimeMs).toBe(120_000);
+    expect(frontierPlan.metricsBudget.maxRepairPasses).toBe(2);
+    expect(frontierPlan.metricsBudget.maxOptionalPolishPasses).toBe(1);
+    expect(frontierPlan.metricsBudget.maxToolLoopSteps).toBe(5);
+
+    const localPlan = buildArtifactRunPlan({
+      runId: 'budget-local',
+      prompt: 'Create a 3-slide executive summary deck',
+      artifactType: 'presentation',
+      operation: 'create',
+      activeDocument: null,
+      mode: 'execute',
+      providerId: 'ollama',
+      providerModel: OLLAMA_BASELINE_MODEL,
+      allowFullRegeneration: false,
+    });
+
+    expect(localPlan.metricsBudget.budgetEnforcement).toBe('boundary-only');
+    expect(localPlan.metricsBudget.maxTotalRuntimeMs).toBe(90_000);
+    expect(localPlan.metricsBudget.maxRepairPasses).toBe(1);
+    expect(localPlan.metricsBudget.maxOptionalPolishPasses).toBe(0);
+    expect(localPlan.metricsBudget.maxToolLoopSteps).toBe(3);
+    expect(presentationRuntimeSource).toMatch(/metricsBudget\.maxOptionalPolishPasses/);
+    expect(presentationRuntimeSource).toMatch(/metricsBudget\.maxRepairPasses/);
+    expect(designerSource).toMatch(/metricsBudget\.maxToolLoopSteps/);
   });
 });

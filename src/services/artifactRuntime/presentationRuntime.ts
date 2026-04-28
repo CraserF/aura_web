@@ -93,7 +93,7 @@ export interface SinglePresentationRuntimeOptions {
   isEdit: boolean;
   effectiveChatHistory: PresentationInput['chatHistory'];
   guidanceProfile?: TemplateGuidanceProfile;
-  editCorrectionPolicy: {
+  editCorrectionPolicy?: {
     mode: 'full' | 'best-effort';
     maxCorrectionSteps: number;
   };
@@ -134,6 +134,35 @@ function applyQualityDecisionTelemetry(
       ? { qualityPolishingSkippedReason: decision.reason }
       : {}),
   };
+}
+
+function maxRuntimeRepairPasses(runPlan?: ArtifactRunPlan): number {
+  return runPlan?.metricsBudget.maxRepairPasses ?? runPlan?.providerPolicy.maxRepairPasses ?? 0;
+}
+
+function maxRuntimeToolLoopSteps(
+  runPlan: ArtifactRunPlan | undefined,
+  fallback: number,
+): number {
+  return runPlan?.metricsBudget.maxToolLoopSteps ?? fallback;
+}
+
+function canStartOptionalLlmPolish(input: {
+  runPlan?: ArtifactRunPlan;
+  usedPasses?: number;
+  runtimeStartMs?: number;
+}): boolean {
+  const maxPasses = input.runPlan?.metricsBudget.maxOptionalPolishPasses
+    ?? input.runPlan?.qualityBar.polishingBudget.llmPasses
+    ?? 0;
+  if ((input.usedPasses ?? 0) >= maxPasses) return false;
+
+  const maxTotalRuntimeMs = input.runPlan?.metricsBudget.maxTotalRuntimeMs;
+  if (typeof maxTotalRuntimeMs === 'number' && typeof input.runtimeStartMs === 'number') {
+    return performance.now() - input.runtimeStartMs < maxTotalRuntimeMs;
+  }
+
+  return true;
 }
 
 const STRUCTURAL_EMPTY_CLASSES = [
@@ -256,7 +285,7 @@ function canRequestLlmRepair(input: {
   validation: PresentationRuntimeValidationResult;
   repairCount: number;
 }): boolean {
-  const maxRepairPasses = input.runPlan?.providerPolicy.maxRepairPasses ?? 0;
+  const maxRepairPasses = maxRuntimeRepairPasses(input.runPlan);
   return !input.validation.passed && input.repairCount < maxRepairPasses;
 }
 
@@ -358,7 +387,7 @@ async function runBoundedLlmPresentationRepair(input: {
     };
   }
 
-  const remainingPasses = Math.max(1, (input.runPlan?.providerPolicy.maxRepairPasses ?? 1) - input.deterministicRepairCount);
+  const remainingPasses = Math.max(1, maxRuntimeRepairPasses(input.runPlan) - input.deterministicRepairCount);
   emitArtifactRunEvent(input.onEvent, {
     runId: input.runPlan?.runId ?? 'presentation-runtime',
     type: 'runtime.repair-started',
@@ -433,7 +462,7 @@ export function repairQueuedPresentationSlideFragments(input: {
   const prefixBlocks = extractPresentationPrefixBlocks(input.html);
   const sections = extractPresentationSectionFragments(input.html);
   const validationByPart: NonNullable<ArtifactRuntimeTelemetry['validationByPart']> = [];
-  const maxRepairPasses = input.runPlan?.providerPolicy.maxRepairPasses ?? 0;
+  const maxRepairPasses = maxRuntimeRepairPasses(input.runPlan);
 
   if (sections.length === 0) {
     return {
@@ -612,7 +641,7 @@ export async function repairPresentationRuntimeOutput(
     };
   }
 
-  const maxRepairPasses = runPlan?.providerPolicy.maxRepairPasses ?? 0;
+  const maxRepairPasses = maxRuntimeRepairPasses(runPlan);
   if (maxRepairPasses <= 0) {
     return {
       html,
@@ -856,7 +885,11 @@ export async function runQueuedPresentationRuntime(
         qualityScore: qualityTelemetry.qualityScore,
         qualityBlockingCount: qualityTelemetry.qualityBlockingCount,
         deterministicPolishAvailable: false,
-        llmPolishAvailable: canRunPresentationQualityLlmPolish(effectivePlanResult),
+        llmPolishAvailable: canRunPresentationQualityLlmPolish(effectivePlanResult) && canStartOptionalLlmPolish({
+          runPlan,
+          usedPasses: llmQualityPolishCount,
+          runtimeStartMs: runtimeStart,
+        }),
       })
     : undefined;
   let qualityPolishAction: ArtifactRuntimeTelemetry['qualityPolishAction'] | undefined = qualityDecision?.action;
@@ -919,7 +952,11 @@ export async function runQueuedPresentationRuntime(
           qualityBlockingCount: qualityTelemetry.qualityBlockingCount,
           llmPolishCount: llmQualityPolishCount,
           deterministicPolishAvailable: false,
-          llmPolishAvailable: canRunPresentationQualityLlmPolish(effectivePlanResult),
+          llmPolishAvailable: canRunPresentationQualityLlmPolish(effectivePlanResult) && canStartOptionalLlmPolish({
+            runPlan,
+            usedPasses: llmQualityPolishCount,
+            runtimeStartMs: runtimeStart,
+          }),
         })
       : undefined;
     onEvent({ type: 'step-done', stepId: 'quality-polish', label: 'Polishing quality…' });
@@ -1095,6 +1132,14 @@ export async function runSinglePresentationRuntime(
     }
     onEvent(event);
   };
+  const fallbackEditCorrectionPolicy = editCorrectionPolicy ?? {
+    mode: runPlan?.providerPolicy.mode === 'local-constrained' ? 'best-effort' : 'full',
+    maxCorrectionSteps: runPlan?.metricsBudget.maxToolLoopSteps ?? 5,
+  };
+  const runtimeEditCorrectionPolicy = {
+    ...fallbackEditCorrectionPolicy,
+    maxCorrectionSteps: maxRuntimeToolLoopSteps(runPlan, fallbackEditCorrectionPolicy.maxCorrectionSteps),
+  };
 
   const designStepId = isEdit ? 'targeted-design' : 'design';
   const designLabel = isEdit ? 'Editing slides...' : 'Designing your slide...';
@@ -1136,7 +1181,7 @@ export async function runSinglePresentationRuntime(
             input.projectRulesBlock,
             guidanceProfile,
             input.editing,
-            editCorrectionPolicy,
+            runtimeEditCorrectionPolicy,
             signal,
             runPlan,
           )
@@ -1222,7 +1267,15 @@ export async function runSinglePresentationRuntime(
         qualityScore: initialQualityTelemetry.qualityScore,
         qualityBlockingCount: initialQualityTelemetry.qualityBlockingCount,
         deterministicPolishAvailable: false,
-        llmPolishAvailable: canEvaluate && designResult.fastPath && !skipSecondaryEvaluation && canRunPresentationQualityLlmPolish(planResult),
+        llmPolishAvailable: canEvaluate
+          && designResult.fastPath
+          && !skipSecondaryEvaluation
+          && canRunPresentationQualityLlmPolish(planResult)
+          && canStartOptionalLlmPolish({
+            runPlan,
+            usedPasses: 0,
+            runtimeStartMs: runtimeStart,
+          }),
       })
     : undefined;
   const needsExcellenceEvaluation = qualityDecision?.shouldPolish && qualityDecision.action === 'llm-polish';
@@ -1347,7 +1400,15 @@ export async function runSinglePresentationRuntime(
         qualityBlockingCount: finalQualityTelemetry.qualityBlockingCount,
         llmPolishCount: needsExcellenceEvaluation && shouldEvaluate ? 1 : 0,
         deterministicPolishAvailable: false,
-        llmPolishAvailable: canEvaluate && designResult.fastPath && !skipSecondaryEvaluation && canRunPresentationQualityLlmPolish(planResult),
+        llmPolishAvailable: canEvaluate
+          && designResult.fastPath
+          && !skipSecondaryEvaluation
+          && canRunPresentationQualityLlmPolish(planResult)
+          && canStartOptionalLlmPolish({
+            runPlan,
+            usedPasses: needsExcellenceEvaluation && shouldEvaluate ? 1 : 0,
+            runtimeStartMs: runtimeStart,
+          }),
       })
     : undefined;
   const runtimeTelemetry = applyQualityDecisionTelemetry({

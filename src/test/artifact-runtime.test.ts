@@ -90,6 +90,11 @@ describe('ArtifactRuntime plan', () => {
     }));
     expect(plan.validationGates[0]?.checks).toContain('Slide count matches assembled section count.');
     expect(plan.validationGates.map((gate) => gate.id)).toContain('presentation-excellence-contract');
+    expect(plan.metricsBudget.maxTotalRuntimeMs).toBe(120_000);
+    expect(plan.metricsBudget.maxRepairPasses).toBe(2);
+    expect(plan.metricsBudget.maxOptionalPolishPasses).toBe(1);
+    expect(plan.metricsBudget.maxToolLoopSteps).toBe(5);
+    expect(plan.metricsBudget.budgetEnforcement).toBe('boundary-only');
 
     const slideBriefs = buildSlideBriefsFromRunPlan(plan);
     expect(slideBriefs.map((brief) => brief.title)).toEqual([
@@ -124,6 +129,11 @@ describe('ArtifactRuntime plan', () => {
     expect(plan.qualityBar.polishingBudget.llmPasses).toBe(0);
     expect(plan.designManifest.motionBudget.maxAnimatedSystems).toBe(1);
     expect(plan.cancellation.source).toBe('user-only');
+    expect(plan.metricsBudget.maxTotalRuntimeMs).toBe(90_000);
+    expect(plan.metricsBudget.maxRepairPasses).toBe(1);
+    expect(plan.metricsBudget.maxOptionalPolishPasses).toBe(0);
+    expect(plan.metricsBudget.maxToolLoopSteps).toBe(3);
+    expect(plan.metricsBudget.budgetEnforcement).toBe('boundary-only');
   });
 
   it('expands document runtime plans into outline, module, and validation parts', () => {

@@ -509,6 +509,11 @@ export function buildArtifactRunPlan(input: BuildArtifactRunPlanInput): Artifact
     metricsBudget: {
       targetFirstPreviewMs: workflow.artifactType === 'presentation' ? 30_000 : 45_000,
       targetRepairCount: providerPolicy.maxRepairPasses,
+      maxTotalRuntimeMs: qualityBar.polishingBudget.maxTotalMs,
+      maxRepairPasses: providerPolicy.maxRepairPasses,
+      maxOptionalPolishPasses: providerPolicy.tier === 'local-best-effort' ? 0 : 1,
+      maxToolLoopSteps: providerPolicy.tier === 'local-best-effort' ? 3 : 5,
+      budgetEnforcement: 'boundary-only',
       tokenBudgetPolicy: 'automatic',
     },
     cancellation: {

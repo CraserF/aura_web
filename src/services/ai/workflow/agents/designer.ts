@@ -456,7 +456,12 @@ export async function design(
   // Phase 2: ToolLoopAgent validate→fix loop (only when QA found errors)
   onEvent({ type: 'progress', message: 'Fixing QA issues…', pct: 65 });
 
-  const agent = createDesignAgent(model, systemPrompt, planResult);
+  const agent = createDesignAgent(
+    model,
+    systemPrompt,
+    planResult,
+    runPlan?.metricsBudget.maxToolLoopSteps,
+  );
 
   // Feed the draft output back to the agent for validation
   const validationMessages: ModelMessage[] = [...messages];
