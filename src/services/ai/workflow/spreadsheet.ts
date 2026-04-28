@@ -17,7 +17,7 @@ import type {
 } from '@/services/spreadsheet/plans';
 import { planSpreadsheetWorkflow } from '@/services/ai/workflow/agents/spreadsheet-planner';
 import { validateSpreadsheetPlan } from '@/services/ai/workflow/agents/spreadsheet-validator';
-import { attachSpreadsheetRuntimeParts } from '@/services/artifactRuntime/spreadsheetRuntime';
+import { applySpreadsheetCraftMetadata, attachSpreadsheetRuntimeParts } from '@/services/artifactRuntime/spreadsheetRuntime';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
 
 export interface SpreadsheetInput {
@@ -83,6 +83,38 @@ function computeAugmentationImpact(plan: SpreadsheetPlan, refreshedSheetIds?: st
     impacts.push(`Refreshed ${refreshedSheetIds.length} derived query view sheet(s).`);
   }
   return impacts;
+}
+
+function buildSummaryRow(
+  schema: SheetMeta['schema'],
+  rows: Array<Record<string, string | number | boolean>>,
+): Record<string, string | number | boolean> | null {
+  const numericColumns = schema.filter((column) => column.type === 'number');
+  if (numericColumns.length === 0 || rows.length < 2) return null;
+
+  const labelColumn = schema.find((column) => column.type === 'text') ?? schema[0];
+  const summaryRow: Record<string, string | number | boolean> = {};
+  for (const column of schema) {
+    if (column.name === labelColumn?.name) {
+      summaryRow[column.name] = 'Total';
+    } else if (column.type === 'number') {
+      summaryRow[column.name] = rows.reduce((sum, row) => {
+        const value = row[column.name];
+        return sum + (typeof value === 'number' && Number.isFinite(value) ? value : 0);
+      }, 0);
+    } else {
+      summaryRow[column.name] = '';
+    }
+  }
+  return summaryRow;
+}
+
+function withSummaryRowWhenUseful(
+  schema: SheetMeta['schema'],
+  rows: Array<Record<string, string | number | boolean>>,
+): Array<Record<string, string | number | boolean>> {
+  const summaryRow = buildSummaryRow(schema, rows);
+  return summaryRow ? [...rows, summaryRow] : rows;
 }
 
 export async function runSpreadsheetWorkflow(input: SpreadsheetInput): Promise<SpreadsheetOutput> {
@@ -208,7 +240,9 @@ export async function runSpreadsheetWorkflow(input: SpreadsheetInput): Promise<S
       ...(Object.prototype.hasOwnProperty.call(result, 'filterState') ? { filterState: result.filterState } : {}),
     });
     const refreshed = await refreshQueryViewSheets(updatedSheets, [targetSheet.id]);
-    updatedSheets = refreshed.sheets;
+    updatedSheets = applySpreadsheetCraftMetadata(refreshed.sheets, {
+      changedSheetIds: [targetSheet.id, ...refreshed.refreshedSheetIds],
+    });
     return {
       kind: 'action-executed',
       updatedSheets,
@@ -273,7 +307,9 @@ export async function runSpreadsheetWorkflow(input: SpreadsheetInput): Promise<S
       formulas: [...targetSheet.formulas, nextFormula],
     });
     const refreshed = await refreshQueryViewSheets(updatedSheets, [targetSheet.id]);
-    updatedSheets = refreshed.sheets;
+    updatedSheets = applySpreadsheetCraftMetadata(refreshed.sheets, {
+      changedSheetIds: [targetSheet.id, ...refreshed.refreshedSheetIds],
+    });
     return {
       kind: 'formula-column-created',
       updatedSheets,
@@ -317,10 +353,13 @@ export async function runSpreadsheetWorkflow(input: SpreadsheetInput): Promise<S
     const updatedSheets = existingTarget
       ? workbook.sheets.map((sheet) => (sheet.id === existingTarget.id ? nextSheet : sheet))
       : [...workbook.sheets, nextSheet];
+    const craftedSheets = applySpreadsheetCraftMetadata(updatedSheets, {
+      changedSheetIds: [nextSheet.id],
+    });
 
     return {
       kind: 'query-view-created',
-      updatedSheets,
+      updatedSheets: craftedSheets,
       targetSheetId: nextSheet.id,
       message: `Created query view "${queryView.outputSheetName}" from "${queryView.sourceSheetName}".`,
       plan,
@@ -335,8 +374,13 @@ export async function runSpreadsheetWorkflow(input: SpreadsheetInput): Promise<S
     ? existingWorkbook.sheets[existingWorkbook.activeSheetIndex] ?? createDefaultSheet(starterPlan.sheetName)
     : createDefaultSheet(starterPlan.sheetName);
 
-  const appliedSchema = await replaceSheetData(targetSheet, starterPlan.schema, starterPlan.rows);
-  const nextSheet: SheetMeta = { ...targetSheet, name: starterPlan.sheetName, schema: appliedSchema };
+  const starterRows = withSummaryRowWhenUseful(starterPlan.schema, starterPlan.rows);
+  const appliedSchema = await replaceSheetData(targetSheet, starterPlan.schema, starterRows);
+  const nextSheet: SheetMeta = applySpreadsheetCraftMetadata([{
+    ...targetSheet,
+    name: starterPlan.sheetName,
+    schema: appliedSchema,
+  }])[0]!;
 
   let updatedSheets: SheetMeta[];
   let newActiveSheetIndex: number;

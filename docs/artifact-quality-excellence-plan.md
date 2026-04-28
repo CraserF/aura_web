@@ -35,10 +35,12 @@ Aura should keep the new `ArtifactRuntime` structure, but generated artifacts mu
 - [x] Added bounded premium/frontier document LLM enrichment after deterministic polish when quality remains below the bar.
 - [x] Added deck-level narrative plans with promise, audience, arc, motif, slide roles, layout map, and continuity rules.
 - [x] Added explicit deterministic presentation polish advisories for weak title scenes, repeated grids, missing visuals, missing transitions, and weak class/token continuity.
+- [x] Added spreadsheet craft metadata for frozen headers, useful column formats, readable widths, summary rows, chart readiness, and downstream-ready action summaries.
 - [x] Verified with:
   - `npm test -- artifact-runtime prompt-contracts runtime-telemetry document-quality-checklist presentation-quality-checklist spreadsheet-runtime`
   - `npm test -- artifact-runtime prompt-contracts document-quality-checklist document-runtime-workflow runtime-telemetry quality-decision`
   - `npm test -- artifact-runtime prompt-contracts presentation-quality-checklist presentation-runtime-policy`
+  - `npm test -- spreadsheet-runtime spreadsheet-create-craft prompt-to-formula prompt-to-query spreadsheet-starter runtime-telemetry`
   - `npm run typecheck`
   - `npm test`
   - `npm run build`
@@ -164,7 +166,7 @@ Acceptance criteria:
 
 ## Workstream 4: Spreadsheet Craft
 
-Status: `[~]`
+Status: `[x]`
 
 Purpose: keep spreadsheet execution deterministic while making outputs easier to use in workbooks, documents, and decks.
 
@@ -175,24 +177,24 @@ Already started:
 
 Implementation checklist:
 
-- [ ] Add better default formatting for created workbooks:
+- [x] Add better default formatting for created workbooks:
   - frozen headers;
   - useful number formats;
   - readable column widths;
   - summary rows where useful.
-- [ ] Add chart specs when useful and when source data supports them.
-- [ ] Improve action summaries so users can see:
+- [x] Add chart specs when useful and when source data supports them.
+- [x] Improve action summaries so users can see:
   - changed sheets;
   - refreshed derived sheets;
   - validation outcome;
   - downstream document/deck readiness.
-- [ ] Keep all spreadsheet mutations deterministic and runtime-owned.
+- [x] Keep all spreadsheet mutations deterministic and runtime-owned.
 
 Acceptance criteria:
 
-- [ ] Workbook create/formula/query/chart flows remain correct and deterministic.
-- [ ] Created workbooks have useful formatting without requiring manual cleanup.
-- [ ] Spreadsheet outputs are ready to feed linked documents or presentations.
+- [x] Workbook create/formula/query/chart flows remain correct and deterministic.
+- [x] Created workbooks have useful formatting without requiring manual cleanup.
+- [x] Spreadsheet outputs are ready to feed linked documents or presentations.
 
 ## Workstream 5: Reference-Quality Corpus
 
@@ -282,7 +284,7 @@ Acceptance criteria:
 
 ## Next Recommended Slice
 
-Continue with the Workstream 3 benchmark slice now that presentation narrative planning and deterministic advisories are attached to runtime diagnostics.
+Continue with manual quality benchmarking and Workstream 5 now that the spreadsheet craft workstream is complete.
 
 Recommended order:
 
@@ -290,6 +292,6 @@ Recommended order:
 2. Compare presentation art-director pre/post quality score and log whether the bounded pass visibly improves boring decks.
 3. Run one manual document benchmark to move Workstream 2 acceptance from `[~]` to `[x]`.
 4. Backfill Workstream 1 manual validation evidence from generated artifacts.
-5. Start Workstream 4 spreadsheet craft once presentation manual benchmarks are logged.
+5. Start Workstream 5 reference-quality corpus normalization.
 
 This order builds on the active quality-decision foundation and moves the biggest remaining quality gains into the generated artifact structure itself.

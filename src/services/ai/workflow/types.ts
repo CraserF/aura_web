@@ -92,6 +92,9 @@ export interface ArtifactRuntimeTelemetry {
   spreadsheetActionKind?: string;
   changedSheetCount?: number;
   refreshedSheetCount?: number;
+  spreadsheetFormattingSummary?: string[];
+  spreadsheetChartSpecSummary?: string[];
+  spreadsheetDownstreamReady?: boolean;
   validationByPart?: Array<{
     partId: string;
     label?: string;

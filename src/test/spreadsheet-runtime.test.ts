@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   attachSpreadsheetRuntimeParts,
   attachSpreadsheetRuntimeResultParts,
+  applySpreadsheetCraftMetadata,
   buildArtifactRunPlan,
   buildSpreadsheetRuntimeTelemetry,
   emitSpreadsheetRuntimeResultEvents,
@@ -13,6 +14,32 @@ import type { WorkflowEvent } from '@/services/ai/workflow/types';
 import type { SpreadsheetPlan } from '@/services/spreadsheet/plans';
 
 describe('spreadsheet runtime bridge', () => {
+  it('applies deterministic craft metadata to changed workbook sheets', () => {
+    const [crafted] = applySpreadsheetCraftMetadata([{
+      id: 'sheet-1',
+      name: 'Sales Data',
+      tableName: 'sales_data',
+      schema: [
+        { name: 'Month', type: 'text', nullable: false },
+        { name: 'Revenue', type: 'number', nullable: true },
+        { name: 'Close Date', type: 'date', nullable: true },
+      ],
+      frozenRows: 0,
+      frozenCols: 0,
+      columnWidths: {},
+      formulas: [],
+    }]);
+
+    expect(crafted?.frozenRows).toBe(1);
+    expect(crafted?.columnWidths).toEqual(expect.objectContaining({
+      Month: expect.any(Number),
+      Revenue: expect.any(Number),
+      'Close Date': expect.any(Number),
+    }));
+    expect(crafted?.schema.find((column) => column.name === 'Revenue')?.format).toBe('$#,##0');
+    expect(crafted?.schema.find((column) => column.name === 'Close Date')?.format).toBe('yyyy-mm-dd');
+  });
+
   it('maps deterministic spreadsheet results into runtime workflow events', () => {
     const runPlan = buildArtifactRunPlan({
       runId: 'sheet-run',
@@ -84,7 +111,7 @@ describe('spreadsheet runtime bridge', () => {
       {
         type: 'step-done',
         stepId: 'finalize',
-        label: 'Spreadsheet runtime summary finalized.',
+        label: expect.stringContaining('Spreadsheet runtime summary finalized. Changed sheets: none.'),
       },
     ]);
     expect(runPlan.workQueue.map((part) => part.kind)).toEqual([
@@ -457,6 +484,7 @@ describe('spreadsheet runtime bridge', () => {
       spreadsheetActionKind: 'blocked',
       changedSheetCount: 0,
       refreshedSheetCount: 0,
+      spreadsheetDownstreamReady: false,
       validationByPart: [{
         partId: 'workbook-action',
         label: 'blocked',

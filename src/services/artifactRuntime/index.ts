@@ -114,6 +114,7 @@ export { buildStaticPresentationStarterRuntime } from './starterPresentationRunt
 export {
   attachSpreadsheetRuntimeParts,
   attachSpreadsheetRuntimeResultParts,
+  applySpreadsheetCraftMetadata,
   buildSpreadsheetRuntimeTelemetry,
   emitSpreadsheetRuntimeResultEvents,
   finalizeSpreadsheetRuntimeResult,
@@ -203,6 +204,7 @@ export type {
   AttachSpreadsheetRuntimeResultPartsInput,
   FinalizeSpreadsheetRuntimeResultInput,
   FinalizeSpreadsheetRuntimeResultOutput,
+  SpreadsheetCraftSheetOptions,
 } from './spreadsheetRuntime';
 export type {
   ArtifactPart,

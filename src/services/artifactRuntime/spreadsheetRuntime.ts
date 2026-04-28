@@ -10,6 +10,7 @@ import type { ArtifactQualitySignalScore } from '@/services/artifactRuntime/type
 import type { ArtifactRuntimeTelemetry, EventListener } from '@/services/ai/workflow/types';
 import type { SpreadsheetOutput } from '@/services/ai/workflow/spreadsheet';
 import type { SpreadsheetPlan } from '@/services/spreadsheet/plans';
+import type { ColumnSchema, SheetMeta } from '@/types/project';
 
 export interface AttachSpreadsheetRuntimePartsInput {
   runPlan: ArtifactRunPlan;
@@ -32,6 +33,106 @@ export interface FinalizeSpreadsheetRuntimeResultOutput {
   parts: ArtifactPart[];
   runtime: ArtifactRuntimeTelemetry;
   advancedDiagnostics: string[];
+}
+
+export interface SpreadsheetCraftSheetOptions {
+  changedSheetIds?: string[];
+}
+
+function inferColumnFormat(column: ColumnSchema): string | undefined {
+  if (column.format) return column.format;
+  if (column.type === 'date') return 'yyyy-mm-dd';
+  if (column.type === 'boolean') return 'boolean';
+  if (column.type !== 'number') return undefined;
+
+  if (/\b(revenue|cost|price|amount|budget|planned|actual|difference|value|sales|spend|deal)\b/i.test(column.name)) {
+    return '$#,##0';
+  }
+  if (/\b(rate|ratio|percent|percentage|margin)\b/i.test(column.name)) {
+    return '0.0%';
+  }
+  return '#,##0';
+}
+
+function inferColumnWidth(column: ColumnSchema): number {
+  const base = Math.max(12, Math.min(28, column.name.length + 4));
+  switch (column.type) {
+    case 'number':
+      return Math.max(base, 14);
+    case 'date':
+      return Math.max(base, 16);
+    case 'boolean':
+      return Math.max(base, 12);
+    case 'text':
+    default:
+      return Math.max(base, /notes?|description|summary|task|company|contact/i.test(column.name) ? 22 : 14);
+  }
+}
+
+function hasChartableColumns(sheet: SheetMeta): boolean {
+  const hasLabel = sheet.schema.some((column) => column.type === 'text' || column.type === 'date');
+  const numericCount = sheet.schema.filter((column) => column.type === 'number').length;
+  return hasLabel && numericCount > 0;
+}
+
+export function applySpreadsheetCraftMetadata(
+  sheets: SheetMeta[],
+  options: SpreadsheetCraftSheetOptions = {},
+): SheetMeta[] {
+  const changedIds = new Set(options.changedSheetIds ?? sheets.map((sheet) => sheet.id));
+  return sheets.map((sheet) => {
+    if (!changedIds.has(sheet.id)) return sheet;
+
+    const schema = sheet.schema.map((column) => ({
+      ...column,
+      ...(inferColumnFormat(column) ? { format: inferColumnFormat(column) } : {}),
+    }));
+    const columnWidths = Object.fromEntries(
+      schema.map((column) => [
+        column.name,
+        Math.max(sheet.columnWidths[column.name] ?? 0, inferColumnWidth(column)),
+      ]),
+    );
+
+    return {
+      ...sheet,
+      schema,
+      frozenRows: Math.max(1, sheet.frozenRows),
+      columnWidths,
+    };
+  });
+}
+
+function buildFormattingSummaryForSheets(sheets: SheetMeta[]): string[] {
+  return sheets.flatMap((sheet) => {
+    const formattedColumns = sheet.schema
+      .filter((column) => Boolean(column.format))
+      .map((column) => `${column.name} (${column.format})`);
+    const lines = [
+      sheet.frozenRows > 0 ? `${sheet.name}: frozen header row enabled.` : undefined,
+      Object.keys(sheet.columnWidths).length > 0
+        ? `${sheet.name}: readable widths set for ${Object.keys(sheet.columnWidths).length} column(s).`
+        : undefined,
+      formattedColumns.length > 0
+        ? `${sheet.name}: number/date formats applied to ${formattedColumns.join(', ')}.`
+        : undefined,
+    ];
+    return lines.filter((line): line is string => Boolean(line));
+  });
+}
+
+function buildChartSpecSummaryForSheets(sheets: SheetMeta[]): string[] {
+  return sheets
+    .filter(hasChartableColumns)
+    .map((sheet) => {
+      const labelColumn = sheet.schema.find((column) => column.type === 'text' || column.type === 'date')?.name ?? 'first label column';
+      const valueColumns = sheet.schema
+        .filter((column) => column.type === 'number')
+        .map((column) => column.name)
+        .slice(0, 3);
+      const chartType = /month|date|week|quarter|year/i.test(labelColumn) ? 'line' : 'bar';
+      return `${sheet.name}: ${chartType} chart spec ready using ${labelColumn} and ${valueColumns.join(', ')}.`;
+    });
 }
 
 function resolveSpreadsheetRuntimeActionPart(plan: SpreadsheetPlan): ArtifactPart {
@@ -276,8 +377,75 @@ function countChangedSheets(result: SpreadsheetOutput): number {
   return 'updatedSheets' in result ? result.updatedSheets.length : 0;
 }
 
+function getChangedSheets(result: SpreadsheetOutput): SheetMeta[] {
+  return 'updatedSheets' in result ? result.updatedSheets : [];
+}
+
 function countRefreshedSheets(result: SpreadsheetOutput): number {
   return 'refreshedSheetIds' in result ? result.refreshedSheetIds?.length ?? 0 : 0;
+}
+
+function buildSpreadsheetFormattingSummary(result: SpreadsheetOutput): string[] {
+  const changedSheets = getChangedSheets(result);
+  if (changedSheets.length === 0) return [];
+  return Array.from(new Set(buildFormattingSummaryForSheets(changedSheets)));
+}
+
+function buildSpreadsheetChartSpecSummary(result: SpreadsheetOutput): string[] {
+  if (result.kind === 'chart-created') {
+    return [`Created ${result.chartType} chart spec from ${result.rowCount} source row(s).`];
+  }
+
+  const changedSheets = getChangedSheets(result);
+  if (changedSheets.length === 0) return [];
+  return Array.from(new Set(buildChartSpecSummaryForSheets(changedSheets)));
+}
+
+function buildSpreadsheetDownstreamReady(input: {
+  result: SpreadsheetOutput;
+  validationPassed: boolean;
+  changedSheetCount: number;
+  refreshedSheetCount: number;
+  chartSpecSummary: string[];
+}): boolean {
+  if (!input.validationPassed || isBlockingSpreadsheetResultKind(input.result.kind)) return false;
+  return (
+    input.changedSheetCount > 0 ||
+    input.refreshedSheetCount > 0 ||
+    input.chartSpecSummary.length > 0 ||
+    input.result.kind === 'chart-created' ||
+    (input.result.planSummary?.downstreamAugmentationImpact.length ?? 0) > 0
+  );
+}
+
+function buildValidationSummary(result: SpreadsheetOutput, validationPassed: boolean, validationBlockingCount: number): string {
+  if (validationPassed) return 'Validation passed.';
+  const issueSummary = result.planValidation?.issues.map((issue) => issue.message).filter(Boolean).join(' ') ?? '';
+  return `Validation blocked with ${validationBlockingCount} issue(s).${issueSummary ? ` ${issueSummary}` : ''}`;
+}
+
+function buildSpreadsheetRuntimeActionSummary(input: {
+  result: SpreadsheetOutput;
+  validationPassed: boolean;
+  validationBlockingCount: number;
+  changedSheetCount: number;
+  refreshedSheetCount: number;
+  downstreamReady: boolean;
+}): string[] {
+  const changedSheets = getChangedSheets(input.result).map((sheet) => sheet.name);
+  const refreshed = 'refreshedSheetIds' in input.result ? input.result.refreshedSheetIds ?? [] : [];
+  return [
+    changedSheets.length > 0
+      ? `Changed sheets: ${changedSheets.join(', ')}.`
+      : 'Changed sheets: none.',
+    refreshed.length > 0
+      ? `Refreshed derived sheets: ${refreshed.join(', ')}.`
+      : `Refreshed derived sheets: ${input.refreshedSheetCount}.`,
+    buildValidationSummary(input.result, input.validationPassed, input.validationBlockingCount),
+    input.downstreamReady
+      ? 'Downstream readiness: ready for linked documents, decks, and chart sources.'
+      : 'Downstream readiness: no changed workbook surface is ready for downstream artifacts yet.',
+  ];
 }
 
 function hasUsefulSpreadsheetFormattingIntent(result: SpreadsheetOutput): boolean {
@@ -296,6 +464,9 @@ function buildSpreadsheetQualitySignals(input: {
   spreadsheetActionKind: string;
   changedSheetCount: number;
   refreshedSheetCount: number;
+  formattingSummaryCount: number;
+  chartSpecSummaryCount: number;
+  downstreamReady: boolean;
 }): ArtifactQualitySignalScore[] {
   const targetClarity = input.spreadsheetActionKind !== 'blocked' &&
     input.spreadsheetActionKind !== 'clarification-needed' &&
@@ -323,18 +494,26 @@ function buildSpreadsheetQualitySignals(input: {
     scoreQualitySignal({
       id: 'formatting-usefulness',
       label: 'Formatting usefulness',
-      score: hasUsefulSpreadsheetFormattingIntent(input.result) ? 82 : input.result.kind === 'sheet-summarized' ? 70 : 55,
+      score: input.formattingSummaryCount > 0
+        ? 92
+        : hasUsefulSpreadsheetFormattingIntent(input.result)
+          ? 82
+          : input.result.kind === 'sheet-summarized'
+            ? 70
+            : 55,
       target: 72,
-      detail: hasUsefulSpreadsheetFormattingIntent(input.result)
-        ? 'Workbook output has a structured created/formula/query/chart surface.'
+      detail: input.formattingSummaryCount > 0
+        ? `${input.formattingSummaryCount} deterministic formatting action(s) recorded.`
+        : hasUsefulSpreadsheetFormattingIntent(input.result)
+          ? 'Workbook output has a structured created/formula/query/chart surface.'
         : 'Workbook action has limited formatting signal.',
     }),
     scoreQualitySignal({
       id: 'downstream-readiness',
       label: 'Downstream readiness',
-      score: changedOrCharted || input.refreshedSheetCount > 0 || planImpactCount > 0 ? 88 : 62,
+      score: input.downstreamReady ? 92 : changedOrCharted || input.refreshedSheetCount > 0 || planImpactCount > 0 ? 88 : 62,
       target: 74,
-      detail: `${input.changedSheetCount} changed sheet(s), ${input.refreshedSheetCount} refreshed derived sheet(s).`,
+      detail: `${input.changedSheetCount} changed sheet(s), ${input.refreshedSheetCount} refreshed derived sheet(s), ${input.chartSpecSummaryCount} chart-ready spec(s).`,
     }),
   ];
 }
@@ -349,6 +528,26 @@ export function emitSpreadsheetRuntimeResultEvents(input: {
   const partId = actionPart.id;
   const message = describeSpreadsheetResult(result);
   const isBlockingKind = isBlockingSpreadsheetResultKind(result.kind);
+  const validationPassed = result.planValidation?.passed ?? !isBlockingKind;
+  const validationBlockingCount = result.planValidation?.issues.length ?? (isBlockingKind ? 1 : 0);
+  const changedSheetCount = countChangedSheets(result);
+  const refreshedSheetCount = countRefreshedSheets(result);
+  const chartSpecSummary = buildSpreadsheetChartSpecSummary(result);
+  const downstreamReady = buildSpreadsheetDownstreamReady({
+    result,
+    validationPassed,
+    changedSheetCount,
+    refreshedSheetCount,
+    chartSpecSummary,
+  });
+  const actionSummary = buildSpreadsheetRuntimeActionSummary({
+    result,
+    validationPassed,
+    validationBlockingCount,
+    changedSheetCount,
+    refreshedSheetCount,
+    downstreamReady,
+  });
 
   emitArtifactRunEvent(onEvent, {
     runId: runPlan.runId,
@@ -396,7 +595,7 @@ export function emitSpreadsheetRuntimeResultEvents(input: {
     runId: runPlan.runId,
     type: 'runtime.finalized',
     role: 'finalizer',
-    message: 'Spreadsheet runtime summary finalized.',
+    message: `Spreadsheet runtime summary finalized. ${actionSummary.join(' ')}`,
     partId: 'finalize',
     pct: 100,
   });
@@ -434,6 +633,15 @@ export function buildSpreadsheetRuntimeTelemetry(input: {
       }];
   const changedSheetCount = countChangedSheets(input.result);
   const refreshedSheetCount = countRefreshedSheets(input.result);
+  const spreadsheetFormattingSummary = buildSpreadsheetFormattingSummary(input.result);
+  const spreadsheetChartSpecSummary = buildSpreadsheetChartSpecSummary(input.result);
+  const spreadsheetDownstreamReady = buildSpreadsheetDownstreamReady({
+    result: input.result,
+    validationPassed,
+    changedSheetCount,
+    refreshedSheetCount,
+    chartSpecSummary: spreadsheetChartSpecSummary,
+  });
   const qualityCheck = {
     id: 'spreadsheet-validation',
     label: 'Spreadsheet deterministic validation',
@@ -449,6 +657,9 @@ export function buildSpreadsheetRuntimeTelemetry(input: {
         spreadsheetActionKind,
         changedSheetCount,
         refreshedSheetCount,
+        formattingSummaryCount: spreadsheetFormattingSummary.length,
+        chartSpecSummaryCount: spreadsheetChartSpecSummary.length,
+        downstreamReady: spreadsheetDownstreamReady,
       })
     : undefined;
   const qualitySummary = input.runPlan?.qualityBar && qualitySignals
@@ -505,6 +716,9 @@ export function buildSpreadsheetRuntimeTelemetry(input: {
     spreadsheetActionKind,
     changedSheetCount,
     refreshedSheetCount,
+    ...(spreadsheetFormattingSummary.length > 0 ? { spreadsheetFormattingSummary } : {}),
+    ...(spreadsheetChartSpecSummary.length > 0 ? { spreadsheetChartSpecSummary } : {}),
+    spreadsheetDownstreamReady,
     validationByPart,
   };
 }
@@ -527,11 +741,24 @@ export function finalizeSpreadsheetRuntimeResult(
     result: input.result,
     onEvent: input.onEvent,
   });
+  const actionSummary = buildSpreadsheetRuntimeActionSummary({
+    result: input.result,
+    validationPassed: runtime.validationPassed,
+    validationBlockingCount: runtime.validationBlockingCount,
+    changedSheetCount: runtime.changedSheetCount ?? 0,
+    refreshedSheetCount: runtime.refreshedSheetCount ?? 0,
+    downstreamReady: runtime.spreadsheetDownstreamReady ?? false,
+  });
 
   return {
     parts,
     runtime,
-    advancedDiagnostics: formatRuntimeQualityDiagnostics(runtime)
-      .map((diagnostic) => diagnostic.message),
+    advancedDiagnostics: [
+      ...actionSummary,
+      ...(runtime.spreadsheetFormattingSummary?.map((line) => `Formatting: ${line}`) ?? []),
+      ...(runtime.spreadsheetChartSpecSummary?.map((line) => `Chart spec: ${line}`) ?? []),
+      ...formatRuntimeQualityDiagnostics(runtime)
+        .map((diagnostic) => diagnostic.message),
+    ],
   };
 }
