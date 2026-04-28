@@ -22,6 +22,7 @@ Use this file as the source of truth for coordination across agents.
 ## Program Tracking
 
 - [Program Status](./program-status.md)
+- [Artifact Quality Recovery And Excellence Plan](./artifact-quality-excellence-plan.md)
 
 ## Validation Protocol
 

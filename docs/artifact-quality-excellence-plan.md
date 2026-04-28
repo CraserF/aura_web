@@ -1,0 +1,288 @@
+# Artifact Quality Recovery And Excellence Plan
+
+Created: 2026-04-28
+
+This plan tracks the remaining work to turn Aura's faster artifact runtime into a consistently premium document, presentation, and spreadsheet creation system.
+
+## Goal
+
+Aura should keep the new `ArtifactRuntime` structure, but generated artifacts must feel finished, useful, and crafted:
+
+- documents should be substantive, well-structured, and visually organized rather than short generic memos;
+- presentations should have narrative arc, varied slide roles, strong opening scenes, and reusable visual motifs rather than repeated boring grids;
+- spreadsheets should remain deterministic and correct while gaining useful formatting, summaries, charts, and downstream readiness signals.
+
+## Status Legend
+
+- `[x]` Done and covered by automated validation.
+- `[~]` Started, but still needs runtime behavior or validation depth.
+- `[ ]` Not started.
+
+## Current Completed Foundation
+
+- [x] Added `QualityBar` as a first-class runtime planning concept.
+- [x] Defaulted create-mode documents and presentations to premium quality targets, with local/Ollama downgraded to `structured-premium-lite`.
+- [x] Added quality telemetry fields for score, grade, signals, and polishing reason.
+- [x] Added deterministic document excellence checks for depth, rhythm, component variety, reference-style match, and viewport safety.
+- [x] Added deterministic presentation checks for visual richness, narrative coherence, continuity, component variety, reference-style match, viewport safety, and boring repeated-grid patterns.
+- [x] Added spreadsheet craft scoring for deterministic correctness, target clarity, formatting usefulness, and downstream readiness.
+- [x] Threaded quality-bar guidance into document and presentation prompt packs.
+- [x] Updated validation docs so explain/dry-run are legacy compatibility checks, not normal active quality gates.
+- [x] Added automated regression coverage for quality bars, prompt inclusion, scoring, telemetry, and docs expectations.
+- [x] Verified with:
+  - `npm test -- artifact-runtime prompt-contracts runtime-telemetry document-quality-checklist presentation-quality-checklist spreadsheet-runtime`
+  - `npm run typecheck`
+  - `npm test`
+  - `npm run build`
+
+## Workstream 1: Excellence Polishing Runtime
+
+Status: `[ ]`
+
+Purpose: convert quality scores from passive diagnostics into active runtime behavior.
+
+Implementation checklist:
+
+- [ ] Add a shared quality decision helper that classifies final output as:
+  - `safe-and-excellent`;
+  - `safe-needs-polish`;
+  - `safe-budget-exhausted`;
+  - `blocked-by-safety`.
+- [ ] Replace the current “QA passed, skip evaluation” behavior with “safety passed, decide whether excellence polishing is needed.”
+- [ ] Treat safety gates as blocking output and excellence gates as polish/enrichment triggers.
+- [ ] Emit progress events using the simple UX language:
+  - Planning;
+  - Designing;
+  - Creating parts;
+  - Polishing quality;
+  - Finishing.
+- [ ] Add advanced diagnostics that explain:
+  - quality score;
+  - quality grade;
+  - failed signals;
+  - whether polishing ran, skipped, or exhausted budget.
+
+Acceptance criteria:
+
+- [ ] A mechanically valid but low-scoring document triggers a polish/enrichment decision.
+- [ ] A mechanically valid but boring deck triggers a polish/evaluation decision.
+- [ ] Local/Ollama runs do not request LLM polish when their quality bar has no LLM budget.
+- [ ] The final runtime telemetry always records either a polish action or a clear skipped reason.
+
+## Workstream 2: Document Excellence
+
+Status: `[~]`
+
+Purpose: make generated documents substantive and visually organized while keeping the queued runtime structure.
+
+Already started:
+
+- [x] Document quality scoring exists.
+- [x] Quality-bar guidance reaches queued and single-stream prompts.
+- [x] Runtime module count can expand when a quality bar is present.
+
+Implementation checklist:
+
+- [ ] Change queued document planning from outline plus modules to content blueprint plus module budgets.
+- [ ] Give every document module:
+  - role;
+  - target word range;
+  - evidence requirement;
+  - component pattern;
+  - visual rhythm instruction.
+- [ ] Add deterministic document enrichment for outputs that are:
+  - too short;
+  - missing hero/summary/KPI/proof/comparison/timeline rhythm;
+  - too visually flat;
+  - below the quality-bar score threshold.
+- [ ] Add a bounded LLM enrichment pass for premium/frontier runs only.
+- [ ] Expand the document design-system vocabulary with safe classes for:
+  - hero summary;
+  - recommendation block;
+  - KPI row;
+  - proof strip;
+  - comparison;
+  - timeline;
+  - sidebar;
+  - evidence table;
+  - executive summary callout.
+
+Acceptance criteria:
+
+- [ ] Long-form reports meet target depth and component variety.
+- [ ] Executive briefs include hero, summary, KPI/proof/recommendation rhythm.
+- [ ] Enrichment improves short or flat documents without breaking iframe/mobile/print validation.
+- [ ] Document output can resemble starter/example quality through structure and rhythm without copying content.
+
+## Workstream 3: Presentation Excellence
+
+Status: `[~]`
+
+Purpose: make generated decks feel art-directed instead of merely valid.
+
+Already started:
+
+- [x] Presentation quality scoring exists.
+- [x] Prompt guidance includes quality bar and slide-role continuity reminders.
+- [x] Boring repeated-grid decks can be detected deterministically.
+
+Implementation checklist:
+
+- [ ] Add a deck-level narrative plan before slide generation:
+  - promise;
+  - audience;
+  - arc;
+  - visual motif;
+  - slide roles;
+  - layout map;
+  - continuity rules.
+- [ ] Ensure slide 1 establishes the design system and reusable motif.
+- [ ] Ensure later slides vary layout while preserving tokens, motif, and class vocabulary.
+- [ ] Add an art-director/evaluator pass for premium/frontier runs when quality score is below threshold, even if mechanical QA passed.
+- [ ] Add deterministic polish advisories for:
+  - weak title scene;
+  - repeated card grids;
+  - no integrated visuals;
+  - no narrative transitions;
+  - poor class/token continuity.
+
+Acceptance criteria:
+
+- [ ] Queued decks produce varied slide roles and continuity.
+- [ ] Title/opening slides have strong scene composition.
+- [ ] Repeated-grid decks trigger quality advisories or polishing.
+- [ ] Premium/frontier decks get a bounded quality pass when needed.
+
+## Workstream 4: Spreadsheet Craft
+
+Status: `[~]`
+
+Purpose: keep spreadsheet execution deterministic while making outputs easier to use in workbooks, documents, and decks.
+
+Already started:
+
+- [x] Spreadsheet craft telemetry exists.
+- [x] Spreadsheet runtime reports deterministic correctness, target clarity, formatting usefulness, and downstream readiness.
+
+Implementation checklist:
+
+- [ ] Add better default formatting for created workbooks:
+  - frozen headers;
+  - useful number formats;
+  - readable column widths;
+  - summary rows where useful.
+- [ ] Add chart specs when useful and when source data supports them.
+- [ ] Improve action summaries so users can see:
+  - changed sheets;
+  - refreshed derived sheets;
+  - validation outcome;
+  - downstream document/deck readiness.
+- [ ] Keep all spreadsheet mutations deterministic and runtime-owned.
+
+Acceptance criteria:
+
+- [ ] Workbook create/formula/query/chart flows remain correct and deterministic.
+- [ ] Created workbooks have useful formatting without requiring manual cleanup.
+- [ ] Spreadsheet outputs are ready to feed linked documents or presentations.
+
+## Workstream 5: Reference-Quality Corpus
+
+Status: `[ ]`
+
+Purpose: use starter kits and examples as style targets without copying their real content.
+
+Implementation checklist:
+
+- [ ] Normalize starter kits, production presentation templates, document blueprints, and the example document into reference style packs.
+- [ ] Record style traits only:
+  - rhythm;
+  - density;
+  - module grammar;
+  - layout variety;
+  - typography scale;
+  - component families;
+  - anti-patterns.
+- [ ] Add reference-pack routing so quality bars can select the right style target per artifact type and output mode.
+- [ ] Add tests proving reference packs are used as style metadata, not content sources.
+
+Acceptance criteria:
+
+- [ ] Prompts and scoring can reference starter-quality traits without embedding source content.
+- [ ] Synthetic examples remain synthetic and confidentiality-safe.
+- [ ] Documents/decks can be compared against starter-quality rhythm and density.
+
+## Workstream 6: Legacy Cleanup
+
+Status: `[~]`
+
+Purpose: keep the active runtime free from legacy API/MCP/automation and old presentation-template drag.
+
+Already started:
+
+- [x] Active-generation import-boundary tests keep external adapter and execution-spec paths out.
+- [x] Validation docs now treat explain/dry-run as legacy compatibility, not active workflow gates.
+- [x] Several legacy presentation templates have already been removed.
+
+Implementation checklist:
+
+- [ ] Continue controlled cleanup of remaining legacy presentation templates marked `archive later`.
+- [ ] Convert only templates that still contain valuable production-grade patterns.
+- [ ] Keep provider API access untouched; only external automation/API/MCP seams are out of scope.
+- [ ] Keep import-boundary regression tests proving removed external adapter paths stay gone.
+
+Acceptance criteria:
+
+- [ ] No active generation path imports external API/MCP/automation adapter code.
+- [ ] Legacy template chunks continue shrinking after safe archive/delete batches.
+- [ ] Production routing and starter kits remain intact after each cleanup batch.
+
+## Manual Validation And Benchmarking
+
+Status: `[ ]`
+
+Purpose: prove the quality recovery worked in actual generated outputs, not only telemetry.
+
+Checklist:
+
+- [ ] Run benchmark cases for documents, presentations, and spreadsheets.
+- [ ] Score at least one frontier run and one local/Ollama run.
+- [ ] Compare generated documents/decks against starter kits and example document style targets.
+- [ ] Capture manual fields:
+  - looks premium;
+  - content depth;
+  - not boring;
+  - starter-kit similarity;
+  - user usefulness.
+- [ ] Classify failures as:
+  - `quality-depth`;
+  - `quality-visual`;
+  - `quality-continuity`;
+  - `quality-routing`;
+  - `provider-capability`.
+- [ ] Run viewport checks:
+  - desktop;
+  - tablet;
+  - mobile portrait;
+  - mobile landscape.
+
+Acceptance criteria:
+
+- [ ] At least one generated document and one generated deck show visible improvement over the current baseline.
+- [ ] Quality scores correlate with manual reviewer judgment.
+- [ ] Any mismatch between scoring and human judgment becomes a tracked scoring bug.
+
+## Next Recommended Slice
+
+Start with Workstream 1, then immediately apply it to Workstreams 2 and 3.
+
+Recommended order:
+
+1. Add the shared quality decision helper.
+2. Add document deterministic enrichment for short/flat output.
+3. Add presentation art-director pass for boring/low-score decks.
+4. Add progress events for “Polishing quality.”
+5. Run the focused runtime tests.
+6. Run one manual document and one manual deck benchmark.
+
+This order turns the current passive scoring foundation into visible quality recovery fastest.
+
