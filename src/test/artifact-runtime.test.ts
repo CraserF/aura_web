@@ -134,6 +134,12 @@ describe('ArtifactRuntime plan', () => {
     expect(plan.metricsBudget.maxOptionalPolishPasses).toBe(0);
     expect(plan.metricsBudget.maxToolLoopSteps).toBe(3);
     expect(plan.metricsBudget.budgetEnforcement).toBe('boundary-only');
+    // Safety gate must not be weakened for local providers
+    expect(plan.qualityBar.acceptanceThresholds.safetyBlocksOutput).toBe(true);
+    expect(plan.qualityBar.acceptanceThresholds.minimumScore).toBe(78);
+    expect(plan.qualityBar.signals.map((s) => s.id)).toEqual(
+      expect.arrayContaining(['visual-richness', 'narrative-coherence', 'continuity', 'component-variety', 'reference-style-match', 'viewport-safety']),
+    );
   });
 
   it('expands document runtime plans into outline, module, and validation parts', () => {

@@ -86,6 +86,28 @@ The target is:
 
 The target is not “match GPT-4o output in every case.”
 
+### Explicit Local Quality Thresholds
+
+These thresholds are defined in `src/services/artifactRuntime/qualityBar.ts`; runtime pass caps are surfaced through `ArtifactRunPlan.metricsBudget`. Together they are the authoritative values for local-model scoring and optional-polish decisions.
+
+| Field | Local (`structured-premium-lite`) | Frontier (`premium`) |
+|---|---|---|
+| Quality tier | `structured-premium-lite` | `premium` |
+| Minimum score | 78 | 86 |
+| Excellence triggers polish below | 72 | 80 |
+| LLM polish passes | 0 | 1 |
+| Deterministic polish passes | 1 | 1 |
+| Safety blocks output | `true` | `true` |
+| Max polishing budget | 90 s | 120 s |
+
+Presentation quality signals use the same set for both tiers: `visual-richness`, `narrative-coherence`, `continuity`, `component-variety`, `reference-style-match`, `viewport-safety`. Only the per-signal targets differ. Documents and spreadsheets also keep local/frontier parity within their own artifact-specific signal sets.
+
+Safe local output that misses the local threshold should remain visible as `safe-budget-exhausted` telemetry with quality-signal diagnostics; do not hide it as a successful premium pass.
+
+### Upgrade Policy
+
+Raising the local minimum score above 78 requires benchmark evidence from a representative run of the `WORKFLOW_BENCHMARK_CASES` fixture set under the `gemma4:e2b` baseline model. Do not raise the threshold based on anecdotal single-run results. Record the evidence in `docs/validation/workflow-quality-benchmark.md` before changing the threshold in `qualityBar.ts`.
+
 ## Logging Rule
 
 For each run, link:
