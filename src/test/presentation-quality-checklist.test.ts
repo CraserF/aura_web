@@ -5,6 +5,7 @@ import {
   getTemplateHtml,
 } from '@/services/ai/templates';
 import { buildArtifactRunPlan, buildPresentationQualityChecklist } from '@/services/artifactRuntime';
+import { collectPresentationNamedFailures } from '@/services/artifactRuntime/presentationQualityChecklist';
 import { buildStarterArtifact } from '@/services/bootstrap/projectStarter';
 import { listProjectStarterKits } from '@/services/bootstrap/starterKits';
 import type { ProjectStarterArtifact } from '@/services/bootstrap/types';
@@ -123,5 +124,112 @@ describe('presentation quality checklist', () => {
         expect.stringContaining('No integrated visuals detected'),
       ]),
     }));
+  });
+
+  it('detects missing-reduced-motion as a named CSS failure', () => {
+    const animated = `<style>
+      :root { --bg: #fff; }
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      .slide-shell { animation: fadeIn 0.6s ease; }
+    </style>
+    <section data-background-color="#ffffff"><h1>Test</h1></section>`;
+    const checklist = buildPresentationQualityChecklist({ html: animated });
+    const cssCheck = checklist.checks.find((c) => c.id === 'css-design-contract');
+
+    expect(cssCheck).toBeDefined();
+    expect(cssCheck?.passed).toBe(false);
+    expect(cssCheck?.namedIssues?.some((i) => i.id === 'missing-reduced-motion')).toBe(true);
+    const feedback = collectPresentationNamedFailures(checklist.checks);
+    expect(feedback.filter((f) => f.includes('missing-reduced-motion'))).toHaveLength(1);
+    expect(feedback.some((f) => f.startsWith('[css-design-contract]'))).toBe(false);
+  });
+
+  it('detects viewport-unit-layout as a named CSS failure', () => {
+    const vpCss = `<style>
+      :root { --bg: #fff; }
+      @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+      .hero { width: 100vw; font-size: 5vw; }
+    </style>
+    <section data-background-color="#ffffff"><h1>Test</h1></section>`;
+    const checklist = buildPresentationQualityChecklist({ html: vpCss });
+    const cssCheck = checklist.checks.find((c) => c.id === 'css-design-contract');
+
+    expect(cssCheck?.namedIssues?.some((i) => i.id === 'viewport-unit-layout')).toBe(true);
+    expect(collectPresentationNamedFailures(checklist.checks).some((f) => f.includes('viewport-unit-layout'))).toBe(true);
+  });
+
+  it('detects duplicate-root-style-system as a named CSS failure', () => {
+    const dupRoot = `<style>:root { --primary: #245c5f; --heading-font: 'Inter'; } .s { color: var(--primary); }</style>
+    <section data-background-color="#ffffff"><h1>Slide 1</h1></section>
+    <style>:root { --primary: #245c5f; --heading-font: 'Inter'; } .s2 { color: var(--primary); }</style>
+    <section data-background-color="#ffffff" style="--primary:#245c5f; --heading-font:'Inter'"><h2>Slide 2</h2></section>`;
+    const checklist = buildPresentationQualityChecklist({ html: dupRoot });
+    const cssCheck = checklist.checks.find((c) => c.id === 'css-design-contract');
+
+    expect(cssCheck?.namedIssues?.some((i) => i.id === 'duplicate-root-style-system')).toBe(true);
+    expect(cssCheck?.namedIssues?.some((i) => i.id === 'append-slide-style-reset')).toBe(true);
+    expect(cssCheck?.namedIssues?.some((i) => i.id === 'unscoped-extension-style')).toBe(true);
+    expect(collectPresentationNamedFailures(checklist.checks).some((f) => f.includes('duplicate-root-style-system'))).toBe(true);
+  });
+
+  it('detects missing style, inline styles, and external assets as named CSS failures', () => {
+    const unsafe = `<section data-background-color="#ffffff" style="color:#111">
+      <img src="https://example.com/chart.png" alt="remote chart">
+      <h1>Unstyled slide</h1>
+    </section>`;
+    const checklist = buildPresentationQualityChecklist({ html: unsafe });
+    const issueIds = checklist.checks
+      .find((c) => c.id === 'css-design-contract')
+      ?.namedIssues
+      ?.map((issue) => issue.id);
+
+    expect(issueIds).toEqual(expect.arrayContaining([
+      'missing-style-system',
+      'inline-style-leak',
+      'external-css-or-asset',
+    ]));
+  });
+
+  it('detects clamp-based tiny type and excessive animation as named CSS failures', () => {
+    const manyAnimations = Array.from({ length: 11 }, (_, index) =>
+      `@keyframes drift${index} { from { opacity: .8; } to { opacity: 1; } }`,
+    ).join('\n');
+    const risky = `<style>
+      :root { --bg: #fff; }
+      ${manyAnimations}
+      @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+      .label { font-size: clamp(12px, 1rem, 18px); animation: drift0 1s ease both; }
+    </style>
+    <section data-background-color="#ffffff"><h1 class="label">Tiny motion label</h1></section>`;
+    const checklist = buildPresentationQualityChecklist({ html: risky });
+    const issueIds = checklist.checks
+      .find((c) => c.id === 'css-design-contract')
+      ?.namedIssues
+      ?.map((issue) => issue.id);
+
+    expect(issueIds).toEqual(expect.arrayContaining([
+      'tiny-source-type',
+      'animation-budget-risk',
+    ]));
+  });
+
+  it('detects weak class continuity as a named CSS failure', () => {
+    const weakContinuity = `<style>.alpha { color: #111; } .beta { color: #222; }</style>
+    <section data-background-color="#ffffff"><h1 class="alpha">Slide 1</h1></section>
+    <section data-background-color="#ffffff"><h2 class="beta">Slide 2</h2></section>`;
+    const checklist = buildPresentationQualityChecklist({ html: weakContinuity });
+    const cssCheck = checklist.checks.find((c) => c.id === 'css-design-contract');
+
+    expect(cssCheck?.namedIssues?.some((i) => i.id === 'weak-class-continuity')).toBe(true);
+  });
+
+  it('does not raise CSS contract failures for a clean well-formed slide', () => {
+    const clean = `${VALID_STYLE}
+    <section data-background-color="#ffffff"><h1 class="slide-title">Clean Slide</h1></section>`;
+    const checklist = buildPresentationQualityChecklist({ html: clean });
+    const cssCheck = checklist.checks.find((c) => c.id === 'css-design-contract');
+
+    expect(cssCheck?.passed).toBe(true);
+    expect(cssCheck?.namedIssues).toBeUndefined();
   });
 });

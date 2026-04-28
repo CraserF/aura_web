@@ -31,7 +31,19 @@ export type PresentationNamedFailureId =
   | 'missing-integrated-visual'
   | 'missing-narrative-transition'
   | 'poor-token-continuity'
-  | 'copy-density-risk';
+  | 'copy-density-risk'
+  // CSS/design contract
+  | 'missing-style-system'
+  | 'inline-style-leak'
+  | 'external-css-or-asset'
+  | 'missing-reduced-motion'
+  | 'viewport-unit-layout'
+  | 'tiny-source-type'
+  | 'animation-budget-risk'
+  | 'duplicate-root-style-system'
+  | 'append-slide-style-reset'
+  | 'weak-class-continuity'
+  | 'unscoped-extension-style';
 
 export interface PresentationNamedFailure {
   id: PresentationNamedFailureId;
@@ -43,6 +55,7 @@ export interface PresentationQualityCheck {
     | 'fragment-contract'
     | 'viewport-contract'
     | 'prompt-estimate'
+    | 'css-design-contract'
     | 'excellence-visual'
     | 'excellence-narrative'
     | 'excellence-pattern-advisories'
@@ -125,6 +138,118 @@ function buildPromptEstimateCheck(promptTokenEstimate: number): PresentationQual
     blockingCount: 0,
     advisoryCount: 0,
     details: [`Estimated prompt tokens: ${promptTokenEstimate}`],
+  };
+}
+
+function buildCssDesignContractCheck(html: string): PresentationQualityCheck {
+  const styleBlocks = html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) ?? [];
+  const styleTexts = styleBlocks.map((block) => block.replace(/<\/?style[^>]*>/gi, ''));
+  const styleText = styleTexts.join('\n');
+
+  const namedIssues: PresentationNamedFailure[] = [];
+  const sections = extractSections(html);
+
+  if (styleBlocks.length === 0) {
+    namedIssues.push({
+      id: 'missing-style-system',
+      message: 'No <style> block found. Presentation output needs a reusable class-based style system.',
+    });
+  }
+
+  if (/\sstyle\s*=/i.test(html)) {
+    namedIssues.push({
+      id: 'inline-style-leak',
+      message: 'Inline style attributes detected. Move styling into reusable CSS classes in the <style> block.',
+    });
+  }
+
+  if (/<(?:script|link)\b/i.test(html) || /@import\b/i.test(styleText) || /url\(\s*["']?https?:\/\//i.test(styleText) || /\ssrc=["']https?:\/\//i.test(html)) {
+    namedIssues.push({
+      id: 'external-css-or-asset',
+      message: 'External CSS, scripts, links, or remote assets detected. Use inline SVG/CSS and local class-based styling only.',
+    });
+  }
+
+  if (/\b(?:animation\s*:|@keyframes\b)/i.test(styleText) && !/prefers-reduced-motion/i.test(styleText)) {
+    namedIssues.push({
+      id: 'missing-reduced-motion',
+      message: 'Animation present but no prefers-reduced-motion fallback. Add @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; } }',
+    });
+  }
+
+  if (/\b(?:width|height|min-width|min-height|max-width|max-height|inset|top|right|bottom|left|padding|margin|gap|font-size)\s*:[^;{}]*(?:\d|\))\s*(?:vw|vh|dvw|dvh|vmin|vmax)\b/i.test(styleText)) {
+    namedIssues.push({
+      id: 'viewport-unit-layout',
+      message: 'Viewport units (vw/vh) used for layout or type sizing. Replace with stage-relative px, %, clamp(), or grid/flex values.',
+    });
+  }
+
+  const tinyFontSizes = [
+    ...Array.from(styleText.matchAll(/font-size\s*:\s*(\d+(?:\.\d+)?)px/gi)),
+    ...Array.from(styleText.matchAll(/font-size\s*:\s*clamp\(\s*(\d+(?:\.\d+)?)px/gi)),
+  ]
+    .map(([, s]) => Number.parseFloat(s ?? '0'))
+    .filter((s) => s > 0 && s < 16);
+  if (tinyFontSizes.length > 0) {
+    namedIssues.push({
+      id: 'tiny-source-type',
+      message: `Font sizes below 16px detected (smallest: ${Math.min(...tinyFontSizes)}px). Increase to ≥16px for readable fixed-stage output.`,
+    });
+  }
+
+  const keyframeCount = (styleText.match(/@keyframes\s+[\w-]+/gi) ?? []).length;
+  const animationDeclarationCount = (styleText.match(/\banimation\s*:/gi) ?? []).length;
+  if (keyframeCount > 10 || animationDeclarationCount > 12) {
+    namedIssues.push({
+      id: 'animation-budget-risk',
+      message: `Animation budget risk: ${keyframeCount} keyframe block(s) and ${animationDeclarationCount} animation declaration(s). Keep motion focused and bounded.`,
+    });
+  }
+
+  const rootStyleBlockCount = styleTexts.filter((style) => /:root\s*\{/i.test(style)).length;
+  const laterSectionsWithRootVars = sections.slice(1).filter((section) => /style=["'][^"']*--[a-z0-9-]+\s*:/i.test(section)).length;
+  if (rootStyleBlockCount > 1 || laterSectionsWithRootVars > 0) {
+    namedIssues.push({
+      id: 'duplicate-root-style-system',
+      message: `CSS root/style tokens are duplicated (${rootStyleBlockCount} :root style block(s), ${laterSectionsWithRootVars} later slide inline token set(s)). Keep shared tokens in one style system.`,
+    });
+  }
+
+  const styleResetBlockCount = styleTexts.slice(1).filter((style) => /:root\s*\{|--(?:primary|accent|bg|text|ink)\s*:|\.[a-z0-9_-]+\s*\{/i.test(style)).length;
+  if (styleResetBlockCount > 0) {
+    namedIssues.push({
+      id: 'append-slide-style-reset',
+      message: `Later style block(s) appear to reset the deck style system ${styleResetBlockCount} time(s). Reuse the first shared style block and add only scoped extensions.`,
+    });
+  }
+
+  const unscopedExtensionCount = styleTexts.slice(1).filter((style) =>
+    style.length > 1200 || /(?:^|[{}]\s*)(?:html|body|section|:root)\b/i.test(style),
+  ).length;
+  if (unscopedExtensionCount > 0) {
+    namedIssues.push({
+      id: 'unscoped-extension-style',
+      message: `Extension style block(s) are broad or unscoped ${unscopedExtensionCount} time(s). Later slides should add small, class-scoped CSS only.`,
+    });
+  }
+
+  const sharedClassCount = countSharedClassContinuity(sections);
+  const hasSharedTokens = /--(?:primary|accent|bg|text|ink|surface)\s*:/i.test(styleText);
+  if (sections.length > 1 && sharedClassCount < 1 && !hasSharedTokens) {
+    namedIssues.push({
+      id: 'weak-class-continuity',
+      message: 'No shared class or token continuity detected across slides. Reuse the deck class vocabulary and shared CSS variables.',
+    });
+  }
+
+  return {
+    id: 'css-design-contract',
+    label: 'CSS design contract',
+    passed: namedIssues.length === 0,
+    blockingCount: 0,
+    advisoryCount: namedIssues.length,
+    details: namedIssues.map((issue) => issue.message),
+    namedIssues: namedIssues.length > 0 ? namedIssues : undefined,
   };
 }
 
@@ -341,6 +466,7 @@ export function buildPresentationQualityChecklist(
     buildFragmentContractCheck(input.html, slideCount, input.allowTemplateTokens ?? false),
     buildViewportContractCheck(viewportContract),
     buildPromptEstimateCheck(promptTokenEstimate),
+    buildCssDesignContractCheck(input.html),
   ];
   const qualitySignals = input.qualityBar
     ? buildPresentationQualitySignals({
@@ -393,14 +519,15 @@ export function collectPresentationNamedFailures(checks: PresentationQualityChec
   }
   const failedSignalDetails: string[] = [];
   for (const check of checks) {
-    if (!check.passed && check.id !== 'excellence-pattern-advisories' && check.details.length > 0) {
+    if (!check.passed && !check.namedIssues?.length && check.id !== 'excellence-pattern-advisories' && check.details.length > 0) {
       failedSignalDetails.push(...check.details.map((d) => `[${check.id}] ${d}`));
     }
   }
   return [...namedMessages, ...failedSignalDetails];
 }
 
-export function buildPresentationQualityTelemetry(  input: PresentationQualityChecklistInput,
+export function buildPresentationQualityTelemetry(
+  input: PresentationQualityChecklistInput,
 ): Pick<
   ArtifactRuntimeTelemetry,
   | 'promptTokenEstimate'
