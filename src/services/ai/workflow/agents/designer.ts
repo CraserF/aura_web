@@ -51,6 +51,12 @@ export interface DesignResult {
 // with trailing chatter before fast-path QA can run.
 const PRESENTATION_STREAM_MAX_OUTPUT_TOKENS = 4096;
 
+export interface SubmitFinalSlideReview {
+  accepted: true;
+  warnings?: string[];
+  guidance?: string;
+}
+
 interface ContinuityAssessment {
   score: number;
   passes: boolean;
@@ -185,6 +191,23 @@ function assessContinuity(existingSlidesHtml: string, newSlideHtml: string): Con
   };
 }
 
+export function buildSubmitFinalSlideReview(result: ReturnType<typeof validateSlides>): SubmitFinalSlideReview {
+  const blockingViolations = result.violations.filter((v) => v.tier === 'blocking');
+  if (blockingViolations.length > 0) {
+    return {
+      accepted: true,
+      warnings: blockingViolations.map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
+      guidance: 'Runtime deterministic repair will handle remaining blocking issues before finalization.',
+    };
+  }
+
+  const advisories = result.violations.filter((v) => v.tier === 'advisory');
+  return {
+    accepted: true,
+    warnings: advisories.map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
+  };
+}
+
 /**
  * For add-slide intent, keep existing slides untouched and append only newly generated sections.
  */
@@ -312,8 +335,8 @@ function createDesignAgent(
           title: z.string().describe('A short descriptive title for this slide'),
         }),
         execute: async ({ html }) => {
-          // Pre-flight QA gate: reject submissions with blocking violations so the
-          // model self-corrects before the result is accepted by the caller.
+          // Pre-flight QA review: surface issues, but let the runtime finalizer
+          // handle deterministic repair so the tool loop does not churn.
           const { html: processed } = postProcess(html, planResult.blueprint.palette.fontImport);
           const result = validateSlides(processed, {
             expectedBgColor: planResult.blueprint.palette.bg,
@@ -322,22 +345,7 @@ function createDesignAgent(
             exemplarPackId: planResult.exemplarPackId,
           });
 
-          const blockingViolations = result.violations.filter((v) => v.tier === 'blocking');
-          if (blockingViolations.length > 0) {
-            // Step 4: soft-accept so the loop can exit without churn.
-            // The runtime finalizer will run deterministic repair before storing output.
-            return {
-              accepted: true,
-              warnings: blockingViolations.map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
-              guidance: 'Runtime deterministic repair will handle remaining blocking issues before finalization.',
-            };
-          }
-
-          const advisories = result.violations.filter((v) => v.tier === 'advisory');
-          return {
-            accepted: true,
-            warnings: advisories.map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
-          };
+          return buildSubmitFinalSlideReview(result);
         },
       }),
     },

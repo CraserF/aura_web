@@ -1325,7 +1325,7 @@ export async function runSinglePresentationRuntime(
     });
   }
 
-  reviewPassed = planResult.intent === 'add_slides' ? designResult.fastPath : runtimeValidation.passed;
+  reviewPassed = runtimeValidation.passed;
 
   if (signal?.aborted) throw new DOMException('Workflow aborted', 'AbortError');
 

@@ -16,6 +16,10 @@ const designerMocks = vi.hoisted(() => ({
   designEdit: vi.fn(),
 }));
 
+const evaluatorMocks = vi.hoisted(() => ({
+  evaluateAndRevise: vi.fn(),
+}));
+
 vi.mock('@/services/ai/workflow/batchQueue', () => ({
   runBatchQueue: batchQueueMocks.runBatchQueue,
 }));
@@ -28,6 +32,10 @@ vi.mock('@/services/ai/workflow/agents/designer', async (importOriginal) => {
     designEdit: designerMocks.designEdit,
   };
 });
+
+vi.mock('@/services/ai/workflow/agents/evaluator', () => ({
+  evaluateAndRevise: evaluatorMocks.evaluateAndRevise,
+}));
 
 const {
   runPresentationRuntime,
@@ -95,6 +103,8 @@ describe('presentation runtime workflow orchestration', () => {
     runBatchQueueMock.mockReset();
     designerMocks.design.mockReset();
     designerMocks.designEdit.mockReset();
+    evaluatorMocks.evaluateAndRevise.mockReset();
+    evaluatorMocks.evaluateAndRevise.mockImplementation(async (_model, html: string) => html);
   });
 
   it('records first-preview and queued slide telemetry for generated decks', async () => {
@@ -376,6 +386,43 @@ describe('presentation runtime workflow orchestration', () => {
     expect(output.reviewPassed).toBe(true);
   });
 
+  it('add-slides reviewPassed follows final runtime validation instead of design fast path', async () => {
+    const addSlidesPlanResult: PlanResult = {
+      intent: 'add_slides',
+      blocked: false,
+      blueprint: { palette: { bg: '#ffffff' } },
+      slideBriefs: [],
+    } as PlanResult;
+    const existingDeck = `${VALID_STYLE}
+      <section data-background-color="#ffffff"><h1 class="slide-title">Existing slide</h1><p class="slide-body">Already valid.</p></section>`;
+    const invalidMergedDeck = `${existingDeck}
+      <section><h2 class="slide-title">New slide</h2><p class="slide-body">Missing required background.</p></section>`;
+    designerMocks.designEdit.mockResolvedValue({
+      html: invalidMergedDeck,
+      slideCount: 2,
+      title: 'New slide',
+      fastPath: true,
+    } as DesignResult);
+
+    const output = await runSinglePresentationRuntime({
+      planResult: addSlidesPlanResult,
+      model: {} as LanguageModel,
+      input: {
+        prompt: 'Add a new slide',
+        existingSlidesHtml: existingDeck,
+        chatHistory: [],
+      },
+      onEvent: () => {},
+      isEdit: true,
+      effectiveChatHistory: [],
+      skipSecondaryEvaluation: true,
+    });
+
+    expect(designerMocks.designEdit).toHaveBeenCalledTimes(1);
+    expect(output.runtime?.validationPassed).toBe(false);
+    expect(output.reviewPassed).toBe(false);
+  });
+
   it('single-slide discards LLM polish when it introduces blocking issues', async () => {
     const singlePlanResult: PlanResult = {
       intent: 'create',
@@ -391,6 +438,9 @@ describe('presentation runtime workflow orchestration', () => {
       title: 'Opening thesis',
       fastPath: true,
     } as DesignResult);
+    const invalidPolishHtml = `${VALID_STYLE}
+      <section><h1 class="slide-title">Regressed polish</h1><p class="slide-body">This polish dropped the required background.</p></section>`;
+    evaluatorMocks.evaluateAndRevise.mockResolvedValue(invalidPolishHtml);
 
     const output = await runSinglePresentationRuntime({
       runPlan: buildArtifactRunPlan({
@@ -410,13 +460,14 @@ describe('presentation runtime workflow orchestration', () => {
       onEvent: () => {},
       isEdit: false,
       effectiveChatHistory: [],
-      // alwaysRunEvaluation is off by default; fastPath=true qualifies for polish when score is low
-      // but skipSecondaryEvaluation=true ensures we don't actually call the evaluator model
-      skipSecondaryEvaluation: true,
+      skipSecondaryEvaluation: false,
     });
 
+    expect(evaluatorMocks.evaluateAndRevise).toHaveBeenCalledTimes(1);
     // The valid pre-polish HTML is preserved
     expect(output.html).toContain('data-background-color="#ffffff"');
+    expect(output.html).toContain('Opening thesis');
+    expect(output.html).not.toContain('Regressed polish');
     expect(output.runtime?.validationPassed).toBe(true);
     expect(output.reviewPassed).toBe(true);
   });
