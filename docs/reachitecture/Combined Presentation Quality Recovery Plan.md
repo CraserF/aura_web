@@ -168,12 +168,12 @@ Status legend:
 
 | Step | Status | Owner / Date | Evidence | Notes |
 |---|---:|---|---|---|
-| 0. Baseline and guardrails | `[ ]` | — | — | Confirm scope, prompt caps, non-goals, and validation docs before implementation. |
-| 1. Compact presentation design knowledge | `[ ]` | — | — | Add bounded runtime-owned design vocabulary; do not inject the full old knowledge corpus. |
-| 2. Remove first-draft quality suppression | `[ ]` | — | — | Replace repair-friendly wording with finished-output wording. |
-| 3. Shared single/queued finalization | `[ ]` | — | — | Make single-slide finalization use deterministic repair, validation, quality scoring, and no-regression checks. |
+| 0. Baseline and guardrails | `[x]` | Claude / 2026-04-28 | Plan read, scope confirmed, no implementation changes | No code changes; scope, non-goals, and validation files identified. |
+| 1. Compact presentation design knowledge | `[x]` | Claude / 2026-04-28 | `prompt-contracts.test.ts` — 7 tests pass; createPrompt contains PRESENTATION DESIGN VOCABULARY, title/cover recipe, data-band, footer-rail; slide 1 batch prompt includes full vocabulary; editPrompt contains EDIT DESIGN GUIDANCE | Added `buildPresentationDesignKnowledgePack()` and `buildPresentationEditDesignGuidancePack()` to `presentationPrompts.ts`; wired into create, edit, and batch slide 1 prompts; cap updated to 8.5 KB. |
+| 2. Remove first-draft quality suppression | `[x]` | Claude / 2026-04-28 | `prompt-contracts.test.ts` — asserts old phrase absent, new phrase present; all 611 tests pass | Replaced "Keep structure simple enough for another agent pass to validate and repair." with "Produce finished, visually polished output. Do not simplify for a repair pass." in `promptPacks.ts`. |
+| 3. Shared single/queued finalization | `[ ]` | — | — | Must run deterministic repair, validation, quality scoring, and no-regression checks for single-slide path. |
 | 4. Soften `submitFinalSlide` after finalization is safe | `[ ]` | — | — | Must not begin until Step 3 is complete. |
-| 5. Evaluator context and deterministic-signal revision | `[ ]` | — | — | Increase CSS visibility and drive revisions from named deterministic failures. |
+| 5. Evaluator context and deterministic-signal revision | `[~]` | Claude / 2026-04-28 | `evaluator.ts` truncation default raised from 800 to 3000 chars; all tests pass | CSS visibility fix done. Deterministic-signal-led revision (named failure signals, revision prompt routing) not yet implemented. |
 | 6. Queue real deck prompts by default | `[ ]` | — | — | Deck/keynote/presentation prompts should produce queued work unless clearly single-slide. |
 | 7. Explicit runtime budgets | `[ ]` | — | — | Add boundary-only budget fields and telemetry for skipped optional work. |
 | 8. Local/Ollama calibrated parity | `[ ]` | — | — | Same workflow and diagnostics, provider-calibrated thresholds and budgets. |

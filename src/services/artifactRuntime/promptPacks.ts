@@ -13,7 +13,7 @@ You are producing one small artifact part for Aura's internal runtime.
 Universal rules:
 - Follow the selected artifact type exactly.
 - Use concise, finished copy; never leave placeholders or TODO labels.
-- Keep structure simple enough for another agent pass to validate and repair.
+- Produce finished, visually polished output. Do not simplify for a repair pass.
 - Prefer reusable class names and deterministic markup over clever one-off output.`;
 }
 

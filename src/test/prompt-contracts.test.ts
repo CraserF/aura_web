@@ -54,6 +54,14 @@ function makePresentationPromptInputs(prompt = 'Create a 3 slide executive brief
 }
 
 describe('artifact prompt contracts', () => {
+  it('does not tell the model to simplify for a repair pass', () => {
+    const contract = buildCoreArtifactContractPack();
+    expect(contract).not.toContain('simple enough for another agent pass');
+    expect(contract).not.toContain('validate and repair');
+    expect(contract).toContain('Produce finished, visually polished output');
+    expect(contract).toContain('Do not simplify for a repair pass');
+  });
+
   it('keeps the presentation fragment contract strict and canvas-safe', () => {
     const contract = buildPresentationFragmentContractPack({
       artifactType: 'presentation',
@@ -116,12 +124,30 @@ describe('artifact prompt contracts', () => {
     expect(createPrompt).toContain(`Family: ${runPlan.designManifest.family}`);
     expect(createPrompt).toContain('fixed 16:9 Reveal stage');
     expect(createPrompt).toContain('reduced-motion CSS is required');
+    // Step 1: compact design vocabulary must be present in create and batch slide 1
+    expect(createPrompt).toContain('PRESENTATION DESIGN VOCABULARY');
+    expect(createPrompt).toContain('title/cover');
+    expect(createPrompt).toContain('data-band');
+    expect(createPrompt).toContain('footer-rail');
+    // Edit prompt gets a shorter edit-safe guidance section
+    expect(editPrompt).toContain('EDIT DESIGN GUIDANCE');
+    expect(editPrompt).not.toContain('Recipe guidance');
+    // Batch slide 1 must include full design vocabulary
+    const slide1Prompt = buildPresentationBatchSlidePrompt({
+      runPlan,
+      planResult,
+      brief: { index: 1, title: 'Title', contentGuidance: 'Opening slide.' },
+      totalSlides: 3,
+    });
+    expect(slide1Prompt).toContain('PRESENTATION DESIGN VOCABULARY');
+    expect(slide1Prompt).toContain('title/cover');
     expect(followUpPrompt).toContain('DECK NARRATIVE PLAN');
     expect(followUpPrompt).toContain('SLIDE BLUEPRINT');
     expect(followUpPrompt).toContain('Role:');
     expect(followUpPrompt).toContain('Continuity:');
-    expect(createPrompt.length).toBeLessThanOrEqual(6500);
-    expect(editPrompt.length).toBeLessThanOrEqual(6500);
+    // Step 1: cap updated to 8.5 KB to accommodate compact design vocabulary pack
+    expect(createPrompt.length).toBeLessThanOrEqual(8500);
+    expect(editPrompt.length).toBeLessThanOrEqual(8500);
     expect(followUpPrompt.length).toBeLessThanOrEqual(3500);
     expect(revisionPrompt.length).toBeLessThanOrEqual(3500);
 
@@ -130,6 +156,9 @@ describe('artifact prompt contracts', () => {
       expect(prompt).not.toContain('ADDITIONAL REFERENCE MATERIAL');
       expect(prompt).not.toContain('TEMPLATE EXAMPLES');
       expect(prompt).not.toContain('Output a <link>');
+      // Step 2: repair-friendly wording must not appear in any presentation prompt
+      expect(prompt).not.toContain('simple enough for another agent pass');
+      expect(prompt).not.toContain('validate and repair');
     }
   });
 

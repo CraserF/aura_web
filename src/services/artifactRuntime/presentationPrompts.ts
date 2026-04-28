@@ -49,6 +49,44 @@ function guidanceFrom(input: PresentationPromptBaseInput): TemplateGuidanceProfi
   return input.runPlan?.templateGuidance ?? input.guidanceProfile;
 }
 
+function buildPresentationDesignKnowledgePack(): string {
+  return `## PRESENTATION DESIGN VOCABULARY
+
+CSS architecture:
+- Define \`:root\` palette tokens (--bg, --text, --accent, --highlight) and reuse across all classes.
+- Use semantic class families: slide-shell, title-lockup, content-grid, data-band, footer-rail.
+- Layer stack: z-index 0 = background field; 1–2 = motif/diagram overlay; 10 = content; 20 = footer rail.
+- Do not use inline style= attributes; all styling belongs in the <style> block.
+
+Typography — fixed stage sizes (never scale with vw/vh inside the slide stage):
+- Cover H1: 76–96px; content H2: 44–60px; body: 24–30px; labels: 16px minimum.
+
+Inline SVG: use viewBox, semantic shapes, and palette vars for fill/stroke. No external src= URLs.
+Motion: one ambient system per slide (pulse, drift, breathe). Always add \`@media (prefers-reduced-motion: reduce)\` to disable all animation.
+
+Anti-patterns to avoid:
+- Equal-weight card walls with more than 3 same-size cells.
+- KPI grids with 6+ metric tiles; prefer 2–3 dominant signals with interpretation.
+- Placeholder copy or unfinished template text.
+- Decoration unrelated to the slide topic.
+
+Recipe guidance:
+- title/cover: hero split layout, strong H1, one supporting subhead, accent color band.
+- stage-setting: editorial split — scene or abstract panel left, insight stack right.
+- data/metrics: 2–3 dominant KPIs with interpretation label, trend bar or sparkline; not a metric wall.
+- editorial/concept: asymmetric — large heading + pull quote + embedded inline diagram.
+- comparison: two vertical lanes with a verdict or bridge row connecting them.
+- closing/action: clear action path (numbered steps or CTA block) + proof band (metric or quote).`;
+}
+
+function buildPresentationEditDesignGuidancePack(): string {
+  return `## EDIT DESIGN GUIDANCE
+
+Preserve existing class vocabulary, CSS variables, layer z-index assignments, and animation names.
+Apply the minimum change that satisfies the request; do not redesign the stage system.
+Keep fixed stage type sizes (cover 76–96px, content 44–60px, body 24–30px) unless restyling.`;
+}
+
 function buildMobileStagePack(): string {
   return `## MOBILE-STAGE READABILITY
 
@@ -185,6 +223,7 @@ export function buildPresentationCreateSystemPrompt(input: PresentationPromptBas
     buildCoreArtifactContractPack(),
     buildPresentationFragmentContractPack(guidanceFrom(input)),
     buildDesignManifestPack(input),
+    buildPresentationDesignKnowledgePack(),
     buildStyleFamilyPack(input),
     buildNarrativePlanPack(input),
     buildQualityBarContractPack(input.runPlan?.qualityBar),
@@ -225,6 +264,7 @@ export function buildPresentationEditSystemPrompt(input: PresentationPromptBaseI
     buildCoreArtifactContractPack(),
     buildPresentationFragmentContractPack(guidanceFrom(input)),
     buildDesignManifestPack(input),
+    buildPresentationEditDesignGuidancePack(),
     buildStyleFamilyPack(input),
     buildNarrativePlanPack(input),
     buildQualityBarContractPack(input.runPlan?.qualityBar),
@@ -311,6 +351,7 @@ Generate exactly one \`<section>\` for this slide.`;
     return buildPrompt([
       buildNarrativePlanPack(input),
       buildSlideBlueprintPack(slideBlueprint),
+      buildPresentationDesignKnowledgePack(),
       slideTask,
       'This first slide establishes the reusable deck style system. Include the shared `<style>` block and one section.',
     ]);

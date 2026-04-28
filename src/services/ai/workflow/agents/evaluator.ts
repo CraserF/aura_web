@@ -64,7 +64,7 @@ function postProcess(raw: string): string {
  * Trim the HTML sent to the evaluator to reduce token cost.
  * Keeps the <section> content intact but truncates long <style> blocks.
  */
-function truncateForEval(html: string, maxStyleChars = 800): string {
+function truncateForEval(html: string, maxStyleChars = 3000): string {
   return html.replace(
     /(<style[^>]*>)([\s\S]*?)(<\/style>)/gi,
     (_match, open, body: string, close) => {
