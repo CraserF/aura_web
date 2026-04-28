@@ -7,6 +7,7 @@ import type {
   DesignManifest,
   RuntimeOutputMode,
 } from '@/services/artifactRuntime/types';
+import { resolveReferenceQualityProfileId } from '@/services/ai/templates';
 
 export interface BuildArtifactQualityBarInput {
   workflow: ArtifactWorkflowPlan;
@@ -107,6 +108,11 @@ function buildDocumentQualityBar(input: BuildArtifactQualityBarInput, tier: Arti
   const isPremium = tier === 'premium';
   const isLite = tier === 'structured-premium-lite';
   const minimumScore = thresholdForTier(tier);
+  const referenceStylePackId = resolveReferenceQualityProfileId({
+    artifactType: 'document',
+    outputMode: input.guidedOutputMode,
+    requestedReferenceStylePackId: input.workflow.templateGuidance.referenceStylePackId,
+  });
 
   return {
     artifactType: 'document',
@@ -123,8 +129,8 @@ function buildDocumentQualityBar(input: BuildArtifactQualityBarInput, tier: Arti
       'KPI, proof, or evidence strip',
       'comparison, timeline, sidebar, or table rhythm',
     ],
-    ...(input.workflow.templateGuidance.referenceStylePackId
-      ? { referenceStylePackId: input.workflow.templateGuidance.referenceStylePackId }
+    ...(referenceStylePackId
+      ? { referenceStylePackId }
       : {}),
     polishingBudget: polishingBudgetForTier(tier),
     acceptanceThresholds: {
@@ -150,6 +156,11 @@ function buildPresentationQualityBar(input: BuildArtifactQualityBarInput, tier: 
   );
   const isPremium = tier === 'premium';
   const minimumScore = thresholdForTier(tier);
+  const referenceStylePackId = resolveReferenceQualityProfileId({
+    artifactType: 'presentation',
+    outputMode: input.guidedOutputMode,
+    requestedReferenceStylePackId: input.workflow.templateGuidance.referenceStylePackId,
+  });
 
   return {
     artifactType: 'presentation',
@@ -166,8 +177,8 @@ function buildPresentationQualityBar(input: BuildArtifactQualityBarInput, tier: 
       'integrated visual, diagram, scene, or motif',
       'continuity tokens across the deck',
     ],
-    ...(input.workflow.templateGuidance.referenceStylePackId
-      ? { referenceStylePackId: input.workflow.templateGuidance.referenceStylePackId }
+    ...(referenceStylePackId
+      ? { referenceStylePackId }
       : {}),
     polishingBudget: polishingBudgetForTier(tier),
     acceptanceThresholds: {

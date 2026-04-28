@@ -73,6 +73,8 @@ describe('document quality checklist', () => {
     expect(checklist.ready).toBe(true);
     expect(checklist.qualityScore).toBeGreaterThanOrEqual(plan.qualityBar.acceptanceThresholds.minimumScore);
     expect(checklist.qualitySignals?.map((signal) => signal.id)).toContain('content-depth');
+    expect(checklist.qualitySignals?.find((signal) => signal.id === 'reference-style-match')?.detail)
+      .toContain('Professional Light Document rhythm and density traits');
     expect(checklist.checks.map((check) => check.id)).toContain('excellence-score');
   });
 

@@ -1,4 +1,5 @@
 import type { ArtifactRuntimeTelemetry } from '@/services/ai/workflow/types';
+import { summarizeReferenceQualityProfileForScoring } from '@/services/ai/templates';
 import { estimateRuntimePromptTokens } from '@/services/artifactRuntime/diagnostics';
 import {
   scoreAgainstTarget,
@@ -229,7 +230,7 @@ function buildPresentationQualitySignals(input: {
       score: Math.min(100, (hasStrongTitleScene ? 25 : 0) + (integratedVisualCount > 0 ? 25 : 0) + Math.min(35, roleSet.size * 7) - repeatedGridRisk * 10 + (input.qualityBar.referenceStylePackId ? 10 : 0)),
       target: targetForSignal(input.qualityBar, 'reference-style-match'),
       detail: input.qualityBar.referenceStylePackId
-        ? `Matched against ${input.qualityBar.referenceStylePackId} traits.`
+        ? `Matched against ${summarizeReferenceQualityProfileForScoring(input.qualityBar.referenceStylePackId)}.`
         : 'Matched against runtime deck design traits.',
     }),
     scoreQualitySignal({

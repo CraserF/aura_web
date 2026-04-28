@@ -36,11 +36,13 @@ Aura should keep the new `ArtifactRuntime` structure, but generated artifacts mu
 - [x] Added deck-level narrative plans with promise, audience, arc, motif, slide roles, layout map, and continuity rules.
 - [x] Added explicit deterministic presentation polish advisories for weak title scenes, repeated grids, missing visuals, missing transitions, and weak class/token continuity.
 - [x] Added spreadsheet craft metadata for frozen headers, useful column formats, readable widths, summary rows, chart readiness, and downstream-ready action summaries.
+- [x] Added a normalized reference-quality corpus that routes quality bars to trait-only style targets for documents and presentations.
 - [x] Verified with:
   - `npm test -- artifact-runtime prompt-contracts runtime-telemetry document-quality-checklist presentation-quality-checklist spreadsheet-runtime`
   - `npm test -- artifact-runtime prompt-contracts document-quality-checklist document-runtime-workflow runtime-telemetry quality-decision`
   - `npm test -- artifact-runtime prompt-contracts presentation-quality-checklist presentation-runtime-policy`
   - `npm test -- spreadsheet-runtime spreadsheet-create-craft prompt-to-formula prompt-to-query spreadsheet-starter runtime-telemetry`
+  - `npm test -- reference-style-packs prompt-contracts document-quality-checklist presentation-quality-checklist workflow-planner artifact-runtime`
   - `npm run typecheck`
   - `npm test`
   - `npm run build`
@@ -198,14 +200,14 @@ Acceptance criteria:
 
 ## Workstream 5: Reference-Quality Corpus
 
-Status: `[ ]`
+Status: `[x]`
 
 Purpose: use starter kits and examples as style targets without copying their real content.
 
 Implementation checklist:
 
-- [ ] Normalize starter kits, production presentation templates, document blueprints, and the example document into reference style packs.
-- [ ] Record style traits only:
+- [x] Normalize starter kits, production presentation templates, document blueprints, and the example document into reference style packs.
+- [x] Record style traits only:
   - rhythm;
   - density;
   - module grammar;
@@ -213,14 +215,14 @@ Implementation checklist:
   - typography scale;
   - component families;
   - anti-patterns.
-- [ ] Add reference-pack routing so quality bars can select the right style target per artifact type and output mode.
-- [ ] Add tests proving reference packs are used as style metadata, not content sources.
+- [x] Add reference-pack routing so quality bars can select the right style target per artifact type and output mode.
+- [x] Add tests proving reference packs are used as style metadata, not content sources.
 
 Acceptance criteria:
 
-- [ ] Prompts and scoring can reference starter-quality traits without embedding source content.
-- [ ] Synthetic examples remain synthetic and confidentiality-safe.
-- [ ] Documents/decks can be compared against starter-quality rhythm and density.
+- [x] Prompts and scoring can reference starter-quality traits without embedding source content.
+- [x] Synthetic examples remain synthetic and confidentiality-safe.
+- [x] Documents/decks can be compared against starter-quality rhythm and density.
 
 ## Workstream 6: Legacy Cleanup
 

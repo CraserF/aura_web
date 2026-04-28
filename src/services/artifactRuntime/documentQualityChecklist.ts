@@ -1,4 +1,5 @@
 import type { ArtifactRuntimeTelemetry } from '@/services/ai/workflow/types';
+import { summarizeReferenceQualityProfileForScoring } from '@/services/ai/templates';
 import { estimateRuntimePromptTokens } from '@/services/artifactRuntime/diagnostics';
 import {
   scoreAgainstTarget,
@@ -268,7 +269,7 @@ function buildDocumentQualitySignals(input: {
       score: Math.min(100, (hasHero ? 25 : 0) + (hasStyleBlock ? 25 : 0) + Math.min(50, componentFamilyCount * 10)),
       target: targetForSignal(input.qualityBar, 'reference-style-match'),
       detail: input.qualityBar.referenceStylePackId
-        ? `Matched against ${input.qualityBar.referenceStylePackId} traits.`
+        ? `Matched against ${summarizeReferenceQualityProfileForScoring(input.qualityBar.referenceStylePackId)}.`
         : 'Matched against runtime document design traits.',
     }),
     scoreQualitySignal({

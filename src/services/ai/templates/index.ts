@@ -56,6 +56,16 @@ export {
 } from './reference-style-packs';
 
 export {
+  formatReferenceQualityProfileForPrompt,
+  getReferenceQualityProfile,
+  listReferenceQualityProfiles,
+  resolveReferenceQualityProfileId,
+  summarizeReferenceQualityProfileForScoring,
+  type ReferenceQualityProfile,
+  type ReferenceQualitySourceKind,
+} from './reference-quality-corpus';
+
+export {
   PRESENTATION_LAYOUT_RECIPES,
   PRESENTATION_MOTION_BUDGETS,
   PRESENTATION_TYPE_SCALE,

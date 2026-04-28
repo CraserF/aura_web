@@ -35,6 +35,14 @@ vi.mock('@/services/ai/templates', () => ({
     templateId: 'executive-briefing-light',
     exemplarPackId: 'executive-briefing-light',
   })),
+  resolveReferenceQualityProfileId: vi.fn(({ artifactType }: { artifactType: string }) =>
+    artifactType === 'presentation'
+      ? 'presentation-executive-starter'
+      : artifactType === 'document'
+        ? 'document-professional-light'
+        : undefined),
+  summarizeReferenceQualityProfileForScoring: vi.fn(() => 'mock reference rhythm and density traits'),
+  formatReferenceQualityProfileForPrompt: vi.fn(() => 'mock reference quality target'),
 }));
 
 vi.mock('@/services/spreadsheet/workbook', async () => {

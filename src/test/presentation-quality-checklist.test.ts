@@ -112,6 +112,8 @@ describe('presentation quality checklist', () => {
     expect(checklist.ready).toBe(false);
     expect(checklist.qualityScore).toBeLessThan(plan.qualityBar.acceptanceThresholds.minimumScore);
     expect(checklist.qualitySignals?.find((signal) => signal.id === 'visual-richness')?.passed).toBe(false);
+    expect(checklist.qualitySignals?.find((signal) => signal.id === 'reference-style-match')?.detail)
+      .toContain('Launch Narrative rhythm and density traits');
     expect(checklist.checks.map((check) => check.id)).toContain('excellence-visual');
     expect(checklist.checks.find((check) => check.id === 'excellence-pattern-advisories')).toEqual(expect.objectContaining({
       passed: false,

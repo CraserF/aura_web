@@ -3,6 +3,7 @@ import {
   DOCUMENT_RUNTIME_SHARED_MODULE_CLASSES,
   getDocumentRuntimeModuleWrapperClassName,
 } from '@/services/artifactRuntime/documentDesignSystem';
+import { formatReferenceQualityProfileForPrompt } from '@/services/ai/templates';
 
 export function buildCoreArtifactContractPack(): string {
   return `## ARTIFACT RUNTIME CONTRACT
@@ -83,7 +84,10 @@ Return only one semantic HTML module:
 - do not include <style>, <script>, <html>, <head>, <body>, remote assets, or JavaScript`;
 }
 
-export function buildQualityBarContractPack(qualityBar?: ArtifactQualityBar): string {
+export function buildQualityBarContractPack(
+  qualityBar?: ArtifactQualityBar,
+  options: { includeReferenceQualityTarget?: boolean } = {},
+): string {
   if (!qualityBar) return '';
 
   const depth = [
@@ -95,6 +99,10 @@ export function buildQualityBarContractPack(qualityBar?: ArtifactQualityBar): st
     qualityBar.expectedDepth.minIntegratedVisuals ? `integrated visuals ${qualityBar.expectedDepth.minIntegratedVisuals}+` : undefined,
     qualityBar.expectedDepth.summaryRequired ? 'summary required' : undefined,
   ].filter(Boolean).join('; ');
+  const includeReferenceQualityTarget = options.includeReferenceQualityTarget ?? true;
+  const referenceQualityTarget = includeReferenceQualityTarget
+    ? formatReferenceQualityProfileForPrompt(qualityBar.referenceStylePackId)
+    : '';
 
   return `## QUALITY BAR
 
@@ -103,7 +111,7 @@ Expected depth: ${depth || 'match runtime request depth'}
 Required variety: ${qualityBar.requiredComponentVariety.join('; ')}
 Score signals: ${qualityBar.signals.map((signal) => `${signal.label} ${signal.target}+`).join('; ')}
 Polish budget: ${qualityBar.polishingBudget.deterministicPasses} deterministic, ${qualityBar.polishingBudget.llmPasses} LLM.
-Safety blocks output; excellence misses trigger polish when budget remains.`;
+Safety blocks output; excellence misses trigger polish when budget remains.${referenceQualityTarget ? `\n\n${referenceQualityTarget}` : ''}`;
 }
 
 export function buildValidatorFeedbackPack(feedback: string[]): string {

@@ -1,4 +1,4 @@
-import { getReferenceStylePack } from '@/services/ai/templates';
+import { getReferenceQualityProfile } from '@/services/ai/templates';
 import type { PlanResult, SlideBrief } from '@/services/ai/workflow/agents/planner';
 import {
   buildCoreArtifactContractPack,
@@ -90,8 +90,8 @@ Canvas: ${compactList(manifest.canvasContract, 'fixed 16:9 Aura presentation sta
 
 function buildStyleFamilyPack(input: PresentationPromptBaseInput): string {
   const guidance = guidanceFrom(input);
-  const stylePack = guidance?.referenceStylePackId
-    ? getReferenceStylePack(guidance.referenceStylePackId)
+  const qualityProfile = guidance?.referenceStylePackId
+    ? getReferenceQualityProfile(guidance.referenceStylePackId)
     : null;
   const constraints = compactList(guidance?.designConstraints, 'Use the selected production design family.');
   const antiPatterns = compactList(guidance?.antiPatterns, 'Avoid generic card walls, placeholder copy, and unsafe wrappers.');
@@ -100,10 +100,9 @@ function buildStyleFamilyPack(input: PresentationPromptBaseInput): string {
 
 Template: ${input.runPlan?.designManifest.templateId ?? guidance?.selectedTemplateId ?? input.planResult.selectedTemplate}
 Recipe: ${input.runPlan?.presentationRecipeId ?? guidance?.presentationRecipeId ?? input.planResult.styleManifest.exemplarPackId}
-Reference pack: ${stylePack?.label ?? guidance?.referenceStylePackId ?? 'runtime manifest only'}
+Reference pack: ${qualityProfile?.label ?? guidance?.referenceStylePackId ?? 'runtime manifest only'}
 Constraints: ${constraints}
-Avoid: ${antiPatterns}
-${stylePack ? `Style traits: ${stylePack.summary} Typography: ${stylePack.typography.join(' ')} Layout: ${stylePack.layoutRules.join(' ')} Motion: ${stylePack.motionRules.join(' ')}` : ''}`;
+Avoid: ${antiPatterns}`;
 }
 
 function buildNarrativePlanPack(input: PresentationPromptBaseInput): string {
@@ -334,7 +333,7 @@ export function buildPresentationRevisionSystemPrompt(input: PresentationRevisio
     buildCoreArtifactContractPack(),
     buildPresentationFragmentContractPack(guidanceFrom(input)),
     buildDesignManifestPack(input),
-    buildQualityBarContractPack(input.runPlan?.qualityBar),
+    buildQualityBarContractPack(input.runPlan?.qualityBar, { includeReferenceQualityTarget: false }),
     buildValidatorFeedbackPack(input.feedback ?? []),
     `## SURGICAL REVISION
 

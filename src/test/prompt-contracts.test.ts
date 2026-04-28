@@ -111,6 +111,8 @@ describe('artifact prompt contracts', () => {
     expect(createPrompt).toContain('DESIGN MANIFEST');
     expect(createPrompt).toContain('DECK NARRATIVE PLAN');
     expect(createPrompt).toContain('QUALITY BAR');
+    expect(createPrompt).toContain('REFERENCE QUALITY TARGET');
+    expect(createPrompt).toContain('Style metadata only');
     expect(createPrompt).toContain(`Family: ${runPlan.designManifest.family}`);
     expect(createPrompt).toContain('fixed 16:9 Reveal stage');
     expect(createPrompt).toContain('reduced-motion CSS is required');
@@ -208,20 +210,7 @@ describe('artifact prompt contracts', () => {
       runtimeParts: [part],
       qualityBar,
     });
-
-    for (const prompt of [systemPrompt, outlinePrompt, modulePrompt, repairPrompt, qualityPrompt]) {
-      expect(prompt).toMatch(/no .*remote assets/i);
-      expect(prompt).toMatch(/no .*JavaScript/i);
-      expect(prompt).not.toContain('Google Fonts');
-      expect(prompt).not.toContain('TEMPLATE EXAMPLES');
-      expect(prompt).not.toContain('ADDITIONAL REFERENCE MATERIAL');
-      expect(prompt.length).toBeLessThanOrEqual(4500);
-    }
-    expect(systemPrompt).toContain('DOCUMENT IFRAME CONTRACT');
-    expect(systemPrompt).toContain('no <script>');
-    expect(modulePrompt).toContain(`data-runtime-part="${part.id}"`);
-    expect(modulePrompt).toContain('mobile-safe');
-    expect(buildDocumentRuntimeSystemPrompt({
+    const qualitySystemPrompt = buildDocumentRuntimeSystemPrompt({
       documentType: 'brief',
       designFamily: 'executive-light',
       blueprintLabel: 'Executive Brief',
@@ -237,7 +226,22 @@ describe('artifact prompt contracts', () => {
         providerModel: 'gpt-4o',
         allowFullRegeneration: false,
       }).qualityBar,
-    })).toContain('QUALITY BAR');
+    });
+
+    for (const prompt of [systemPrompt, outlinePrompt, modulePrompt, repairPrompt, qualityPrompt]) {
+      expect(prompt).toMatch(/no .*remote assets/i);
+      expect(prompt).toMatch(/no .*JavaScript/i);
+      expect(prompt).not.toContain('Google Fonts');
+      expect(prompt).not.toContain('TEMPLATE EXAMPLES');
+      expect(prompt).not.toContain('ADDITIONAL REFERENCE MATERIAL');
+      expect(prompt.length).toBeLessThanOrEqual(4500);
+    }
+    expect(systemPrompt).toContain('DOCUMENT IFRAME CONTRACT');
+    expect(systemPrompt).toContain('no <script>');
+    expect(modulePrompt).toContain(`data-runtime-part="${part.id}"`);
+    expect(modulePrompt).toContain('mobile-safe');
+    expect(qualitySystemPrompt).toContain('QUALITY BAR');
+    expect(qualitySystemPrompt).toContain('REFERENCE QUALITY TARGET');
     expect(repairPrompt).toContain('VALIDATOR FEEDBACK');
     expect(repairPrompt).toContain('fix only the failed module issues');
     expect(qualityPrompt).toContain('DOCUMENT QUALITY ENRICHMENT TASK');
