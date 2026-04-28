@@ -43,6 +43,7 @@ export async function runBatchQueue(opts: BatchQueueOptions): Promise<BatchQueue
   const completedSections: string[] = [];
   let sharedLinkBlock = '';
   let batchTitle = briefs[0]?.title ?? 'Presentation';
+  const isAppendingToExistingDeck = Boolean(initialHtml);
 
   if (initialHtml) {
     const initialLinks = initialHtml.match(/<link[^>]*>/gi) ?? [];
@@ -76,7 +77,8 @@ export async function runBatchQueue(opts: BatchQueueOptions): Promise<BatchQueue
       totalSlides,
       planResult,
       ...(runPlan ? { runPlan } : {}),
-      ...(i === 0 ? {} : { sharedStyleBlock }),
+      ...(sharedStyleBlock ? { sharedStyleBlock } : {}),
+      ...(isAppendingToExistingDeck ? { isAppendingToExistingDeck } : {}),
       ...(guidanceProfile ? { guidanceProfile } : {}),
     });
 

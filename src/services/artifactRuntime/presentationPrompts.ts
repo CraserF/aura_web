@@ -30,6 +30,7 @@ interface PresentationBatchSlidePromptInput extends PresentationPromptBaseInput 
   brief: SlideBrief;
   totalSlides: number;
   sharedStyleBlock?: string;
+  isAppendingToExistingDeck?: boolean;
 }
 
 interface PresentationRevisionPromptInput extends PresentationPromptBaseInput {
@@ -331,6 +332,9 @@ Output only the new \`<section>\` element(s); do not repeat existing slides and 
 }
 
 export function buildPresentationBatchSlidePrompt(input: PresentationBatchSlidePromptInput): string {
+  const sharedStyleBlock = input.sharedStyleBlock?.trim() ?? '';
+  const hasSharedStyleBlock = sharedStyleBlock.length > 0;
+  const isAppendingToExistingDeck = input.isAppendingToExistingDeck === true;
   const qualityLine = input.runPlan?.qualityBar
     ? `Quality bar: ${input.runPlan.qualityBar.tier}, score ${input.runPlan.qualityBar.acceptanceThresholds.minimumScore}+; vary slide role while preserving motif and shared tokens.`
     : 'Quality bar: preserve premium narrative continuity, role variety, and strong visual hierarchy.';
@@ -347,7 +351,22 @@ Generate exactly one \`<section>\` for this slide.`;
     .find((part) => part.kind === 'slide' && part.orderIndex === input.brief.index - 1)
     ?.presentationSlideBlueprint;
 
-  if (input.brief.index === 1 || !input.sharedStyleBlock) {
+  if (isAppendingToExistingDeck) {
+    return buildPrompt([
+      buildNarrativePlanPack(input),
+      buildSlideBlueprintPack(slideBlueprint),
+      slideTask,
+      hasSharedStyleBlock
+        ? `Existing deck shared style:
+\`\`\`html
+${sharedStyleBlock.slice(0, 2200)}
+\`\`\``
+        : 'Existing deck style is supplied in the current HTML context. Infer and preserve its class vocabulary, variables, palette, and motion cadence.',
+      'Append to the existing deck style system. Reuse the shared variables, class vocabulary, type scale, and motion cadence. Output one new `<section>`; add only a small scoped extension `<style>` if a genuinely new class is required.',
+    ]);
+  }
+
+  if (input.brief.index === 1 || !hasSharedStyleBlock) {
     return buildPrompt([
       buildNarrativePlanPack(input),
       buildSlideBlueprintPack(slideBlueprint),
@@ -363,7 +382,7 @@ Generate exactly one \`<section>\` for this slide.`;
     slideTask,
     `Shared deck style from slide 1:
 \`\`\`html
-${input.sharedStyleBlock.slice(0, 2200)}
+${sharedStyleBlock.slice(0, 2200)}
 \`\`\``,
     'Reuse the shared variables, class vocabulary, type scale, and motion cadence. Add a small extension `<style>` only if this slide needs one new class.',
   ]);

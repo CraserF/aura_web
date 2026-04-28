@@ -139,8 +139,22 @@ describe('artifact prompt contracts', () => {
       brief: { index: 1, title: 'Title', contentGuidance: 'Opening slide.' },
       totalSlides: 3,
     });
+    const appendedPrompt = buildPresentationBatchSlidePrompt({
+      runPlan,
+      planResult,
+      brief: { index: 1, title: 'Appendix proof', contentGuidance: 'Add a proof slide to the existing deck.' },
+      totalSlides: 1,
+      sharedStyleBlock: '<style>:root{--accent:#245c5f}.existing-shell{font-size:28px}.headline{font-size:72px}</style>',
+      isAppendingToExistingDeck: true,
+    });
     expect(slide1Prompt).toContain('PRESENTATION DESIGN VOCABULARY');
     expect(slide1Prompt).toContain('title/cover');
+    expect(appendedPrompt).toContain('Existing deck shared style');
+    expect(appendedPrompt).toContain('--accent');
+    expect(appendedPrompt).toContain('existing-shell');
+    expect(appendedPrompt).toContain('Append to the existing deck style system');
+    expect(appendedPrompt).not.toContain('PRESENTATION DESIGN VOCABULARY');
+    expect(appendedPrompt).not.toContain('This first slide establishes the reusable deck style system');
     expect(followUpPrompt).toContain('DECK NARRATIVE PLAN');
     expect(followUpPrompt).toContain('SLIDE BLUEPRINT');
     expect(followUpPrompt).toContain('Role:');
@@ -148,10 +162,12 @@ describe('artifact prompt contracts', () => {
     // Step 1: cap updated to 8.5 KB to accommodate compact design vocabulary pack
     expect(createPrompt.length).toBeLessThanOrEqual(8500);
     expect(editPrompt.length).toBeLessThanOrEqual(8500);
+    expect(slide1Prompt.length).toBeLessThanOrEqual(4500);
+    expect(appendedPrompt.length).toBeLessThanOrEqual(3500);
     expect(followUpPrompt.length).toBeLessThanOrEqual(3500);
     expect(revisionPrompt.length).toBeLessThanOrEqual(3500);
 
-    for (const prompt of [createPrompt, editPrompt, followUpPrompt, revisionPrompt]) {
+    for (const prompt of [createPrompt, editPrompt, slide1Prompt, appendedPrompt, followUpPrompt, revisionPrompt]) {
       expect(prompt).not.toContain('Google Fonts');
       expect(prompt).not.toContain('ADDITIONAL REFERENCE MATERIAL');
       expect(prompt).not.toContain('TEMPLATE EXAMPLES');
