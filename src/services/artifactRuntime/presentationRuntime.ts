@@ -12,7 +12,11 @@ import {
   applyArtifactRunPlanToPresentationPlan,
   buildSlideBriefsFromRunPlan,
 } from '@/services/artifactRuntime/presentation';
-import { buildPresentationQualityTelemetry } from '@/services/artifactRuntime/presentationQualityChecklist';
+import {
+  buildPresentationQualityChecklist,
+  buildPresentationQualityTelemetry,
+  collectPresentationNamedFailures,
+} from '@/services/artifactRuntime/presentationQualityChecklist';
 import { decideArtifactQualityPolish, type ArtifactQualityPolishDecision } from '@/services/artifactRuntime/qualityDecision';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { aiDebugLog, logEditingMetrics, toErrorInfo } from '@/services/ai/debug';
@@ -868,6 +872,12 @@ export async function runQueuedPresentationRuntime(
       pct: 90,
     });
 
+    const polishChecklist = buildPresentationQualityChecklist({
+      html: sanitizeInnerHtml(finalHtml),
+      promptText: input.prompt,
+      qualityBar: runPlan?.qualityBar,
+    });
+    const deterministicFeedback = collectPresentationNamedFailures(polishChecklist.checks);
     const polishedHtml = await evaluateAndRevise(
       model,
       finalHtml,
@@ -877,6 +887,7 @@ export async function runQueuedPresentationRuntime(
       signal,
       1,
       runPlan,
+      deterministicFeedback.length > 0 ? deterministicFeedback : undefined,
     );
     const polishedValidation = validatePresentationRuntimeOutput(
       polishedHtml,
@@ -1167,35 +1178,46 @@ export async function runSinglePresentationRuntime(
   let reviewPassed = true;
 
   const alwaysRunEvaluation = useSettingsStore.getState().alwaysRunEvaluation;
-  const qaResult = validateSlides(designResult.html, {
-    expectedBgColor: planResult.blueprint.palette.bg,
-    isCreate: planResult.intent === 'create',
-    styleManifest: planResult.styleManifest,
-    exemplarPackId: planResult.exemplarPackId,
-  });
+  let runtimeValidation = validatePresentationRuntimeOutput(designResult.html, planResult, designResult.slideCount);
 
-  if (qaResult.violations.length > 0) {
-    const blockingIssues = qaResult.violations.filter((violation) => violation.tier === 'blocking');
-    const advisories = qaResult.violations.filter((violation) => violation.tier === 'advisory');
-    aiDebugLog('workflow', qaResult.passed ? 'QA advisories on final output' : 'QA blocking issues on final output', {
-      blockingCount: qaResult.blockingCount,
-      advisoryCount: qaResult.advisoryCount,
-      blockingIssues: blockingIssues.map((violation) => `[${violation.rule}] slide ${violation.slide}: ${violation.detail}`),
-      advisories: advisories.map((violation) => `[${violation.rule}] slide ${violation.slide}: ${violation.detail}`),
+  if (runtimeValidation.blockingCount > 0 || runtimeValidation.advisoryCount > 0) {
+    aiDebugLog('workflow', runtimeValidation.passed ? 'QA advisories on final output' : 'QA blocking issues on final output', {
+      blockingCount: runtimeValidation.blockingCount,
+      advisoryCount: runtimeValidation.advisoryCount,
+      summary: runtimeValidation.summary,
     });
+  }
+
+  // Step 3: run deterministic + bounded LLM repair for blocking issues (mirrors queued path)
+  let repairResult: PresentationRuntimeRepairResult | undefined;
+  if (!runtimeValidation.passed) {
+    onEvent({ type: 'progress', message: 'Repairing slide issues...', pct: 72 });
+    repairResult = await repairPresentationRuntimeOutput(
+      designResult.html,
+      runtimeValidation,
+      planResult,
+      designResult.slideCount,
+      runPlan,
+      onEvent,
+      { model, projectRulesBlock: input.projectRulesBlock, signal },
+    );
+    if (repairResult.repaired) {
+      finalHtml = repairResult.html;
+    }
+    runtimeValidation = repairResult.validation ?? runtimeValidation;
   }
 
   const canEvaluate = planResult.intent !== 'add_slides';
   const initialQualityTelemetry = buildPresentationQualityTelemetry({
-    html: sanitizeInnerHtml(designResult.html),
+    html: sanitizeInnerHtml(finalHtml),
     promptText: input.prompt,
     qualityBar: runPlan?.qualityBar,
   });
   let qualityDecision = runPlan?.qualityBar
     ? decideArtifactQualityPolish({
         qualityBar: runPlan.qualityBar,
-        validationPassed: qaResult.passed,
-        validationBlockingCount: qaResult.blockingCount,
+        validationPassed: runtimeValidation.passed,
+        validationBlockingCount: runtimeValidation.blockingCount,
         qualityPassed: initialQualityTelemetry.qualityPassed,
         qualityScore: initialQualityTelemetry.qualityScore,
         qualityBlockingCount: initialQualityTelemetry.qualityBlockingCount,
@@ -1207,14 +1229,14 @@ export async function runSinglePresentationRuntime(
   const shouldEvaluate =
     canEvaluate &&
     designResult.fastPath &&
-    (alwaysRunEvaluation || !qaResult.passed || needsExcellenceEvaluation) &&
+    (alwaysRunEvaluation || !runtimeValidation.passed || needsExcellenceEvaluation) &&
     !skipSecondaryEvaluation;
   aiDebugLog('workflow', 'phase 3 decision', {
     intent: planResult.intent,
     fastPath: designResult.fastPath,
-    qaPassed: qaResult.passed,
-    blockingCount: qaResult.blockingCount,
-    advisoryCount: qaResult.advisoryCount,
+    qaPassed: runtimeValidation.passed,
+    blockingCount: runtimeValidation.blockingCount,
+    advisoryCount: runtimeValidation.advisoryCount,
     alwaysRunEvaluation,
     qualityDecision: qualityDecision?.status,
     qualityPolishAction: qualityDecision?.action,
@@ -1236,16 +1258,43 @@ export async function runSinglePresentationRuntime(
       onEvent({ type: 'step-start', stepId: 'quality-polish', label: 'Polishing quality…' });
     }
     try {
-      finalHtml = await evaluateAndRevise(
+      const qualityChecklist = buildPresentationQualityChecklist({
+        html: sanitizeInnerHtml(finalHtml),
+        promptText: input.prompt,
+        qualityBar: runPlan?.qualityBar,
+      });
+      const deterministicFeedback = collectPresentationNamedFailures(qualityChecklist.checks);
+      const polishedHtml = await evaluateAndRevise(
         model,
-        designResult.html,
+        finalHtml,
         planResult,
         runtimeOnEvent,
         input.projectRulesBlock,
         signal,
         1,
         runPlan,
+        deterministicFeedback.length > 0 ? deterministicFeedback : undefined,
       );
+      // Step 3: accept polish only if validation passes and quality score does not regress
+      const polishedValidation = validatePresentationRuntimeOutput(polishedHtml, planResult, designResult.slideCount);
+      const polishedQualityTelemetry = buildPresentationQualityTelemetry({
+        html: sanitizeInnerHtml(polishedHtml),
+        promptText: input.prompt,
+        qualityBar: runPlan?.qualityBar,
+      });
+      if (
+        polishedValidation.passed &&
+        (polishedQualityTelemetry.qualityScore ?? 0) >= (initialQualityTelemetry.qualityScore ?? 0)
+      ) {
+        finalHtml = polishedHtml;
+        runtimeValidation = polishedValidation;
+      } else {
+        aiDebugLog('workflow', 'polish output rejected (validation failed or quality regressed)', {
+          polishedPassed: polishedValidation.passed,
+          polishedScore: polishedQualityTelemetry.qualityScore,
+          prePolishScore: initialQualityTelemetry.qualityScore,
+        });
+      }
       emitArtifactRunEvent(onEvent, {
         runId: runtimeRunId,
         type: 'runtime.validation-completed',
@@ -1276,7 +1325,7 @@ export async function runSinglePresentationRuntime(
     });
   }
 
-  reviewPassed = planResult.intent === 'add_slides' ? designResult.fastPath : qaResult.passed;
+  reviewPassed = planResult.intent === 'add_slides' ? designResult.fastPath : runtimeValidation.passed;
 
   if (signal?.aborted) throw new DOMException('Workflow aborted', 'AbortError');
 
@@ -1291,8 +1340,8 @@ export async function runSinglePresentationRuntime(
   qualityDecision = runPlan?.qualityBar
     ? decideArtifactQualityPolish({
         qualityBar: runPlan.qualityBar,
-        validationPassed: qaResult.passed,
-        validationBlockingCount: qaResult.blockingCount,
+        validationPassed: runtimeValidation.passed,
+        validationBlockingCount: runtimeValidation.blockingCount,
         qualityPassed: finalQualityTelemetry.qualityPassed,
         qualityScore: finalQualityTelemetry.qualityScore,
         qualityBlockingCount: finalQualityTelemetry.qualityBlockingCount,
@@ -1304,15 +1353,15 @@ export async function runSinglePresentationRuntime(
   const runtimeTelemetry = applyQualityDecisionTelemetry({
     ...(firstPreviewAt ? { timeToFirstPreviewMs: Math.round(firstPreviewAt - runtimeStart) } : {}),
     totalRuntimeMs: Math.round(performance.now() - runtimeStart),
-    validationPassed: qaResult.passed,
-    validationBlockingCount: qaResult.blockingCount,
-    validationAdvisoryCount: qaResult.advisoryCount,
-    repairCount: shouldEvaluate ? 1 : 0,
+    validationPassed: runtimeValidation.passed,
+    validationBlockingCount: runtimeValidation.blockingCount,
+    validationAdvisoryCount: runtimeValidation.advisoryCount,
+    repairCount: (repairResult?.repairCount ?? 0) + (shouldEvaluate ? 1 : 0),
     runMode: 'single-stream',
     queuedPartCount: 1,
     completedPartCount: designResult.slideCount,
     ...finalQualityTelemetry,
-    validationByPart: summarizePresentationValidationByPart(qaResult.violations, designResult.slideCount),
+    validationByPart: runtimeValidation.validationByPart,
   }, qualityDecision, needsExcellenceEvaluation && shouldEvaluate ? 'llm-polish' : qualityDecision?.action);
   const output: PresentationOutput = {
     html: outputHtml,

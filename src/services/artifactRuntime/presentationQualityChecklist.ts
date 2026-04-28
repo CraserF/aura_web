@@ -25,6 +25,19 @@ export interface PresentationQualityChecklistInput {
   qualityBar?: ArtifactQualityBar;
 }
 
+export type PresentationNamedFailureId =
+  | 'weak-opening-scene'
+  | 'repeated-card-grid'
+  | 'missing-integrated-visual'
+  | 'missing-narrative-transition'
+  | 'poor-token-continuity'
+  | 'copy-density-risk';
+
+export interface PresentationNamedFailure {
+  id: PresentationNamedFailureId;
+  message: string;
+}
+
 export interface PresentationQualityCheck {
   id:
     | 'fragment-contract'
@@ -39,6 +52,7 @@ export interface PresentationQualityCheck {
   blockingCount: number;
   advisoryCount: number;
   details: string[];
+  namedIssues?: PresentationNamedFailure[];
 }
 
 export interface PresentationQualityChecklistResult {
@@ -269,13 +283,13 @@ function buildPresentationExcellenceChecks(input: {
   const transitionCount = sections.slice(1).filter((section) =>
     /\b(?:therefore|next|now|then|because|bridge|path forward|leads to|sets up|shifts? from|moves? from)\b/i.test(stripHtml(section)),
   ).length;
-  const patternAdvisories = [
-    !hasStrongTitleScene ? 'Weak title scene: opening slide lacks a clear hero/title composition.' : undefined,
-    repeatedGridRisk > 0 ? `Repeated card grid risk: ${repeatedGridRisk} slide(s) use card walls without integrated visuals.` : undefined,
-    integratedVisualCount === 0 ? 'No integrated visuals detected: add an inline SVG, diagram, timeline, chart, scene, or visual model when useful.' : undefined,
-    sections.length > 2 && transitionCount === 0 ? 'No narrative transition language detected between slides.' : undefined,
-    sections.length > 1 && sharedClassCount < 2 ? `Poor class/token continuity: only ${sharedClassCount} shared class token(s) detected.` : undefined,
-  ].filter((detail): detail is string => Boolean(detail));
+  const patternAdvisories: Array<{ id: PresentationNamedFailureId; message: string }> = [
+    !hasStrongTitleScene ? { id: 'weak-opening-scene' as const, message: 'Weak title scene: opening slide lacks a clear hero/title composition.' } : undefined,
+    repeatedGridRisk > 0 ? { id: 'repeated-card-grid' as const, message: `Repeated card grid risk: ${repeatedGridRisk} slide(s) use card walls without integrated visuals.` } : undefined,
+    integratedVisualCount === 0 ? { id: 'missing-integrated-visual' as const, message: 'No integrated visuals detected: add an inline SVG, diagram, timeline, chart, scene, or visual model when useful.' } : undefined,
+    sections.length > 2 && transitionCount === 0 ? { id: 'missing-narrative-transition' as const, message: 'No narrative transition language detected between slides.' } : undefined,
+    sections.length > 1 && sharedClassCount < 2 ? { id: 'poor-token-continuity' as const, message: `Poor class/token continuity: only ${sharedClassCount} shared class token(s) detected.` } : undefined,
+  ].filter((item): item is { id: PresentationNamedFailureId; message: string } => Boolean(item));
 
   return [
     {
@@ -300,7 +314,8 @@ function buildPresentationExcellenceChecks(input: {
       passed: patternAdvisories.length === 0,
       blockingCount: 0,
       advisoryCount: patternAdvisories.length,
-      details: patternAdvisories,
+      details: patternAdvisories.map((item) => item.message),
+      namedIssues: patternAdvisories.length > 0 ? patternAdvisories : undefined,
     },
     {
       id: 'excellence-score',
@@ -368,8 +383,24 @@ export function buildPresentationQualityChecklist(
   };
 }
 
-export function buildPresentationQualityTelemetry(
-  input: PresentationQualityChecklistInput,
+/** Collects named failure messages for deterministic-signal-led revision prompts. */
+export function collectPresentationNamedFailures(checks: PresentationQualityCheck[]): string[] {
+  const namedMessages: string[] = [];
+  for (const check of checks) {
+    if (check.namedIssues && check.namedIssues.length > 0) {
+      namedMessages.push(...check.namedIssues.map((issue) => `[${issue.id}] ${issue.message}`));
+    }
+  }
+  const failedSignalDetails: string[] = [];
+  for (const check of checks) {
+    if (!check.passed && check.id !== 'excellence-pattern-advisories' && check.details.length > 0) {
+      failedSignalDetails.push(...check.details.map((d) => `[${check.id}] ${d}`));
+    }
+  }
+  return [...namedMessages, ...failedSignalDetails];
+}
+
+export function buildPresentationQualityTelemetry(  input: PresentationQualityChecklistInput,
 ): Pick<
   ArtifactRuntimeTelemetry,
   | 'promptTokenEstimate'

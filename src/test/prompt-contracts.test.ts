@@ -179,6 +179,11 @@ describe('artifact prompt contracts', () => {
   });
 
   it('keeps active presentation generation off the legacy prompt composer', () => {
+    const designerSource = readSource('services/ai/workflow/agents/designer.ts');
+    // Step 4: submitFinalSlide must soft-accept blocking violations (no hard rejection)
+    expect(designerSource).not.toContain('accepted: false');
+    expect(designerSource).toContain('Runtime deterministic repair will handle remaining blocking issues');
+
     const activeSources = [
       'services/ai/workflow/agents/designer.ts',
       'services/ai/workflow/agents/evaluator.ts',

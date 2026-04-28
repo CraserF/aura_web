@@ -306,7 +306,7 @@ function createDesignAgent(
         },
       }),
       submitFinalSlide: tool({
-        description: 'Submit the final slide fragment when validation passes (0 errors). Include only the complete <style> and <section> elements.',
+        description: 'Submit the final slide fragment. Include the complete <style> and <section> elements. The runtime will repair any remaining issues.',
         inputSchema: z.object({
           html: z.string().describe('The final validated slide HTML'),
           title: z.string().describe('A short descriptive title for this slide'),
@@ -324,23 +324,12 @@ function createDesignAgent(
 
           const blockingViolations = result.violations.filter((v) => v.tier === 'blocking');
           if (blockingViolations.length > 0) {
+            // Step 4: soft-accept so the loop can exit without churn.
+            // The runtime finalizer will run deterministic repair before storing output.
             return {
-              accepted: false,
-              errors: blockingViolations.map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
-              guidance: `Fix these ${blockingViolations.length} blocking issues:
-${blockingViolations.map((v) => {
-  if (v.rule === 'palette-compliance' && v.detail.includes('CSS variable')) {
-    return `• [${v.rule}] Use a concrete hex color (e.g., "#${planResult.blueprint.palette.bg.replace('#', '')}") instead of var(--...).`;
-  }
-  if (v.rule === 'no-external-images') {
-    return `• [${v.rule}] Replace external URLs with inline SVG, data URIs, or remove the image entirely.`;
-  }
-  if (v.rule === 'template-content-leak') {
-    return `• [${v.rule}] Replace template placeholder text with content matching the requested topic.`;
-  }
-  return `• [${v.rule}] ${v.detail}`;
-}).join('\n')}
-Then call submitFinalSlide again with the corrected HTML.`,
+              accepted: true,
+              warnings: blockingViolations.map((v) => `[${v.rule}] slide ${v.slide}: ${v.detail}`),
+              guidance: 'Runtime deterministic repair will handle remaining blocking issues before finalization.',
             };
           }
 

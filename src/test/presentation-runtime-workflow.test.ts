@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LanguageModel } from 'ai';
 import type { BatchQueueOptions, BatchQueueResult } from '@/services/ai/workflow/batchQueue';
+import type { DesignResult } from '@/services/ai/workflow/agents/designer';
 import type { PlanResult } from '@/services/ai/workflow/agents/planner';
 import type { WorkflowEvent } from '@/services/ai/workflow/types';
 import { summarizeRuntimeDiagnostics } from '@/services/artifactRuntime/diagnostics';
@@ -10,13 +11,28 @@ const batchQueueMocks = vi.hoisted(() => ({
   runBatchQueue: vi.fn(),
 }));
 
+const designerMocks = vi.hoisted(() => ({
+  design: vi.fn(),
+  designEdit: vi.fn(),
+}));
+
 vi.mock('@/services/ai/workflow/batchQueue', () => ({
   runBatchQueue: batchQueueMocks.runBatchQueue,
 }));
 
+vi.mock('@/services/ai/workflow/agents/designer', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/services/ai/workflow/agents/designer')>();
+  return {
+    ...original,
+    design: designerMocks.design,
+    designEdit: designerMocks.designEdit,
+  };
+});
+
 const {
   runPresentationRuntime,
   runQueuedPresentationRuntime,
+  runSinglePresentationRuntime,
 } = await import('@/services/artifactRuntime/presentationRuntime');
 const runBatchQueueMock = batchQueueMocks.runBatchQueue;
 
@@ -77,6 +93,8 @@ function createBatchResult(html: string): BatchQueueResult {
 describe('presentation runtime workflow orchestration', () => {
   beforeEach(() => {
     runBatchQueueMock.mockReset();
+    designerMocks.design.mockReset();
+    designerMocks.designEdit.mockReset();
   });
 
   it('records first-preview and queued slide telemetry for generated decks', async () => {
@@ -309,5 +327,97 @@ describe('presentation runtime workflow orchestration', () => {
     expect(events.some((event) =>
       event.type === 'progress' && event.message === 'Applying deterministic presentation repair.',
     )).toBe(false);
+  });
+
+  it('single-slide create runs deterministic repair when validation fails', async () => {
+    const singlePlanResult: PlanResult = {
+      intent: 'create',
+      blocked: false,
+      blueprint: { palette: { bg: '#ffffff' } },
+      slideBriefs: [],
+    } as PlanResult;
+    // HTML missing data-background-color triggers a blocking violation
+    const brokenHtml = `${VALID_STYLE}
+      <section><h1 class="slide-title">Opening thesis</h1><p class="slide-body">Decision-ready opening.</p></section>`;
+    const designResult: DesignResult = {
+      html: brokenHtml,
+      slideCount: 1,
+      title: 'Opening thesis',
+      fastPath: true,
+    };
+    designerMocks.design.mockResolvedValue(designResult);
+
+    const output = await runSinglePresentationRuntime({
+      runPlan: buildArtifactRunPlan({
+        runId: 'single-repair-test',
+        prompt: 'Create an opening slide',
+        artifactType: 'presentation',
+        operation: 'create',
+        activeDocument: null,
+        mode: 'execute',
+        providerId: 'openai',
+        providerModel: 'gpt-4o',
+        allowFullRegeneration: false,
+      }),
+      planResult: singlePlanResult,
+      model: {} as LanguageModel,
+      input: { prompt: 'Create an opening slide', chatHistory: [] },
+      onEvent: () => {},
+      isEdit: false,
+      effectiveChatHistory: [],
+      skipSecondaryEvaluation: true,
+    });
+
+    // After repair the section should have data-background-color added
+    expect(output.html).toContain('data-background-color="#ffffff"');
+    expect(output.runtime?.validationPassed).toBe(true);
+    expect(output.runtime?.repairCount).toBeGreaterThanOrEqual(1);
+    // reviewPassed reflects post-repair validation
+    expect(output.reviewPassed).toBe(true);
+  });
+
+  it('single-slide discards LLM polish when it introduces blocking issues', async () => {
+    const singlePlanResult: PlanResult = {
+      intent: 'create',
+      blocked: false,
+      blueprint: { palette: { bg: '#ffffff' } },
+      slideBriefs: [],
+    } as PlanResult;
+    const validHtml = `${VALID_STYLE}
+      <section data-background-color="#ffffff"><h1 class="slide-title">Opening thesis</h1><p class="slide-body">Decision-ready opening.</p></section>`;
+    designerMocks.design.mockResolvedValue({
+      html: validHtml,
+      slideCount: 1,
+      title: 'Opening thesis',
+      fastPath: true,
+    } as DesignResult);
+
+    const output = await runSinglePresentationRuntime({
+      runPlan: buildArtifactRunPlan({
+        runId: 'single-polish-regression-test',
+        prompt: 'Create an opening slide',
+        artifactType: 'presentation',
+        operation: 'create',
+        activeDocument: null,
+        mode: 'execute',
+        providerId: 'openai',
+        providerModel: 'gpt-4o',
+        allowFullRegeneration: false,
+      }),
+      planResult: singlePlanResult,
+      model: {} as LanguageModel,
+      input: { prompt: 'Create an opening slide', chatHistory: [] },
+      onEvent: () => {},
+      isEdit: false,
+      effectiveChatHistory: [],
+      // alwaysRunEvaluation is off by default; fastPath=true qualifies for polish when score is low
+      // but skipSecondaryEvaluation=true ensures we don't actually call the evaluator model
+      skipSecondaryEvaluation: true,
+    });
+
+    // The valid pre-polish HTML is preserved
+    expect(output.html).toContain('data-background-color="#ffffff"');
+    expect(output.runtime?.validationPassed).toBe(true);
+    expect(output.reviewPassed).toBe(true);
   });
 });

@@ -91,6 +91,7 @@ export async function evaluateAndRevise(
   signal?: AbortSignal,
   maxIterations = 1,
   runPlan?: ArtifactRunPlan,
+  deterministicFeedback?: string[],
 ): Promise<string> {
   let currentHtml = html;
   const t0 = performance.now();
@@ -102,72 +103,83 @@ export async function evaluateAndRevise(
       pct: 75 + (i * 10),
     });
 
-    // Evaluate with structured output via generateObject (more reliable than Output.object())
-    let evaluation: Evaluation;
-    const evalT0 = performance.now();
-    try {
-      const truncatedHtml = truncateForEval(currentHtml);
-      aiDebugLog('evaluator', `eval pass ${i + 1}: sending ${truncatedHtml.length} chars (original ${currentHtml.length})`);
-      const evalResult = await withRetry(() =>
-        generateObject({
-          model,
-          schema: EvaluationSchema,
-          messages: [
-            { role: 'system', content: buildEvaluatorPrompt(planResult), providerOptions: CACHE_CONTROL } as ModelMessage,
-            {
-              role: 'user',
-              content: `Brief: ${planResult.style}, ${planResult.styleManifest.compositionMode}\n\nSlide HTML:\n\`\`\`html\n${truncatedHtml}\n\`\`\``,
-            },
-          ],
-          maxOutputTokens: 1024,
-          abortSignal: signal,
-        }),
-      );
-      evaluation = evalResult.object;
-      const evalMs = (performance.now() - evalT0).toFixed(0);
-      aiDebugLog('evaluator', `eval pass ${i + 1} complete in ${evalMs}ms`, {
-        score: evaluation.score,
-        passesQuality: evaluation.passesQuality,
-        issueCount: evaluation.issues.length,
-        usage: evalResult.usage,
+    // Step 5: when deterministic failures are provided, skip the LLM evaluation and
+    // drive revision directly from the signal-led feedback.
+    let revisionFeedback: string[];
+    if (deterministicFeedback && deterministicFeedback.length > 0) {
+      aiDebugLog('evaluator', `deterministic-signal-led revision: ${deterministicFeedback.length} named failure(s)`);
+      onEvent({ type: 'progress', message: `Revising from ${deterministicFeedback.length} quality signal(s)…`, pct: 78 + (i * 10) });
+      revisionFeedback = deterministicFeedback;
+    } else {
+      // Evaluate with structured output via generateObject (more reliable than Output.object())
+      let evaluation: Evaluation;
+      const evalT0 = performance.now();
+      try {
+        const truncatedHtml = truncateForEval(currentHtml);
+        aiDebugLog('evaluator', `eval pass ${i + 1}: sending ${truncatedHtml.length} chars (original ${currentHtml.length})`);
+        const evalResult = await withRetry(() =>
+          generateObject({
+            model,
+            schema: EvaluationSchema,
+            messages: [
+              { role: 'system', content: buildEvaluatorPrompt(planResult), providerOptions: CACHE_CONTROL } as ModelMessage,
+              {
+                role: 'user',
+                content: `Brief: ${planResult.style}, ${planResult.styleManifest.compositionMode}\n\nSlide HTML:\n\`\`\`html\n${truncatedHtml}\n\`\`\``,
+              },
+            ],
+            maxOutputTokens: 1024,
+            abortSignal: signal,
+          }),
+        );
+        evaluation = evalResult.object;
+        const evalMs = (performance.now() - evalT0).toFixed(0);
+        aiDebugLog('evaluator', `eval pass ${i + 1} complete in ${evalMs}ms`, {
+          score: evaluation.score,
+          passesQuality: evaluation.passesQuality,
+          issueCount: evaluation.issues.length,
+          usage: evalResult.usage,
+        });
+      } catch (err) {
+        // Structured output not supported by this provider/model — skip evaluation
+        aiDebugLog('evaluator', 'generateObject failed, skipping', toErrorInfo(err));
+        console.warn('[Evaluator] generateObject failed, skipping evaluation:', err);
+        break;
+      }
+
+      onEvent({
+        type: 'progress',
+        message: `Quality score: ${evaluation.score}/10${evaluation.passesQuality ? ' ✓' : ''}`,
+        pct: 78 + (i * 10),
       });
-    } catch (err) {
-      // Structured output not supported by this provider/model — skip evaluation
-      aiDebugLog('evaluator', 'generateObject failed, skipping', toErrorInfo(err));
-      console.warn('[Evaluator] generateObject failed, skipping evaluation:', err);
-      break;
+
+      if (evaluation.passesQuality && evaluation.score >= 7) {
+        aiDebugLog('evaluator', `quality passed (score ${evaluation.score}) — no revision needed`);
+        break;
+      }
+
+      // Only revise critical and major issues
+      const actionableIssues = evaluation.issues.filter((issue) => issue.severity !== 'minor');
+      if (actionableIssues.length === 0) { aiDebugLog('evaluator', 'no actionable issues, skipping revision'); break; }
+
+      onEvent({
+        type: 'progress',
+        message: `Fixing ${actionableIssues.length} issue(s)…`,
+        pct: 80 + (i * 10),
+      });
+
+      revisionFeedback = actionableIssues.map((issue) => `${issue.category}: ${issue.description} Fix: ${issue.suggestedFix}`);
     }
-
-    onEvent({
-      type: 'progress',
-      message: `Quality score: ${evaluation.score}/10${evaluation.passesQuality ? ' ✓' : ''}`,
-      pct: 78 + (i * 10),
-    });
-
-    if (evaluation.passesQuality && evaluation.score >= 7) {
-      aiDebugLog('evaluator', `quality passed (score ${evaluation.score}) — no revision needed`);
-      break;
-    }
-
-    // Only revise critical and major issues
-    const actionableIssues = evaluation.issues.filter((issue) => issue.severity !== 'minor');
-    if (actionableIssues.length === 0) { aiDebugLog('evaluator', 'no actionable issues, skipping revision'); break; }
-
-    onEvent({
-      type: 'progress',
-      message: `Fixing ${actionableIssues.length} issue(s)…`,
-      pct: 80 + (i * 10),
-    });
 
     // Revision pass
     const revisionSystem = buildPresentationRevisionSystemPrompt({
       planResult,
       ...(runPlan ? { runPlan } : {}),
       ...(projectRulesBlock ? { projectRulesBlock } : {}),
-      feedback: actionableIssues.map((issue) => `${issue.category}: ${issue.description} Fix: ${issue.suggestedFix}`),
+      feedback: revisionFeedback,
     });
 
-    const revisionPrompt = buildRevisionUserPrompt(currentHtml, actionableIssues);
+    const revisionPrompt = buildRevisionUserPrompt(currentHtml, revisionFeedback);
     const revT0 = performance.now();
 
     try {
@@ -207,11 +219,9 @@ export async function evaluateAndRevise(
 
 function buildRevisionUserPrompt(
   html: string,
-  issues: Evaluation['issues'],
+  feedback: string[],
 ): string {
-  const issueList = issues
-    .map((issue) => `- [${issue.severity}] ${issue.category}: ${issue.description}\n  Fix: ${issue.suggestedFix}`)
-    .join('\n');
+  const issueList = feedback.map((f) => `- ${f}`).join('\n');
 
   return `Fix the following issues in this slide HTML. Make ONLY the listed changes — touch nothing else.
 
