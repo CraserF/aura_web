@@ -94,7 +94,7 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
         targetSummary: (resolvedTargets.length > 0
           ? resolvedTargets.map((target) => target.label)
           : intent.targetSelectors.map((selector) => selector.label ?? selector.type)),
-        dryRunFailures: [],
+        preflightFailures: [],
       }
     : undefined;
   const targetSummary = editing?.targetSummary ?? (resolvedTargets.length > 0
@@ -189,7 +189,6 @@ export async function handleSpreadsheetWorkflow(ctx: SpreadsheetHandlerContext):
     spreadsheet: Record<string, unknown> = {},
   ) => ({
     artifactType: 'spreadsheet' as const,
-    mode: runRequest.mode,
     targetSummary,
     changedTargets,
     validation,

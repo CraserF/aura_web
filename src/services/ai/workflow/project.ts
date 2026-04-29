@@ -348,7 +348,6 @@ export async function handleProjectWorkflow(ctx: ProjectWorkflowContext): Promis
     outputs: {
       envelope: {
         artifactType: 'project',
-        mode: runRequest.mode,
         targetSummary: [operation],
         changedTargets,
         validation: {

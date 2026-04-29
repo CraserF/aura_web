@@ -616,7 +616,7 @@ export async function designEdit(
   aiDebugLog('designer:edit', `streaming complete in ${streamMs}ms`, { draftChars: draftText.length, slideCount: countSlides(draftHtml), isAddSlides });
   let processedDraft = draftHtml;
   let patchApplied = false;
-  let patchDryRunFailures: string[] = [];
+  let patchPreflightFailures: string[] = [];
   let patchFallbackUsed = false;
   if (isAddSlides) {
     processedDraft = preserveExistingSlidesForAddIntent(existingSlidesHtml, draftHtml);
@@ -629,10 +629,10 @@ export async function designEdit(
         patchApplied = true;
         aiDebugLog('designer:edit', `patch mode: applied ${patchResult.patchCount} patch(es) successfully`);
       } else {
-        patchDryRunFailures = patchResult.dryRunFailures;
+        patchPreflightFailures = patchResult.preflightFailures;
         patchFallbackUsed = true;
-        aiDebugLog('designer:edit', `patch pre-flight failed (${patchResult.dryRunFailures.length} unmatched), falling back to full HTML`);
-        console.warn('[designer:edit] patch pre-flight failed:', patchResult.dryRunFailures);
+        aiDebugLog('designer:edit', `patch pre-flight failed (${patchResult.preflightFailures.length} unmatched), falling back to full HTML`);
+        console.warn('[designer:edit] patch pre-flight failed:', patchResult.preflightFailures);
       }
     } else {
       aiDebugLog('designer:edit', 'patch markers found but parsed 0 patches — treating as full HTML');
@@ -688,7 +688,7 @@ export async function designEdit(
           strategyUsed: editing.allowFullRegeneration ? 'full-regenerate' : patchApplied ? 'search-replace' : editing.strategyHint ?? 'search-replace',
           fallbackUsed: patchFallbackUsed,
           targetSummary: editing.targetSummary,
-          dryRunFailures: patchDryRunFailures,
+          preflightFailures: patchPreflightFailures,
         },
       } : {}),
     };
@@ -811,7 +811,7 @@ export async function designEdit(
         strategyUsed: editing.allowFullRegeneration ? 'full-regenerate' : patchApplied ? 'search-replace' : editing.strategyHint ?? 'search-replace',
         fallbackUsed: patchFallbackUsed,
         targetSummary: editing.targetSummary,
-        dryRunFailures: patchDryRunFailures,
+        preflightFailures: patchPreflightFailures,
       },
     } : {}),
   };

@@ -80,7 +80,7 @@ export function resolvePresentationTargets(
 export function applyPresentationPatchBlocks(existingHtml: string, draftText: string): {
   success: boolean;
   html: string;
-  dryRunFailures: string[];
+  preflightFailures: string[];
   patchCount: number;
 } {
   const patches = parsePatchBlocks(draftText);
@@ -88,7 +88,7 @@ export function applyPresentationPatchBlocks(existingHtml: string, draftText: st
     return {
       success: false,
       html: existingHtml,
-      dryRunFailures: [],
+      preflightFailures: [],
       patchCount: 0,
     };
   }
@@ -97,7 +97,7 @@ export function applyPresentationPatchBlocks(existingHtml: string, draftText: st
   return {
     success: patchResult.success,
     html: patchResult.html,
-    dryRunFailures: patchResult.failedPatches.map((patch) => patch.find.slice(0, 120)),
+    preflightFailures: patchResult.failedPatches.map((patch) => patch.find.slice(0, 120)),
     patchCount: patches.length,
   };
 }

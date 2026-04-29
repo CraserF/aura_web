@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   parsePatchBlocks,
-  dryRunPatch,
+  findUnmatchedPatches,
   applyPatches,
 } from '@/services/ai/workflow/patchUtils';
 
@@ -76,15 +76,15 @@ something
   });
 });
 
-// ── dryRunPatch ───────────────────────────────────────────────────────────────
+// ── findUnmatchedPatches ───────────────────────────────────────────────────────────────
 
-describe('dryRunPatch', () => {
+describe('findUnmatchedPatches', () => {
   it('returns an empty array when all find strings exist in the HTML', () => {
     const patches = [
       { find: 'Old Title', replace: 'New Title' },
       { find: 'Subtitle text here', replace: 'Updated subtitle' },
     ];
-    expect(dryRunPatch(BASE_HTML, patches)).toHaveLength(0);
+    expect(findUnmatchedPatches(BASE_HTML, patches)).toHaveLength(0);
   });
 
   it('returns the patches whose find strings are missing', () => {
@@ -92,7 +92,7 @@ describe('dryRunPatch', () => {
       { find: 'Old Title', replace: 'New Title' },
       { find: 'DOES NOT EXIST', replace: 'something' },
     ];
-    const failed = dryRunPatch(BASE_HTML, patches);
+    const failed = findUnmatchedPatches(BASE_HTML, patches);
     expect(failed).toHaveLength(1);
     expect(failed[0]?.find).toBe('DOES NOT EXIST');
   });
@@ -102,7 +102,7 @@ describe('dryRunPatch', () => {
       { find: 'absent1', replace: 'x' },
       { find: 'absent2', replace: 'y' },
     ];
-    expect(dryRunPatch(BASE_HTML, patches)).toHaveLength(2);
+    expect(findUnmatchedPatches(BASE_HTML, patches)).toHaveLength(2);
   });
 });
 

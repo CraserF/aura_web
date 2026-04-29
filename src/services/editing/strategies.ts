@@ -6,12 +6,12 @@ export function buildEditingTelemetry(
   attempts: PatchAttempt[],
   fallbackDecision?: EditFallbackDecision,
 ): EditingTelemetry {
-  const dryRunFailures = attempts.flatMap((attempt) => attempt.dryRunFailures);
+  const preflightFailures = attempts.flatMap((attempt) => attempt.preflightFailures);
 
   return {
     strategyUsed,
     fallbackUsed: fallbackDecision?.fallbackUsed ?? false,
     targetSummary,
-    dryRunFailures,
+    preflightFailures,
   };
 }

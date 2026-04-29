@@ -26,7 +26,6 @@ describe('run result rendering and registry', () => {
       outputs: {
         envelope: {
           artifactType: 'document',
-          mode: 'execute',
           targetSummary: ['Best matching document block'],
           changedTargets: [{ documentId: 'doc-1', action: 'updated' }],
           validation: { passed: true, summary: 'QA passed' },
@@ -72,7 +71,6 @@ describe('run result rendering and registry', () => {
       outputs: {
         envelope: {
           artifactType: 'presentation',
-          mode: 'execute',
           targetSummary: [],
           changedTargets: [],
           validation: { passed: true, summary: 'Passed' },
@@ -114,7 +112,6 @@ describe('run result rendering and registry', () => {
       outputs: {
         envelope: {
           artifactType: 'presentation',
-          mode: 'execute',
           targetSummary: [],
           changedTargets: [],
           validation: { passed: true, summary: 'Passed' },
@@ -142,7 +139,7 @@ describe('run result rendering and registry', () => {
     clearRunRegistry();
     clearRunEvents();
 
-    const created = createRunRecord('run-1', baseIntent, 'execute');
+    const created = createRunRecord('run-1', baseIntent);
     const running = updateRunRecordStatus('run-1', 'running');
     const event = publishRunEvent({
       type: 'run.generating',

@@ -116,7 +116,7 @@ export function logEditingMetrics(
     strategyUsed: string;
     fallbackUsed: boolean;
     targetSummary: string[];
-    dryRunFailures: string[];
+    preflightFailures: string[];
     regenerationAvoided: boolean;
     promptCharsDelta?: number;
   },

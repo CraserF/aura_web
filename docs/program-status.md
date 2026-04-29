@@ -17,7 +17,7 @@ This document records shipped workflow-upgrade progress across the phased implem
 | Phase 7: Validation Profiles and Publish | `implemented` | `2ae847a`, `07b0a08`, `736db4e` | Shared validation profiles, artifact/project readiness validation, publish gating panels, and clean-environment checks landed; manual publish/readiness validation is still pending. |
 | Phase 8: Presets, Lifecycle, and Policy | `implemented` | `6da7e83`, `5508683` | Preset-aware run requests, lifecycle metadata and persistence, expanded run registry/output buffering, deterministic policy actions, and compact preset/run-history UI landed; manual Phase 8 validation is still pending. |
 | Phase 9: Spreadsheet Workflow Deepening | `implemented` | `824e66a`, `52cca18` | Structured spreadsheet planning/validation, deterministic formula-column and query-view flows, spreadsheet-aware dependency graph edges, and richer spreadsheet run outputs landed; manual spreadsheet workflow validation is still pending. |
-| Phase 10: API, MCP, and Automation Alignment | `historical` | `b500fe4`, `d415576`, `310e953` | Serializable run specs, dry-run/explain modes, structured output envelopes, and external adapter seams were implemented then removed from active product direction. The adapter and execution-spec directories are empty/inactive, and `ExecutionMode` is a cleanup candidate. Manual validation is no longer required. See `docs/phases/phase-10-api-mcp-and-automation-alignment.md`. |
+| Phase 10: API, MCP, and Automation Alignment | `historical` | `b500fe4`, `d415576`, `310e953` | Serializable run specs, dry-run/explain modes, structured output envelopes, and external adapter seams were implemented then removed from active product direction. The adapter and execution-spec directories are empty/inactive, and `ExecutionMode` has been removed from active runtime contracts. Manual validation is no longer required. See `docs/phases/phase-10-api-mcp-and-automation-alignment.md`. |
 
 ## Known Blockers
 
@@ -87,11 +87,11 @@ Active direction: Value-Focused Product Realignment. See `docs/plan/value-focuse
 
 Completed realignment workstreams:
 
-- **Workstream 0 (complete):** Documentation and README refresh. Active API/MCP roadmap docs deleted, README current-state claims corrected, and program status updated. See `docs/plan/value-focused-product-realignment-plan.md` for evidence and follow-up workstreams.
+- **Workstream 0 (complete):** Documentation and README refresh. API/MCP roadmap docs (`docs/roadmap/api-platform-plan.md`, `docs/roadmap/mcp-integration-plan.md`) deleted. README rewritten with accurate multi-artifact feature list, correct `.aura` v2.4 structure, and softened version history and compatibility language. Program status updated to reflect current active direction. See `docs/plan/value-focused-product-realignment-plan.md` for the full plan.
+- **Workstream 1 (complete):** Removed `ExecutionMode` type and all execution `dry-run`/`explain`/`mode` references from active runtime contracts. Deleted three dead test files (`run-dry-run.test.ts`, `run-explain.test.ts`, `external-adapter-contracts.test.ts`). Cleared the execution `mode` field from `RunRequest`, `RunRecord`, `RunOutputsEnvelope`, `BuildArtifactWorkflowPlanInput`, handlers, and test fixtures. Renamed active targeted-edit preflight telemetry so it no longer uses dry-run vocabulary. Build, typecheck, and targeted regression tests pass.
 
 Current workstreams in progress:
 
-- **Workstream 1:** Remove `ExecutionMode` dry-run/explain from active runtime contracts. Audit UI for API/MCP language.
 - **Workstream 2:** Visual variant registry and starter kit selection UI.
 - **Workstream 3:** User interface simplification.
 - **Workstream 4:** Explicit chat and run progress (extend `workflowProgress.ts` with step counts).

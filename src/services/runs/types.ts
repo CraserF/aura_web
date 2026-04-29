@@ -9,8 +9,6 @@ import type { RunStatus } from '@/services/runs/status';
 import type { RunEventType } from '@/services/events/types';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
 
-export type ExecutionMode = 'execute' | 'dry-run' | 'explain';
-
 export interface RunProjectSnapshot {
   documentIds: string[];
   activeDocumentId: string | null;
@@ -31,14 +29,12 @@ export interface RunRequest {
   appliedPreset?: AppliedWorkflowPreset;
   projectSnapshot: RunProjectSnapshot;
   artifactRunPlan: ArtifactRunPlan;
-  mode: ExecutionMode;
   createdAt: number;
 }
 
 export interface RunRecord {
   runId: string;
   status: RunStatus;
-  mode: ExecutionMode;
   intent: ResolvedIntent;
   latestEventId?: string;
   latestEventType?: RunEventType;

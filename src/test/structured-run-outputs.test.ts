@@ -55,7 +55,6 @@ async function buildRequest(project: ProjectData, activeDocument: ProjectDocumen
       items: [],
     }),
     allowClarification: false,
-    mode: 'explain',
   });
 
   return runRequest;

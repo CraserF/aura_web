@@ -47,7 +47,7 @@ export interface PatchAttempt {
   strategy: EditStrategy;
   success: boolean;
   targetSummary: string;
-  dryRunFailures: string[];
+  preflightFailures: string[];
 }
 
 export interface EditFallbackDecision {
@@ -61,7 +61,7 @@ export interface EditingTelemetry {
   strategyUsed: EditStrategy;
   fallbackUsed: boolean;
   targetSummary: string[];
-  dryRunFailures: string[];
+  preflightFailures: string[];
 }
 
 // TODO(phase-4): Replace broad selector/value usage with tighter artifact-specific

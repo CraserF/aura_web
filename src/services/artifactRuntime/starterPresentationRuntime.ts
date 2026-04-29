@@ -123,7 +123,6 @@ function buildStarterRuntimePlan(input: {
     artifactType: 'presentation',
     operation: 'create',
     activeDocument: null,
-    mode: 'execute',
     providerId: 'openai',
     providerModel: 'starter-runtime',
     allowFullRegeneration: false,

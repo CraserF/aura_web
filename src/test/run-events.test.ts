@@ -129,7 +129,6 @@ describe('run events', () => {
           outputs: {
             envelope: {
               artifactType: 'project',
-              mode: runRequest.mode,
               targetSummary: ['summarize-project'],
               changedTargets: [{ documentId: 'doc-1', action: 'updated' }],
               validation: { passed: true, summary: 'ok' },

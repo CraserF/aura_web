@@ -47,7 +47,6 @@ describe('document quality checklist', () => {
       artifactType: 'document',
       operation: 'create',
       activeDocument: null,
-      mode: 'execute',
       providerId: 'openai',
       providerModel: 'gpt-4o',
       allowFullRegeneration: false,

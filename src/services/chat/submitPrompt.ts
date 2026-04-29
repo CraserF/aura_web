@@ -7,7 +7,6 @@ import type { ContextSelectionState } from '@/services/context/types';
 import type { LLMConfig } from '@/services/ai/workflow/types';
 import type { MemoryContextBuildResult, MemoryContextDetailMode } from '@/services/memory';
 import type { ProviderConfig } from '@/types';
-import type { ExecutionMode } from '@/services/runs/types';
 
 import { buildRunRequest } from '@/services/chat/buildRunRequest';
 import { renderRunResult } from '@/services/chat/renderRunResult';
@@ -50,7 +49,6 @@ export interface SubmitPromptInput {
   documentStylePreset: string;
   selectedPresetId?: string;
   allowClarification: boolean;
-  mode?: ExecutionMode;
 }
 
 export interface SubmitPromptServices {
@@ -115,7 +113,6 @@ function buildBlockedRunResult(runId: string, runRequest: Awaited<ReturnType<typ
     outputs: {
       envelope: {
         artifactType: runRequest.intent.projectOperation ? 'project' : runRequest.intent.artifactType,
-        mode: runRequest.mode,
         targetSummary: runRequest.intent.targetSelectors.map((selector) => selector.label ?? selector.type),
         changedTargets,
         validation,
@@ -212,7 +209,6 @@ export async function submitPrompt(
     documentStylePreset,
     selectedPresetId,
     allowClarification,
-    mode = 'execute',
   } = input;
   const {
     workflowStepsRef,
@@ -245,7 +241,6 @@ export async function submitPrompt(
     selectedPresetId,
     buildMemoryContext: buildWorkflowMemoryContext,
     allowClarification,
-    mode,
   });
   onRunRequestBuilt?.(runRequest);
 
@@ -259,7 +254,7 @@ export async function submitPrompt(
     attachments: attachments.length > 0 ? attachments : undefined,
   });
 
-  createRunRecord(runRequest.runId, runRequest.intent, runRequest.mode);
+  createRunRecord(runRequest.runId, runRequest.intent);
   setRunRetryInfo(runRequest.runId, runRequest.runId, 0);
   const startedEvent = publishRunEvent({
     type: 'run.started',
@@ -287,7 +282,6 @@ export async function submitPrompt(
     runId: runRequest.runId,
     source: eventSource,
     payload: {
-      mode: runRequest.mode,
       runtimePlanVersion: runRequest.artifactRunPlan.version,
       artifactType: runRequest.artifactRunPlan.artifactType,
       requestKind: runRequest.artifactRunPlan.requestKind,
@@ -326,7 +320,7 @@ export async function submitPrompt(
       : [],
   );
 
-  if (runRequest.intent.needsClarification && runRequest.mode === 'execute') {
+  if (runRequest.intent.needsClarification) {
     const blockedResult = buildBlockedRunResult(runRequest.runId, runRequest);
     updateRunRecordStatus(runRequest.runId, blockedResult.status);
     setRunBlockedReason(runRequest.runId, blockedResult.structuredStatus.detail);

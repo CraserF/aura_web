@@ -153,13 +153,13 @@ function applyBlockReplace(
   existingHtml: string,
   generatedHtml: string,
   targets: ResolvedTarget[],
-): { success: boolean; html: string; dryRunFailures: string[] } {
+): { success: boolean; html: string; preflightFailures: string[] } {
   const parser = new DOMParser();
   const existingPrepared = prepareDocumentHtmlForEditing(existingHtml);
   const generatedPrepared = prepareDocumentHtmlForEditing(generatedHtml);
   const existingDoc = parser.parseFromString(existingPrepared.html, 'text/html');
   const generatedDoc = parser.parseFromString(generatedPrepared.html, 'text/html');
-  const dryRunFailures: string[] = [];
+  const preflightFailures: string[] = [];
   let applied = 0;
 
   targets.forEach((target) => {
@@ -167,7 +167,7 @@ function applyBlockReplace(
     const existingNode = existingDoc.body.querySelector<HTMLElement>(`[data-aura-block-id="${target.blockId}"]`);
     const generatedNode = generatedDoc.body.querySelector<HTMLElement>(`[data-aura-block-id="${target.blockId}"]`);
     if (!existingNode || !generatedNode) {
-      dryRunFailures.push(target.label);
+      preflightFailures.push(target.label);
       return;
     }
     existingNode.outerHTML = generatedNode.outerHTML;
@@ -175,9 +175,9 @@ function applyBlockReplace(
   });
 
   return {
-    success: applied > 0 && dryRunFailures.length === 0,
+    success: applied > 0 && preflightFailures.length === 0,
     html: serializeDocument(existingDoc),
-    dryRunFailures,
+    preflightFailures,
   };
 }
 
@@ -185,13 +185,13 @@ function applySearchReplaceFallback(
   existingHtml: string,
   generatedHtml: string,
   targets: ResolvedTarget[],
-): { success: boolean; html: string; dryRunFailures: string[] } {
+): { success: boolean; html: string; preflightFailures: string[] } {
   const parser = new DOMParser();
   const existingPrepared = prepareDocumentHtmlForEditing(existingHtml);
   const generatedPrepared = prepareDocumentHtmlForEditing(generatedHtml);
   const existingDoc = parser.parseFromString(existingPrepared.html, 'text/html');
   const generatedDoc = parser.parseFromString(generatedPrepared.html, 'text/html');
-  const dryRunFailures: string[] = [];
+  const preflightFailures: string[] = [];
   let applied = 0;
 
   targets.forEach((target) => {
@@ -199,7 +199,7 @@ function applySearchReplaceFallback(
     const existingNode = existingDoc.body.querySelector<HTMLElement>(`[data-aura-block-id="${target.blockId}"]`);
     const generatedNode = generatedDoc.body.querySelector<HTMLElement>(`[data-aura-block-id="${target.blockId}"]`);
     if (!existingNode || !generatedNode) {
-      dryRunFailures.push(target.label);
+      preflightFailures.push(target.label);
       return;
     }
 
@@ -207,7 +207,7 @@ function applySearchReplaceFallback(
     const sourceNodes = Array.from(generatedNode.querySelectorAll<HTMLElement>('h1, h2, h3, p, li, blockquote, td, th, figcaption, span, strong, em'));
     const limit = Math.min(targetNodes.length, sourceNodes.length);
     if (limit === 0) {
-      dryRunFailures.push(target.label);
+      preflightFailures.push(target.label);
       return;
     }
 
@@ -224,7 +224,7 @@ function applySearchReplaceFallback(
   return {
     success: applied > 0,
     html: serializeDocument(existingDoc),
-    dryRunFailures,
+    preflightFailures,
   };
 }
 
@@ -238,7 +238,7 @@ export function applyDocumentTargetedEdit(input: {
   html: string;
   strategyUsed: 'block-replace' | 'search-replace' | 'style-token' | 'full-regenerate';
   fallbackUsed: boolean;
-  dryRunFailures: string[];
+  preflightFailures: string[];
 } {
   const { existingHtml, generatedHtml, targets, strategyHint, allowFullRegeneration } = input;
 
@@ -247,7 +247,7 @@ export function applyDocumentTargetedEdit(input: {
       html: prepareDocumentHtmlForEditing(generatedHtml).html,
       strategyUsed: 'full-regenerate',
       fallbackUsed: false,
-      dryRunFailures: [],
+      preflightFailures: [],
     };
   }
 
@@ -256,7 +256,7 @@ export function applyDocumentTargetedEdit(input: {
       html: prepareDocumentHtmlForEditing(mergeStyleTokens(existingHtml, generatedHtml)).html,
       strategyUsed: 'style-token',
       fallbackUsed: false,
-      dryRunFailures: [],
+      preflightFailures: [],
     };
   }
 
@@ -266,7 +266,7 @@ export function applyDocumentTargetedEdit(input: {
       html: blockResult.html,
       strategyUsed: 'block-replace',
       fallbackUsed: false,
-      dryRunFailures: [],
+      preflightFailures: [],
     };
   }
 
@@ -276,7 +276,7 @@ export function applyDocumentTargetedEdit(input: {
       html: searchReplaceResult.html,
       strategyUsed: 'search-replace',
       fallbackUsed: true,
-      dryRunFailures: blockResult.dryRunFailures,
+      preflightFailures: blockResult.preflightFailures,
     };
   }
 
@@ -284,6 +284,6 @@ export function applyDocumentTargetedEdit(input: {
     html: prepareDocumentHtmlForEditing(existingHtml).html,
     strategyUsed: 'search-replace',
     fallbackUsed: true,
-    dryRunFailures: [...blockResult.dryRunFailures, ...searchReplaceResult.dryRunFailures],
+    preflightFailures: [...blockResult.preflightFailures, ...searchReplaceResult.preflightFailures],
   };
 }

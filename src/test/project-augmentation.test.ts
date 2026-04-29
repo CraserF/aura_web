@@ -55,7 +55,6 @@ function makeRunRequest(
     artifactType: overrides.intent.artifactType,
     operation: overrides.intent.operation,
     activeDocument: overrides.activeArtifacts?.activeDocument ?? null,
-    mode: overrides.mode ?? 'execute',
     providerId: overrides.providerConfig?.id ?? 'openai',
     providerModel: overrides.providerConfig?.model,
     editStrategyHint: overrides.intent.editStrategyHint,
@@ -139,7 +138,6 @@ function makeRunRequest(
       ),
     },
     artifactRunPlan,
-    mode: overrides.mode ?? 'execute',
     createdAt: overrides.createdAt ?? 1,
   };
 }

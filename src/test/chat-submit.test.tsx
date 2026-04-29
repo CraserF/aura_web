@@ -177,7 +177,6 @@ describe('ChatBar submission paths', () => {
         outputs: {
           envelope: {
             artifactType: 'document',
-            mode: 'execute',
             targetSummary: ['Working Draft'],
             changedTargets: [{ documentId: activeDocument.id, action: 'updated' }],
             validation: { passed: true, summary: 'ok' },

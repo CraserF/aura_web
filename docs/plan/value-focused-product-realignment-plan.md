@@ -27,7 +27,7 @@ This tracker is the first place to update when work begins, moves, blocks, or co
 | ID | Workstream | Current Status | Next Milestone | Evidence To Attach | Last Updated |
 | --- | --- | --- | --- | --- | --- |
 | W0 | Documentation and README refresh | Done | Continue W1 cleanup of runtime API/MCP vocabulary | Active API/MCP roadmap docs deleted; README current-state claims corrected; program status aligned; review shortcomings resolved | 2026-04-29 |
-| W1 | Remove API, MCP, and external automation surfaces | Not started | Remove stale runtime vocabulary and simplify contracts while preserving provider APIs | Code diff, passing tests, provider settings smoke check | 2026-04-29 |
+| W1 | Remove API, MCP, and external automation surfaces | Done | Continue W2 starter variant implementation | `ExecutionMode` and execution mode fields removed from active contracts; targeted-edit telemetry renamed from dry-run wording to preflight terminology; targeted tests, typecheck, and build pass | 2026-04-29 |
 | W2 | Starter kit visual variants | Not started | Ship 4 or 5 complete variant definitions with default color theme selection | Variant registry, New Project UI screenshots, generated artifact examples | 2026-04-29 |
 | W3 | UI simplification | Not started | Reduce visible toolbar/chat controls and hide project rules from normal workflows | Before/after screenshots, interaction notes, accessibility check | 2026-04-29 |
 | W4 | Explicit chat and run progress | Not started | Show step counts, slide counts, queue state, and repair attempt counts | Progress event tests, UI screenshots, long-run screen recording or notes | 2026-04-29 |
@@ -573,22 +573,22 @@ Provider-related functionality is still central:
 
 When this plan says "remove API," it means external Aura API product features and related execution modes, not model provider connectivity.
 
-### Current Code Findings
+### Original Code Findings
 
-Several implementation areas appear already cleaned up:
+The initial investigation found several implementation areas already cleaned up:
 
-- `src/services/adapters/` has already been deleted entirely — the directory does not exist.
-- `src/services/executionSpec/` has already been deleted entirely — the directory does not exist.
+- `src/services/adapters/` and `src/services/executionSpec/` had no active source files and were not imported by active generation paths.
 - No active package dependencies were found for common MCP or backend platform libraries such as `@modelcontextprotocol`, `hono`, `supabase`, `better-auth`, `inngest`, or `bullmq`.
 
-This means Layer 4 of the removal strategy (removing empty directories) is already done. The remaining work is Layer 1 (documentation), Layer 2 (UI audit), and Layer 3 (runtime contracts).
+This meant Layer 4 of the removal strategy was effectively complete from a source-control perspective. W0 handled the active documentation cleanup, and W1 removed the active runtime execution-mode contracts.
 
-However, several legacy concepts remain:
+Resolved during W1:
 
-- `src/services/runs/types.ts` still defines `ExecutionMode = 'execute' | 'dry-run' | 'explain'`.
-- Chat and run contracts still accept or normalize mode fields.
-- Tests still cover dry-run and explain normalization.
-- Some docs and roadmap files still discuss API/MCP as product work.
+- `ExecutionMode = 'execute' | 'dry-run' | 'explain'` was removed from `src/services/runs/types.ts`.
+- Execution `mode` fields were removed from `RunRequest`, `RunRecord`, `RunOutputsEnvelope`, and `BuildArtifactWorkflowPlanInput`.
+- Chat and run contracts no longer accept an execution mode field.
+- Dead dry-run/explain mode tests were deleted.
+- Active targeted-edit telemetry was renamed from dry-run terminology to preflight terminology so no active warning code exposes the old execution-mode vocabulary.
 
 Relevant files observed:
 

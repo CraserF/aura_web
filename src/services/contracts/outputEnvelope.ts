@@ -7,7 +7,6 @@ import type {
   RunResultSpreadsheetOutputs,
   RunResultValidationSummary,
 } from '@/services/contracts/runResult';
-import type { ExecutionMode } from '@/services/runs/types';
 import type { PublishReadinessResult } from '@/services/validation/types';
 import type { SpreadsheetExecutionSummary } from '@/services/spreadsheet/plans';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
@@ -57,7 +56,6 @@ export interface ProjectRunOutputs {
 
 export interface RunOutputsEnvelope {
   artifactType: DocumentType | 'project';
-  mode: ExecutionMode;
   targetSummary: string[];
   changedTargets: RunResultChangedTarget[];
   validation: RunResultValidationSummary;

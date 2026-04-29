@@ -61,10 +61,8 @@ describe('internal runtime request privacy', () => {
         trimmedMemories: [],
         items: [],
       }),
-      mode: 'explain',
     });
 
-    expect(runRequest.mode).toBe('execute');
     expect('serializableSpec' in runRequest).toBe(false);
     expect(JSON.stringify(runRequest.artifactRunPlan)).not.toContain('super-secret-key');
     expect(runRequest.artifactRunPlan.intentSummary).toContain('document workflow');

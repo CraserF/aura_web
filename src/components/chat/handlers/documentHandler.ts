@@ -289,7 +289,6 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
       outputs: {
         envelope: {
           artifactType: 'document',
-          mode: runRequest.mode,
           targetSummary,
           changedTargets: [...changedTargets],
           validation,
@@ -321,10 +320,10 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
         ...configWarnings,
         ...contextWarnings,
         ...validationWarnings,
-        ...(result.editing?.dryRunFailures.length
+        ...(result.editing?.preflightFailures.length
           ? [{
-              code: 'editing-dry-run-fallback',
-              message: `Targeted edit fell back after ${result.editing.dryRunFailures.length} unmatched target(s).`,
+              code: 'editing-preflight-fallback',
+              message: `Targeted edit fell back after ${result.editing.preflightFailures.length} unmatched target(s).`,
             }]
           : []),
       ],
@@ -346,7 +345,6 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
         outputs: {
           envelope: {
             artifactType: 'document',
-            mode: runRequest.mode,
             targetSummary,
             changedTargets: [],
             validation: {
@@ -382,7 +380,6 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
       outputs: {
         envelope: {
           artifactType: 'document',
-          mode: runRequest.mode,
           targetSummary,
           changedTargets: [],
             validation: {

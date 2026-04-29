@@ -74,7 +74,6 @@ function createRunPlan(prompt: string, operation: 'create' | 'edit' = 'create') 
     artifactType: 'presentation',
     operation,
     activeDocument: null,
-    mode: 'execute',
     providerId: 'openai',
     providerModel: 'gpt-4o',
     allowFullRegeneration: false,

@@ -86,7 +86,6 @@ describe('buildRunRequest', () => {
     expect(result.runRequest.artifactRunPlan.requestKind).toBe('edit');
     expect(result.runRequest.artifactRunPlan.templateGuidance.intentFamily).toBe('edit');
     expect('workflowPlan' in result.runRequest).toBe(false);
-    expect(result.runRequest.mode).toBe('execute');
     expect('serializableSpec' in result.runRequest).toBe(false);
   });
 

@@ -15,7 +15,6 @@ function makePresentationPromptInputs(prompt = 'Create an executive briefing sli
     artifactType: 'presentation',
     operation: 'create',
     activeDocument: null,
-    mode: 'execute',
     providerId: 'openai',
     providerModel: 'gpt-4o',
     allowFullRegeneration: false,

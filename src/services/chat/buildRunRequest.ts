@@ -7,7 +7,7 @@ import { resolveIntent } from '@/services/ai/intent/resolveIntent';
 import { assembleContext } from '@/services/context/assemble';
 import { loadContextPolicy } from '@/services/projectRules/load';
 import { resolveProjectRulesSnapshot } from '@/services/projectRules/resolve';
-import type { ExecutionMode, RunRequest } from '@/services/runs/types';
+import type { RunRequest } from '@/services/runs/types';
 import type { ContextSelectionState } from '@/services/context/types';
 import { buildArtifactRunPlan } from '@/services/artifactRuntime';
 
@@ -31,7 +31,6 @@ export interface BuildRunRequestInput {
   ) => Promise<MemoryContextBuildResult>;
   selectedPresetId?: string;
   allowClarification?: boolean;
-  mode?: ExecutionMode;
 }
 
 export interface BuildRunRequestResult {
@@ -77,7 +76,6 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
     selectedPresetId,
     allowClarification = true,
   } = input;
-  const mode: ExecutionMode = 'execute';
 
   const initialAssembly = assembleContext({
     prompt,
@@ -140,7 +138,6 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
     artifactType: intent.artifactType,
     operation: intent.operation,
     activeDocument,
-    mode,
     providerId: providerConfig.id,
     providerModel: providerConfig.model,
     projectRulesBlock: projectRulesSnapshot.promptBlock,
@@ -149,21 +146,20 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
   });
 
   const runRequest: RunRequest = {
-      runId,
-      intent,
-      context: assembledWithPolicy.context,
-      providerConfig,
-      activeArtifacts: {
-        activeDocument,
-      },
-      projectRulesSnapshot,
-      selectedPresetId,
-      appliedPreset: projectRulesSnapshot.appliedPreset,
-      projectSnapshot: buildProjectSnapshot(project),
-      artifactRunPlan,
-      mode,
-      createdAt: Date.now(),
-    };
+    runId,
+    intent,
+    context: assembledWithPolicy.context,
+    providerConfig,
+    activeArtifacts: {
+      activeDocument,
+    },
+    projectRulesSnapshot,
+    selectedPresetId,
+    appliedPreset: projectRulesSnapshot.appliedPreset,
+    projectSnapshot: buildProjectSnapshot(project),
+    artifactRunPlan,
+    createdAt: Date.now(),
+  };
 
   return {
     runRequest,

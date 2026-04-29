@@ -50,7 +50,6 @@ function makePresentationPromptInputs(prompt = 'Create a launch presentation') {
     artifactType: 'presentation',
     operation: 'create',
     activeDocument: null,
-    mode: 'execute',
     providerId: 'openai',
     providerModel: 'gpt-4o',
     allowFullRegeneration: false,

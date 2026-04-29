@@ -47,7 +47,7 @@ describe('presentation editing helpers', () => {
     expect(result.html).toContain('Updated title slide copy.');
   });
 
-  it('reports dry-run failures when a FIND block does not match', () => {
+  it('reports preflight failures when a FIND block does not match', () => {
     const patchText = `<<<<<<< FIND
 <p>Missing copy.</p>
 =======
@@ -57,6 +57,6 @@ describe('presentation editing helpers', () => {
     const result = applyPresentationPatchBlocks(deck.contentHtml, patchText);
 
     expect(result.success).toBe(false);
-    expect(result.dryRunFailures).toHaveLength(1);
+    expect(result.preflightFailures).toHaveLength(1);
   });
 });

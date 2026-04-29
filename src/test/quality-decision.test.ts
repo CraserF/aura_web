@@ -15,7 +15,6 @@ describe('artifact quality polish decisions', () => {
       artifactType: 'document',
       operation: 'create',
       activeDocument: null,
-      mode: 'execute',
       providerId: 'openai',
       providerModel: 'gpt-4o',
       allowFullRegeneration: false,
@@ -44,7 +43,6 @@ describe('artifact quality polish decisions', () => {
       artifactType: 'presentation',
       operation: 'create',
       activeDocument: null,
-      mode: 'execute',
       providerId: 'ollama',
       providerModel: 'llama3.2',
       allowFullRegeneration: false,
@@ -101,7 +99,6 @@ describe('artifact quality polish decisions', () => {
       artifactType: 'presentation',
       operation: 'create',
       activeDocument: null,
-      mode: 'execute',
       providerId: 'ollama',
       providerModel: 'llama3.2',
       allowFullRegeneration: false,
@@ -129,7 +126,6 @@ describe('artifact quality polish decisions', () => {
       artifactType: 'presentation' as const,
       operation: 'create' as const,
       activeDocument: null,
-      mode: 'execute' as const,
       allowFullRegeneration: false,
     };
 

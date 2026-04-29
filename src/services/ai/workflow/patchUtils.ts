@@ -40,16 +40,16 @@ export function parsePatchBlocks(output: string): SlidePatch[] {
  * Pre-flight validation: check all FIND blocks exist in the current HTML.
  * Returns the list of patches that failed to find their target.
  */
-export function dryRunPatch(currentHtml: string, patches: SlidePatch[]): SlidePatch[] {
+export function findUnmatchedPatches(currentHtml: string, patches: SlidePatch[]): SlidePatch[] {
   return patches.filter(p => !currentHtml.includes(p.find));
 }
 
 /**
- * Apply patches to HTML. All patches must pass dryRun first.
+ * Apply patches to HTML. All patches must pass pre-flight validation first.
  * If any FIND block is missing, returns the original HTML unchanged.
  */
 export function applyPatches(currentHtml: string, patches: SlidePatch[]): PatchResult {
-  const failed = dryRunPatch(currentHtml, patches);
+  const failed = findUnmatchedPatches(currentHtml, patches);
   if (failed.length > 0) {
     return { success: false, html: currentHtml, failedPatches: failed };
   }

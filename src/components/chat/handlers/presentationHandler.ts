@@ -358,7 +358,6 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
       outputs: {
         envelope: {
           artifactType: 'presentation',
-          mode: runRequest.mode,
           targetSummary,
           changedTargets: [...changedTargets],
           validation,
@@ -392,10 +391,10 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         ...contextWarnings,
         ...reviewWarning,
         ...validationWarnings,
-        ...(result.editing?.dryRunFailures.length
+        ...(result.editing?.preflightFailures.length
           ? [{
-              code: 'editing-dry-run-fallback',
-              message: `Targeted edit fell back after ${result.editing.dryRunFailures.length} unmatched target(s).`,
+              code: 'editing-preflight-fallback',
+              message: `Targeted edit fell back after ${result.editing.preflightFailures.length} unmatched target(s).`,
             }]
           : []),
       ],
@@ -417,7 +416,6 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         outputs: {
           envelope: {
             artifactType: 'presentation',
-            mode: runRequest.mode,
             targetSummary,
             changedTargets: [],
             validation: {
@@ -453,7 +451,6 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
       outputs: {
         envelope: {
           artifactType: 'presentation',
-          mode: runRequest.mode,
           targetSummary,
           changedTargets: [],
             validation: {

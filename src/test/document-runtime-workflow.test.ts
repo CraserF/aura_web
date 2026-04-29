@@ -42,7 +42,6 @@ function createDocumentRunPlan(prompt: string, operation: 'create' | 'edit' = 'c
     artifactType: 'document',
     operation,
     activeDocument: null,
-    mode: 'execute',
     providerId: 'openai',
     providerModel: 'gpt-4o',
     allowFullRegeneration: false,

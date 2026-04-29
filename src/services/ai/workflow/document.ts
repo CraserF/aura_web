@@ -944,7 +944,7 @@ export async function runDocumentWorkflow(
                 strategyUsed: 'block-replace',
                 fallbackUsed: false,
                 targetSummary: input.editing!.targetSummary,
-                dryRunFailures: [],
+                preflightFailures: [],
               };
               logEditingMetrics('document', {
                 ...editingTelemetry,
@@ -976,7 +976,7 @@ export async function runDocumentWorkflow(
                 strategyUsed: targetedEdit.strategyUsed,
                 fallbackUsed: targetedEdit.fallbackUsed,
                 targetSummary: input.editing!.targetSummary,
-                dryRunFailures: targetedEdit.dryRunFailures,
+                preflightFailures: targetedEdit.preflightFailures,
               };
               logEditingMetrics('document', {
                 ...editingTelemetry,

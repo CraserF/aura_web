@@ -247,7 +247,6 @@ export interface BuildArtifactWorkflowPlanInput {
   artifactType: DocumentType;
   operation: 'create' | 'edit' | 'action';
   activeDocument: ProjectDocument | null;
-  mode: 'execute' | 'dry-run' | 'explain';
   providerId: ProviderId;
   providerModel?: string;
   editStrategyHint?: string;
