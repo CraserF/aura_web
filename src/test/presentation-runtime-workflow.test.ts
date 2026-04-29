@@ -4,6 +4,7 @@ import type { BatchQueueOptions, BatchQueueResult } from '@/services/ai/workflow
 import type { DesignResult } from '@/services/ai/workflow/agents/designer';
 import type { PlanResult } from '@/services/ai/workflow/agents/planner';
 import type { WorkflowEvent } from '@/services/ai/workflow/types';
+import { detectAnimationLevel, getTemplateBlueprint, resolveTemplatePlan } from '@/services/ai/templates';
 import { summarizeRuntimeDiagnostics } from '@/services/artifactRuntime/diagnostics';
 import { buildArtifactRunPlan } from '@/services/artifactRuntime/build';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -55,34 +56,57 @@ const VALID_STYLE = `<style>
   .slide-body { color: #314158; font-size: 28px; }
 </style>`;
 
-function createPlanResult(): PlanResult {
+const DEFAULT_PRESENTATION_PROMPT = 'Create 2 slides: opening thesis, next move';
+const DEFAULT_SLIDE_BRIEFS: NonNullable<PlanResult['slideBriefs']> = [
+  {
+    index: 1,
+    title: 'Opening thesis',
+    contentGuidance: 'State the main argument.',
+  },
+  {
+    index: 2,
+    title: 'Next move',
+    contentGuidance: 'Close with the action.',
+  },
+];
+
+type PlanResultOverrides = Omit<Partial<PlanResult>, 'styleManifest'> & {
+  styleManifest?: Partial<PlanResult['styleManifest']>;
+};
+
+function createPlanResult(overrides: PlanResultOverrides = {}): PlanResult {
+  const templatePlan = resolveTemplatePlan(DEFAULT_PRESENTATION_PROMPT);
+  const blueprint = getTemplateBlueprint(templatePlan.style);
+  const styleManifest: PlanResult['styleManifest'] = {
+    ...templatePlan.styleManifest,
+    ...overrides.styleManifest,
+  };
+
   return {
     intent: 'batch_create',
     blocked: false,
+    style: templatePlan.style,
+    selectedTemplate: templatePlan.templateId,
+    exemplarPackId: templatePlan.exemplarPackId,
+    animationLevel: detectAnimationLevel(DEFAULT_PRESENTATION_PROMPT),
     blueprint: {
+      ...blueprint,
       palette: {
+        ...blueprint.palette,
         bg: '#ffffff',
       },
     },
-    slideBriefs: [
-      {
-        index: 1,
-        title: 'Opening thesis',
-        contentGuidance: 'State the main argument.',
-      },
-      {
-        index: 2,
-        title: 'Next move',
-        contentGuidance: 'Close with the action.',
-      },
-    ],
-  } as PlanResult;
+    enhancedPrompt: DEFAULT_PRESENTATION_PROMPT,
+    slideBriefs: DEFAULT_SLIDE_BRIEFS.map((brief) => ({ ...brief })),
+    ...overrides,
+    styleManifest,
+  };
 }
 
 function createRunPlan() {
   return buildArtifactRunPlan({
     runId: 'presentation-runtime-workflow-run',
-    prompt: 'Create 2 slides: opening thesis, next move',
+    prompt: DEFAULT_PRESENTATION_PROMPT,
     artifactType: 'presentation',
     operation: 'create',
     activeDocument: null,
@@ -182,8 +206,7 @@ describe('presentation runtime workflow orchestration', () => {
         status: 'pending',
       },
     ];
-    const legacyPlanResult = {
-      ...createPlanResult(),
+    const legacyPlanResult = createPlanResult({
       slideBriefs: [
         {
           index: 1,
@@ -191,7 +214,7 @@ describe('presentation runtime workflow orchestration', () => {
           contentGuidance: 'This legacy planner brief should not drive queued generation.',
         },
       ],
-    } as PlanResult;
+    });
     const firstSlideHtml = `${VALID_STYLE}
       <section data-background-color="#ffffff"><h1 class="slide-title">Runtime slide one</h1><p class="slide-body">Runtime-authored thesis.</p></section>`;
     const fullDeckHtml = `${firstSlideHtml}
@@ -309,9 +332,11 @@ describe('presentation runtime workflow orchestration', () => {
       return createBatchResult(fullDeckHtml);
     });
     const events: WorkflowEvent[] = [];
+    const runPlan = createRunPlan();
+    runPlan.metricsBudget.maxOptionalPolishPasses = 0;
 
     const output = await runQueuedPresentationRuntime({
-      runPlan: createRunPlan(),
+      runPlan,
       planResult: createPlanResult(),
       model: {} as LanguageModel,
       input: {
@@ -344,12 +369,10 @@ describe('presentation runtime workflow orchestration', () => {
   });
 
   it('single-slide create runs deterministic repair when validation fails', async () => {
-    const singlePlanResult: PlanResult = {
+    const singlePlanResult = createPlanResult({
       intent: 'create',
-      blocked: false,
-      blueprint: { palette: { bg: '#ffffff' } },
       slideBriefs: [],
-    } as PlanResult;
+    });
     // HTML missing data-background-color triggers a blocking violation
     const brokenHtml = `${VALID_STYLE}
       <section><h1 class="slide-title">Opening thesis</h1><p class="slide-body">Decision-ready opening.</p></section>`;
@@ -415,12 +438,10 @@ describe('presentation runtime workflow orchestration', () => {
   });
 
   it('add-slides reviewPassed follows final runtime validation instead of design fast path', async () => {
-    const addSlidesPlanResult: PlanResult = {
+    const addSlidesPlanResult = createPlanResult({
       intent: 'add_slides',
-      blocked: false,
-      blueprint: { palette: { bg: '#ffffff' } },
       slideBriefs: [],
-    } as PlanResult;
+    });
     const existingDeck = `${VALID_STYLE}
       <section data-background-color="#ffffff"><h1 class="slide-title">Existing slide</h1><p class="slide-body">Already valid.</p></section>`;
     const invalidMergedDeck = `${existingDeck}
@@ -452,12 +473,10 @@ describe('presentation runtime workflow orchestration', () => {
   });
 
   it('single-slide discards LLM polish when it introduces blocking issues', async () => {
-    const singlePlanResult: PlanResult = {
+    const singlePlanResult = createPlanResult({
       intent: 'create',
-      blocked: false,
-      blueprint: { palette: { bg: '#ffffff' } },
       slideBriefs: [],
-    } as PlanResult;
+    });
     const validHtml = `${VALID_STYLE}
       <section data-background-color="#ffffff"><h1 class="slide-title">Opening thesis</h1><p class="slide-body">Decision-ready opening.</p></section>`;
     designerMocks.design.mockResolvedValue({
@@ -502,13 +521,11 @@ describe('presentation runtime workflow orchestration', () => {
 
   it('skips single-slide LLM quality polish when optional runtime polish budget is exhausted', async () => {
     useSettingsStore.getState().setAlwaysRunEvaluation(false);
-    const singlePlanResult: PlanResult = {
+    const singlePlanResult = createPlanResult({
       intent: 'create',
-      blocked: false,
-      blueprint: { palette: { bg: '#ffffff' } },
-      styleManifest: { compositionMode: 'editorial' } as PlanResult['styleManifest'],
+      styleManifest: { compositionMode: 'editorial-grid' },
       slideBriefs: [],
-    } as PlanResult;
+    });
     const runPlan = buildArtifactRunPlan({
       runId: 'single-polish-budget-exhausted-test',
       prompt: 'Create an opening slide',
