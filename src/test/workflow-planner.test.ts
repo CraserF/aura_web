@@ -170,7 +170,7 @@ describe('buildArtifactWorkflowPlan', () => {
 
     expect(plan.documentThemeFamily).toBe('proposal-light');
     expect(plan.templateGuidance.documentThemeFamily).toBe('proposal-light');
-    expect(plan.templateGuidance.referenceStylePackId).toBe('document-professional-light');
+    expect(plan.templateGuidance.referenceStylePackId).toBe('document-proposal-light');
     expect(plan.templateGuidance.designConstraints.some((constraint) => constraint.includes('proposal board'))).toBe(true);
   });
 
@@ -187,6 +187,6 @@ describe('buildArtifactWorkflowPlan', () => {
     });
 
     expect(plan.documentThemeFamily).toBe('research-light');
-    expect(plan.templateGuidance.referenceStylePackId).toBe('document-professional-light');
+    expect(plan.templateGuidance.referenceStylePackId).toBe('document-research-light');
   });
 });
