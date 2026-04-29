@@ -1,5 +1,8 @@
 # Phase 10: API, MCP, and Automation Alignment
 
+> **HISTORICAL — 2026-04-29**
+> This phase is no longer active. The external adapter seams (`src/services/adapters/`) and execution-spec scaffolds (`src/services/executionSpec/`) that were created in Streams A-D are empty/inactive and are no longer part of the active product direction. The `ExecutionMode` union (`dry-run`, `explain`) remains in `src/services/runs/types.ts` but is a candidate for removal in Workstream 1 of the Value-Focused Product Realignment (see `docs/plan/value-focused-product-realignment-plan.md`). Manual validation of dry-run and explain modes is no longer required. Provider connectivity features remain intact.
+
 This document tracks Phase 10 implementation progress for serializable run specs, dry-run and explain execution modes, structured output normalization, and external adapter seams.
 
 ## Goal

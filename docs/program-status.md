@@ -17,7 +17,7 @@ This document records shipped workflow-upgrade progress across the phased implem
 | Phase 7: Validation Profiles and Publish | `implemented` | `2ae847a`, `07b0a08`, `736db4e` | Shared validation profiles, artifact/project readiness validation, publish gating panels, and clean-environment checks landed; manual publish/readiness validation is still pending. |
 | Phase 8: Presets, Lifecycle, and Policy | `implemented` | `6da7e83`, `5508683` | Preset-aware run requests, lifecycle metadata and persistence, expanded run registry/output buffering, deterministic policy actions, and compact preset/run-history UI landed; manual Phase 8 validation is still pending. |
 | Phase 9: Spreadsheet Workflow Deepening | `implemented` | `824e66a`, `52cca18` | Structured spreadsheet planning/validation, deterministic formula-column and query-view flows, spreadsheet-aware dependency graph edges, and richer spreadsheet run outputs landed; manual spreadsheet workflow validation is still pending. |
-| Phase 10: API, MCP, and Automation Alignment | `implemented` | `b500fe4`, `d415576`, `310e953` | Serializable run specs, dry-run/explain modes, structured output envelopes, and external adapter seams landed; manual explain/dry-run validation is still pending. |
+| Phase 10: API, MCP, and Automation Alignment | `historical` | `b500fe4`, `d415576`, `310e953` | Serializable run specs, dry-run/explain modes, structured output envelopes, and external adapter seams were implemented then removed from active product direction. The adapter and execution-spec directories are empty/inactive, and `ExecutionMode` is a cleanup candidate. Manual validation is no longer required. See `docs/phases/phase-10-api-mcp-and-automation-alignment.md`. |
 
 ## Known Blockers
 
@@ -71,11 +71,7 @@ This document records shipped workflow-upgrade progress across the phased implem
   - creating one query-style derived sheet from prompt
   - confirming one spreadsheet change refreshes a linked document or presentation dependency
   - confirming spreadsheet lifecycle and policy state remain inspectable after validation and publish flows
-- Phase 10 manual in-app validation is still pending for:
-  - running one document flow in explain mode and verifying the included context and predicted changes are understandable
-  - running one spreadsheet flow in dry-run mode and verifying no workbook mutation occurs
-  - running one project-wide explain or dry-run and verifying dependency and validation effects are visible
-  - confirming a normal execute run still behaves unchanged afterward
+- Phase 10 manual validation is no longer required — see the historical note in `docs/phases/phase-10-api-mcp-and-automation-alignment.md`.
 - Workstream F manual viewport validation is still pending for:
   - document-side viewport matrix backfill
   - Manual evidence logged on 2026-04-23:
@@ -87,12 +83,25 @@ This document records shipped workflow-upgrade progress across the phased implem
 
 ## Current Focus
 
+Active direction: Value-Focused Product Realignment. See `docs/plan/value-focused-product-realignment-plan.md` for the full plan.
+
+Completed realignment workstreams:
+
+- **Workstream 0 (complete):** Documentation and README refresh. Active API/MCP roadmap docs deleted, README current-state claims corrected, and program status updated. See `docs/plan/value-focused-product-realignment-plan.md` for evidence and follow-up workstreams.
+
+Current workstreams in progress:
+
+- **Workstream 1:** Remove `ExecutionMode` dry-run/explain from active runtime contracts. Audit UI for API/MCP language.
+- **Workstream 2:** Visual variant registry and starter kit selection UI.
+- **Workstream 3:** User interface simplification.
+- **Workstream 4:** Explicit chat and run progress (extend `workflowProgress.ts` with step counts).
+- **Workstream 5:** Project-scoped version history.
+- **Workstream 6:** Presentation workflow quality recovery and design system.
+- **Workstream 7:** Document and presentation scaffold tooling.
+
+Prior ongoing items:
+
 - Backlog Phase B mobile-adaptive artifact completion and validation sweep is tracked in [backlog-phase-b-mobile-adaptive-and-validation-sweep.md](./phases/backlog-phase-b-mobile-adaptive-and-validation-sweep.md).
 - Major workflow changes should be validated through [major-change-protocol.md](./validation/major-change-protocol.md) and the companion [artifact-case-matrix.md](./validation/artifact-case-matrix.md).
-- The workflow-quality redesign pass now has dedicated research and diagnosis docs:
-  - [agent-product-benchmark.md](./research/agent-product-benchmark.md)
-  - [dyad-teardown.md](./research/dyad-teardown.md)
-  - [aura-workflow-gap-analysis.md](./research/aura-workflow-gap-analysis.md)
 - The focused timing/quality loop for future workflow tuning is [workflow-quality-benchmark.md](./validation/workflow-quality-benchmark.md).
-- Top-level checklist drift in [implementation-plan-multi-agent.md](./implementation-plan-multi-agent.md) is being reconciled so implemented-vs-unvalidated work is explicit.
 - The first local-model hardening pass is centered on [ollama-gemma4-baseline.md](./validation/ollama-gemma4-baseline.md) using `gemma4:e2b` as the supported baseline.

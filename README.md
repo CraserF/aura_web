@@ -7,24 +7,30 @@
 
 # Aura
 
-**AI-powered presentations from natural language.** Describe what you want; Aura builds it.
+**A local-first AI workspace for creating and editing high-quality presentations, documents, and spreadsheets.**
 
-Aura is an open-source productivity tool where every slide deck is generated and refined through conversation with AI. There is no manual formatting toolbar, no drag-and-drop — the AI _is_ the editor.
+Aura combines chat, structured artifact runtimes, starter kits, project files, and version history so you can move from idea to polished output with less manual assembly. Most creation and editing flows are driven through conversation, with less reliance on manual layout tools.
 
-> **Status:** Early alpha — presentations only. Documents and spreadsheets are on the [roadmap](ROADMAP.md).
+---
+
+## What Aura creates
+
+- **Presentations** - reveal.js slide decks generated as HTML/CSS, with support for themes and visual treatments
+- **Documents** - structured HTML documents for reports, proposals, and reference materials
+- **Spreadsheets** - workbook-style artifacts for structured tables and project data
+- **Multi-artifact projects** - a single project can contain any combination of the above, sharing context and local project state
 
 ---
 
 ## Features
 
-- **Chat-driven creation** — describe a presentation in plain English and get a complete slide deck
-- **Iterative refinement** — follow up with changes ("make slide 3 more visual", "add a conclusion slide")
-- **Draft-first generation** — see the designed slide immediately while QA/review run in the background
-- **Multiple AI providers** — OpenAI, Gemini, DeepSeek, Anthropic (bring your own API key)
-- **Presentation mode** — full-screen reveal.js with rich transitions and animations
-- **`.aura` file format** — open zip-based format (HTML + CSS + JSON), no vendor lock-in
-- **Auto-save** — session persists to IndexedDB automatically
-- **100% client-side** — no backend, no telemetry, your API keys stay in your browser
+- **Chat-driven creation and editing** - describe what you want; follow up with refinements in plain English
+- **Starter kits** - pre-built project templates for executive briefings, research packs, launch plans, and more
+- **In-app previews** - inspect generated presentations, documents, and spreadsheets inside the workspace
+- **Project files** - projects save as `.aura` zip archives for local ownership and inspection
+- **Local version history** - project changes can be committed to a local git repository using `isomorphic-git`
+- **BYOK provider settings** - connect OpenAI, Anthropic, Google Gemini, DeepSeek, or an OpenAI-compatible local model
+- **100% client-side** - no backend, no telemetry, your API keys never leave your browser
 
 ---
 
@@ -33,23 +39,18 @@ Aura is an open-source productivity tool where every slide deck is generated and
 ### Prerequisites
 
 - [Bun](https://bun.sh) ≥ 1.0 (or Node.js ≥ 18 with npm)
-- An API key from any supported provider (OpenAI, Google Gemini, DeepSeek, or Anthropic)
+- An API key from a supported provider, or a local model via Ollama
 
 ### Install & Run
 
 ```bash
-# Clone the repository
 git clone https://github.com/your-username/aura.git
 cd aura
-
-# Install dependencies
 bun install
-
-# Start the dev server
 bun run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173), configure your AI provider in Settings (gear icon), and start describing your presentation.
+Open [http://localhost:5173](http://localhost:5173), configure your AI provider in Settings (gear icon), and start a new project.
 
 ### Available Scripts
 
@@ -58,8 +59,8 @@ Open [http://localhost:5173](http://localhost:5173), configure your AI provider 
 | `bun run dev` | Start Vite dev server with HMR |
 | `bun run build` | Type-check and production build |
 | `bun run preview` | Preview the production build locally |
-| `bun run lint` | Run ESLint |
 | `bun run typecheck` | Run TypeScript compiler check |
+| `bun run lint` | Run ESLint |
 
 ---
 
@@ -69,12 +70,51 @@ Open [http://localhost:5173](http://localhost:5173), configure your AI provider 
 |---|---|
 | Framework | React 19 + TypeScript (strict) |
 | Build | Vite 5 + Bun |
-| Presentation | reveal.js 5 |
+| Presentations | reveal.js 5 |
 | State | Zustand 5 |
 | Styling | Tailwind CSS 4 + shadcn/ui + Radix Primitives |
-| AI | Vercel AI SDK (`ai`) + provider adapters (`@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/google`) |
-| File Format | JSZip + FileSaver |
+| AI | Vercel AI SDK (`ai`) — `streamText`, `generateText`, `ToolLoopAgent` |
+| Provider adapters | `@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/google` |
+| Spreadsheets | DuckDB (WASM) |
+| Version history | `isomorphic-git` + `@isomorphic-git/lightning-fs` (IndexedDB) |
+| File format | JSZip + FileSaver |
 | Persistence | IndexedDB (idb-keyval) |
+
+---
+
+## Projects and the `.aura` File Format
+
+Each Aura project is saved as a `.aura` file, which is currently a standard zip archive. You can rename any `.aura` file to `.zip` and inspect its contents directly.
+
+The current implementation writes a package like this:
+
+```
+project.aura
+├── manifest.json           # Project id, title, artifact list, format version
+├── chat-history.json       # Full message history for continued editing
+├── project-rules.md        # Project-level style and output rules
+├── context-policy.json     # Context inclusion policy
+├── workflow-presets.json   # Saved workflow presets
+├── media/                  # Packaged media assets, when present
+├── memory/                 # Project memory tree
+└── documents/              # Artifact HTML, metadata, CSS, and spreadsheet Parquet data
+```
+
+The current format version is `2.4`. A clean replacement `.aura` format is planned, so treat this structure as current-state documentation rather than a long-term compatibility contract.
+
+---
+
+## Connecting AI Providers
+
+Click the provider icon in the toolbar to configure your connection. All API calls are made directly from your browser to the provider.
+
+| Provider | Notes |
+|---|---|
+| **OpenAI** | GPT-4o, o3, and other OpenAI models |
+| **Anthropic** | Claude models (Sonnet, Opus, Haiku) |
+| **Google Gemini** | Gemini Pro and Flash |
+| **DeepSeek** | OpenAI-compatible, budget-friendly |
+| **Ollama / local models** | Any OpenAI-compatible endpoint via custom base URL |
 
 ---
 
@@ -82,86 +122,54 @@ Open [http://localhost:5173](http://localhost:5173), configure your AI provider 
 
 ```
 src/
-├── components/           # React UI components
-│   ├── ui/               # shadcn/ui base components (Button, Dialog, etc.)
-│   ├── ChatBar.tsx        # Bottom chat input + message history
-│   ├── ChatMessage.tsx    # Individual message display
-│   ├── AIWorkingIndicator.tsx  # Generation loading state
-│   ├── PresentationCanvas.tsx  # reveal.js wrapper
-│   ├── Toolbar.tsx        # Top bar with actions
-│   └── ProviderModal.tsx  # AI provider settings dialog
+├── components/               # React UI components
+│   ├── ui/                   # shadcn/ui base components
+│   ├── ChatBar.tsx            # Chat input and active-run controls
+│   ├── PresentationCanvas.tsx # reveal.js wrapper
+│   ├── DocumentCanvas.tsx     # Document iframe renderer
+│   ├── SpreadsheetCanvas.tsx  # Spreadsheet grid
+│   ├── Toolbar.tsx            # Top bar actions
+│   └── ProjectSidebar.tsx     # Artifact navigation
 ├── services/
-│   ├── ai/               # AI provider adapters + prompt engineering
-│   ├── presentation/     # reveal.js lifecycle + themes
-│   └── storage/          # .aura file format + IndexedDB autosave
-├── stores/               # Zustand state stores
-├── types/                # Shared TypeScript types
-├── lib/                  # Utilities (cn helper, etc.)
-└── styles/               # Global CSS + theme tokens
+│   ├── ai/                   # AI workflow orchestration, prompts, templates
+│   │   ├── workflow/         # Orchestrators and agents (designer, evaluator, planner)
+│   │   ├── prompts/          # Prompt section modules
+│   │   └── templates/        # Visual theme registry and exemplar packs
+│   ├── artifactRuntime/      # Artifact generation runtimes (presentation, document, spreadsheet)
+│   ├── bootstrap/            # Starter kits and project initialization
+│   ├── chat/                 # Chat routing, run request building, progress
+│   ├── storage/              # .aura file format, autosave, version history
+│   └── runs/                 # Run registry, types, status
+├── stores/                   # Zustand state stores (chat, presentation, settings)
+├── types/                    # Shared TypeScript types
+└── styles/                   # Global CSS and theme tokens
 ```
 
 See [docs/architecture.md](docs/architecture.md) for a detailed architecture guide.
 
 ---
 
-## Configuring AI Providers
+## Current Limitations
 
-Aura supports four AI providers out of the box. Click the **gear icon** in the toolbar to configure:
-
-| Provider | Model | Notes |
-|---|---|---|
-| **OpenAI** | GPT-4o, GPT-4 | Best overall quality |
-| **Google Gemini** | Gemini Pro | Good value for cost |
-| **DeepSeek** | DeepSeek Chat | Budget-friendly, OpenAI-compatible |
-| **Anthropic** | Claude 3.5 | Strong at structured output |
-
-All API calls are made directly from your browser to the provider. **Aura never sees or stores your API key on any server.**
-
-You can also point OpenAI-compatible providers to a custom base URL for local models (Ollama, vLLM, etc.).
-
----
-
-## The `.aura` File Format
-
-A `.aura` file is a standard zip archive containing:
-
-```
-presentation.aura
-├── manifest.json       # Title, slide count, timestamps
-├── slides.html         # Raw <section> elements for reveal.js
-├── theme.css           # Custom CSS
-└── chat-history.json   # Message history for continued editing
-```
-
-You can rename any `.aura` file to `.zip` and inspect its contents. No lock-in.
+- Version history uses a shared git repository path; project isolation is planned for a future release.
+- Version history coverage is being refined so artifact-changing AI responses and manual user edits are captured consistently.
+- The `.aura` format is planned for a clean redesign; backwards compatibility with older `.aura` files is not a future requirement.
+- Screenshot-based slide quality validation is not yet implemented; validation is currently heuristic and LLM-based.
+- PDF and PPTX export are not yet available (HTML and email export are).
+- Cloud sync and collaboration are not planned for the near term; Aura is intentionally local-first.
 
 ---
 
 ## Contributing
 
-We welcome contributions! Please read [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for setup instructions, coding standards, and PR guidelines.
+Please read [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for setup instructions, coding standards, and PR guidelines.
 
-**Quick version:**
-
-1. Fork & clone
-2. `bun install && bun run dev`
-3. Create a feature branch (`feat/my-feature`)
-4. Make changes, run `bun run lint && bun run typecheck`
-5. Submit a PR with a clear description
-
----
-
-## Roadmap
-
-See [ROADMAP.md](ROADMAP.md) for the full project vision, phased roadmap, architecture decisions, and development principles.
-Immediate feature-planning docs are in [`docs/roadmap/`](docs/roadmap/).
-
-**What's next:**
-- Slide thumbnail strip
-- Export to PDF / PPTX
-- Speaker notes
-- Document mode (word processing)
-- Cloud sync & collaboration
+```bash
+# Fork, clone, then:
+bun install && bun run dev
+# Create a feature branch, make changes, then:
+bun run typecheck && bun run build
+```
 
 ---
 

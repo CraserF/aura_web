@@ -26,7 +26,7 @@ This tracker is the first place to update when work begins, moves, blocks, or co
 
 | ID | Workstream | Current Status | Next Milestone | Evidence To Attach | Last Updated |
 | --- | --- | --- | --- | --- | --- |
-| W0 | Documentation and README refresh | Not started | Delete active API/MCP docs and rewrite README around artifact value | PR link, deleted doc list, README diff, docs review notes | 2026-04-29 |
+| W0 | Documentation and README refresh | Done | Continue W1 cleanup of runtime API/MCP vocabulary | Active API/MCP roadmap docs deleted; README current-state claims corrected; program status aligned; review shortcomings resolved | 2026-04-29 |
 | W1 | Remove API, MCP, and external automation surfaces | Not started | Remove stale runtime vocabulary and simplify contracts while preserving provider APIs | Code diff, passing tests, provider settings smoke check | 2026-04-29 |
 | W2 | Starter kit visual variants | Not started | Ship 4 or 5 complete variant definitions with default color theme selection | Variant registry, New Project UI screenshots, generated artifact examples | 2026-04-29 |
 | W3 | UI simplification | Not started | Reduce visible toolbar/chat controls and hide project rules from normal workflows | Before/after screenshots, interaction notes, accessibility check | 2026-04-29 |
@@ -85,6 +85,186 @@ These patterns should guide every implementation slice. They are intentionally e
 - Keep the UI simple by default. Move diagnostics, run history, validation details, and advanced settings behind contextual or advanced surfaces.
 - Protect existing user work. Avoid destructive migrations, broad state resets, or history cleanup without a clear backup or fallback path.
 - Update documentation alongside behavior changes. If an implementation changes the product promise, update README, roadmap, architecture notes, and this tracker in the same slice.
+
+### Resolved W0 Review Shortcomings
+
+Review date: 2026-04-29
+
+Scope reviewed: Documentation pass touching `README.md`, `docs/program-status.md`, `docs/roadmap/api-platform-plan.md`, `docs/roadmap/mcp-integration-plan.md`, and `docs/phases/phase-10-api-mcp-and-automation-alignment.md`.
+
+Resolution stance: These findings were blocking during review and were resolved in the W0 cleanup. Keep this section as an audit trail for why the README and active docs were corrected.
+
+#### CR-1: API/MCP docs are archived instead of deleted from active documentation - resolved
+
+Severity: High
+
+Affected files:
+
+- `docs/roadmap/api-platform-plan.md`
+- `docs/roadmap/mcp-integration-plan.md`
+- `docs/program-status.md`
+
+Problem:
+
+The plan direction says old API/MCP docs should be deleted from active documentation, not archived as active roadmap material. The current documentation pass keeps both roadmap files in `docs/roadmap/` with archive banners, while the original goals and implementation plans remain immediately below the banner. `docs/program-status.md` also describes W0 as complete and says API/MCP roadmap docs were archived.
+
+Why it matters:
+
+- Readers can still discover API/MCP plans inside the active roadmap folder.
+- Search results and cross-links still make API/MCP look like live roadmap material.
+- This contradicts the product decision to remove API/MCP from the active direction.
+
+Required correction:
+
+- Delete the old API and MCP roadmap docs from active documentation.
+- Remove or rewrite links that point to them.
+- If a historical note is needed, keep it minimal and outside active roadmap positioning.
+- Do not call W0 complete until the deletion requirement is satisfied.
+
+Resolution applied:
+
+- `docs/roadmap/api-platform-plan.md` and `docs/roadmap/mcp-integration-plan.md` were deleted from active documentation.
+- `docs/program-status.md` now describes W0 as complete only after the deletion and README corrections.
+
+#### CR-2: Program status marks W0 complete before evidence supports completion - resolved
+
+Severity: High
+
+Affected file:
+
+- `docs/program-status.md`
+
+Problem:
+
+The current status text marks "Workstream 0 (complete)" even though the active plan tracker still requires deleting API/MCP docs, aligning the README with the plan, and attaching evidence. The implementation has not met the W0 exit criteria yet.
+
+Why it matters:
+
+- It creates false project status.
+- Future contributors may skip required cleanup because the status page says it is done.
+- It undermines the tracker as the source of truth.
+
+Required correction:
+
+- Change W0 to `Review`, `In progress`, or another non-complete state until all review findings are resolved.
+- Reference the plan tracker as the source of truth.
+- Attach evidence only after docs are actually deleted or intentionally replaced.
+
+Resolution applied:
+
+- W0 is marked `Done` in the tracker with explicit evidence after the blocking review findings were resolved.
+- Program status now names the completed cleanup and points back to this plan.
+
+#### CR-3: README `.aura` file structure does not match the current exporter - resolved
+
+Severity: High
+
+Affected file:
+
+- `README.md`
+
+Problem:
+
+The original README diff documented a `.aura` structure that did not match the current exporter. The current exporter in `src/services/storage/projectFormat.ts` writes `project-rules.md`, `context-policy.json`, `workflow-presets.json`, a `documents/` folder for presentations/documents/spreadsheets, and spreadsheet Parquet files under `documents/`.
+
+Why it matters:
+
+- Users inspecting `.aura` files will not find the documented paths.
+- Developers may build against the wrong package layout.
+- This is especially risky because the plan also calls for rebuilding `.aura` from scratch.
+
+Required correction:
+
+- Either document the current exporter accurately as a temporary current-state note, or remove detailed path promises until the new `.aura` format is designed.
+- Avoid implying the current shape is the desired long-term format.
+
+Resolution applied:
+
+- README now documents the current exporter shape using `project-rules.md`, `context-policy.json`, `workflow-presets.json`, `media/`, `memory/`, and `documents/`.
+- README now says this structure is current-state documentation, not a long-term compatibility contract.
+
+#### CR-4: README promises `.aura` backwards compatibility despite the reset decision - resolved
+
+Severity: Medium
+
+Affected file:
+
+- `README.md`
+
+Problem:
+
+The original README diff turned current v1 upgrade behavior into a future-facing product promise. That behavior exists in the current implementation, but it conflicts with the reviewed product decision that the `.aura` format should be rebuilt from scratch without backwards-compatibility requirements.
+
+Why it matters:
+
+- It turns current compatibility behavior into a product promise just before the format is supposed to be reset.
+- It makes future removal of compatibility look like a regression.
+
+Required correction:
+
+- Rephrase as a current implementation note only, or remove compatibility language from README.
+- Add a limitation or roadmap note that the `.aura` format is planned for a clean redesign.
+
+Resolution applied:
+
+- README no longer promises v1 upgrade compatibility.
+- README limitations now state that the `.aura` format is planned for a clean redesign and backwards compatibility is not a future requirement.
+
+#### CR-5: README overstates version history behavior - resolved
+
+Severity: Medium
+
+Affected file:
+
+- `README.md`
+
+Problem:
+
+The original README diff overstated version history coverage. The plan direction is more precise: commit persistent artifact-changing assistant responses and manual user changes, not every assistant response. The README also omitted manual changes, which are part of the desired history model, and the current limitations already admitted project history is not isolated yet.
+
+Why it matters:
+
+- Users may expect complete history coverage today.
+- Developers may optimize for committing every AI response rather than committing meaningful project state changes.
+- Manual edits could be treated as second-class even though they should be versioned.
+
+Required correction:
+
+- Describe version history as current local versioning support, with project isolation and manual-change coverage planned.
+- Avoid over-broad version-history promises unless tests prove the exact behavior.
+
+Resolution applied:
+
+- README now describes local version history as project changes that can be committed through `isomorphic-git`.
+- README limitations now call out project isolation and consistent artifact/manual-change coverage as refinement work.
+
+#### CR-6: README may overpromise artifact capabilities before validation evidence exists - resolved
+
+Severity: Medium
+
+Affected file:
+
+- `README.md`
+
+Problem:
+
+The README now advertises rich animations, SVG illustrations, spreadsheet query-derived sheets, computed columns, chart embedding, instant previews, and high-quality documents as broad capabilities. Some of these are active implementation areas or known validation gaps in the plan.
+
+Why it matters:
+
+- The README can create expectations ahead of current validation.
+- It blurs the line between current product behavior and the intended realignment.
+
+Required correction:
+
+- Keep README claims to capabilities that are validated today.
+- Move planned improvements to "Current limitations" or roadmap language.
+- For presentation animation and SVG art, say the product supports HTML/CSS/SVG-based decks today but that scaffolded motion/SVG systems are planned.
+
+Resolution applied:
+
+- README now describes presentations, documents, spreadsheets, and previews more conservatively.
+- The stronger scaffolded motion/SVG work remains in this plan rather than being advertised as fully shipped behavior.
 
 ## Executive Summary
 
@@ -270,17 +450,17 @@ Update all product documentation so it reflects the current value-focused direct
 
 This should be done after or alongside the code cleanup. The documentation should not describe a platform direction that the product no longer intends to pursue.
 
-### Current Documentation Issues
+### Original Documentation Issues
 
-The investigation found stale or conflicting documentation in several areas:
+The initial investigation found stale or conflicting documentation in several areas. W0 resolved the active-doc blockers, but the list remains here as historical context for why the cleanup was needed:
 
-- `README.md` still describes Aura as early alpha and presentation-focused.
-- `README.md` appears to underrepresent documents, spreadsheets, multi-artifact project files, and recent runtime improvements.
-- `docs/roadmap/api-platform-plan.md` presents API platform work as a plan.
-- `docs/roadmap/mcp-integration-plan.md` presents MCP work as a plan.
+- `README.md` previously described Aura as early alpha and presentation-focused.
+- `README.md` previously underrepresented documents, spreadsheets, multi-artifact project files, and recent runtime improvements.
+- `docs/roadmap/api-platform-plan.md` presented API platform work as a plan and was deleted from active documentation during W0.
+- `docs/roadmap/mcp-integration-plan.md` presented MCP work as a plan and was deleted from active documentation during W0.
 - `docs/phases/phase-10-api-mcp-and-automation-alignment.md` describes API/MCP alignment.
-- `docs/program-status.md` refers to Phase 10 API/MCP work as implemented or pending validation.
-- Some architecture documents already say external API/MCP seams have been removed, which conflicts with roadmap documents that still imply they are active goals.
+- `docs/program-status.md` previously referred to Phase 10 API/MCP work as implemented or pending validation.
+- Some architecture documents already said external API/MCP seams had been removed, which conflicted with roadmap documents that still implied they were active goals.
 
 ### Documentation Strategy
 
