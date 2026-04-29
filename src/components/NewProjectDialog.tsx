@@ -6,6 +6,12 @@ import type {
   StarterArtifactType,
 } from '@/services/bootstrap/types';
 import type { ProjectStarterKit } from '@/services/bootstrap/types';
+import {
+  DEFAULT_VISUAL_VARIANT_ID,
+  listVisualVariants,
+} from '@/services/bootstrap/visualVariants';
+import type { VisualVariantId } from '@/services/bootstrap/visualVariants';
+import type { ColorTheme } from '@/types/project';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,9 +23,9 @@ import {
 } from '@/components/ui/dialog';
 
 export type NewProjectSelection =
-  | { mode: 'blank' }
-  | { mode: 'starter-kit'; kitId: string }
-  | { mode: 'quick-start'; artifactType: StarterArtifactType; starterId: string };
+  | { mode: 'blank'; variantId: VisualVariantId; colorTheme: ColorTheme }
+  | { mode: 'starter-kit'; kitId: string; variantId: VisualVariantId; colorTheme: ColorTheme }
+  | { mode: 'quick-start'; artifactType: StarterArtifactType; starterId: string; variantId: VisualVariantId; colorTheme: ColorTheme };
 
 interface NewProjectDialogProps {
   open: boolean;
@@ -44,6 +50,8 @@ function describeQuickStartType(type: StarterArtifactType): string {
   }
 }
 
+const VARIANTS = listVisualVariants();
+
 export function NewProjectDialog({
   open,
   onOpenChange,
@@ -57,6 +65,10 @@ export function NewProjectDialog({
   const [selectedKitId, setSelectedKitId] = useState(starterKits[0]?.id ?? '');
   const [artifactType, setArtifactType] = useState<StarterArtifactType>('document');
   const [selectedStarterId, setSelectedStarterId] = useState(documentStarters[0]?.id ?? '');
+  const [variantId, setVariantId] = useState<VisualVariantId>(DEFAULT_VISUAL_VARIANT_ID);
+
+  const selectedVariant = VARIANTS.find((v) => v.id === variantId) ?? VARIANTS[0]!;
+  const [colorTheme, setColorTheme] = useState<ColorTheme>(selectedVariant.palette);
 
   useEffect(() => {
     if (!open) return;
@@ -64,7 +76,16 @@ export function NewProjectDialog({
     setSelectedKitId(starterKits[0]?.id ?? '');
     setArtifactType('document');
     setSelectedStarterId(documentStarters[0]?.id ?? '');
+    setVariantId(DEFAULT_VISUAL_VARIANT_ID);
+    const defaultVariant = VARIANTS.find((v) => v.id === DEFAULT_VISUAL_VARIANT_ID) ?? VARIANTS[0]!;
+    setColorTheme(defaultVariant.palette);
   }, [documentStarters, open, starterKits]);
+
+  const handleVariantChange = (id: VisualVariantId) => {
+    setVariantId(id);
+    const variant = VARIANTS.find((v) => v.id === id);
+    if (variant) setColorTheme(variant.palette);
+  };
 
   const starterOptions = artifactType === 'document'
     ? documentStarters
@@ -81,12 +102,12 @@ export function NewProjectDialog({
 
   const handleCreate = () => {
     if (mode === 'blank') {
-      onSubmit({ mode: 'blank' });
+      onSubmit({ mode: 'blank', variantId, colorTheme });
       return;
     }
 
     if (mode === 'starter-kit' && selectedKitId) {
-      onSubmit({ mode: 'starter-kit', kitId: selectedKitId });
+      onSubmit({ mode: 'starter-kit', kitId: selectedKitId, variantId, colorTheme });
       return;
     }
 
@@ -95,6 +116,8 @@ export function NewProjectDialog({
         mode: 'quick-start',
         artifactType,
         starterId: selectedStarterId,
+        variantId,
+        colorTheme,
       });
     }
   };
@@ -224,6 +247,72 @@ export function NewProjectDialog({
               </div>
             </div>
           )}
+
+          {/* Visual direction */}
+          <div className="space-y-3 rounded-xl border border-border p-4">
+            <p className="text-sm font-medium text-foreground">Visual direction</p>
+            <div className="grid grid-cols-5 gap-2">
+              {VARIANTS.map((variant) => (
+                <button
+                  key={variant.id}
+                  type="button"
+                  onClick={() => handleVariantChange(variant.id)}
+                  className={`rounded-lg border p-2 text-left transition-colors ${
+                    variantId === variant.id
+                      ? 'border-foreground bg-muted/40'
+                      : 'border-border hover:border-muted-foreground'
+                  }`}
+                >
+                  <div
+                    className="mb-1.5 h-5 w-full overflow-hidden rounded"
+                    style={{ background: variant.palette.primary }}
+                  >
+                    <div
+                      className="h-full w-1/3"
+                      style={{ background: variant.palette.accent }}
+                    />
+                  </div>
+                  <p className="text-xs font-medium leading-tight">{variant.label}</p>
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">{selectedVariant.shortDescription}</p>
+
+            {/* Color theme editing */}
+            <div className="flex items-center gap-3 pt-0.5">
+              <span className="text-xs text-muted-foreground">Colors</span>
+              <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
+                <input
+                  type="color"
+                  value={colorTheme.background}
+                  onChange={(e) => setColorTheme((t) => ({ ...t, background: e.target.value }))}
+                  className="h-5 w-5 cursor-pointer rounded border-0 bg-transparent p-0"
+                  title="Background"
+                />
+                BG
+              </label>
+              <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
+                <input
+                  type="color"
+                  value={colorTheme.primary}
+                  onChange={(e) => setColorTheme((t) => ({ ...t, primary: e.target.value }))}
+                  className="h-5 w-5 cursor-pointer rounded border-0 bg-transparent p-0"
+                  title="Primary"
+                />
+                Primary
+              </label>
+              <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
+                <input
+                  type="color"
+                  value={colorTheme.accent}
+                  onChange={(e) => setColorTheme((t) => ({ ...t, accent: e.target.value }))}
+                  className="h-5 w-5 cursor-pointer rounded border-0 bg-transparent p-0"
+                  title="Accent"
+                />
+                Accent
+              </label>
+            </div>
+          </div>
         </div>
 
         <DialogFooter>

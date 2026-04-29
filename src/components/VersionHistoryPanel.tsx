@@ -3,7 +3,7 @@ import { History, GitCommit, RotateCcw, X, Clock } from 'lucide-react';
 import { listVersions, readVersionSnapshot } from '@/services/storage/versionHistory';
 import { normalizeProjectData } from '@/services/projectRules/load';
 import { useProjectStore } from '@/stores/projectStore';
-import type { VersionEntry, ProjectDocument } from '@/types/project';
+import type { VersionEntry, ProjectDocument, ColorTheme } from '@/types/project';
 import type { ChatMessage } from '@/types';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -58,6 +58,8 @@ export function VersionHistoryPanel({ open, onClose }: VersionHistoryPanelProps)
         title: string;
         updatedAt: number;
         activeDocumentId?: string | null;
+        visualVariantId?: string;
+        colorTheme?: ColorTheme;
       };
       const chatHistory = JSON.parse(snapshot.chatHistory) as ChatMessage[];
       const contextPolicy = JSON.parse(snapshot.contextPolicy) as typeof project.contextPolicy;
@@ -80,6 +82,8 @@ export function VersionHistoryPanel({ open, onClose }: VersionHistoryPanelProps)
         activeDocumentId: restoredActiveDocumentId,
         chatHistory,
         media: media ?? undefined,
+        visualVariantId: manifest.visualVariantId,
+        colorTheme: manifest.colorTheme,
         projectRules: {
           markdown: snapshot.projectRules,
           updatedAt: manifest.updatedAt,

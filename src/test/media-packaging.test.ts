@@ -59,6 +59,7 @@ describe('media packaging', () => {
 
   it('writes media assets and relative document refs into project archives', async () => {
     const { downloadProjectFile } = await import('@/services/storage/projectFormat');
+    const colorTheme = { background: '#0f0f1a', primary: '#ffffff', accent: '#f59e0b' };
 
     await downloadProjectFile({
       id: 'project-1',
@@ -85,6 +86,8 @@ describe('media packaging', () => {
       }],
       activeDocumentId: 'doc-1',
       chatHistory: [],
+      visualVariantId: 'launch',
+      colorTheme,
       media: [{
         id: 'media-1',
         filename: 'hero.png',
@@ -98,6 +101,10 @@ describe('media packaging', () => {
     });
 
     expect(String(writtenFiles['documents/doc-1.html']?.value)).toContain('src="media/hero.png"');
+    expect(JSON.parse(String(writtenFiles['manifest.json']?.value))).toEqual(expect.objectContaining({
+      visualVariantId: 'launch',
+      colorTheme,
+    }));
     expect(writtenFiles['media/manifest.json']).toBeDefined();
     expect(writtenFiles['media/hero.png']).toBeDefined();
   });
@@ -120,6 +127,8 @@ describe('media packaging', () => {
               documentCount: 1,
               activeDocumentId: 'doc-1',
               visibility: 'private',
+              visualVariantId: 'research',
+              colorTheme: { background: '#f8fafc', primary: '#1e3a5f', accent: '#0891b2' },
               createdAt: 1,
               updatedAt: 2,
             }),
@@ -178,5 +187,7 @@ describe('media packaging', () => {
     expect(project.media?.[0]?.dataUrl).toContain('data:image/png;base64,');
     expect(project.documents[0]?.contentHtml).toContain('data:image/png;base64,');
     expect(project.documents[0]?.starterRef?.artifactKey).toBe('brief');
+    expect(project.visualVariantId).toBe('research');
+    expect(project.colorTheme).toEqual({ background: '#f8fafc', primary: '#1e3a5f', accent: '#0891b2' });
   });
 });

@@ -45,6 +45,8 @@ export async function downloadProjectFile(project: ProjectData): Promise<void> {
     documentCount: project.documents.length,
     activeDocumentId: project.activeDocumentId,
     visibility: project.visibility,
+    visualVariantId: project.visualVariantId,
+    colorTheme: project.colorTheme,
     createdAt: project.createdAt,
     updatedAt: Date.now(),
   };
@@ -237,6 +239,8 @@ export async function openProjectFile(file: File): Promise<ProjectData> {
     chatHistory,
     memoryTree,
     media,
+    visualVariantId: manifest.visualVariantId,
+    colorTheme: manifest.colorTheme,
     projectRules: {
       markdown: projectRulesMarkdown,
       updatedAt: manifest.updatedAt,

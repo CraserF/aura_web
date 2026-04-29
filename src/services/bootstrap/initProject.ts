@@ -6,6 +6,10 @@ import {
 import { createInitReport } from './initReport';
 import { buildStarterArtifact, createProjectDocumentFromStarter } from './projectStarter';
 import { getProjectStarterKit } from './starterKits';
+import {
+  buildVariantRulesBlock,
+  getVisualVariant,
+} from './visualVariants';
 import type {
   InitProjectOptions,
   InitReport,
@@ -46,6 +50,8 @@ function mergeProjectStarterKit(
         projectRulesMarkdown: starterKitOrOptions.projectRulesMarkdown ?? starterKit.projectRulesMarkdown,
         contextPolicyOverrides: starterKitOrOptions.contextPolicyOverrides ?? starterKit.contextPolicyOverrides,
         workflowPresets: starterKitOrOptions.workflowPresets ?? starterKit.workflowPresets,
+        visualVariantId: starterKitOrOptions.visualVariantId,
+        colorTheme: starterKitOrOptions.colorTheme,
       };
     }
   }
@@ -241,8 +247,21 @@ export async function initProject(
   const items: InitReportItem[] = [];
   let nextProject = { ...project };
 
+  // Build combined rules: variant traits block prepended to any starter rules
+  let combinedRulesMarkdown = options.projectRulesMarkdown;
+  if (options.visualVariantId) {
+    const variant = getVisualVariant(options.visualVariantId);
+    if (variant) {
+      const effectiveColorTheme = options.colorTheme ?? variant.palette;
+      const variantBlock = buildVariantRulesBlock(variant, effectiveColorTheme);
+      combinedRulesMarkdown = options.projectRulesMarkdown?.trim()
+        ? `${variantBlock}\n\n${options.projectRulesMarkdown}`
+        : variantBlock;
+    }
+  }
+
   nextProject = mergeProjectTitle(nextProject, items, options.defaultProjectTitle);
-  nextProject = mergeProjectRules(nextProject, items, options.projectRulesMarkdown);
+  nextProject = mergeProjectRules(nextProject, items, combinedRulesMarkdown);
   nextProject = mergeContextPolicy(nextProject, items, options.contextPolicyOverrides);
   nextProject = mergeWorkflowPresets(nextProject, items, options.workflowPresets);
 
@@ -286,6 +305,8 @@ export async function initProject(
     ...nextProject,
     documents: nextDocuments,
     activeDocumentId: nextProject.activeDocumentId ?? firstArtifactId,
+    ...(options.visualVariantId !== undefined && { visualVariantId: options.visualVariantId }),
+    ...(options.colorTheme !== undefined && { colorTheme: options.colorTheme }),
     updatedAt: Date.now(),
   };
 

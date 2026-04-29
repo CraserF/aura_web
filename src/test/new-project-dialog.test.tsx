@@ -68,6 +68,8 @@ import { useSettingsStore } from '@/stores/settingsStore';
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+const DEFAULT_COLOR_THEME = { background: '#ffffff', primary: '#1a1a2e', accent: '#2563eb' };
+
 function flushEffects(): Promise<void> {
   return act(async () => {
     await Promise.resolve();
@@ -168,6 +170,22 @@ describe('Toolbar new project dialog', () => {
   });
 
   it('creates a blank project through the dialog path', async () => {
+    initProjectMock.mockResolvedValue({
+      project: {
+        ...createBlankProjectMock(),
+        visualVariantId: 'executive',
+        colorTheme: DEFAULT_COLOR_THEME,
+      },
+      report: {
+        ranAt: 1,
+        projectId: 'blank-project',
+        items: [],
+        createdCount: 0,
+        updatedCount: 0,
+        skippedCount: 0,
+      },
+    });
+
     useProjectStore.getState().addDocument({
       id: 'doc-1',
       title: 'Existing',
@@ -189,7 +207,11 @@ describe('Toolbar new project dialog', () => {
     await flushEffects();
 
     expect(useProjectStore.getState().project.documents).toHaveLength(0);
-    expect(initProjectMock).not.toHaveBeenCalled();
+    expect(useProjectStore.getState().project.visualVariantId).toBe('executive');
+    expect(initProjectMock).toHaveBeenCalledWith(expect.any(Object), {
+      visualVariantId: 'executive',
+      colorTheme: DEFAULT_COLOR_THEME,
+    });
 
     view.unmount();
   });
@@ -230,7 +252,11 @@ describe('Toolbar new project dialog', () => {
     clickButtonByText('Create project');
     await flushEffects();
 
-    expect(initProjectMock).toHaveBeenCalledWith(expect.any(Object), { starterKitId: 'executive-briefing' });
+    expect(initProjectMock).toHaveBeenCalledWith(expect.any(Object), {
+      starterKitId: 'executive-briefing',
+      visualVariantId: 'executive',
+      colorTheme: DEFAULT_COLOR_THEME,
+    });
     expect(useProjectStore.getState().project.title).toBe('Executive Briefing');
 
     view.unmount();
@@ -280,6 +306,8 @@ describe('Toolbar new project dialog', () => {
         type: 'spreadsheet',
         starterId: 'project-tracker',
       }],
+      visualVariantId: 'executive',
+      colorTheme: DEFAULT_COLOR_THEME,
     });
     expect(useProjectStore.getState().project.documents[0]?.type).toBe('spreadsheet');
 

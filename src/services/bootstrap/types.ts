@@ -1,11 +1,13 @@
 import type {
   ContextPolicyOverride,
+  ColorTheme,
   DocumentType,
   ProjectDocumentStarterRef,
   WorkflowPresetCollection,
 } from '@/types/project';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
 import type { ArtifactRuntimeTelemetry } from '@/services/ai/workflow/types';
+import type { VisualVariantId } from '@/services/bootstrap/visualVariants';
 
 export type StarterArtifactType = DocumentType;
 
@@ -62,6 +64,8 @@ export interface InitProjectOptions {
   projectRulesMarkdown?: string;
   contextPolicyOverrides?: ContextPolicyOverride;
   workflowPresets?: WorkflowPresetCollection;
+  visualVariantId?: VisualVariantId;
+  colorTheme?: ColorTheme;
 }
 
 export type InitStatus = 'created' | 'updated' | 'skipped';

@@ -58,6 +58,8 @@ async function writeProjectFiles(project: ProjectData): Promise<void> {
         id: project.id,
         title: project.title,
         activeDocumentId: project.activeDocumentId,
+        visualVariantId: project.visualVariantId,
+        colorTheme: project.colorTheme,
         updatedAt: project.updatedAt,
       },
       null,

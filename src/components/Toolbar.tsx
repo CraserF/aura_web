@@ -114,31 +114,31 @@ export function Toolbar({
   const runNewSelection = async (selection: NewProjectSelection) => {
     setToolbarError(null);
 
-    if (selection.mode === 'blank') {
-      resetProject();
-      clearMessages();
-      setInitReport(null);
-      return;
-    }
-
     setIsCreatingProject(true);
     try {
       const baseProject = createBlankProject();
-      const initResult = selection.mode === 'starter-kit'
-        ? await initProject(baseProject, { starterKitId: selection.kitId })
-        : await initProject(baseProject, {
-            artifacts: [{
-              key: 'primary',
-              type: selection.artifactType,
-              starterId: selection.starterId,
-            }],
-          });
+      const sharedVariantOptions = {
+        visualVariantId: selection.variantId,
+        colorTheme: selection.colorTheme,
+      };
+      const initResult = selection.mode === 'blank'
+        ? await initProject(baseProject, sharedVariantOptions)
+        : selection.mode === 'starter-kit'
+          ? await initProject(baseProject, { starterKitId: selection.kitId, ...sharedVariantOptions })
+          : await initProject(baseProject, {
+              artifacts: [{
+                key: 'primary',
+                type: selection.artifactType,
+                starterId: selection.starterId,
+              }],
+              ...sharedVariantOptions,
+            });
 
       resetProject();
       setProject(initResult.project);
       clearMessages();
-      setInitReport(initResult.report);
-      setInitReportOpen(true);
+      setInitReport(selection.mode === 'blank' ? null : initResult.report);
+      setInitReportOpen(selection.mode !== 'blank');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error creating project';
       setToolbarError(`Failed to create project: ${message}`);

@@ -10,6 +10,13 @@ import type { MemoryDirectory } from '@/services/memory';
 export type DocumentType = 'document' | 'presentation' | 'spreadsheet';
 export type ArtifactLifecycleState = 'draft' | 'reviewing' | 'approved' | 'published' | 'stale';
 
+/** Color theme applied to all artifacts in a project */
+export interface ColorTheme {
+  background: string;
+  primary: string;
+  accent: string;
+}
+
 export interface WorkbookMeta {
   sheets: SheetMeta[];
   activeSheetIndex: number;
@@ -205,6 +212,8 @@ export interface ProjectData {
   projectRules?: ProjectRulesDocument;
   contextPolicy?: ContextPolicy;
   workflowPresets?: WorkflowPresetCollection;
+  visualVariantId?: string;
+  colorTheme?: ColorTheme;
   sections: ProjectSections;
   createdAt: number;
   updatedAt: number;
@@ -220,6 +229,8 @@ export interface ProjectManifest {
   documentCount: number;
   activeDocumentId?: string | null;
   visibility?: ProjectVisibility;
+  visualVariantId?: string;
+  colorTheme?: ColorTheme;
   createdAt: number;
   updatedAt: number;
 }

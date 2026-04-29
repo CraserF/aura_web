@@ -73,6 +73,43 @@ describe('initProject', () => {
     }
   });
 
+  it('applies visual variant rules and metadata to blank projects', async () => {
+    const colorTheme = { background: '#101010', primary: '#ffffff', accent: '#22c55e' };
+    const base = createBlankProject();
+
+    const { project, report } = await initProject(base, {
+      visualVariantId: 'launch',
+      colorTheme,
+    });
+
+    expect(project.documents).toHaveLength(0);
+    expect(project.visualVariantId).toBe('launch');
+    expect(project.colorTheme).toEqual(colorTheme);
+    expect(project.projectRules?.markdown).toContain('## Visual Direction: Launch');
+    expect(project.projectRules?.markdown).toContain(
+      'Color palette - background: #101010; primary: #ffffff; accent: #22c55e.',
+    );
+    expect(report.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'project-rules', status: 'created' }),
+    ]));
+  });
+
+  it('prepends visual variant rules ahead of starter kit rules', async () => {
+    const colorTheme = { background: '#ffffff', primary: '#1e293b', accent: '#7c3aed' };
+    const base = createBlankProject();
+
+    const { project } = await initProject(base, {
+      starterKitId: 'launch-plan',
+      visualVariantId: 'teaching',
+      colorTheme,
+    });
+
+    expect(project.projectRules?.markdown.startsWith('## Visual Direction: Teaching')).toBe(true);
+    expect(project.projectRules?.markdown).toContain('# Project rules');
+    expect(project.visualVariantId).toBe('teaching');
+    expect(project.colorTheme).toEqual(colorTheme);
+  });
+
   it('reruns idempotently without duplicating artifacts or overwriting user edits', async () => {
     const base = createBlankProject();
     const firstPass = await initProject(base, { starterKitId: 'research-pack' });
