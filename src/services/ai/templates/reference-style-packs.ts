@@ -8,7 +8,13 @@ export type ReferenceStylePackId =
   | 'presentation-editorial-light'
   | 'presentation-finance-grid-light'
   | 'presentation-quiz-show'
-  | 'document-professional-light';
+  | 'document-professional-light'
+  | 'document-executive-light'
+  | 'document-editorial-light'
+  | 'document-proposal-light'
+  | 'document-research-light'
+  | 'document-playbook-light'
+  | 'document-infographic-light';
 
 export interface ReferenceStylePack {
   id: ReferenceStylePackId;
@@ -239,6 +245,174 @@ const REFERENCE_STYLE_PACKS: Record<ReferenceStylePackId, ReferenceStylePack> = 
       'Do not reuse real business cases, names, locations, figures, or sector framing from the source references.',
     ],
     syntheticExample: `<article class="doc-shell theme-editorial-light"><header class="doc-header"><div class="doc-eyebrow">Executive Brief</div><h1>Program Overview</h1><p class="doc-lead">A cleaner, lighter professional document with one clear thesis and disciplined supporting modules.</p></header><section class="doc-proof-strip"><strong>Recommendation</strong><p>Lead with a concise position and support it with one structured evidence band.</p></section></article>`,
+  },
+  'document-executive-light': {
+    id: 'document-executive-light',
+    artifactType: 'document',
+    label: 'Executive Light Document',
+    summary: 'A decision-ready executive document with a strong hero summary, compact KPI module, and one clear recommendation band — designed for quick senior review.',
+    typography: [
+      'Use a high-contrast condensed or bold sans for the title and a clean readable sans for body copy.',
+      'Keep metadata labels and status badges small but legible; avoid tiny annotation text.',
+    ],
+    paletteRules: [
+      'Use a light paper or off-white base with one disciplined blue or teal accent for key signals.',
+      'Use accent color on borders, status chips, and the recommendation band only — not as background fills.',
+    ],
+    layoutRules: [
+      'Lead with a concise hero row: title, status badge, and one-sentence lead.',
+      'Follow with a compact KPI or metadata grid, then one recommendation or decision callout.',
+      'Keep sections short and scannable with visual resets every one to two blocks.',
+    ],
+    motionRules: [
+      'Keep the document static and print-friendly.',
+      'Do not introduce ambient animations or background motion.',
+    ],
+    confidentialityRules: [
+      'Use synthetic priorities, ownership labels, and status badges only.',
+      'Do not include real decision names, leadership titles, project codes, or organization details.',
+    ],
+    syntheticExample: `<article class="doc-shell"><header class="doc-header"><div class="doc-eyebrow">Executive Brief</div><div class="doc-title-row"><h1>Decision Snapshot</h1><span class="doc-status-badge">REVIEW</span></div><p class="doc-lead">A concise view of the key constraint and the recommended next move.</p></header><div class="doc-kpi-grid"><div class="doc-kpi"><div class="doc-kpi-value">01</div><div class="doc-kpi-label">Decision</div></div><div class="doc-kpi"><div class="doc-kpi-value">03</div><div class="doc-kpi-label">Priorities</div></div></div><section class="doc-proof-strip"><strong>Recommendation</strong><p>Prioritize the clearest execution path to reduce decision drag.</p></section></article>`,
+  },
+  'document-editorial-light': {
+    id: 'document-editorial-light',
+    artifactType: 'document',
+    label: 'Editorial Light Document',
+    summary: 'A premium editorial document with asymmetric rhythm, pull quotes, and evidence blocks — designed to feel like a polished report or magazine-style analysis.',
+    typography: [
+      'Pair a strong editorial heading (serif or high-contrast sans) with a quiet body sans.',
+      'Use pull quotes and section eyebrows to create rhythm rather than uniform paragraph breaks.',
+    ],
+    paletteRules: [
+      'Use a paper-white or light cream base with a single restrained accent for section dividers and pull quotes.',
+      'Reserve saturated color for the evidence band or one highlight module only.',
+    ],
+    layoutRules: [
+      'Alternate between narrative sections and structured evidence modules (comparison cards, KPI bands, pull quotes).',
+      'Give at least one section an editorial side-rail or asymmetric accent treatment.',
+      'Avoid repeating the same section template back-to-back.',
+    ],
+    motionRules: [
+      'Keep the document largely static and readable.',
+      'Allow subtle fade-in or section accent only where the content calls for emphasis.',
+    ],
+    confidentialityRules: [
+      'Use synthetic category names, signal labels, and editorial framing only.',
+      'Do not carry over real case narratives, sector claims, or findings from reference material.',
+    ],
+    syntheticExample: `<article class="doc-shell"><header class="doc-header"><div class="doc-eyebrow">Editorial Report</div><h1 class="doc-title-gradient">Three Signals Worth Watching</h1><p class="doc-lead">A narrative-led analysis with evidence blocks and premium editorial pacing.</p></header><div class="doc-story-grid"><article class="doc-story-card"><div class="doc-kpi-label">Signal 01</div><h3>Demand is consolidating</h3><p>Buyers are moving toward fewer, more integrated options.</p></article><aside class="doc-story-card"><div class="doc-kpi-label">Why it matters</div><p>Positioning clarity now matters as much as raw feature count.</p></aside></div><section class="doc-proof-strip"><strong>Editorial thesis</strong><p>A clear evidence band turns the narrative into a memorable decision point.</p></section></article>`,
+  },
+  'document-proposal-light': {
+    id: 'document-proposal-light',
+    artifactType: 'document',
+    label: 'Proposal Light Document',
+    summary: 'A structured proposal document with value proposition framing, current-vs-proposed comparison, proof strips, and clear next-step modules.',
+    typography: [
+      'Use a confident heading font with a structured sans for body and module labels.',
+      'Keep section headings short and action-oriented.',
+    ],
+    paletteRules: [
+      'Use a clean light base with one teal or blue accent for the value proposition and CTA areas.',
+      'Use muted separators and proof strip borders to reinforce structure without decoration.',
+    ],
+    layoutRules: [
+      'Frame the document as a proposal board: value proposition, evidence, comparison, and next steps.',
+      'Use proof strips and comparison modules instead of plain narrative blocks.',
+      'Close with a clear commitment or next-step callout.',
+    ],
+    motionRules: [
+      'Keep the document static and presentation-safe.',
+      'Do not use animations or ambient motion in proposal documents.',
+    ],
+    confidentialityRules: [
+      'Use synthetic value propositions, program names, and comparison labels only.',
+      'Do not include real client names, contract values, sector specifics, or timeline details.',
+    ],
+    syntheticExample: `<article class="doc-shell"><header class="doc-header"><div class="doc-eyebrow">Strategic Proposal</div><h1>From Current State to Target State</h1><p class="doc-lead">A structured proposal with value framing, evidence, and a clear path forward.</p></header><div class="doc-comparison"><div class="doc-comparison-col"><h3>Current State</h3><p>Describe the gap or friction to be resolved.</p></div><div class="doc-comparison-col"><h3>Proposed State</h3><p>Describe the target outcome and why it is achievable.</p></div></div><section class="doc-proof-strip"><strong>Next Step</strong><p>One clear commitment action with an owner and a time horizon.</p></section></article>`,
+  },
+  'document-research-light': {
+    id: 'document-research-light',
+    artifactType: 'document',
+    label: 'Research Light Document',
+    summary: 'A disciplined research document with clean methodology framing, structured findings blocks, and evidence-first presentation — designed for professional research summaries and assessments.',
+    typography: [
+      'Use a professional sans or clean serif for headings with a quiet readable sans for body copy.',
+      'Keep annotation and citation text at a consistent small size; do not mix font weights arbitrarily.',
+    ],
+    paletteRules: [
+      'Use a clean neutral or light cool base with one accent color for findings highlights and methodology markers.',
+      'Avoid decorative or saturated palette choices; let content hierarchy carry the visual weight.',
+    ],
+    layoutRules: [
+      'Lead with context and methodology framing, then structure findings into clearly labeled blocks.',
+      'Use tidy evidence cards or finding modules instead of long uninterrupted prose.',
+      'Keep the layout professional and structured rather than academic and flat.',
+    ],
+    motionRules: [
+      'Keep the document fully static and print-friendly.',
+      'Research documents should not use animations or transition effects.',
+    ],
+    confidentialityRules: [
+      'Use synthetic study labels, methodology names, and finding summaries only.',
+      'Do not include real study participants, proprietary research data, or identifiable sector findings.',
+    ],
+    syntheticExample: `<article class="doc-shell"><header class="doc-header"><div class="doc-eyebrow">Research Summary</div><h1>Findings Overview</h1><p class="doc-lead">A structured summary of methodology, key findings, and implications.</p></header><section class="doc-methodology-band"><h2>Methodology</h2><p>Describe the approach, scope, and any relevant constraints in a concise framing block.</p></section><div class="doc-findings-grid"><article class="doc-finding-card"><div class="doc-kpi-label">Finding 01</div><h3>Primary Pattern</h3><p>State the finding clearly and support it with one evidence note.</p></article><article class="doc-finding-card"><div class="doc-kpi-label">Finding 02</div><h3>Supporting Signal</h3><p>A secondary finding that reinforces or contextualizes the primary pattern.</p></article></div></article>`,
+  },
+  'document-playbook-light': {
+    id: 'document-playbook-light',
+    artifactType: 'document',
+    label: 'Playbook Light Document',
+    summary: 'An operational playbook document with process rails, progress modules, numbered steps, and compact callouts — designed for guides, runbooks, and onboarding documents.',
+    typography: [
+      'Use a structured sans for headings and step labels; keep body copy clean and instruction-oriented.',
+      'Number steps visually and keep instruction text concise — one action per step.',
+    ],
+    paletteRules: [
+      'Use a clean white or very light neutral base with one teal or green accent for progress indicators and step markers.',
+      'Use muted borders to distinguish procedural blocks from supporting notes.',
+    ],
+    layoutRules: [
+      'Make procedural flow obvious at a glance with numbered steps, phase rails, or checklist modules.',
+      'Use compact operational callouts for warnings, tips, and prerequisites.',
+      'Keep sections short and action-oriented rather than narrative.',
+    ],
+    motionRules: [
+      'Keep the document fully static.',
+      'Process and operational documents should not use animations.',
+    ],
+    confidentialityRules: [
+      'Use synthetic process names, step labels, and tool references only.',
+      'Do not include real system credentials, proprietary process details, or identifiable workflow specifics.',
+    ],
+    syntheticExample: `<article class="doc-shell"><header class="doc-header"><div class="doc-eyebrow">Process Playbook</div><h1>Setup Guide</h1><p class="doc-lead">A step-by-step operational guide with clear phases, actions, and checkpoints.</p></header><section class="doc-phase-rail"><div class="doc-phase-step"><span class="doc-step-number">01</span><div><h3>Prepare</h3><p>Verify prerequisites and confirm the target environment is ready.</p></div></div><div class="doc-phase-step"><span class="doc-step-number">02</span><div><h3>Configure</h3><p>Apply the required settings using the provided reference values.</p></div></div><div class="doc-phase-step"><span class="doc-step-number">03</span><div><h3>Validate</h3><p>Run the verification check and confirm the expected output matches the target state.</p></div></div></section></article>`,
+  },
+  'document-infographic-light': {
+    id: 'document-infographic-light',
+    artifactType: 'document',
+    label: 'Infographic Light Document',
+    summary: 'A compressed infographic document with dominant visual summary modules, KPI bands, comparison strips, and minimal prose — designed for one-pagers, scorecards, and snapshot briefs.',
+    typography: [
+      'Use large, bold metric numbers and short labels; keep prose to a minimum.',
+      'Let the numbers and module labels carry the reading hierarchy.',
+    ],
+    paletteRules: [
+      'Use a clean light base with 2–3 disciplined accents for module differentiation.',
+      'Favor teal, blue, and one warm accent; use color through borders and metric fills, not background panels.',
+    ],
+    layoutRules: [
+      'Compress the message into a few strong visual modules: KPI band, comparison strip, and one summary callout.',
+      'Use infographic bands and visual summary modules instead of long narrative sections.',
+      'Keep the total document height short enough to read at a glance.',
+    ],
+    motionRules: [
+      'Keep the document fully static and shareable.',
+      'Infographic documents should not include any motion effects.',
+    ],
+    confidentialityRules: [
+      'Use synthetic metrics, category labels, and summary values only.',
+      'Do not include real figures, brand names, performance data, or identifiable reference material.',
+    ],
+    syntheticExample: `<article class="doc-shell doc-infographic"><header class="doc-header doc-infographic-header"><div class="doc-eyebrow">Snapshot Brief</div><h1>Program at a Glance</h1></header><div class="doc-kpi-grid"><div class="doc-kpi"><div class="doc-kpi-value">94%</div><div class="doc-kpi-label">On track</div></div><div class="doc-kpi"><div class="doc-kpi-value">12</div><div class="doc-kpi-label">Milestones</div></div><div class="doc-kpi"><div class="doc-kpi-value">3</div><div class="doc-kpi-label">Open risks</div></div></div><div class="doc-comparison"><div class="doc-comparison-col"><h3>Strengths</h3><p>Delivery velocity and team alignment are consistently strong.</p></div><div class="doc-comparison-col"><h3>Watch Items</h3><p>One dependency remains unresolved and requires escalation this cycle.</p></div></div></article>`,
   },
 };
 

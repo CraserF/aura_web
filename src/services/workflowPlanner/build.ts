@@ -115,7 +115,15 @@ function resolveReferenceStylePackId(input: BuildArtifactWorkflowPlanInput, pres
   }
 
   if (input.artifactType === 'document' && documentThemeFamily) {
-    return 'document-professional-light' as const;
+    const documentFamilyPackMap: Record<DocumentThemeFamily, import('@/services/ai/templates').ReferenceStylePackId> = {
+      'executive-light': 'document-executive-light',
+      'editorial-light': 'document-editorial-light',
+      'proposal-light': 'document-proposal-light',
+      'research-light': 'document-research-light',
+      'playbook-light': 'document-playbook-light',
+      'infographic-light': 'document-infographic-light',
+    };
+    return documentFamilyPackMap[documentThemeFamily];
   }
 
   return undefined;
