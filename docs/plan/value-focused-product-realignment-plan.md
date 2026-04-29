@@ -8,6 +8,84 @@ Scope: Product direction, codebase cleanup, documentation refresh, starter kit v
 
 Primary constraint for this document: This is a planning artifact only. It does not implement the changes. The intended follow-up work should be completed in focused implementation slices.
 
+## Plan Tracker
+
+This tracker is the first place to update when work begins, moves, blocks, or completes. Keep it current so a developer, reviewer, or product collaborator can understand progress without rereading the full plan.
+
+### Status Legend
+
+- `Not started`: No implementation work has begun.
+- `Scoping`: The slice is being broken into concrete tasks, file ownership, and acceptance checks.
+- `In progress`: Code or documentation changes are actively underway.
+- `Blocked`: Work cannot continue without a decision, dependency, or investigation.
+- `Review`: Implementation is ready for code review, product review, or design review.
+- `Done`: Acceptance criteria are met, tests or checks have run, and documentation is updated.
+- `Deferred`: The workstream remains valid but is intentionally moved out of the current release slice.
+
+### Workstream Tracker
+
+| ID | Workstream | Current Status | Next Milestone | Evidence To Attach | Last Updated |
+| --- | --- | --- | --- | --- | --- |
+| W0 | Documentation and README refresh | Not started | Delete active API/MCP docs and rewrite README around artifact value | PR link, deleted doc list, README diff, docs review notes | 2026-04-29 |
+| W1 | Remove API, MCP, and external automation surfaces | Not started | Remove stale runtime vocabulary and simplify contracts while preserving provider APIs | Code diff, passing tests, provider settings smoke check | 2026-04-29 |
+| W2 | Starter kit visual variants | Not started | Ship 4 or 5 complete variant definitions with default color theme selection | Variant registry, New Project UI screenshots, generated artifact examples | 2026-04-29 |
+| W3 | UI simplification | Not started | Reduce visible toolbar/chat controls and hide project rules from normal workflows | Before/after screenshots, interaction notes, accessibility check | 2026-04-29 |
+| W4 | Explicit chat and run progress | Not started | Show step counts, slide counts, queue state, and repair attempt counts | Progress event tests, UI screenshots, long-run screen recording or notes | 2026-04-29 |
+| W5 | Project-scoped version control | Not started | Create unique repo/git history per project and commit artifact-changing/manual edits | Unit tests, integration test, history panel screenshot | 2026-04-29 |
+| W6 | New `.aura` format and optional history export | Not started | Design replacement format without backwards compatibility and add export-with-history option | Format spec, export/import tests, unsupported legacy-file behavior | 2026-04-29 |
+| W7 | Presentation quality recovery | Not started | Add layout-first slide scaffolds, motion presets, SVG motifs, and quality checks | Benchmark deck outputs, render checks, prompt/runtime diff | 2026-04-29 |
+| W8 | Document scaffolding | Not started | Add independent document section/theme scaffolds and slot-based edits | Document examples, section registry, edit tests | 2026-04-29 |
+| W9 | Validation and release process | Not started | Define benchmark set and prototype agent-in-the-app QA with local model where feasible | Test matrix, benchmark results, local QA notes | 2026-04-29 |
+
+### Milestone Tracker
+
+| Milestone | Target Outcome | Required Workstreams | Status | Exit Criteria |
+| --- | --- | --- | --- | --- |
+| M1: Direction cleanup | Product docs and UI language stop pointing toward API/MCP | W0, W1 | Not started | Old API/MCP docs deleted, README rewritten, provider API distinction clear |
+| M2: Better starts | Users can start with a strong visual variant and editable default color theme | W2, W3 | Not started | 4 or 5 variants available, color theme confirm/edit path exists, project rules hidden |
+| M3: Visible work | Long-running creation and editing flows explain their steps | W4 | Not started | Chat shows step count, slide/section count, queue state, and repair attempts |
+| M4: Project ownership | Each project owns its version history and export behavior | W5, W6 | Not started | Histories do not mix, new `.aura` format works, history export is optional |
+| M5: Presentation recovery | Decks regain strong visual quality with scaffolded animation and SVG art | W7, W9 | Not started | Benchmark decks are visibly better, motion/SVG guardrails pass, render checks pass |
+| M6: Document recovery | Documents use independent scaffolds and slot-based editing | W8, W9 | Not started | Document examples are polished, edits target sections/slots, validation passes |
+
+### Tracking Instructions
+
+1. Update this tracker at the start and end of every implementation slice.
+2. Change status only when there is evidence. Do not mark work `Done` because code was written; mark it `Done` only when acceptance criteria, checks, and documentation are complete.
+3. Add evidence in the tracker row before asking for review. Evidence can be a PR, commit, screenshot, benchmark output, test name, or short note pointing to a file.
+4. Keep workstreams separate unless a slice intentionally spans them. If a PR touches multiple workstreams, update every affected tracker row.
+5. When work is blocked, set status to `Blocked` and write the exact blocking decision or dependency in the evidence column.
+6. When scope changes, update this tracker and the relevant workstream section in the same change.
+7. When a milestone completes, confirm all required workstreams are `Done` or explicitly `Deferred`.
+8. Keep dates current. If no one has touched a row in more than a week during active implementation, review whether it is stale.
+9. Do not use the tracker as a substitute for tests, benchmarks, screenshots, or product review. The tracker points to evidence; it is not the evidence itself.
+10. Preserve the review decisions in this document unless product direction changes explicitly.
+
+### Developer Patterns To Observe
+
+These patterns should guide every implementation slice. They are intentionally explicit so future contributors can use this plan as an operating guide, not just a roadmap.
+
+- Work in small, reviewable slices. Avoid broad rewrites that mix docs, storage, UI, prompt changes, and runtime behavior without a clear reason.
+- Read the existing local pattern before changing a subsystem. Prefer current services, types, stores, and component conventions over new abstractions.
+- Preserve provider API access. Removing API/MCP means removing external Aura API, MCP, and automation product surfaces, not removing model provider settings or BYOK flows.
+- Delete old API/MCP docs from active documentation. Do not leave stale roadmap material that makes those features look planned.
+- Treat project rules as internal defaults. Do not expand the visible rules UI; prefer natural-language changes and good defaults.
+- Build structured metadata instead of prose-only control. Variants, themes, layouts, slots, motion presets, SVG motifs, and versioning behavior should be typed where practical.
+- Scaffold first, then ask the AI to populate. Presentation and document generation should start from known layouts, section modules, slots, and design tokens.
+- Keep document and presentation systems independent. They can share product concepts, but each artifact type should optimize for its own quality requirements.
+- Use restrictive defaults with controlled escape hatches. Customization should be possible, but the normal path should protect design quality.
+- Make progress observable. Any long-running creation or edit flow should emit step count, item count, queue state, repair attempt, and current action.
+- Bound repair loops. Every repair path needs a maximum attempt count, visible progress, and a fallback behavior.
+- Keep version history project-scoped. Never write new work into a shared global repo path.
+- Commit persistent project changes, not every chat response. Artifact-changing AI responses and manual user edits should create history entries; pure conversation should not.
+- Rebuild the `.aura` format cleanly. Do not preserve legacy compatibility unless product direction changes.
+- Make history export optional. Default export should stay lean; "Export with history" should be explicit.
+- Validate visual quality, not just code shape. Use render checks, screenshots, benchmark prompts, and product review for presentation and document work.
+- Scaffold CSS animations and SVG art. Use approved motion presets, SVG motif families, reduced-motion fallbacks, bounds checks, and motion budgets.
+- Keep the UI simple by default. Move diagnostics, run history, validation details, and advanced settings behind contextual or advanced surfaces.
+- Protect existing user work. Avoid destructive migrations, broad state resets, or history cleanup without a clear backup or fallback path.
+- Update documentation alongside behavior changes. If an implementation changes the product promise, update README, roadmap, architecture notes, and this tracker in the same slice.
+
 ## Executive Summary
 
 Aura should become more value focused, simpler to understand, and more reliable at producing polished artifacts. The current product has several strong foundations: project files, multi-artifact state, presentation and document runtimes, project rules, starter kits, model provider settings, and a version history service. The next phase should concentrate those foundations into fewer, clearer workflows.
