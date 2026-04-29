@@ -21,8 +21,9 @@ The product should instead emphasize:
 - A minimal interface that exposes the main path and keeps advanced diagnostics out of the way.
 - Transparent chat progress that tells the user what is happening and how many steps remain.
 - Project-specific version control so each project has its own history.
-- Exportable `.aura` files that can preserve project history where feasible.
+- A rebuilt `.aura` project format that works cleanly from first principles, with optional history export.
 - Presentation and document scaffolds that guide the agent, instead of asking the model to invent layout and design from scratch every time.
+- Presentation scaffolds that preserve the stronger CSS animation and SVG art direction Aura had before, but with strict motion budgets and reusable art systems so output stays polished.
 
 The highest leverage change is the design-system approach for documents and presentations. Aura should provide prebuilt themes, templates, slide layouts, document section layouts, content slots, text-fitting rules, and validation tools. The AI should usually populate and lightly customize these structures, rather than fully authoring HTML/CSS in an unconstrained way. This will make artifacts more consistent, faster to generate, easier to edit, and less likely to regress into boring slides, tiny fonts, broken layout, or endless repair loops.
 
@@ -59,6 +60,22 @@ Several focused codebase investigations were run in parallel:
 - Presentation and document workflow investigation, including comparison against main branch behavior from roughly one week earlier.
 
 The investigation found that many of the desired changes are directionally aligned with the codebase already. Several API/MCP implementation directories are already empty or inactive, and some tests already assert that removed external adapters do not return. The next phase is therefore less about tearing out a large active platform and more about finishing the product cleanup, documentation cleanup, type cleanup, UI cleanup, and user-facing repositioning.
+
+## Review Decisions
+
+These decisions were made after review of the initial plan and should be treated as product constraints for the implementation phases:
+
+- The `.aura` format does not need backwards compatibility. Rebuild it from scratch so it works properly for current and future projects.
+- Exporting with version history should be an explicit option, not the default export path.
+- Import identity can go either way, but import behavior should be decided by whether the user imports with history. If history is imported, preserving the original project identity is more likely to be correct. If no history is imported, creating a new project identity is likely safer.
+- The first visual variant release should include only 4 or 5 high-quality, extensive variants. The architecture should support growing to around 10 variants later.
+- A default color theme should be chosen automatically. The user can accept it, edit it before artifact creation, and edit it later.
+- Presentation themes and document themes should be independent. They can share product vocabulary, but they should not be forced into a shared theme implementation.
+- Slot schemas should be flexible enough to allow customization, but the default should be more restrictive and organized than today's loose freeform design path.
+- Old API/MCP docs should be deleted from active documentation, not archived as active roadmap material.
+- Project rules should be almost completely hidden. Defaults should be good enough, and most changes should happen through natural-language user input rather than a visible rules editor.
+- Version history should prefer artifact-changing responses and user manual changes. It should not commit every assistant response if no project artifact changed.
+- CSS animations and SVG art should be part of the presentation quality plan. They should be scaffolded and bounded so the product gets expressive slides without chaotic motion or excessive decoration.
 
 ## Product Direction
 
@@ -222,10 +239,11 @@ Recommended structure:
 
 ### Documentation Changes To Make
 
-Remove or archive:
+Delete from active documentation:
 
 - API platform roadmap language.
 - MCP integration roadmap language.
+- Old API/MCP roadmap documents.
 - Any claim that external automation is a near-term product pillar.
 - Any user-facing language that implies Aura is mainly an integration platform.
 
@@ -242,7 +260,7 @@ Preserve:
 - Provider API key guidance.
 - Local-first project and export language.
 - Artifact runtime documentation.
-- Tests and docs that explain why external adapters are intentionally absent, if those docs are useful for maintainers.
+- Minimal maintainer notes explaining that external adapters are intentionally absent, if that prevents accidental reintroduction.
 
 ### README Positioning Draft
 
@@ -301,9 +319,11 @@ When this plan says "remove API," it means external Aura API product features an
 
 Several implementation areas appear already cleaned up:
 
-- `src/services/adapters/` exists but is empty.
-- `src/services/executionSpec/` exists but is empty.
+- `src/services/adapters/` has already been deleted entirely — the directory does not exist.
+- `src/services/executionSpec/` has already been deleted entirely — the directory does not exist.
 - No active package dependencies were found for common MCP or backend platform libraries such as `@modelcontextprotocol`, `hono`, `supabase`, `better-auth`, `inngest`, or `bullmq`.
+
+This means Layer 4 of the removal strategy (removing empty directories) is already done. The remaining work is Layer 1 (documentation), Layer 2 (UI audit), and Layer 3 (runtime contracts).
 
 However, several legacy concepts remain:
 
@@ -370,9 +390,10 @@ Possible implementation path:
 
 #### Layer 4: Empty Directories And Tests
 
-Once all references are gone:
+The adapter and execution spec directories have already been deleted. No action is needed there.
 
-- Remove empty adapter and execution spec directories if the repository convention allows it.
+Remaining tasks:
+
 - Keep tests that guard against reintroducing external adapters only if they remain valuable.
 - Avoid preserving tests that force dead vocabulary into the codebase.
 
@@ -430,7 +451,7 @@ The current presentation quick-start set includes examples such as:
 - `executive-briefing-light`
 - `launch-narrative-light`
 
-Project rules already include user-editable prose fields such as output mode and visual style, but those fields are not strong enough to drive consistent artifact design.
+Project rules already include user-editable prose fields such as output mode and visual style, but those fields are not strong enough to drive consistent artifact design. They also should not become a primary customization surface. The long-term assumption should be that project rules are excellent by default and are adjusted through natural-language user input when needed.
 
 ### Product Direction
 
@@ -443,7 +464,9 @@ The user should not have to write a prompt such as "make it more modern and high
 
 ### Proposed Visual Variants
 
-Start with 6 or 7 curated variants. Each variant should be opinionated enough to produce a visible difference but flexible enough to work across presentations and documents.
+Start with 4 or 5 curated variants in the first release. Each initial variant should be high-quality, extensive, and complete enough to carry real workflows. The architecture should support growing to around 10 variants later, but the first pass should favor depth over breadth.
+
+The full target library can include the variants below. The first implementation should choose the strongest 4 or 5 from this set rather than shipping all of them at partial quality.
 
 #### 1. Executive
 
@@ -606,6 +629,7 @@ export interface VisualVariant {
   };
   presentationThemeId: string;
   documentThemeId: string;
+  colorThemeId: string;
   documentStylePreset?: string;
   layoutFamilies: string[];
   promptTraits: string[];
@@ -615,6 +639,8 @@ export interface VisualVariant {
 
 The exact type should match local code style, but the concept should be explicit: the variant is not prose only. It should be structured product metadata.
 
+Presentation and document theme ids should be separate. A variant can map to both, but document themes and presentation themes should be developed independently so each artifact type can optimize for its own layout, typography, and interaction needs.
+
 ### Where The Variant Should Flow
 
 Thread the selected variant through:
@@ -623,7 +649,7 @@ Thread the selected variant through:
 - `InitProjectOptions`.
 - Starter kit initialization.
 - Project metadata.
-- Project rules default content.
+- Internal project defaults, including hidden project rules when needed.
 - Presentation runtime prompt context.
 - Document runtime prompt context.
 - Quick-start artifact creation.
@@ -649,7 +675,9 @@ Recommended UI:
 - Each variant appears as a small swatch with name and 1-line description.
 - Use color chips and small layout thumbnails rather than verbose text.
 - Select a recommended default automatically.
-- Show no more than 6 or 7 visible options.
+- Show no more than 4 or 5 visible options in the first release.
+- Choose a default color theme automatically.
+- Let the user accept the default color theme, edit it before the first artifact is created, and edit it later from artifact or project settings.
 
 Avoid:
 
@@ -673,6 +701,7 @@ For presentations:
 - Provide content slot budgets.
 - Provide typography scale.
 - Provide color variables.
+- Provide animation and SVG art presets where the chosen variant supports them.
 
 For documents:
 
@@ -690,10 +719,13 @@ For interactive artifacts:
 ### Acceptance Criteria
 
 - Users can select a visual variant during starter kit creation.
+- First release includes 4 or 5 complete, high-quality variants.
+- The variant model can grow to around 10 variants later.
 - The variant is saved with the project.
 - The variant influences starter artifacts.
 - The variant influences presentation creation.
 - The variant influences document creation.
+- The user can accept or edit the default color theme before artifact creation.
 - The variant is represented as structured metadata, not only prose.
 - The UI remains compact and simple.
 
@@ -775,7 +807,7 @@ Secondary surfaces behind menus:
 - Run history.
 - Project init report.
 - Provider diagnostics.
-- Project rules.
+- Project rules only in a deeply advanced/debug location.
 - Advanced context controls.
 - Debug payloads.
 - Detailed version history.
@@ -829,7 +861,7 @@ Contextual or collapsed controls:
 - Presets.
 - Context chips.
 - Runs.
-- Advanced project rules.
+- Advanced project rules only as an escape hatch, not a normal workflow.
 
 When the user starts a new project or artifact, the UI can show guided choices. During normal editing, the chat bar should stay minimal.
 
@@ -865,6 +897,7 @@ Adopt these UI rules for future implementation:
 - No duplicate ways to do the same thing in the same viewport.
 - No technical run state in the default surface.
 - Advanced controls should exist, but stay out of the main path.
+- Project rules should be almost completely hidden; users should normally change behavior by asking Aura directly.
 
 ### Acceptance Criteria
 
@@ -992,12 +1025,21 @@ The UI should never appear to spin forever with no progress changes.
 
 ### Implementation Notes
 
-Current progress-related code appears around:
+A progress infrastructure already exists and should be extended rather than replaced:
 
-- Presentation runtime progress events.
-- Batch queue progress events.
-- Chat handlers.
-- Artifact runtime types.
+- `src/services/chat/workflowProgress.ts` — currently handles step-label normalization (`publicWorkflowProgressLabel`), step upsert logic, and event-to-step-update conversion for all artifact types. It maps step IDs like `slide-3`, `evaluate`, `finalize`, `document-module-2` to human labels and status. This is the right extension point for adding total step count and slide count.
+
+The current system does not yet expose total step count or queue depth to the chat UI. The extension work is:
+
+- Thread total slide count and total document section count into progress events.
+- Add queue depth to batch queue events.
+- Extend `workflowProgress.ts` to carry and display count context.
+
+Current progress-related code also appears around:
+
+- Presentation runtime progress events and heartbeat in `presentationRuntime.ts`.
+- Batch queue progress events in `batchQueue.ts`.
+- Chat message handlers.
 - Run history.
 
 The next implementation should normalize progress events across artifact runtimes so the UI does not have one-off behavior for every artifact type.
@@ -1025,7 +1067,7 @@ Potential UI component:
 
 ### Goal
 
-Refine version control so each project gets a unique repository/git instance. When a user creates a new project, it should not share history with previous projects. If feasible, the git history should be exported with the `.aura` file.
+Refine version control so each project gets a unique repository/git instance. When a user creates a new project, it should not share history with previous projects. Rebuild the `.aura` format from scratch around this model, and make git history export an explicit option.
 
 ### Current State
 
@@ -1049,7 +1091,22 @@ Current `.aura` export format:
 
 - `projectFormat.ts` writes a current project format, observed as `2.4`.
 - The project package includes manifest, chat, rules, context, presets, media, memory, documents, HTML/CSS/meta, and spreadsheet Parquet data.
-- `fileFormat.ts` still supports a legacy presentation-only format and `projectFormat.ts` can upgrade v1 input to a project.
+- `fileFormat.ts` still supports a legacy presentation-only format and `projectFormat.ts` can upgrade v1 input to a project, but the next implementation does not need to preserve this compatibility.
+
+### Format Reset Decision
+
+The next `.aura` project format should be recreated from scratch. Backwards compatibility with legacy `.aura` files is no longer a requirement.
+
+This is a deliberate simplification. The new format should prioritize:
+
+- Correct project structure.
+- Complete artifact coverage.
+- Clean version-history boundaries.
+- Simple validation.
+- Safe import behavior.
+- Future extensibility.
+
+The implementation can remove legacy v1/v2 upgrade paths once the replacement format is ready. If there is concern about old local files during development, the product can show a clear unsupported-file message rather than carrying compatibility code forward.
 
 Current version history:
 
@@ -1080,7 +1137,7 @@ Every project should have:
 - Its own version history.
 - History created when the project is created or imported.
 - Commits that represent coherent project states.
-- Optional exportable history inside `.aura`.
+- Optional exportable history inside `.aura`, enabled by an explicit "Export with history" path.
 
 Starting a new project should feel like creating a new repository.
 
@@ -1133,13 +1190,15 @@ Current commits can happen inside individual handlers before all project, chat, 
 
 Preferred behavior:
 
-- Run or edit completes.
+- Artifact-changing run, edit, or manual user change completes.
 - Project store updates.
 - Chat message updates.
 - Memory or metadata updates complete.
 - Then a central post-run commit happens.
 
 This creates more coherent history.
+
+Do not commit every assistant response. Commit when a project artifact, project metadata, user-editable document, spreadsheet, presentation, media item, or other persistent project asset changes. Manual user edits should be committed using the same project-scoped mechanism as AI-generated edits.
 
 Recommended commit messages:
 
@@ -1174,7 +1233,7 @@ The serializer should know the complete expected file list and remove anything e
 
 ### `.aura` History Export
 
-The `.aura` format should optionally include history.
+The `.aura` format should optionally include history. This should be a user-facing export option, not the default behavior.
 
 Recommended structure:
 
@@ -1226,7 +1285,7 @@ Cons:
 Recommended initial approach:
 
 - Implement project-scoped repos first.
-- Add `.aura` history export as an optional flag.
+- Add `.aura` history export as an explicit "Export with history" option.
 - Start with a compact manifest and either raw git export or linear snapshots depending on implementation complexity.
 - If raw git export is too large, allow "Export with history" and "Export current project only" as separate options.
 
@@ -1236,6 +1295,8 @@ When importing a `.aura` file:
 
 - If history is present, restore it into the project-scoped repo.
 - If history is absent, initialize a fresh repo and create an import commit.
+- If history is present, preserving the original project id is likely correct because the repo history belongs to that identity.
+- If history is absent, assigning a fresh project id is likely safer because the import behaves like a new local copy.
 - Validate paths to prevent traversal.
 - Validate manifest version.
 - Reject or safely ignore unknown history payloads.
@@ -1246,14 +1307,15 @@ When importing a `.aura` file:
 Add focused tests:
 
 - New project A and project B have separate histories.
-- Importing a project creates a separate history.
+- Importing a project without history creates a separate history.
+- Importing a project with history restores its own history without mixing into another project.
 - `.aura` export without history still works.
 - `.aura` export with history round-trips.
 - Deleting an artifact removes it from the repo snapshot.
 - Spreadsheet data is preserved.
 - Memory tree and project metadata are preserved.
 - Corrupt or path-traversal history payloads are rejected.
-- Legacy v1 `.aura` import still works.
+- Legacy `.aura` files are rejected with a clear unsupported-format result.
 
 ### Acceptance Criteria
 
@@ -1262,9 +1324,11 @@ Add focused tests:
 - Importing a project starts or restores its own history.
 - Version history panel only shows versions for the active project.
 - Commits represent coherent completed changes.
+- Commits are created for artifact-changing assistant responses and user manual changes, not for every chat response.
 - Deleted artifacts do not remain in snapshots.
-- `.aura` export can include history if feasible.
+- `.aura` export can include history through an explicit export option.
 - `.aura` import restores history when included.
+- The new `.aura` format does not carry legacy backwards-compatibility requirements.
 
 ## Workstream 6: Presentation Workflow Recovery And Quality
 
@@ -1289,13 +1353,41 @@ The current presentation workflow has several problems:
 
 ### Current Architecture
 
-Current presentation runtime areas include:
+The presentation workflow is a two-layer system. Both layers need to be understood before planning recovery work.
 
-- `src/services/artifactRuntime/presentationRuntime.ts`
-- `src/services/artifactRuntime/presentationPrompts.ts`
-- `src/services/ai/workflow/batchQueue.ts`
-- `src/services/artifactRuntime/presentationQualityChecklist.ts`
-- `src/components/chat/handlers/presentationHandler.ts`
+#### Outer runtime layer (orchestration)
+
+These files live in `src/services/artifactRuntime/` and own the overall presentation lifecycle:
+
+- `src/services/artifactRuntime/presentationRuntime.ts` — main orchestrator: calls planner, runs batch queue, coordinates design → evaluate → finalize phases, handles repair, emits progress events
+- `src/services/artifactRuntime/presentationPrompts.ts` — system and user prompt builders consumed by the designer and evaluator agents
+- `src/services/artifactRuntime/presentationQualityChecklist.ts` — programmatic heuristic QA checks: font-size, HTML structure, slot presence, etc.
+- `src/services/artifactRuntime/qualityDecision.ts` — decides whether to trigger a polish pass based on checklist results
+- `src/services/artifactRuntime/promptPacks.ts` — reusable contract pack builders for presentation fragment rules, readability baselines, and quality bar guidance; consumed by `presentationPrompts.ts`
+- `src/services/artifactRuntime/starterPresentationRuntime.ts` — static template scaffolding runtime for quick-start presentations; builds slide HTML from template tokens and slot extraction
+- `src/services/artifactRuntime/presentation.ts` — helpers for applying run plan metadata and building slide briefs
+
+#### Inner AI workflow layer
+
+These files live in `src/services/ai/workflow/` and own the AI calls:
+
+- `src/services/ai/workflow/presentation.ts` — thin model-setup shell: constructs the `LanguageModel`, resolves provider capability profile, and delegates entirely to `runPresentationRuntime()`
+- `src/services/ai/workflow/batchQueue.ts` — concurrent slide generation queue; calls the designer for each slide in parallel with bounded concurrency
+- `src/services/ai/workflow/agents/planner.ts` — intent classification, style and palette detection, animation level selection
+- `src/services/ai/workflow/agents/designer.ts` — ToolLoopAgent slide designer; streams a draft for instant preview, then runs a `validateSlideHtml → submitFinalSlide` tool loop to fix issues
+- `src/services/ai/workflow/agents/evaluator.ts` — LLM-based quality judge (`evaluateAndRevise()`); runs after the designer and scores the slide on layout, typography, color, animation, content, and accessibility; triggers a targeted revision pass if the score is below threshold
+- `src/services/ai/workflow/agents/qa-validator.ts` — programmatic QA used as a tool inside the ToolLoopAgent
+
+#### Prompt and template system
+
+The prompts fed to the designer and evaluator are built from a layered system in `src/services/ai/`:
+
+- `src/services/ai/prompts/sections/` — modular prompt sections: `base.ts`, `narrative.ts`, `layout.ts`, `typography.ts`, `animation.ts`, `svg.ts`, `anti-patterns.ts`, `modern-patterns.ts`, `decorative.ts`, `quality.ts`, `template-examples.ts`
+- `src/services/ai/templates/registry.ts` — typed `TemplateId` union; production template IDs include `executive-briefing-light`, `launch-narrative-light`, `editorial-light`, `finance-grid-light`, `stage-setting-light`, `interactive-quiz`, `split-world`
+- `src/services/ai/templates/selector.ts` — pattern-based routing to select a template based on user intent
+- `src/services/ai/templates/resolver.ts` / `exemplar-packs.ts` / `reference-style-packs.ts` — resolve and provide visual exemplar HTML to guide generation style
+- `src/services/ai/templates/palettes.ts` — color palette definitions per template
+- `src/services/ai/templates/design-system.ts` — design system token guidance
 
 Current strengths:
 
@@ -1311,11 +1403,12 @@ Current strengths:
 
 Current risks:
 
-- The old active prompt composer was removed from the main flow.
-- Rich legacy template exemplars no longer appear to guide generation strongly.
-- Quality scoring is largely heuristic and code-based rather than screenshot-based.
-- Motion rules may be misaligned with current prompt guidance.
-- Some progress behavior may not surface enough detail.
+- Template selection via `selector.ts` uses heuristic pattern-matching that may not reliably route to the right visual family for all prompts.
+- The LLM evaluator in `evaluator.ts` scores slides after generation, but the quality criteria are prompt-described rather than driven by typed layout contracts or slot definitions — it can identify issues but cannot enforce structural constraints.
+- The designer generates freeform slide HTML rather than populating known layout slots. This means quality is model-dependent and varies across requests.
+- Progress heartbeats exist in `presentationRuntime.ts` but do not expose slide-by-slide count or repair attempt number in the chat UI. The `workflowProgress.ts` label system maps step IDs but not total counts.
+- Repair loops are bounded but the bound is not always clearly surfaced to the user.
+- The `starterPresentationRuntime.ts` template scaffolding is used for quick-start decks only, not for all generated slides.
 
 ### Historical Comparison
 
@@ -1329,15 +1422,18 @@ Relevant commits:
 
 The older workflow appears to have produced stronger visual output because it gave the model more concrete visual direction.
 
-Historical strengths:
+The current template and exemplar system in `src/services/ai/templates/` is still active and provides visual direction to the designer. The `selector.ts` pattern-router, `registry.ts` template IDs, `exemplar-packs.ts`, and `reference-style-packs.ts` all feed HTML exemplar guidance into the design prompts. This system is a strength to build on, not a gap to fill from scratch.
 
-- A prompt composer injected specific template examples and visual art direction.
-- Template routing selected distinctive families such as keynote, tech architecture, sci-fi, data dashboard, editorial magazine, infographic grid, timeline, and pitch deck.
-- Legacy template files were large and detailed enough to serve as practical style references.
+The key quality gap is structural: the designer generates freeform slide HTML on every request. Even with rich template guidance, the model can produce inconsistent hierarchy, small fonts, and weak layouts when no slot contract enforces the output shape. The design system approach in this plan is therefore additive — replacing unconstrained HTML generation with layout-first slot population while keeping the existing template routing and exemplar system intact.
+
+Historical strengths worth preserving:
+
+- Template routing selected distinctive families (executive-briefing, launch-narrative, editorial, finance-grid, stage-setting, etc.) and this routing system still exists in `selector.ts`.
+- Exemplar packs and reference style packs gave the model concrete HTML references, and `exemplar-packs.ts` and `reference-style-packs.ts` still provide this.
 - Old prompts included blunt, simple output rules.
-- The old batch pattern gave the first slide a full design prompt, then reused the shared style for later slides.
+- The batch queue gave the first slide a full design prompt, then reused the shared style for later slides — this pattern still exists in `batchQueue.ts`.
 
-The older workflow was not necessarily architecturally better. The current runtime appears more robust in many ways. The key lesson is that the old workflow gave the model richer design scaffolding.
+The older workflow was not necessarily architecturally better. The current runtime is more robust in many ways. The key lesson is that the old workflow gave the model more layout scaffolding, and some of that structural guidance is what the design system approach should formalize.
 
 ### Strategic Direction
 
@@ -1357,15 +1453,64 @@ The new presentation system should provide:
 - Theme registry.
 - Slide layout registry.
 - Content slots.
+- CSS animation presets.
+- SVG art and motif presets.
 - Type scale.
 - Color tokens.
 - Spacing tokens.
 - Component patterns.
+- Motion budgets.
 - Repair rules.
 - Screenshot validation.
 - Text fitting.
 
 Every generated slide should be based on a known layout type unless the user explicitly asks for a custom freeform slide.
+
+### CSS Animation And SVG Art
+
+Previous stronger presentation workflows used CSS animations and SVG art more effectively. The recovery plan should explicitly preserve that capability, but move it into scaffolded systems so it remains polished and restrained.
+
+CSS animation should not be left to unconstrained model invention. Each presentation theme should define a small set of approved motion presets:
+
+- Subtle fade and rise for section reveals.
+- Staggered item reveal for timelines and lists.
+- Gentle emphasis pulse for a single key metric.
+- Controlled path draw for diagrams or process flows.
+- Optional scene entrance for cover or section-breaker slides.
+
+Each motion preset should define:
+
+- Allowed CSS keyframes.
+- Maximum duration.
+- Maximum number of animated elements.
+- Whether it is allowed on content-heavy slides.
+- Reduced-motion fallback.
+- Validation rules.
+
+SVG art should also be scaffolded. Themes can provide reusable SVG motif families:
+
+- Abstract product shapes.
+- Timeline connectors.
+- Data-grid accents.
+- Editorial frames.
+- Process diagrams.
+- Icon-backed section markers.
+- Lightweight illustrative backgrounds.
+
+The model should usually choose and populate an existing SVG motif rather than invent arbitrary SVG from scratch. Freeform SVG can remain possible for advanced custom requests, but default generation should use approved motifs with slots for labels, values, colors, and simple geometry.
+
+Animation and SVG guardrails:
+
+- No uncontrolled decorative motion.
+- No animation on every element.
+- No tiny animated text.
+- No complex SVG that competes with slide content.
+- No motion that breaks readability.
+- Always support reduced-motion behavior.
+- Validate that SVGs render inside the slide bounds.
+- Validate that animated elements do not cover important content.
+
+This gives Aura a path back to expressive, premium slides while avoiding the old failure mode where animations or art become noisy, inconsistent, or broken.
 
 ### Slide Layout Library
 
@@ -1396,6 +1541,8 @@ Each layout should define:
 - Minimum font sizes.
 - Preferred visual density.
 - Allowed components.
+- Allowed animation presets.
+- Allowed SVG motif slots.
 - Responsive behavior.
 - Repair strategy.
 
@@ -1410,6 +1557,8 @@ interface SlideLayoutDefinition {
   minFontSize: number;
   maxBullets?: number;
   supportsMedia: boolean;
+  allowedMotionPresets?: string[];
+  allowedSvgMotifs?: string[];
   qualityRules: string[];
 }
 ```
@@ -1472,7 +1621,11 @@ The user should not wait for an entire deck-level process if the edit affects on
 
 ### Quality Controls
 
-Add or strengthen checks for:
+An LLM-based quality evaluator already exists in `src/services/ai/workflow/agents/evaluator.ts`. It scores slides 1–10 across six categories (layout, typography, color, animation, content, accessibility) and triggers a targeted revision pass when the score falls below threshold or critical issues are found. The evaluator is gated by provider capability profile — some providers skip it.
+
+The evaluator is a strength to build on. Its current limitation is that it identifies problems after freeform generation rather than preventing them through layout constraints. The design system approach reduces what the evaluator needs to catch by giving the designer a slot contract upfront.
+
+Strengthen or add checks for:
 
 - Minimum font size.
 - Text overflow.
@@ -1485,6 +1638,8 @@ Add or strengthen checks for:
 - Broken HTML/CSS.
 - External image URLs if not allowed.
 - Unsupported animation or motion patterns.
+- Excessive animation count or duration.
+- SVGs that overflow, obscure content, or fail to render.
 
 ### Screenshot-Based QA
 
@@ -1504,19 +1659,32 @@ The workflow can start with basic render checks and grow over time.
 
 ### Prompt Recovery
 
-Recover the useful parts of the older workflow:
+The current template and prompt system already provides rich guidance:
 
-- Concrete style examples.
+- `src/services/ai/templates/selector.ts` — routes to the right visual family by pattern.
+- `src/services/ai/templates/exemplar-packs.ts` and `reference-style-packs.ts` — inject reference HTML.
+- `src/services/ai/prompts/sections/` — modular guidance sections covering layout, typography, animation, SVG, anti-patterns, and quality.
+- `src/services/artifactRuntime/promptPacks.ts` — contract packs enforcing output shape and readability baselines.
+
+The recovery work is not about restoring a deleted system. It is about adding the missing structural layer: layout definitions, slot contracts, and text budgets that the model can be given before it writes HTML, rather than only scoring output after it is generated.
+
+Preserve and extend:
+
+- Existing template routing and exemplar packs.
 - Template-specific visual language.
-- Layout exemplars.
-- Strong anti-patterns.
-- Clear output contract.
+- Existing anti-pattern sections.
+- Clear output contract in `promptPacks.ts`.
+
+Add:
+
+- Typed slot schemas that the designer can receive per layout.
+- Text budget constraints embedded in slot definitions.
+- Pre-generation layout selection so the model knows which layout to fill.
+- Reference exemplar HTML attached to specific layouts, not just themes.
 
 Do not recover:
 
 - Unbounded prompt size.
-- Overly broad template selection.
-- Hidden full-regeneration behavior.
 - Any old behavior that conflicts with current progress and validation architecture.
 
 ### Benchmarking
@@ -1553,6 +1721,7 @@ For each benchmark:
 - Layout variety improves across a deck.
 - Theme and layout scaffolds drive generation.
 - Benchmarks show improvement over current behavior.
+- CSS animation presets and SVG motif presets are scaffolded, bounded, and validated.
 
 ## Workstream 7: Document And Presentation Tooling
 
@@ -1582,6 +1751,10 @@ Aura should do:
 This approach should also apply to documents.
 
 ### Presentation Scaffolding
+
+A static presentation scaffolding runtime already exists in `src/services/artifactRuntime/starterPresentationRuntime.ts`. It builds slide HTML from a template plus token values, extracts sections from parsed HTML, and maps them into an `ArtifactRunPlan`. This is currently used only for quick-start decks.
+
+The design system work should generalize this approach: make layout-based scaffolding available to all generated slides, not just quick-start templates. The slot extraction and template token system in `starterPresentationRuntime.ts` is the right starting point.
 
 For each visual theme, define a library of slide layouts:
 
@@ -1618,6 +1791,10 @@ The model should receive:
 The model should not be asked to invent the entire slide system repeatedly.
 
 ### Document Scaffolding
+
+`src/services/artifactRuntime/documentDesignSystem.ts` already exists and defines shared module CSS classes and wrapper class naming for the document runtime. `promptPacks.ts` imports from it to build the `buildDocumentIframeContractPack` and `buildDocumentModuleContractPack` prompt packs.
+
+The scaffolding work should extend this existing system with typed section module definitions and slot contracts, rather than creating a parallel design system.
 
 For documents, define reusable section modules:
 
@@ -1669,9 +1846,15 @@ User customization should start simple:
 - Primary color.
 - Visual variant.
 
+The system should choose a default color theme automatically. The user should be able to accept that default, edit it before the first artifact is created, and edit it later.
+
+Presentation themes and document themes should be independent systems. They can share names or visual intent, but they should not share implementation constraints. Presentations optimize for slide composition, motion, and visual impact. Documents optimize for reading flow, structure, print/export behavior, and long-form hierarchy.
+
 The system should derive the rest.
 
 ### Agent Tools
+
+The designer in `src/services/ai/workflow/agents/designer.ts` already uses a ToolLoopAgent with two tools: `validateSlideHtml` and `submitFinalSlide`. The proposed scaffold tools extend this exact pattern. New slot-based tools should be added to the same agent or the same loop rather than creating a parallel tool execution path.
 
 Build internal tools that the agent can call or that runtime code can use before and after generation.
 
@@ -1680,12 +1863,18 @@ Suggested tools:
 - `selectVisualVariant`
 - `selectPresentationTheme`
 - `selectSlideLayoutSequence`
+- `selectMotionPreset`
+- `selectSvgMotif`
 - `scaffoldDeck`
 - `populateSlideSlots`
 - `fitSlideText`
 - `validateSlideContract`
+- `validateMotionBudget`
+- `validateSvgBounds`
 - `repairSlideSlot`
 - `repairSlideLayout`
+- `repairMotionPreset`
+- `repairSvgMotif`
 - `renderSlidePreview`
 - `scoreSlideQuality`
 - `selectDocumentTheme`
@@ -1717,6 +1906,8 @@ Then edits can target:
 - A section.
 - A layout.
 - A theme token.
+- A motion preset.
+- An SVG motif slot.
 
 This enables precise edits:
 
@@ -1725,6 +1916,10 @@ This enables precise edits:
 - "Turn this into a timeline."
 - "Use the darker variant."
 - "Change the primary color."
+- "Make the timeline animate more subtly."
+- "Replace the abstract art with a process diagram."
+
+Slot schemas should be restrictive by default. They should allow customization through known extension points, but the default path should favor organized, high-quality design over loose freeform output. If a user asks for something custom, the system can loosen constraints deliberately for that request instead of making every request unconstrained.
 
 ### Guardrails
 
@@ -1739,6 +1934,8 @@ The system should prevent common artifact failures:
 - Dense documents with no hierarchy.
 - Full restyles for small edits.
 - Repair loops that keep rewriting the same failure.
+- Too many animations or animations that distract from the message.
+- Unbounded SVG art that breaks layout or feels inconsistent with the theme.
 
 ### Acceptance Criteria
 
@@ -1747,7 +1944,9 @@ The system should prevent common artifact failures:
 - AI populates defined slots for common flows.
 - Edits can target slots or sections.
 - Theme tokens can be customized.
+- Default color themes can be accepted, edited before creation, and edited later.
 - Layout validation catches common visual failures.
+- Animation and SVG guardrails prevent excessive or broken visual effects.
 - Repair targets the failing part rather than regenerating everything.
 
 ## Workstream 8: Validation, Quality, And Release Process
@@ -1769,10 +1968,12 @@ Use unit tests for:
 - Variant registry.
 - Starter kit initialization.
 - Project-scoped repo paths.
-- `.aura` manifest parsing.
+- New `.aura` manifest parsing.
+- Legacy `.aura` unsupported-format handling if compatibility is removed.
 - Progress event conversion.
 - Slot schema validation.
 - Layout selection.
+- Motion preset and SVG motif validation.
 
 #### Level 2: Integration Tests
 
@@ -1818,6 +2019,21 @@ Track:
 - User-visible progress completeness.
 - Whether edit appears before full run completion.
 
+#### Level 5: Agent-In-The-App QA
+
+The minimum acceptable screenshot QA still needs investigation. One promising direction is to let an agent interface with the running app and perform realistic creation/editing flows against a local model such as Ollama.
+
+This could validate:
+
+- New project creation with a visual variant.
+- Default color theme acceptance and editing.
+- Presentation creation with CSS animation and SVG art.
+- Slide edit flow with visible step progress.
+- Document manual edits and version commits.
+- Export with and without history.
+
+This should not replace deterministic tests. It should be treated as a product-quality smoke test that catches problems users actually feel: stuck progress, weak output, broken previews, and confusing UI.
+
 ### Release Gates
 
 Do not ship the full realignment until:
@@ -1826,8 +2042,10 @@ Do not ship the full realignment until:
 - API/MCP references are removed from user-facing docs.
 - Starter variants are visible and saved.
 - Project histories are scoped by project.
+- New `.aura` format export/import works without legacy compatibility requirements.
 - Presentation edit progress is visible.
 - Repair loops are bounded.
+- Animation and SVG scaffolds are bounded and validated.
 - Benchmark decks are visibly better than baseline.
 
 ## Implementation Roadmap
@@ -1839,7 +2057,7 @@ Purpose: Align docs and visible product surfaces with the value-focused directio
 Tasks:
 
 - Update README.
-- Remove API/MCP roadmap docs or rewrite them as archived historical notes.
+- Delete old API/MCP roadmap docs from active documentation.
 - Update program status.
 - Audit visible UI strings for API/MCP/external automation language.
 - Clarify provider API language.
@@ -1874,7 +2092,8 @@ Tasks:
 - Add visual variant registry.
 - Update starter kit types.
 - Update project initialization.
-- Update new project dialog.
+- Update new project dialog with 4 or 5 high-quality initial variants.
+- Add default color theme selection with pre-creation edit support.
 - Save selected variant into project metadata.
 - Thread variant into presentation and document prompts.
 
@@ -1922,9 +2141,11 @@ Tasks:
 
 - Build theme registry.
 - Build slide layout registry.
+- Build motion preset and SVG motif registries.
 - Recover useful legacy prompt and template guidance.
 - Add slot-based generation for common layouts.
 - Add text budgets and font-size rules.
+- Add animation budgets and SVG bounds validation.
 - Add screenshot-based checks where feasible.
 - Benchmark old vs current vs improved output.
 
@@ -1948,21 +2169,23 @@ Deliverable:
 
 - Documents feel intentionally designed and easier to edit.
 
-### Phase 8: `.aura` History Export
+### Phase 8: New `.aura` Format And History Export
 
-Purpose: Preserve version history when sharing or storing projects.
+Purpose: Recreate the `.aura` format from scratch and preserve version history when explicitly requested.
 
 Tasks:
 
+- Design the new `.aura` format without backwards-compatibility constraints.
 - Decide raw git vs linear snapshot approach.
-- Add export option with history.
+- Add default export without history.
+- Add explicit export option with history.
 - Add import restoration.
 - Validate history payloads.
 - Add round-trip tests.
 
 Deliverable:
 
-- `.aura` files can preserve project history when requested.
+- New `.aura` files work cleanly, and can preserve project history when requested.
 
 ### Phase 9: UI Simplification
 
@@ -1974,6 +2197,7 @@ Tasks:
 - Simplify chat bar.
 - Move reports to details views.
 - Move diagnostics to advanced surfaces.
+- Hide project rules almost completely.
 - Make artifact-specific controls contextual.
 - Review empty states and new project flow.
 
@@ -2021,26 +2245,57 @@ The exact file names may change during implementation, but this is a likely map.
 
 ### Presentation Design System
 
+Files to modify (existing):
+
 - `src/services/artifactRuntime/presentationRuntime.ts`
 - `src/services/artifactRuntime/presentationPrompts.ts`
 - `src/services/artifactRuntime/presentationQualityChecklist.ts`
+- `src/services/artifactRuntime/promptPacks.ts` — extend contract packs to include slot definitions and text budgets
+- `src/services/artifactRuntime/starterPresentationRuntime.ts` — extend static scaffolding for layout-based generation
+- `src/services/ai/templates/registry.ts`
+- `src/services/ai/templates/selector.ts`
+- `src/services/ai/templates/exemplar-packs.ts`
+- `src/services/ai/templates/reference-style-packs.ts`
+- `src/services/ai/workflow/agents/designer.ts` — extend ToolLoopAgent tools with slot-based tools
+- `src/services/ai/workflow/agents/evaluator.ts` — extend scoring criteria for slot compliance
+
+New files:
+
 - `src/services/artifactRuntime/presentationThemes.ts`
 - `src/services/artifactRuntime/presentationLayouts.ts`
 - `src/services/artifactRuntime/presentationSlots.ts`
+- `src/services/artifactRuntime/presentationMotion.ts`
+- `src/services/artifactRuntime/presentationSvgMotifs.ts`
 
 ### Document Design System
 
+Files to modify (existing):
+
 - `src/services/artifactRuntime/documentRuntime.ts`
-- `src/services/artifactRuntime/documentDesignSystem.ts`
+- `src/services/artifactRuntime/documentDesignSystem.ts` — **already exists**; extend with typed section modules and slot definitions
+- `src/services/artifactRuntime/documentPrompts.ts`
+- `src/services/artifactRuntime/documentQualityChecklist.ts`
+- `src/services/artifactRuntime/promptPacks.ts` — extend document contract packs
+
+New files:
+
 - `src/services/artifactRuntime/documentSections.ts`
 - `src/services/artifactRuntime/documentThemes.ts`
 
 ### Progress
 
+Files to modify (existing):
+
+- `src/services/chat/workflowProgress.ts` — **already exists**; the primary extension point for step count, slide count, and queue depth
+- `src/services/ai/workflow/batchQueue.ts` — extend to emit total count into progress events
+- `src/services/artifactRuntime/presentationRuntime.ts` — extend heartbeat and step events to include total
+- `src/components/chat/handlers/presentationHandler.ts`
+
+New files:
+
 - `src/services/runs/progress.ts`
 - `src/services/artifactRuntime/progress.ts`
 - `src/components/chat/RunProgress.tsx`
-- `src/components/chat/handlers/presentationHandler.ts`
 
 ### UI Simplification
 
@@ -2058,7 +2313,7 @@ The exact file names may change during implementation, but this is a likely map.
 - README describes Aura as a local-first artifact creation workspace.
 - README includes current artifact types.
 - README accurately describes provider settings.
-- Roadmap docs no longer promote API/MCP.
+- Old API/MCP roadmap docs are deleted from active documentation.
 - Program status matches current product priorities.
 - Architecture docs distinguish provider APIs from removed external Aura APIs.
 
@@ -2073,10 +2328,12 @@ The exact file names may change during implementation, but this is a likely map.
 ### Starter Variants
 
 - New project flow includes a visual direction choice.
-- At least 6 variants exist.
+- First release includes 4 or 5 high-quality variants.
+- Variant architecture can grow to around 10 variants later.
 - Variants include theme, prompt, layout, and document metadata.
 - Variant choice persists in project data.
 - Variant choice changes generated artifact style.
+- A default color theme is chosen automatically and can be edited before artifact creation.
 
 ### UI Simplicity
 
@@ -2085,6 +2342,7 @@ The exact file names may change during implementation, but this is a likely map.
 - Reports move behind detail interactions.
 - Validation and run history are not primary default actions.
 - Advanced controls remain accessible.
+- Project rules are almost completely hidden and primarily changed through user input.
 
 ### Chat Progress
 
@@ -2102,7 +2360,8 @@ The exact file names may change during implementation, but this is a likely map.
 - Version history panel is scoped to the active project.
 - New project creates a fresh history.
 - Imported project creates or restores a fresh history.
-- `.aura` export can include history when enabled.
+- `.aura` format is rebuilt without legacy backwards-compatibility requirements.
+- `.aura` export can include history through an explicit option.
 - Import validates history payloads safely.
 
 ### Presentations
@@ -2114,11 +2373,14 @@ The exact file names may change during implementation, but this is a likely map.
 - Progress does not appear stuck during queued work.
 - Repair loops are bounded.
 - Screenshot or render validation catches blank/broken slides.
+- CSS animation and SVG art are scaffolded through approved presets.
+- Motion budgets prevent excessive or distracting animation.
 
 ### Documents
 
 - Document sections are scaffolded before content generation.
 - Document themes connect to visual variants.
+- Document themes are developed independently from presentation themes.
 - Editing can target sections or slots.
 - Documents maintain hierarchy, spacing, and readable density.
 
@@ -2136,9 +2398,10 @@ Mitigation:
 
 Mitigation:
 
-- Start with 6 or 7 curated variants.
+- Start with 4 or 5 complete curated variants.
 - Do not expose every template as a separate choice.
 - Make variants structured metadata, not a large custom theme editor.
+- Design the registry so it can expand toward around 10 variants later.
 
 ### Risk: Project History Export Makes `.aura` Files Too Large
 
@@ -2156,6 +2419,15 @@ Mitigation:
 - Allow controlled custom layouts for advanced requests.
 - Use variants to keep visual diversity.
 - Keep the system opinionated but not rigid.
+
+### Risk: Animation And SVG Art Becomes Noisy
+
+Mitigation:
+
+- Use approved motion presets rather than unconstrained animation generation.
+- Define SVG motif families per theme.
+- Validate motion count, duration, bounds, and reduced-motion behavior.
+- Allow expressive art on cover, section-breaker, and visual slides while keeping content-heavy slides restrained.
 
 ### Risk: Screenshot QA Is Expensive Or Flaky
 
@@ -2178,32 +2450,41 @@ Mitigation:
 Mitigation:
 
 - Build project-scoped repo tests before broad integration.
-- Keep legacy history migration path if needed.
-- Avoid destructive migration on first load.
+- Rebuild the `.aura` format cleanly rather than preserving legacy import behavior.
+- Avoid destructive migration of current local project state on first load.
 - Preserve current project state before switching repo behavior.
 
-## Open Questions
+## Resolved Review Decisions
 
-1. Should `.aura` history export be on by default or offered as a separate "Export with history" option?
-2. Should imported projects keep their original project id or receive a new id by default?
-3. How many visual variants should ship in the first pass?
-4. Should users choose colors during project creation or after the first artifact is created?
-5. Should presentation themes be shared with document themes or mapped separately?
-6. How strict should slide slot schemas be for advanced custom requests?
-7. Should old API/MCP docs be deleted, archived, or rewritten as historical notes?
-8. What is the minimum acceptable screenshot QA for the first release?
-9. Should project rules remain visible by default or move into advanced settings?
-10. Should version history commits happen after every assistant response or only after artifact-changing responses?
+1. `.aura` history export should be offered as an explicit "Export with history" option.
+2. Imported project identity can go either way. If importing with history, preserving the original project id is likely better because history belongs to that identity. If importing without history, assigning a fresh project id is likely safer.
+3. The first visual variant release should ship 4 or 5 high-quality variants. The system should later grow toward around 10 variants.
+4. Aura should choose a default color theme. The user can accept it, edit it before artifact creation, and edit it later.
+5. Document themes and presentation themes should be separate systems. They should be planned independently.
+6. Slot schemas should allow customization, but should be more restrictive and organized by default so output quality is higher than today's loose freeform path.
+7. Old API/MCP docs should be deleted from active documentation.
+8. The minimum acceptable screenshot QA still needs investigation. An additional path to explore is agent-in-the-app testing against the local app and a local Ollama model.
+9. Project rules should be almost completely hidden. They should be good by default and adjusted through user input rather than routine manual configuration.
+10. Version history should commit artifact-changing responses and user manual changes, not every assistant response.
+
+## Remaining Investigation Notes
+
+- Decide whether history import should always preserve project id or only preserve it when history is included.
+- Decide whether raw git export or linear snapshot export is the best first implementation for history.
+- Define the first 4 or 5 visual variants.
+- Define the minimum render/screenshot QA that is reliable enough for the first release.
+- Prototype local agent-in-the-app QA using the running app and a local model.
 
 ## Immediate Next Slice
 
 The recommended first implementation slice is:
 
-1. Update documentation direction and remove API/MCP roadmap positioning.
-2. Add visual variant registry and project metadata.
-3. Update new project dialog to select a variant.
-4. Thread the variant into starter kits and presentation/document prompt context.
+1. Update documentation direction and delete old API/MCP roadmap docs from active documentation.
+2. Add visual variant registry and project metadata for the first 4 or 5 high-quality variants.
+3. Update new project dialog to select a variant and accept or edit the default color theme.
+4. Thread the variant into starter kits and presentation/document prompt context while keeping document and presentation theme systems independent.
 5. Add explicit presentation progress labels for slide count and phase count.
+6. Add the first scaffolded CSS animation and SVG motif constraints for presentation themes.
 
 This slice is valuable because it is visible to users quickly, clarifies the product direction, and starts improving artifact quality without requiring the full version-control refactor first.
 
@@ -2213,14 +2494,17 @@ The recommended second implementation slice is:
 2. Add tests for history isolation.
 3. Update version history panel to use active project id.
 4. Create a shared project snapshot serializer.
+5. Design the new `.aura` format without backwards-compatibility constraints.
+6. Add default export and explicit "Export with history" paths.
 
 The recommended third implementation slice is:
 
 1. Build presentation theme and layout registries.
-2. Recover useful legacy prompt/template guidance.
-3. Add slot-based generation for the most common slide layouts.
-4. Add render or screenshot validation for blank and broken slides.
-5. Benchmark against current presentation output.
+2. Build CSS motion preset and SVG motif registries.
+3. Recover useful legacy prompt/template guidance.
+4. Add slot-based generation for the most common slide layouts.
+5. Add render or screenshot validation for blank and broken slides, animation bounds, and SVG rendering.
+6. Benchmark against current presentation output.
 
 ## Final Direction
 
@@ -2235,6 +2519,6 @@ The next phase should make the app feel:
 - More transparent.
 - More project-aware.
 
-The best path is to reduce surface area while increasing internal structure. Users should see fewer buttons, fewer reports, and fewer technical concepts. The system underneath should become more opinionated: variants, themes, layouts, slots, validation, progress, and project-scoped history.
+The best path is to reduce surface area while increasing internal structure. Users should see fewer buttons, fewer reports, and fewer technical concepts. The system underneath should become more opinionated: variants, themes, layouts, slots, motion presets, SVG motifs, validation, progress, and project-scoped history.
 
 That combination should make Aura feel more valuable immediately: easier to start, easier to trust, easier to edit, and much better at producing the polished presentations and documents that users actually want.
