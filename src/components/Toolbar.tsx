@@ -11,6 +11,8 @@ import {
   PanelLeft,
   FolderOpen,
   Loader2,
+  MoreHorizontal,
+  CheckCircle2,
 } from 'lucide-react';
 import { usePresentationStore } from '@/stores/presentationStore';
 import { useProjectStore } from '@/stores/projectStore';
@@ -35,6 +37,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
@@ -98,6 +101,7 @@ export function Toolbar({
   const [confirmNew, setConfirmNew] = useState(false);
   const [confirmImport, setConfirmImport] = useState(false);
   const [toolbarError, setToolbarError] = useState<string | null>(null);
+  const [toolbarNotice, setToolbarNotice] = useState<{ message: string; onDetails?: () => void } | null>(null);
   const [pendingNewSelection, setPendingNewSelection] = useState<NewProjectSelection | null>(null);
   const [initReportOpen, setInitReportOpen] = useState(false);
   const [initReport, setInitReport] = useState<Awaited<ReturnType<typeof initProject>>['report'] | null>(null);
@@ -108,11 +112,15 @@ export function Toolbar({
 
   const handleNew = () => {
     setToolbarError(null);
+    setToolbarNotice(null);
     setNewProjectOpen(true);
   };
 
   const runNewSelection = async (selection: NewProjectSelection) => {
     setToolbarError(null);
+    setToolbarNotice(null);
+    setInitReport(null);
+    setInitReportOpen(false);
 
     setIsCreatingProject(true);
     try {
@@ -137,8 +145,19 @@ export function Toolbar({
       resetProject();
       setProject(initResult.project);
       clearMessages();
-      setInitReport(selection.mode === 'blank' ? null : initResult.report);
-      setInitReportOpen(selection.mode !== 'blank');
+
+      if (selection.mode !== 'blank') {
+        setInitReport(initResult.report);
+        const artifactCount = initResult.report.items.filter(
+          (item) => item.kind === 'artifact' && item.status !== 'skipped',
+        ).length;
+        setToolbarNotice({
+          message: artifactCount > 0
+            ? `Project created with ${artifactCount} starter artifact${artifactCount === 1 ? '' : 's'}.`
+            : 'Project created with starter settings.',
+          onDetails: () => setInitReportOpen(true),
+        });
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error creating project';
       setToolbarError(`Failed to create project: ${message}`);
@@ -165,6 +184,7 @@ export function Toolbar({
   };
 
   const handleOpen = () => {
+    setToolbarNotice(null);
     if (hasContent) {
       setConfirmImport(true);
       return;
@@ -181,6 +201,7 @@ export function Toolbar({
     if (!file) return;
 
     setToolbarError(null);
+    setToolbarNotice(null);
     try {
       const loadedProject = await openProjectFile(file);
       setProject(loadedProject);
@@ -202,6 +223,7 @@ export function Toolbar({
 
   const canPresent = activeDocument?.type === 'presentation' && !!slidesHtml && !isPresenting;
   const hasChatActivity = status.state === 'generating';
+  const isPresentation = activeDocument?.type === 'presentation';
 
   return (
     <>
@@ -263,6 +285,7 @@ export function Toolbar({
           </Button>
         </div>
 
+        {/* Desktop right section */}
         <div className="hidden items-center gap-0.5 sm:flex">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -280,35 +303,31 @@ export function Toolbar({
             <TooltipContent>{isCreatingProject ? 'Creating project…' : 'New project'}</TooltipContent>
           </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
+          {/* File menu: Open + Save */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
                 className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
-                onClick={handleOpen}
-              >
-                <Upload className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Open .aura file</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
-                onClick={handleSave}
-                disabled={!hasContent}
+                aria-label="File menu"
               >
                 <Download className="size-4" />
               </Button>
-            </TooltipTrigger>
-            <TooltipContent>Save project as .aura</TooltipContent>
-          </Tooltip>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={handleOpen}>
+                <Upload className="mr-2 size-3.5" />
+                Open .aura
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void handleSave()} disabled={!hasContent}>
+                <Download className="mr-2 size-3.5" />
+                Save .aura
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
+          {/* Export artifact — only shown when applicable */}
           {artifactExportActions.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -319,10 +338,10 @@ export function Toolbar({
                   disabled={artifactExportBusy}
                 >
                   <FileDown className="size-3.5" />
-                  <span className="hidden sm:inline">Export artifact</span>
+                  <span className="hidden sm:inline">Export</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
+              <DropdownMenuContent align="end">
                 {artifactExportActions.map((action) => (
                   <DropdownMenuItem
                     key={action.id}
@@ -339,52 +358,23 @@ export function Toolbar({
             </DropdownMenu>
           )}
 
-          {artifactValidationAction && (
+          {/* Present — only for presentation artifacts */}
+          {isPresentation && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground hover:text-foreground"
-                  disabled={artifactValidationAction.disabled}
-                  onClick={artifactValidationAction.onSelect}
+                  size="icon"
+                  className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+                  onClick={handlePresent}
+                  disabled={!canPresent}
                 >
-                  <AlertTriangle className="size-3.5" />
-                  <span className="hidden sm:inline">{artifactValidationAction.label}</span>
+                  <Play className="size-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{artifactValidationAction.label}</TooltipContent>
+              <TooltipContent>Present fullscreen</TooltipContent>
             </Tooltip>
           )}
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
-                onClick={handlePresent}
-                disabled={!canPresent}
-              >
-                <Play className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Present fullscreen</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={historyPanelOpen ? 'secondary' : 'ghost'}
-                size="icon"
-                className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
-                onClick={onToggleHistoryPanel}
-              >
-                <History className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Version history</TooltipContent>
-          </Tooltip>
 
           <Separator orientation="vertical" className="mx-1.5 hidden h-4 sm:block" />
 
@@ -423,8 +413,40 @@ export function Toolbar({
             <TooltipContent>{chatPanelOpen ? 'Hide' : 'Show'} chat history</TooltipContent>
           </Tooltip>
 
+          {/* More menu: Validate + Version History */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+                aria-label="More options"
+              >
+                <MoreHorizontal className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={onToggleHistoryPanel}>
+                <History className="mr-2 size-3.5" />
+                {historyPanelOpen ? 'Hide version history' : 'Version history'}
+              </DropdownMenuItem>
+              {artifactValidationAction && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={artifactValidationAction.onSelect}
+                    disabled={artifactValidationAction.disabled}
+                  >
+                    <AlertTriangle className="mr-2 size-3.5" />
+                    {artifactValidationAction.label}
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
+        {/* Mobile right section */}
         <div className="flex w-full items-center justify-between sm:hidden">
           <div className="flex items-center gap-0.5">
             <Tooltip>
@@ -443,34 +465,29 @@ export function Toolbar({
               <TooltipContent>{isCreatingProject ? 'Creating project…' : 'New project'}</TooltipContent>
             </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
+            {/* File menu on mobile */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
-                  onClick={handleOpen}
-                >
-                  <Upload className="size-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Open .aura file</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
-                  onClick={handleSave}
-                  disabled={!hasContent}
+                  aria-label="File menu"
                 >
                   <Download className="size-4" />
                 </Button>
-              </TooltipTrigger>
-              <TooltipContent>Save project as .aura</TooltipContent>
-            </Tooltip>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onSelect={handleOpen}>
+                  <Upload className="mr-2 size-3.5" />
+                  Open .aura
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => void handleSave()} disabled={!hasContent}>
+                  <Download className="mr-2 size-3.5" />
+                  Save .aura
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {artifactExportActions.length > 0 && (
               <DropdownMenu>
@@ -500,54 +517,25 @@ export function Toolbar({
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+          </div>
 
-            {artifactValidationAction && (
+          <div className="flex items-center gap-0.5">
+            {isPresentation && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
-                    disabled={artifactValidationAction.disabled}
-                    onClick={artifactValidationAction.onSelect}
+                    onClick={handlePresent}
+                    disabled={!canPresent}
                   >
-                    <AlertTriangle className="size-4" />
+                    <Play className="size-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{artifactValidationAction.label}</TooltipContent>
+                <TooltipContent>Present fullscreen</TooltipContent>
               </Tooltip>
             )}
-          </div>
-
-          <div className="flex items-center gap-0.5">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
-                  onClick={handlePresent}
-                  disabled={!canPresent}
-                >
-                  <Play className="size-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Present fullscreen</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={historyPanelOpen ? 'secondary' : 'ghost'}
-                  size="icon"
-                  className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
-                  onClick={onToggleHistoryPanel}
-                >
-                  <History className="size-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Version history</TooltipContent>
-            </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
@@ -568,6 +556,38 @@ export function Toolbar({
               </TooltipTrigger>
               <TooltipContent>{chatPanelOpen ? 'Hide' : 'Show'} chat history</TooltipContent>
             </Tooltip>
+
+            {/* More menu on mobile */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+                  aria-label="More options"
+                >
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={onToggleHistoryPanel}>
+                  <History className="mr-2 size-3.5" />
+                  Version history
+                </DropdownMenuItem>
+                {artifactValidationAction && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={artifactValidationAction.onSelect}
+                      disabled={artifactValidationAction.disabled}
+                    >
+                      <AlertTriangle className="mr-2 size-3.5" />
+                      {artifactValidationAction.label}
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
         </div>
@@ -589,6 +609,27 @@ export function Toolbar({
           <button
             className="ml-auto shrink-0 text-destructive/70 hover:text-destructive"
             onClick={() => setToolbarError(null)}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {toolbarNotice && (
+        <div className="flex items-center gap-2 border-b border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs text-emerald-700 dark:text-emerald-400">
+          <CheckCircle2 className="size-3.5 shrink-0" />
+          <span className="min-w-0 truncate">{toolbarNotice.message}</span>
+          {toolbarNotice.onDetails && (
+            <button
+              className="shrink-0 underline underline-offset-2 opacity-70 hover:opacity-100"
+              onClick={toolbarNotice.onDetails}
+            >
+              View details
+            </button>
+          )}
+          <button
+            className="ml-auto shrink-0 opacity-60 hover:opacity-100"
+            onClick={() => setToolbarNotice(null)}
           >
             Dismiss
           </button>

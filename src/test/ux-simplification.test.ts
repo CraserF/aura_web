@@ -52,6 +52,16 @@ describe('non-technical UX simplification', () => {
     expect(toolbarSource).not.toContain('providerId = useSettingsStore');
   });
 
+  it('keeps project style and diagnostics behind sidebar advanced options', () => {
+    const sidebarSource = readSource('components/ProjectSidebar.tsx');
+
+    expect(sidebarSource).toContain('aria-label="Project advanced options"');
+    expect(sidebarSource).toContain('Project style');
+    expect(sidebarSource).toContain('Doctor');
+    expect(sidebarSource).not.toContain('>Project Style</Button>');
+    expect(sidebarSource).not.toContain('>Doctor</Button>');
+  });
+
   it('maps curated output modes into runtime plan design defaults', () => {
     const launchPlan = buildArtifactRunPlan({
       runId: 'launch-mode-run',

@@ -239,8 +239,21 @@ describe('Toolbar new project dialog', () => {
       report: {
         ranAt: 1,
         projectId: 'blank-project',
-        items: [],
-        createdCount: 1,
+        items: [
+          {
+            kind: 'project-rules',
+            target: 'project-rules.md',
+            status: 'created',
+            summary: 'Applied visual direction.',
+          },
+          {
+            kind: 'artifact',
+            target: 'document:brief',
+            status: 'created',
+            summary: 'Created starter artifact.',
+          },
+        ],
+        createdCount: 2,
         updatedCount: 0,
         skippedCount: 0,
       },
@@ -258,6 +271,8 @@ describe('Toolbar new project dialog', () => {
       colorTheme: DEFAULT_COLOR_THEME,
     });
     expect(useProjectStore.getState().project.title).toBe('Executive Briefing');
+    expect(view.container.textContent).toContain('Project created with 1 starter artifact.');
+    expect(view.container.textContent).not.toContain('2 starter artifacts');
 
     view.unmount();
   });

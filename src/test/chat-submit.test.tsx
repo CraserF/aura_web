@@ -247,4 +247,21 @@ describe('ChatBar submission paths', () => {
 
     view.unmount();
   });
+
+  it('keeps output mode, document style, and run history behind advanced options', () => {
+    seedActiveDocument();
+    const view = renderChatBar();
+
+    expect(view.container.textContent).not.toContain('Auto mode');
+    expect(view.container.textContent).not.toContain('Runs');
+
+    clickButton(view.container, 'Advanced options');
+
+    expect(view.container.textContent).toContain('Auto mode');
+    expect(view.container.querySelector('[aria-label="Choose output mode"]')).not.toBeNull();
+    expect(view.container.querySelector('[aria-label="Choose document style"]')).not.toBeNull();
+    expect(view.container.querySelector('[aria-label="Open recent runs"]')).not.toBeNull();
+
+    view.unmount();
+  });
 });

@@ -508,18 +508,37 @@ export function ProjectSidebar({
         </div>
 
         {/* Footer stats */}
-        <div className="space-y-2 border-t border-border px-3 py-2">
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="h-7 flex-1 text-[11px]" onClick={onOpenProjectRules}>
-              Project Style
-            </Button>
-            <Button variant="outline" size="sm" className="h-7 flex-1 text-[11px]" onClick={onOpenDoctor}>
-              Doctor
-            </Button>
+        <div className="border-t border-border px-3 py-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] text-muted-foreground/60">
+              {sortedDocs.length} document{sortedDocs.length !== 1 ? 's' : ''}
+            </p>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 rounded-md text-muted-foreground hover:text-foreground"
+                  aria-label="Project advanced options"
+                  title="Project advanced options"
+                >
+                  <MoreHorizontal className="size-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                {onOpenProjectRules && (
+                  <DropdownMenuItem onClick={onOpenProjectRules}>
+                    Project style
+                  </DropdownMenuItem>
+                )}
+                {onOpenDoctor && (
+                  <DropdownMenuItem onClick={onOpenDoctor}>
+                    Doctor
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-          <p className="text-[10px] text-muted-foreground/60">
-            {sortedDocs.length} document{sortedDocs.length !== 1 ? 's' : ''}
-          </p>
         </div>
       </aside>
     </>

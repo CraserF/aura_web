@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { ArrowUp, History, Paperclip, Sparkles, Square, X } from 'lucide-react';
+import { ArrowUp, History, Paperclip, Sparkles, Square, X, SlidersHorizontal } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
 import { usePresentationStore } from '@/stores/presentationStore';
 import { useProjectStore } from '@/stores/projectStore';
@@ -67,6 +67,7 @@ export function ChatBar() {
   const [contextPanelOpen, setContextPanelOpen] = useState(false);
   const [runHistoryOpen, setRunHistoryOpen] = useState(false);
   const [lastContext, setLastContext] = useState<ContextBundle | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -549,41 +550,9 @@ export function ChatBar() {
           </div>
         )}
 
-        <textarea
-          ref={inputRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          placeholder={isDragOver ? 'Drop files here…' : placeholder}
-          disabled={isGenerating}
-          rows={2}
-          className="w-full resize-none rounded-xl border border-border bg-muted/50 px-4 py-3 pb-11 text-sm leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-foreground/20 focus:bg-background disabled:opacity-50"
-        />
-        <div className="absolute bottom-2.5 left-4 right-4 flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2">
-            {/* Attach file button */}
-            <button
-              type="button"
-              onClick={handleAttachClick}
-              disabled={isGenerating}
-              className="inline-flex size-7 items-center justify-center rounded-md border border-border/70 bg-background/80 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
-              aria-label="Attach a file"
-              title="Attach image or text file"
-            >
-              <Paperclip size={12} strokeWidth={2} />
-            </button>
-            {activeDocument && !isGenerating && (
-              <button
-                type="button"
-                onClick={() => setActiveDocumentId(activeDocument.id)}
-                className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/50 px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
-                title={`Focus ${activeDocument.title}`}
-              >
-                {activeDocument.type === 'presentation' ? 'Slides' : activeDocument.type === 'spreadsheet' ? 'Sheet' : 'Doc'}:
-                <span className="max-w-[100px] truncate font-medium text-foreground/70">{activeDocument.title}</span>
-              </button>
-            )}
+        {/* Advanced options row — shown when expanded */}
+        {advancedOpen && (
+          <div className="mb-2 flex flex-wrap items-center gap-2">
             {showDocumentStyleMenu && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -651,9 +620,54 @@ export function ChatBar() {
               <History size={12} strokeWidth={2} />
               <span>Runs</span>
             </button>
-            <span className="truncate text-[11px] text-muted-foreground/50">
-              {isGenerating ? 'Generating\u2026' : 'Enter to send · Shift+Enter for new line'}
-            </span>
+          </div>
+        )}
+
+        <textarea
+          ref={inputRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          placeholder={isDragOver ? 'Drop files here…' : placeholder}
+          disabled={isGenerating}
+          rows={2}
+          className="w-full resize-none rounded-xl border border-border bg-muted/50 px-4 py-3 pb-11 text-sm leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-foreground/20 focus:bg-background disabled:opacity-50"
+        />
+        <div className="absolute bottom-2.5 left-4 right-4 flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            {/* Attach file button */}
+            <button
+              type="button"
+              onClick={handleAttachClick}
+              disabled={isGenerating}
+              className="inline-flex size-7 items-center justify-center rounded-md border border-border/70 bg-background/80 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
+              aria-label="Attach a file"
+              title="Attach image or text file"
+            >
+              <Paperclip size={12} strokeWidth={2} />
+            </button>
+            {activeDocument && !isGenerating && (
+              <button
+                type="button"
+                onClick={() => setActiveDocumentId(activeDocument.id)}
+                className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/50 px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
+                title={`Focus ${activeDocument.title}`}
+              >
+                {activeDocument.type === 'presentation' ? 'Slides' : activeDocument.type === 'spreadsheet' ? 'Sheet' : 'Doc'}:
+                <span className="max-w-[100px] truncate font-medium text-foreground/70">{activeDocument.title}</span>
+              </button>
+            )}
+            {/* Advanced options toggle */}
+            <button
+              type="button"
+              onClick={() => setAdvancedOpen((v) => !v)}
+              className={`inline-flex size-7 items-center justify-center rounded-md border border-border/70 bg-background/80 text-muted-foreground transition-colors hover:text-foreground ${advancedOpen ? 'border-foreground/20 text-foreground' : ''}`}
+              aria-label="Advanced options"
+              title="Advanced options"
+            >
+              <SlidersHorizontal size={12} strokeWidth={2} />
+            </button>
           </div>
           {isGenerating ? (
             <button
