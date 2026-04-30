@@ -12,7 +12,15 @@ function rawScaffoldCss() {
       if (source === 'virtual:presentation-scaffold-css/executive-editorial-v1') {
         return source;
       }
-      if (!importer?.includes('/src/services/presentationScaffolds/') || !source.endsWith('.css?raw')) {
+      if (source === 'virtual:artifact-pack-css/presentation-editorial-stage-v1') {
+        return source;
+      }
+      if (
+        !(
+          importer?.includes('/src/services/presentationScaffolds/')
+          || importer?.includes('/src/services/artifactPacks/')
+        ) || !source.endsWith('.css?raw')
+      ) {
         return null;
       }
       return `${resolve(dirname(importer), source.replace('?raw', ''))}?scaffold-raw-css`;
@@ -20,6 +28,10 @@ function rawScaffoldCss() {
     load(id: string) {
       if (id === 'virtual:presentation-scaffold-css/executive-editorial-v1') {
         const filePath = resolve(__dirname, 'src/services/presentationScaffolds/packs/executive-editorial-v1/style.css');
+        return `export default ${JSON.stringify(readFileSync(filePath, 'utf8'))};`;
+      }
+      if (id === 'virtual:artifact-pack-css/presentation-editorial-stage-v1') {
+        const filePath = resolve(__dirname, 'src/services/artifactPacks/packs/presentation/editorial-stage-v1/style.css');
         return `export default ${JSON.stringify(readFileSync(filePath, 'utf8'))};`;
       }
       if (!id.endsWith('?scaffold-raw-css')) {

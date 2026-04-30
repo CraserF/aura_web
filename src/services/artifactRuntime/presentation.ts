@@ -6,6 +6,7 @@ function shouldUseQueuedSlides(runPlan: ArtifactRunPlan): boolean {
     runPlan.artifactType === 'presentation' &&
     (
       (runPlan.queueMode === 'sequential' && runPlan.workQueue.some((part) => part.kind === 'slide')) ||
+      (Boolean(runPlan.artifactPackId) && runPlan.operation === 'create') ||
       (Boolean(runPlan.presentationScaffoldId) && runPlan.operation === 'create')
     )
   );
@@ -56,6 +57,12 @@ export function applyArtifactRunPlanToPresentationPlan(
   const runtimeNotes = [
     'AUTHORITATIVE ARTIFACT RUN PLAN',
     `Intent summary: ${runPlan.intentSummary}`,
+    runPlan.artifactPackId
+      ? `Artifact pack: ${runPlan.artifactPackId}@${runPlan.artifactPackVersion ?? 'unknown'}`
+      : undefined,
+    runPlan.designDirectionId
+      ? `Design direction: ${runPlan.designDirectionId}`
+      : undefined,
     `Design family: ${runPlan.designManifest.family}`,
     `Provider mode: ${runPlan.providerPolicy.mode}`,
     `Validation gate: ${runPlan.validationGates[0]?.label ?? 'presentation quality'}`,

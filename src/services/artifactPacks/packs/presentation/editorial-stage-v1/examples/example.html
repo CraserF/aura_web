@@ -1,0 +1,174 @@
+<style data-aura-style-system="presentation/editorial-stage-v1">
+:root {
+  --es-canvas: #f7f3e8;
+  --es-surface: #fffdf7;
+  --es-ink: #171717;
+  --es-muted: #68635b;
+  --es-line: #d7d0c3;
+  --es-accent: #b4472f;
+  --es-night: #111318;
+  --es-reverse: #fffaf0;
+  --es-display: "Newsreader", "Iowan Old Style", Georgia, serif;
+  --es-body: "Inter", "Aptos", system-ui, sans-serif;
+  --es-mono: "SFMono-Regular", "IBM Plex Mono", ui-monospace, monospace;
+}
+.es-slide {
+  box-sizing: border-box;
+  display: grid;
+  width: 1280px;
+  height: 720px;
+  overflow: hidden;
+  padding: 56px 72px;
+  background: var(--es-canvas);
+  color: var(--es-ink);
+  font-family: var(--es-body);
+}
+.es-slide * { box-sizing: border-box; }
+.es-slide h1,
+.es-slide h2,
+.es-slide p,
+.es-slide blockquote,
+.es-slide footer { margin: 0; }
+.es-slide h1,
+.es-slide h2 {
+  font-family: var(--es-display);
+  font-weight: 720;
+  line-height: .94;
+  letter-spacing: 0;
+}
+.es-slide h1 { max-width: 880px; font-size: 84px; }
+.es-slide h2 { max-width: 900px; font-size: 58px; }
+.es-slide p,
+.es-slide li { font-size: 24px; line-height: 1.26; }
+.es-chrome,
+.es-slide header > p,
+.es-slide footer {
+  font-family: var(--es-mono);
+  font-size: 16px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--es-muted);
+}
+.es-mood-hero-dark {
+  background: var(--es-night);
+  color: var(--es-reverse);
+}
+.es-cover {
+  grid-template-rows: auto 1fr auto;
+  background: linear-gradient(90deg, var(--es-accent) 0 8px, transparent 8px), var(--es-night);
+}
+.es-cover-lockup {
+  align-self: center;
+  display: grid;
+  gap: 26px;
+  max-width: 880px;
+}
+.es-cover-lockup p {
+  max-width: 640px;
+  color: rgba(255, 250, 240, .78);
+  font-size: 27px;
+}
+.es-big-number {
+  grid-template-columns: minmax(0, 1fr) 440px;
+  grid-template-rows: auto 1fr auto;
+  column-gap: 58px;
+}
+.es-big-number header {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 14px;
+}
+.es-number-block {
+  align-self: center;
+  display: grid;
+  gap: 14px;
+  padding-left: 32px;
+  border-left: 5px solid var(--es-accent);
+}
+.es-number-block strong {
+  color: var(--es-accent);
+  font-family: var(--es-mono);
+  font-size: 124px;
+  line-height: .9;
+}
+.es-number-block span {
+  max-width: 310px;
+  font-size: 23px;
+  line-height: 1.2;
+}
+.es-interpretation {
+  align-self: end;
+  max-width: 520px;
+  padding-top: 28px;
+  border-top: 1px solid var(--es-line);
+  font-size: 30px;
+}
+.es-closing {
+  grid-template-rows: auto auto 1fr;
+  gap: 32px;
+  background: var(--es-night);
+}
+.es-closing h2 {
+  max-width: 850px;
+  font-size: 72px;
+}
+.es-closing h2::after {
+  content: "";
+  display: block;
+  width: 180px;
+  height: 5px;
+  margin-top: 28px;
+  background: var(--es-accent);
+}
+.es-closing ol {
+  align-self: end;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  padding: 0;
+  list-style: none;
+}
+.es-closing li {
+  min-height: 210px;
+  padding: 26px 24px;
+  border-top: 4px solid var(--es-accent);
+  background: rgba(255, 250, 240, .08);
+}
+@media (prefers-reduced-motion: reduce) {
+  .es-slide,
+  .es-slide * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+</style>
+<section class="es-slide es-cover es-mood-hero-dark" data-layout="cover" data-pack="presentation/editorial-stage-v1" data-slide-id="slide-1" data-background-color="#111318">
+  <div class="es-chrome" data-slot="kicker">Board review</div>
+  <div class="es-cover-lockup">
+    <h1 data-slot="title">Choose the focused launch path</h1>
+    <p data-slot="subtitle">A staged argument for doing fewer things with stronger proof.</p>
+  </div>
+  <footer data-slot="meta">April 2026</footer>
+</section>
+<section class="es-slide es-big-number es-mood-light" data-layout="big-number" data-pack="presentation/editorial-stage-v1" data-slide-id="slide-2" data-background-color="#f7f3e8">
+  <header>
+    <p data-slot="kicker">Proof</p>
+    <h2 data-slot="title">One segment is already carrying momentum</h2>
+  </header>
+  <div class="es-number-block">
+    <strong data-slot="metric_value">42%</strong>
+    <span data-slot="metric_label">of qualified demand came from the focused buyer segment.</span>
+  </div>
+  <p class="es-interpretation" data-slot="interpretation">The strongest signal is narrow enough to act on and broad enough to compound.</p>
+  <footer data-slot="source">Pipeline review</footer>
+</section>
+<section class="es-slide es-closing es-mood-hero-dark" data-layout="closing-action" data-pack="presentation/editorial-stage-v1" data-slide-id="slide-3" data-background-color="#111318">
+  <p data-slot="kicker">Next</p>
+  <h2 data-slot="title">Make focus the operating decision</h2>
+  <ol>
+    <li data-slot="action_1">Confirm the buyer segment and proof claim.</li>
+    <li data-slot="action_2">Rewrite launch assets around the single story.</li>
+    <li data-slot="action_3">Review traction after four weeks.</li>
+  </ol>
+  <footer data-slot="footer">Decision checkpoint</footer>
+</section>

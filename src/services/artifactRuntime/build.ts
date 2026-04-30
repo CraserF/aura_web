@@ -4,6 +4,10 @@ import {
   planDeckRhythm,
   resolveDefaultScaffoldSelection,
 } from '@/services/presentationScaffolds';
+import {
+  buildDesignContextSpec,
+  resolveArtifactPackForSelection,
+} from '@/services/artifactPacks';
 import type { BuildArtifactWorkflowPlanInput, PresentationRecipeId, RuntimeOutputMode } from '@/services/artifactRuntime/types';
 import type {
   ArtifactQualityBar,
@@ -16,6 +20,12 @@ import type {
   PresentationSlideRole,
   ValidationGate,
 } from '@/services/artifactRuntime/types';
+import type {
+  ArtifactDesignDirectionId,
+  ArtifactEditSurface,
+  ArtifactOutputMode,
+  ArtifactStructurePlan,
+} from '@/services/artifactPacks';
 import type { SlideBrief } from '@/services/ai/workflow/agents/planner';
 import type {
   PresentationAllowedEditSurface,
@@ -478,6 +488,87 @@ function resolvePresentationExportIntent(projectRulesBlock?: string): Presentati
   return 'html';
 }
 
+function resolveArtifactExportIntent(input: {
+  artifactType: BuildArtifactRunPlanInput['artifactType'];
+  presentationExportIntent?: PresentationExportIntent;
+}): ArtifactOutputMode {
+  if (input.artifactType === 'presentation') return input.presentationExportIntent ?? 'html';
+  if (input.artifactType === 'spreadsheet') return 'xlsx';
+  return 'html';
+}
+
+function buildArtifactStructurePlan(input: {
+  workflow: ArtifactRunPlan['workflow'];
+  workQueue: ArtifactPart[];
+  packId?: string;
+  directionId?: ArtifactDesignDirectionId;
+}): ArtifactStructurePlan {
+  const unit =
+    input.workflow.artifactType === 'presentation'
+      ? 'slides'
+      : input.workflow.artifactType === 'document'
+        ? 'modules'
+        : 'sheets';
+  const relevantParts = input.workQueue.length > 0 ? input.workQueue : [];
+
+  return {
+    artifactType: input.workflow.artifactType,
+    ...(input.packId ? { packId: input.packId } : {}),
+    ...(input.directionId ? { directionId: input.directionId } : {}),
+    targetLength: {
+      unit,
+      count: Math.max(1, relevantParts.length),
+    },
+    nodes: relevantParts.map((part) => ({
+      id: part.id,
+      orderIndex: part.orderIndex,
+      role: part.presentationSlideBlueprint?.role ?? part.kind,
+      label: part.title,
+      layoutFamily:
+        part.presentationSlideBlueprint?.layoutPattern
+        ?? part.documentModuleBlueprint?.componentPattern
+        ?? part.kind,
+      requiredSlots: [],
+      optionalSlots: [],
+    })),
+    rhythm: relevantParts.map((part) => ({
+      nodeId: part.id,
+      purpose: part.brief,
+      density: 'balanced',
+      visualWeight: part.presentationSlideBlueprint?.role === 'title-scene' || part.presentationSlideBlueprint?.role === 'closing-action'
+        ? 'hero'
+        : part.presentationSlideBlueprint?.role === 'metric-proof'
+          ? 'proof'
+          : 'standard',
+      transitionRole: part.presentationSlideBlueprint?.narrativeBeat ?? part.title,
+    })),
+    rules: [
+      'Compile from source payloads rather than treating compiled output as source.',
+      'Use the selected artifact pack and design direction as the source of visual truth.',
+      'Reject unsupported edit surfaces instead of allowing freeform layout changes.',
+    ],
+  };
+}
+
+function resolveArtifactEditSurface(input: {
+  editSurfaces: readonly ArtifactEditSurface[];
+  workflow: ArtifactRunPlan['workflow'];
+  operation: BuildArtifactRunPlanInput['operation'];
+}): ArtifactEditSurface | undefined {
+  if (input.editSurfaces.length === 0) return undefined;
+  if (input.operation === 'create') {
+    return input.editSurfaces.find((surface) => surface.kind === 'create') ?? input.editSurfaces[0];
+  }
+  if (input.workflow.requestKind === 'restyle') {
+    return input.editSurfaces.find((surface) => surface.kind === 'restyle') ?? input.editSurfaces[0];
+  }
+  if (input.workflow.requestKind === 'queue') {
+    return input.editSurfaces.find((surface) =>
+      surface.kind === 'add-slide' || surface.kind === 'add-module' || surface.kind === 'add-sheet') ?? input.editSurfaces[0];
+  }
+  return input.editSurfaces.find((surface) => surface.kind === 'text-edit') ?? input.editSurfaces[0];
+}
+
 function buildAllowedEditSurface(input: {
   workflow: ArtifactRunPlan['workflow'];
   operation: BuildArtifactRunPlanInput['operation'];
@@ -598,12 +689,33 @@ export function buildArtifactRunPlan(input: BuildArtifactRunPlanInput): Artifact
     presentationNarrativePlan,
     designManifest,
   );
-  const presentationScaffoldSelection = workflow.artifactType === 'presentation'
+  const presentationExportIntent = workflow.artifactType === 'presentation'
+    ? resolvePresentationExportIntent(planInput.projectRulesBlock)
+    : undefined;
+  const artifactExportIntent = resolveArtifactExportIntent({
+    artifactType: workflow.artifactType,
+    presentationExportIntent,
+  });
+  const projectRulesProxy = planInput.projectRulesBlock
+    ? { projectRules: { markdown: planInput.projectRulesBlock, updatedAt: Date.now() } }
+    : undefined;
+  const initialArtifactDesignContext = buildDesignContextSpec({
+    artifactType: workflow.artifactType,
+    project: projectRulesProxy,
+    briefSummary: workflow.summary,
+  });
+  const artifactPack = resolveArtifactPackForSelection({
+    artifactType: workflow.artifactType,
+    directionId: initialArtifactDesignContext.directionId,
+    outputMode: artifactExportIntent,
+    prompt: planInput.prompt,
+  });
+  const presentationScaffoldSelection = workflow.artifactType === 'presentation' && !artifactPack
     ? resolveDefaultScaffoldSelection({
         projectRulesBlock: planInput.projectRulesBlock,
         guidedOutputMode: planInput.guidedOutputMode,
         ...(workflow.presentationRecipeId ? { presentationRecipeId: workflow.presentationRecipeId } : {}),
-        exportIntent: resolvePresentationExportIntent(planInput.projectRulesBlock),
+        exportIntent: presentationExportIntent ?? 'html',
       })
     : undefined;
   const deckRhythmPlan = presentationScaffoldSelection
@@ -615,6 +727,43 @@ export function buildArtifactRunPlan(input: BuildArtifactRunPlanInput): Artifact
         briefs: buildScaffoldSlideBriefs(workQueue, planInput.prompt),
       })
     : undefined;
+  const artifactDesignContextSpec = buildDesignContextSpec({
+    artifactType: workflow.artifactType,
+    project: projectRulesProxy,
+    packId: artifactPack?.manifest.id,
+    packVersion: artifactPack?.manifest.version,
+    directionId: initialArtifactDesignContext.directionId,
+    audience: workflow.artifactType === 'presentation'
+      ? presentationNarrativePlan?.audience
+      : undefined,
+    briefSummary: workflow.summary,
+  });
+  const artifactStructurePlan = buildArtifactStructurePlan({
+    workflow,
+    workQueue,
+    packId: artifactPack?.manifest.id,
+    directionId: artifactDesignContextSpec.directionId,
+  });
+  const artifactAllowedEditSurface = resolveArtifactEditSurface({
+    editSurfaces: artifactPack?.manifest.editSurfaces ?? [],
+    workflow,
+    operation: planInput.operation,
+  });
+  const workflowWithArtifactPack: ArtifactRunPlan['workflow'] = {
+    ...workflow,
+    ...(artifactPack ? {
+      artifactPackId: artifactPack.manifest.id,
+      artifactPackVersion: artifactPack.manifest.version,
+    } : {}),
+    designDirectionId: artifactDesignContextSpec.directionId,
+    artifactExportIntent,
+    artifactDesignContextSpec,
+    artifactStructurePlan,
+    ...(artifactAllowedEditSurface ? { artifactAllowedEditSurface } : {}),
+    sourcePayloadRef: `${planInput.runId}:source`,
+    mediaBindingPlan: artifactDesignContextSpec.mediaBindingPlan,
+    dataBindingPlan: artifactDesignContextSpec.dataBindingPlan,
+  };
 
   return {
     version: 1,
@@ -626,6 +775,18 @@ export function buildArtifactRunPlan(input: BuildArtifactRunPlanInput): Artifact
     requestKind: workflow.requestKind,
     preservationIntent: workflow.preservationIntent,
     ...(workflow.presentationRecipeId ? { presentationRecipeId: workflow.presentationRecipeId } : {}),
+    ...(artifactPack ? {
+      artifactPackId: artifactPack.manifest.id,
+      artifactPackVersion: artifactPack.manifest.version,
+    } : {}),
+    designDirectionId: artifactDesignContextSpec.directionId,
+    artifactExportIntent,
+    artifactDesignContextSpec,
+    artifactStructurePlan,
+    ...(artifactAllowedEditSurface ? { artifactAllowedEditSurface } : {}),
+    sourcePayloadRef: `${planInput.runId}:source`,
+    mediaBindingPlan: artifactDesignContextSpec.mediaBindingPlan,
+    dataBindingPlan: artifactDesignContextSpec.dataBindingPlan,
     ...(presentationScaffoldSelection ? {
       presentationScaffoldId: presentationScaffoldSelection.scaffoldId,
       presentationThemeId: presentationScaffoldSelection.themeId,
@@ -643,7 +804,7 @@ export function buildArtifactRunPlan(input: BuildArtifactRunPlanInput): Artifact
     ...(workflow.documentThemeFamily ? { documentThemeFamily: workflow.documentThemeFamily } : {}),
     queueMode: workflow.queueMode,
     templateGuidance: workflow.templateGuidance,
-    workflow,
+    workflow: workflowWithArtifactPack,
     roles: ['planner', 'design-director', 'generator', 'validator', 'repairer', 'finalizer'],
     providerPolicy,
     designManifest,

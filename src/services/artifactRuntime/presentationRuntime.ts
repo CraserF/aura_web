@@ -19,6 +19,10 @@ import {
   type ScaffoldValidationResult,
 } from '@/services/presentationScaffolds';
 import {
+  isEditorialStagePresentationRun,
+  runEditorialStagePresentationQueue,
+} from '@/services/artifactPacks/packs/presentation/editorial-stage-v1/runtime';
+import {
   applyArtifactRunPlanToPresentationPlan,
   buildSlideBriefsFromRunPlan,
 } from '@/services/artifactRuntime/presentation';
@@ -39,6 +43,7 @@ import type {
 } from '@/services/ai/workflow/types';
 import type { TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
+import type { ArtifactValidationReport } from '@/services/artifactPacks';
 
 export interface PresentationRuntimeValidationResult {
   passed: boolean;
@@ -673,6 +678,43 @@ function combineScaffoldValidation(
   };
 }
 
+function combineArtifactPackValidation(
+  runtimeValidation: PresentationRuntimeValidationResult,
+  artifactValidation: ArtifactValidationReport | undefined,
+): PresentationRuntimeValidationResult {
+  if (!artifactValidation || artifactValidation.findings.length === 0) {
+    return runtimeValidation;
+  }
+
+  const validationByPart = [
+    ...runtimeValidation.validationByPart,
+    ...artifactValidation.findings.map((finding, index) => {
+      const slidePathIndex = finding.path?.find((part) => typeof part === 'number');
+      const slideIndex = typeof slidePathIndex === 'number' ? slidePathIndex + 1 : undefined;
+      return {
+        partId: slideIndex ? `slide-${slideIndex}` : `artifact-pack-${index + 1}`,
+        label: finding.id,
+        validationPassed: finding.severity !== 'blocking',
+        blockingCount: finding.severity === 'blocking' ? 1 : 0,
+        advisoryCount: finding.severity === 'advisory' ? 1 : 0,
+        rules: [finding.message],
+      };
+    }),
+  ];
+  const blockingCount = runtimeValidation.blockingCount + artifactValidation.blockingCount;
+  const advisoryCount = runtimeValidation.advisoryCount + artifactValidation.advisoryCount;
+
+  return {
+    passed: blockingCount === 0,
+    blockingCount,
+    advisoryCount,
+    validationByPart,
+    summary: blockingCount === 0
+      ? `Queued presentation runtime validation passed with ${artifactValidation.advisoryCount} artifact-pack advisory issue(s).`
+      : `Queued presentation runtime found ${blockingCount} blocking issue(s) and ${advisoryCount} advisory issue(s), including artifact-pack contract findings.`,
+  };
+}
+
 export async function repairPresentationRuntimeOutput(
   html: string,
   validation: PresentationRuntimeValidationResult,
@@ -854,14 +896,53 @@ export async function runQueuedPresentationRuntime(
   });
 
   const existingDeckIsScaffolded = !input.existingSlidesHtml || /\bdata-scaffold=["'][^"']+["']/i.test(input.existingSlidesHtml);
+  const existingDeckIsArtifactPacked = !input.existingSlidesHtml || /\bdata-pack=["']presentation\/editorial-stage-v1["']/i.test(input.existingSlidesHtml);
+  const useArtifactPackRuntime =
+    isEditorialStagePresentationRun(runPlan) &&
+    !isScaffoldedPresentationRun(runPlan) &&
+    (!isEdit || existingDeckIsArtifactPacked);
   const useScaffoldRuntime = isScaffoldedPresentationRun(runPlan) && (!isEdit || existingDeckIsScaffolded);
   let styleSystemHtmlForRepair = '';
   let scaffoldValidation: ScaffoldValidationResult | undefined;
+  let artifactPackValidation: ArtifactValidationReport | undefined;
+  let artifactSourcePayload: unknown;
   const styleStartedAt = performance.now();
   const generationStartedAt = performance.now();
   let batchResult: BatchQueueResult;
 
-  if (useScaffoldRuntime) {
+  if (useArtifactPackRuntime) {
+    phaseTimings.push({
+      phaseId: 'style-system',
+      label: 'Artifact pack shell',
+      durationMs: Math.round(performance.now() - styleStartedAt),
+      order: 1,
+    });
+    onEvent({
+      type: 'progress',
+      message: `Artifact pack selected: ${runPlan?.artifactPackId ?? 'presentation/editorial-stage-v1'}`,
+      pct: 18,
+      partId: 'style-system',
+      runId: runtimeRunId,
+    });
+
+    const packResult = await runEditorialStagePresentationQueue({
+      planResult: effectivePlanResult,
+      onEvent,
+      ...(runPlan ? { runPlan } : {}),
+      onSlideDraft: (combinedHtml, slideIndex, totalSlides) => {
+        firstPreviewAt ??= performance.now();
+        onEvent({ type: 'batch-slide-draft', html: combinedHtml, slideIndex, totalSlides });
+      },
+      onSlideComplete: (combinedHtml, slideIndex, totalSlides) => {
+        firstPreviewAt ??= performance.now();
+        onEvent({ type: 'batch-slide-complete', html: combinedHtml, slideIndex, totalSlides });
+      },
+    });
+    styleSystemHtmlForRepair = packResult.styleBlock;
+    artifactPackValidation = packResult.compileResult.validation;
+    artifactSourcePayload = packResult.source;
+    batchResult = packResult;
+  } else if (useScaffoldRuntime) {
     const scaffoldSelection = resolveScaffoldForRunPlan(runPlan);
     phaseTimings.push({
       phaseId: 'style-system',
@@ -972,7 +1053,8 @@ export async function runQueuedPresentationRuntime(
   });
 
   const validationStartedAt = performance.now();
-  const slideRepair = useScaffoldRuntime
+  const compilerOwnedOutput = useScaffoldRuntime || useArtifactPackRuntime;
+  const slideRepair = compilerOwnedOutput
     ? {
         html: batchResult.html,
         repairCount: 0,
@@ -995,11 +1077,14 @@ export async function runQueuedPresentationRuntime(
   }
 
   const validation = combineScaffoldValidation(
-    validatePresentationRuntimeOutput(
-      slideRepair.html,
-      effectivePlanResult,
-      batchResult.slideCount,
-      { skipExpectedBackground: useScaffoldRuntime },
+    combineArtifactPackValidation(
+      validatePresentationRuntimeOutput(
+        slideRepair.html,
+        effectivePlanResult,
+        batchResult.slideCount,
+        { skipExpectedBackground: compilerOwnedOutput },
+      ),
+      artifactPackValidation,
     ),
     scaffoldValidation,
   );
@@ -1016,12 +1101,12 @@ export async function runQueuedPresentationRuntime(
   });
 
   const repairStartedAt = performance.now();
-  const repair = useScaffoldRuntime
+  const repair = compilerOwnedOutput
     ? {
         html: slideRepair.html,
         repairCount: 0,
         repaired: false,
-        summary: 'Scaffolded output is compiler-owned; generic HTML repair skipped.',
+        summary: 'Compiler-owned output; generic HTML repair skipped.',
         validation,
       } satisfies PresentationRuntimeRepairResult
     : await repairPresentationRuntimeOutput(
@@ -1060,7 +1145,12 @@ export async function runQueuedPresentationRuntime(
   const finalizeStartedAt = performance.now();
   let finalValidation = repair.validation ?? validation;
   let finalHtml = repair.html;
-  if (useScaffoldRuntime) {
+  if (useArtifactPackRuntime) {
+    finalValidation = combineArtifactPackValidation(
+      validatePresentationRuntimeOutput(finalHtml, effectivePlanResult, batchResult.slideCount, { skipExpectedBackground: true }),
+      artifactPackValidation,
+    );
+  } else if (useScaffoldRuntime) {
     const scaffoldSelection = resolveScaffoldForRunPlan(runPlan);
     finalValidation = combineScaffoldValidation(
       validatePresentationRuntimeOutput(finalHtml, effectivePlanResult, batchResult.slideCount, { skipExpectedBackground: true }),
@@ -1087,7 +1177,7 @@ export async function runQueuedPresentationRuntime(
         qualityScore: qualityTelemetry.qualityScore,
         qualityBlockingCount: qualityTelemetry.qualityBlockingCount,
         deterministicPolishAvailable: false,
-        llmPolishAvailable: !useScaffoldRuntime && canRunPresentationQualityLlmPolish(effectivePlanResult) && canStartOptionalLlmPolish({
+        llmPolishAvailable: !compilerOwnedOutput && canRunPresentationQualityLlmPolish(effectivePlanResult) && canStartOptionalLlmPolish({
           runPlan,
           usedPasses: llmQualityPolishCount,
           runtimeStartMs: runtimeStart,
@@ -1155,7 +1245,7 @@ export async function runQueuedPresentationRuntime(
           qualityBlockingCount: qualityTelemetry.qualityBlockingCount,
           llmPolishCount: llmQualityPolishCount,
           deterministicPolishAvailable: false,
-          llmPolishAvailable: !useScaffoldRuntime && canRunPresentationQualityLlmPolish(effectivePlanResult) && canStartOptionalLlmPolish({
+          llmPolishAvailable: !compilerOwnedOutput && canRunPresentationQualityLlmPolish(effectivePlanResult) && canStartOptionalLlmPolish({
             runPlan,
             usedPasses: llmQualityPolishCount,
             runtimeStartMs: runtimeStart,
@@ -1209,6 +1299,22 @@ export async function runQueuedPresentationRuntime(
     slideCount: batchResult.slideCount,
     reviewPassed: finalValidation.passed,
     runtime: runtimeTelemetry,
+    ...(runPlan?.artifactPackId && runPlan.artifactPackVersion ? {
+      artifactManifest: {
+        packId: runPlan.artifactPackId,
+        packVersion: runPlan.artifactPackVersion,
+        ...(runPlan.designDirectionId ? { designDirectionId: runPlan.designDirectionId } : {}),
+        sourcePayloadVersion: 1,
+        renderer: 'presentation',
+        ...(runPlan.artifactExportIntent ? { exports: [runPlan.artifactExportIntent] } : {}),
+        ...(runPlan.artifactAllowedEditSurface ? { editSurfaces: [runPlan.artifactAllowedEditSurface.id] } : {}),
+        validationStatus: finalValidation.passed
+          ? (finalValidation.advisoryCount > 0 ? 'warnings' : 'passed')
+          : 'failed',
+        updatedAt: Date.now(),
+      },
+      ...(artifactSourcePayload ? { artifactSourcePayload } : {}),
+    } : {}),
   };
 
   onEvent({

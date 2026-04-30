@@ -150,6 +150,18 @@ export interface ProjectDocumentStarterRef {
   starterKitId?: string;
 }
 
+export interface ProjectArtifactManifest {
+  packId: string;
+  packVersion: string;
+  designDirectionId?: string;
+  sourcePayloadVersion?: number;
+  renderer?: 'presentation' | 'document' | 'spreadsheet' | 'html' | 'file';
+  exports?: string[];
+  editSurfaces?: string[];
+  validationStatus?: 'unknown' | 'passed' | 'failed' | 'warnings';
+  updatedAt: number;
+}
+
 /** A single document in a project */
 export interface ProjectDocument {
   id: string;
@@ -167,6 +179,10 @@ export interface ProjectDocument {
   description?: string;
   /** Starter metadata used to re-run deterministic bootstrap without duplicating artifacts */
   starterRef?: ProjectDocumentStarterRef;
+  /** Pack/source metadata for scaffolded artifact generation. Compiled output is not the source of truth. */
+  artifactManifest?: ProjectArtifactManifest;
+  /** Typed source payload for pack-backed artifacts. Shape is pack-specific and versioned by artifactManifest. */
+  artifactSourcePayload?: unknown;
   /** Parent document ID for nesting */
   parentId?: string;
   /** Whether paginated A4-style view is enabled (documents only) */

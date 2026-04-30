@@ -160,7 +160,7 @@ describe('presentation runtime workflow orchestration', () => {
 
     expect(runBatchQueueMock).not.toHaveBeenCalled();
     expect(events.filter((event) => event.type === 'batch-slide-complete')).toHaveLength(2);
-    expect(output.html).toContain('data-scaffold="executive-editorial-v1"');
+    expect(output.html).toContain('data-pack="presentation/editorial-stage-v1"');
     expect(output.runtime?.runMode).toBe('queued-create');
     expect(output.runtime?.queuedPartCount).toBe(2);
     expect(output.runtime?.completedPartCount).toBe(2);
@@ -323,7 +323,7 @@ describe('presentation runtime workflow orchestration', () => {
     }));
   });
 
-  it('uses scaffolded queued slides instead of repairing model-authored fragments', async () => {
+  it('uses compiler-owned queued slides instead of repairing model-authored fragments', async () => {
     const fullDeckHtml = `${VALID_STYLE}
       <section><h1 class="slide-title">Opening thesis</h1><p class="slide-body">Decision-ready opening.</p></section>
       <section data-background-color="#ffffff"><h2 class="slide-title">Next move</h2><p class="slide-body">Approve the next action.</p></section>`;
@@ -348,7 +348,7 @@ describe('presentation runtime workflow orchestration', () => {
     });
 
     expect(runBatchQueueMock).not.toHaveBeenCalled();
-    expect(output.html).toContain('data-scaffold="executive-editorial-v1"');
+    expect(output.html).toContain('data-pack="presentation/editorial-stage-v1"');
     expect(output.html).toContain('Opening thesis');
     expect(output.runtime?.validationPassed).toBe(true);
     expect(output.runtime?.repairCount).toBe(0);
@@ -356,7 +356,7 @@ describe('presentation runtime workflow orchestration', () => {
     expect(events).toContainEqual(expect.objectContaining({
       type: 'step-update',
       stepId: 'slide-1',
-      label: 'Slide 1/2: linted',
+      label: 'Slide 1/2: compiled',
       status: 'done',
     }));
     expect(events.some((event) =>

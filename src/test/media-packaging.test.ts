@@ -105,6 +105,22 @@ describe('media packaging', () => {
           starterType: 'document',
           starterKitId: 'executive-briefing',
         },
+        artifactManifest: {
+          packId: 'presentation/editorial-stage-v1',
+          packVersion: '1.0.0',
+          designDirectionId: 'editorial-magazine',
+          sourcePayloadVersion: 1,
+          renderer: 'presentation',
+          exports: ['html'],
+          editSurfaces: ['text-slot-edits'],
+          validationStatus: 'passed',
+          updatedAt: 123,
+        },
+        artifactSourcePayload: {
+          schemaVersion: 1,
+          packId: 'presentation/editorial-stage-v1',
+          slides: [{ id: 'slide-1', layoutId: 'cover', slots: { title: 'Launch' } }],
+        },
         sourceMarkdown: '# Doc',
         themeCss: '',
         slideCount: 0,
@@ -130,6 +146,17 @@ describe('media packaging', () => {
     });
 
     expect(String(writtenFiles['documents/doc-1.html']?.value)).toContain('src="media/hero.png"');
+    const docMeta = JSON.parse(String(writtenFiles['documents/doc-1.meta.json']?.value));
+    expect(docMeta.artifactManifest).toEqual(expect.objectContaining({
+      packId: 'presentation/editorial-stage-v1',
+      designDirectionId: 'editorial-magazine',
+      renderer: 'presentation',
+      validationStatus: 'passed',
+    }));
+    expect(docMeta.artifactSourcePayload).toEqual(expect.objectContaining({
+      schemaVersion: 1,
+      packId: 'presentation/editorial-stage-v1',
+    }));
     expect(JSON.parse(String(writtenFiles['manifest.json']?.value))).toEqual(expect.objectContaining({
       visualVariantId: 'launch',
       colorTheme,
@@ -187,6 +214,22 @@ describe('media packaging', () => {
                 starterType: 'document',
                 starterKitId: 'executive-briefing',
               },
+              artifactManifest: {
+                packId: 'presentation/editorial-stage-v1',
+                packVersion: '1.0.0',
+                designDirectionId: 'editorial-magazine',
+                sourcePayloadVersion: 1,
+                renderer: 'presentation',
+                exports: ['html'],
+                editSurfaces: ['text-slot-edits'],
+                validationStatus: 'passed',
+                updatedAt: 123,
+              },
+              artifactSourcePayload: {
+                schemaVersion: 1,
+                packId: 'presentation/editorial-stage-v1',
+                slides: [{ id: 'slide-1', layoutId: 'cover', slots: { title: 'Launch' } }],
+              },
               contentHtml: '',
               themeCss: '',
               slideCount: 0,
@@ -217,6 +260,14 @@ describe('media packaging', () => {
     expect(project.media?.[0]?.dataUrl).toContain('data:image/png;base64,');
     expect(project.documents[0]?.contentHtml).toContain('data:image/png;base64,');
     expect(project.documents[0]?.starterRef?.artifactKey).toBe('brief');
+    expect(project.documents[0]?.artifactManifest).toEqual(expect.objectContaining({
+      packId: 'presentation/editorial-stage-v1',
+      designDirectionId: 'editorial-magazine',
+    }));
+    expect(project.documents[0]?.artifactSourcePayload).toEqual(expect.objectContaining({
+      schemaVersion: 1,
+      packId: 'presentation/editorial-stage-v1',
+    }));
     expect(project.visualVariantId).toBe('research');
     expect(project.colorTheme).toEqual({ background: '#f8fafc', primary: '#1e3a5f', accent: '#0891b2' });
   });

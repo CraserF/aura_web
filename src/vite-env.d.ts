@@ -30,6 +30,11 @@ declare module 'virtual:presentation-scaffold-css/*' {
   export default content;
 }
 
+declare module 'virtual:artifact-pack-css/*' {
+  const content: string;
+  export default content;
+}
+
 declare module '*.js?url' {
   const url: string;
   export default url;

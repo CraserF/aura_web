@@ -10,6 +10,15 @@ import type {
   PresentationScaffoldDirectionId,
   PresentationScaffoldId,
 } from '@/services/presentationScaffolds/types';
+import type {
+  ArtifactDesignDirectionId,
+  ArtifactEditSurface,
+  ArtifactOutputMode,
+  ArtifactStructurePlan,
+  DataBindingPlan,
+  DesignContextSpec as ArtifactDesignContextSpec,
+  MediaBindingPlan,
+} from '@/services/artifactPacks/types';
 
 export type ArtifactWorkflowRequestKind =
   | 'create'
@@ -231,6 +240,16 @@ export interface ArtifactWorkflowPlan {
   allowedEditSurface?: PresentationAllowedEditSurface;
   designContextSpec?: PresentationDesignContextSpec;
   mediaSlotPlan?: PresentationMediaSlotPlan;
+  artifactPackId?: string;
+  artifactPackVersion?: string;
+  designDirectionId?: ArtifactDesignDirectionId;
+  artifactExportIntent?: ArtifactOutputMode;
+  artifactDesignContextSpec?: ArtifactDesignContextSpec;
+  artifactStructurePlan?: ArtifactStructurePlan;
+  artifactAllowedEditSurface?: ArtifactEditSurface;
+  sourcePayloadRef?: string;
+  mediaBindingPlan?: MediaBindingPlan;
+  dataBindingPlan?: DataBindingPlan;
   documentThemeFamily?: DocumentThemeFamily;
   queueMode: 'none' | 'sequential';
   queuedWorkItems: QueuedWorkItem[];
@@ -390,6 +409,16 @@ export interface ArtifactRunPlan {
   allowedEditSurface?: PresentationAllowedEditSurface;
   designContextSpec?: PresentationDesignContextSpec;
   mediaSlotPlan?: PresentationMediaSlotPlan;
+  artifactPackId?: string;
+  artifactPackVersion?: string;
+  designDirectionId?: ArtifactDesignDirectionId;
+  artifactExportIntent?: ArtifactOutputMode;
+  artifactDesignContextSpec?: ArtifactDesignContextSpec;
+  artifactStructurePlan?: ArtifactStructurePlan;
+  artifactAllowedEditSurface?: ArtifactEditSurface;
+  sourcePayloadRef?: string;
+  mediaBindingPlan?: MediaBindingPlan;
+  dataBindingPlan?: DataBindingPlan;
   documentThemeFamily?: DocumentThemeFamily;
   queueMode: 'none' | 'sequential';
   templateGuidance: TemplateGuidanceProfile;

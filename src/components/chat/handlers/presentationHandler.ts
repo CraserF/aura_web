@@ -346,6 +346,8 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
           title: result.title || activeDocument.title,
           slideCount: result.slideCount,
           chartSpecs,
+          ...(result.artifactManifest ? { artifactManifest: result.artifactManifest } : {}),
+          ...(result.artifactSourcePayload ? { artifactSourcePayload: result.artifactSourcePayload } : {}),
         });
         memorySourceRefs = [...memorySourceRefs, `document:${activeDocument.id}`];
       } else {
@@ -358,6 +360,8 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
           themeCss: '',
           slideCount: result.slideCount,
           chartSpecs,
+          ...(result.artifactManifest ? { artifactManifest: result.artifactManifest } : {}),
+          ...(result.artifactSourcePayload ? { artifactSourcePayload: result.artifactSourcePayload } : {}),
           lifecycleState: 'draft',
           order: context.data.projectDocumentCount,
           createdAt: Date.now(),
