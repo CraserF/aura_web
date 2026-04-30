@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { ArrowUp, History, Paperclip, Sparkles, Square, X, SlidersHorizontal } from 'lucide-react';
+import { ArrowUp, History, Palette, Paperclip, Sparkles, Square, X, SlidersHorizontal } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
 import { usePresentationStore } from '@/stores/presentationStore';
 import { useProjectStore } from '@/stores/projectStore';
@@ -21,6 +21,10 @@ import { resolveProjectRulesSnapshot } from '@/services/projectRules/resolve';
 import { loadContextPolicy } from '@/services/projectRules/load';
 import { mergeContextPolicy } from '@/services/projectRules/merge';
 import { formatGenerationStatusText, upsertWorkflowStepStatus } from '@/services/chat/workflowProgress';
+import { applyProjectColorsToPresentationHtml } from '@/services/artifactRuntime';
+import { validateArtifactAgainstProfile } from '@/services/validation';
+import { deriveLifecycleFromValidation } from '@/services/lifecycle/state';
+import { commitVersion } from '@/services/storage/versionHistory';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,6 +73,7 @@ export function ChatBar() {
   const [lastContext, setLastContext] = useState<ContextBundle | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [stallSeconds, setStallSeconds] = useState(0);
+  const [isApplyingPalette, setIsApplyingPalette] = useState(false);
   const statusUpdatedAtRef = useRef<number>(Date.now());
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -391,6 +396,45 @@ export function ChatBar() {
     setSelectedPresetId(duplicateId);
   }, [persistWorkflowPresets, presetState.defaultPreset, presetState.selectedPreset, project.workflowPresets, selectedPresetId, setSelectedPresetId]);
 
+  const handleApplyProjectColours = useCallback(async () => {
+    if (!activeDocument || activeDocument.type !== 'presentation' || !project.colorTheme || isGenerating || isApplyingPalette) {
+      return;
+    }
+
+    setIsApplyingPalette(true);
+    try {
+      const result = await applyProjectColorsToPresentationHtml({
+        html: activeDocument.contentHtml,
+        colorTheme: project.colorTheme,
+        visualVariantId: project.visualVariantId,
+      });
+      if (!result.changed) return;
+
+      const updatedDocument = {
+        ...activeDocument,
+        contentHtml: result.html,
+        themeCss: '',
+        updatedAt: Date.now(),
+      };
+      const validation = validateArtifactAgainstProfile(updatedDocument);
+      updateDocument(activeDocument.id, {
+        contentHtml: result.html,
+        themeCss: '',
+        ...deriveLifecycleFromValidation(validation),
+        lastSuccessfulPresetId: validation.passed ? activeDocument.lastSuccessfulPresetId : undefined,
+      });
+      setSlides(result.html);
+      commitVersion(
+        useProjectStore.getState().project,
+        `Applied project colours to presentation: ${activeDocument.title}`,
+      ).catch((error) => console.warn('[VersionHistory] commit failed:', error));
+    } catch (error) {
+      console.warn('[Presentation] failed to apply project colours:', error);
+    } finally {
+      setIsApplyingPalette(false);
+    }
+  }, [activeDocument, isApplyingPalette, isGenerating, project.colorTheme, project.visualVariantId, setSlides, updateDocument]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -681,6 +725,18 @@ export function ChatBar() {
               >
                 {activeDocument.type === 'presentation' ? 'Slides' : activeDocument.type === 'spreadsheet' ? 'Sheet' : 'Doc'}:
                 <span className="max-w-[100px] truncate font-medium text-foreground/70">{activeDocument.title}</span>
+              </button>
+            )}
+            {activeDocument?.type === 'presentation' && project.colorTheme && (
+              <button
+                type="button"
+                onClick={handleApplyProjectColours}
+                disabled={isGenerating || isApplyingPalette}
+                className="inline-flex size-7 items-center justify-center rounded-md border border-border/70 bg-background/80 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
+                aria-label="Apply project colours to active deck"
+                title="Apply project colours"
+              >
+                <Palette size={12} strokeWidth={2} />
               </button>
             )}
             {/* Advanced options toggle */}

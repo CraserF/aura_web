@@ -14,6 +14,7 @@ interface PresentationPromptBaseInput {
   planResult: PlanResult;
   projectRulesBlock?: string;
   guidanceProfile?: TemplateGuidanceProfile;
+  sectionOnly?: boolean;
 }
 
 interface PresentationCreateUserPromptInput extends PresentationPromptBaseInput {
@@ -31,6 +32,7 @@ interface PresentationBatchSlidePromptInput extends PresentationPromptBaseInput 
   brief: SlideBrief;
   totalSlides: number;
   sharedStyleBlock?: string;
+  lockedStyleSystem?: boolean;
   isAppendingToExistingDeck?: boolean;
 }
 
@@ -187,7 +189,18 @@ Continuity: ${blueprint.continuityInstruction}`,
   ]);
 }
 
-function buildFinalFormatPack(): string {
+function buildFinalFormatPack(options: { sectionOnly?: boolean } = {}): string {
+  if (options.sectionOnly) {
+    return `## FINAL FORMAT CHECK
+
+- Return only \`<section>\` element(s).
+- Do not output a \`<style>\` block, \`<!DOCTYPE>\`, \`<html>\`, \`<head>\`, \`<body>\`, \`<link>\`, scripts, remote assets, markdown, or prose.
+- Use CSS classes and SVG attributes only; no inline \`style=\` attributes on slide content.
+- Every section must use a concrete hex \`data-background-color\`.
+- Replace placeholders and unfinished copy before calling \`submitFinalSlide\`.
+- Validate the fragment, fix blocking issues, then call \`submitFinalSlide\`.`;
+  }
+
   return `## FINAL FORMAT CHECK
 
 - Return only a \`<style>\` block plus \`<section>\` element(s).
@@ -241,7 +254,7 @@ export function buildPresentationCreateSystemPrompt(input: PresentationPromptBas
 Create one finished presentation slide fragment unless the task brief explicitly asks for multiple sections.
 Use system fonts or local CSS font-family stacks only. Build visual interest with layout, CSS, and inline SVG diagrams.`,
     input.projectRulesBlock,
-    buildFinalFormatPack(),
+    buildFinalFormatPack({ sectionOnly: input.sectionOnly }),
   ]);
 }
 
@@ -341,6 +354,7 @@ Output only the new \`<section>\` element(s); do not repeat existing slides and 
 export function buildPresentationBatchSlidePrompt(input: PresentationBatchSlidePromptInput): string {
   const sharedStyleBlock = input.sharedStyleBlock?.trim() ?? '';
   const hasSharedStyleBlock = sharedStyleBlock.length > 0;
+  const lockedStyleSystem = input.lockedStyleSystem === true;
   const isAppendingToExistingDeck = input.isAppendingToExistingDeck === true;
   const qualityLine = input.runPlan?.qualityBar
     ? `Quality bar: ${input.runPlan.qualityBar.tier}, score ${input.runPlan.qualityBar.acceptanceThresholds.minimumScore}+; vary slide role while preserving motif and shared tokens.`
@@ -357,6 +371,21 @@ Generate exactly one \`<section>\` for this slide.`;
   const slideBlueprint = input.runPlan?.workQueue
     .find((part) => part.kind === 'slide' && part.orderIndex === input.brief.index - 1)
     ?.presentationSlideBlueprint;
+
+  if (lockedStyleSystem) {
+    return buildPrompt([
+      buildNarrativePlanPack(input),
+      buildSlideBlueprintPack(slideBlueprint),
+      slideTask,
+      `Locked runtime-owned deck style:
+\`\`\`html
+${sharedStyleBlock.slice(0, 2600)}
+\`\`\``,
+      `Use this style system only. Reuse its variables, class vocabulary, type scale, layout rhythm, and motion cadence.
+Build topic-specific visual richness inside the section with the provided classes, semantic text hierarchy, and inline SVG scenes/diagrams that use viewBox plus CSS variables for fill/stroke.
+Do not fall back to a generic title-and-card layout when the task asks for a distinctive mood or motif. Output exactly one \`<section>\` and no \`<style>\` block.`,
+    ]);
+  }
 
   if (isAppendingToExistingDeck) {
     return buildPrompt([

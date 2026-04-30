@@ -12,7 +12,7 @@
 import type { ProjectDocument } from '@/types/project';
 import type { ClarifyOption, GenerationStatus, WorkflowStep } from '@/types';
 import type { AIMessage } from '@/services/ai/types';
-import type { LLMConfig } from '@/services/ai/workflow/types';
+import type { LLMConfig, PresentationRuntimeTelemetry } from '@/services/ai/workflow/types';
 import type { WorkflowEvent } from '@/services/ai/workflow';
 import { logContextMetrics } from '@/services/ai/debug';
 import { getCompressionBudget } from '@/services/context/compressionBudget';
@@ -21,6 +21,9 @@ import { extractChartSpecsFromHtml } from '@/services/charts';
 import { useProjectStore } from '@/stores/projectStore';
 import type { RunRequest } from '@/services/runs/types';
 import type { RunResult } from '@/services/contracts/runResult';
+import { publishRunEvent } from '@/services/events/eventBus';
+import { createRunEventSource } from '@/services/events/provenance';
+import { recordRunEvent } from '@/services/runs/registry';
 import { resolveTargets } from '@/services/editing/resolveTargets';
 import {
   countRunPlanParts,
@@ -30,7 +33,8 @@ import {
   workflowStepUpdateFromRuntimeEvent,
 } from '@/services/chat/workflowProgress';
 import { validateArtifactAgainstProfile } from '@/services/validation';
-import { summarizeValidationResult } from '@/services/validation/profiles';
+import { createValidationIssue, summarizeValidationResult } from '@/services/validation/profiles';
+import type { ValidationResult } from '@/services/validation/types';
 import { deriveLifecycleFromValidation } from '@/services/lifecycle/state';
 import { formatRuntimeQualityDiagnostics } from '@/services/artifactRuntime';
 import { qualityOutcomeLabel } from '@/services/chat/renderRunResult';
@@ -58,6 +62,29 @@ export interface PresentationHandlerContext {
 
 type GeneratingStatusPatch = Partial<Omit<Extract<GenerationStatus, { state: 'generating' }>, 'state' | 'startedAt' | 'steps'>>;
 
+function runtimeQualitySafetyPassed(runtime: PresentationRuntimeTelemetry | undefined, reviewPassed: boolean): boolean {
+  if (runtime?.qualityDecision === 'blocked-by-safety') return false;
+  if ((runtime?.qualityBlockingCount ?? 0) > 0) return false;
+  return runtime?.validationPassed ?? reviewPassed;
+}
+
+function addQualitySafetyIssue(
+  validation: ValidationResult,
+  documentId: string,
+  message: string,
+): ValidationResult {
+  const issue = createValidationIssue('blocking', 'quality-safety-blocked', message, {
+    targetDocumentId: documentId,
+    source: 'presentation-runtime',
+  });
+  return {
+    ...validation,
+    passed: false,
+    blockingIssues: [...validation.blockingIssues, issue],
+    score: Math.min(validation.score, Math.max(0, validation.score - 20)),
+  };
+}
+
 export async function handlePresentationWorkflow(ctx: PresentationHandlerContext): Promise<RunResult> {
   const {
     runRequest, workflowStepsRef, abortControllerRef,
@@ -65,6 +92,7 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
     setSlides, setTitle, updateStepStatus, queueMemoryExtraction,
   } = ctx;
   const { context, activeArtifacts, providerConfig, intent, runId } = runRequest;
+  const eventSource = createRunEventSource('presentationHandler');
   const prompt = context.conversation.prompt;
   const promptWithContext = context.conversation.promptWithContext;
   const chatHistory = context.conversation.chatHistory;
@@ -212,11 +240,21 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
           if (event.html) setSlides(event.html);
           setStatus(buildGeneratingStatus({ step: 'Checking quality', pct: 72 }));
           break;
+        case 'batch-slide-draft':
+          setSlides(event.html);
+          setStatus(buildGeneratingStatus({
+            step: `Previewing slide ${event.slideIndex} of ${event.totalSlides}`,
+            pct: Math.round(18 + ((event.slideIndex - 0.35) / event.totalSlides) * 52),
+            currentItem: event.slideIndex,
+            totalItems: event.totalSlides,
+            itemLabel: 'slide',
+          }));
+          break;
         case 'batch-slide-complete':
           setSlides(event.html);
           setStatus(buildGeneratingStatus({
-            step: 'Creating slides',
-            pct: Math.round(20 + (event.slideIndex / event.totalSlides) * 70),
+            step: `Slide ${event.slideIndex} of ${event.totalSlides} ready`,
+            pct: Math.round(18 + (event.slideIndex / event.totalSlides) * 52),
             currentItem: event.slideIndex,
             totalItems: event.totalSlides,
             itemLabel: 'slide',
@@ -234,6 +272,16 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
           }));
           break;
         case 'progress':
+          recordRunEvent(runId, publishRunEvent({
+            type: 'runtime.phase',
+            runId,
+            source: eventSource,
+            payload: {
+              message: event.message,
+              pct: event.pct,
+              partId: event.partId,
+            },
+          }));
           setStatus(buildGeneratingStatus({
             step: publicWorkflowProgressLabel({ stepId: event.partId, label: event.message }),
             pct: event.pct,
@@ -298,7 +346,6 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
           title: result.title || activeDocument.title,
           slideCount: result.slideCount,
           chartSpecs,
-          lastSuccessfulPresetId: runRequest.appliedPreset?.id,
         });
         memorySourceRefs = [...memorySourceRefs, `document:${activeDocument.id}`];
       } else {
@@ -312,7 +359,6 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
           slideCount: result.slideCount,
           chartSpecs,
           lifecycleState: 'draft',
-          lastSuccessfulPresetId: runRequest.appliedPreset?.id,
           order: context.data.projectDocumentCount,
           createdAt: Date.now(),
           updatedAt: Date.now(),
@@ -338,13 +384,23 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
     const persistedDocument = changedDocumentId
       ? useProjectStore.getState().project.documents.find((document) => document.id === changedDocumentId)
       : undefined;
-    const artifactValidation = persistedDocument
+    const rawArtifactValidation = persistedDocument
       ? validateArtifactAgainstProfile(persistedDocument)
       : undefined;
+    const safetyPassed = runtimeQualitySafetyPassed(result.runtime, result.reviewPassed);
+    const artifactValidation = persistedDocument && rawArtifactValidation && !safetyPassed
+      ? addQualitySafetyIssue(
+          rawArtifactValidation,
+          persistedDocument.id,
+          result.runtime?.qualityDecision === 'blocked-by-safety'
+            ? 'Presentation runtime quality safety blocked approval.'
+            : 'Presentation runtime validation did not pass safely.',
+        )
+      : rawArtifactValidation;
     if (persistedDocument && artifactValidation) {
       updateDocument(persistedDocument.id, {
         ...deriveLifecycleFromValidation(artifactValidation),
-        ...(artifactValidation.passed ? { lastSuccessfulPresetId: runRequest.appliedPreset?.id } : {}),
+        ...(artifactValidation.passed && safetyPassed ? { lastSuccessfulPresetId: runRequest.appliedPreset?.id } : {}),
       });
     }
     const validationWarnings = artifactValidation
@@ -354,7 +410,9 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         }))
       : [];
 
-    const reviewWarning = result.reviewPassed ? [] : [{ code: 'qa-warning', message: 'QA flagged issues on the final presentation output.' }];
+    const reviewWarning = result.reviewPassed && safetyPassed
+      ? []
+      : [{ code: 'qa-warning', message: 'QA flagged issues on the final presentation output.' }];
     const validation = artifactValidation
       ? {
           passed: artifactValidation.passed,
@@ -391,7 +449,7 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
       ? `${result.slideCount} slide${result.slideCount !== 1 ? 's' : ''}`
       : null;
     const presentationContent = slideCountText
-      ? `Generated ${slideCountText}. ${outcomeLabel ?? (result.reviewPassed ? 'Looks polished.' : 'QA flagged issues.')}`
+      ? `Generated ${slideCountText}. ${outcomeLabel ?? (result.reviewPassed && safetyPassed ? 'Looks polished.' : 'QA flagged issues.')}`
       : 'Generation completed but no slides were produced.';
     const improveOptions: ClarifyOption[] | undefined =
       qualityDecision === 'safe-budget-exhausted' && result.html

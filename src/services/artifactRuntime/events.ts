@@ -89,6 +89,8 @@ export function artifactRunEventToWorkflowEvent(event: ArtifactRunEvent): Workfl
         type: 'progress',
         message: event.message,
         pct: event.pct,
+        runId: event.runId,
+        ...(event.partId ? { partId: event.partId } : {}),
       };
   }
 }

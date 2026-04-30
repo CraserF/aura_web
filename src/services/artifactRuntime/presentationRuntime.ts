@@ -8,6 +8,7 @@ import { evaluateAndRevise } from '@/services/ai/workflow/agents/evaluator';
 import { sanitizeSlideHtml } from '@/services/ai/utils/sanitizeHtml';
 import { sanitizeInnerHtml } from '@/services/html/sanitizer';
 import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
+import { resolvePresentationStyleSystem } from '@/services/artifactRuntime/presentationStyleSystem';
 import {
   applyArtifactRunPlanToPresentationPlan,
   buildSlideBriefsFromRunPlan,
@@ -66,6 +67,7 @@ export interface QueuedPresentationRuntimeOptions {
   isEdit: boolean;
   guidanceProfile?: TemplateGuidanceProfile;
   signal?: AbortSignal;
+  planningDurationMs?: number;
 }
 
 export interface PresentationRuntimeOrchestratorOptions {
@@ -75,6 +77,7 @@ export interface PresentationRuntimeOrchestratorOptions {
   editCorrectionPolicy: SinglePresentationRuntimeOptions['editCorrectionPolicy'];
   skipSecondaryEvaluation: boolean;
   signal?: AbortSignal;
+  planningDurationMs?: number;
 }
 
 export interface StaticPresentationRuntimeFinalizeInput {
@@ -99,6 +102,7 @@ export interface SinglePresentationRuntimeOptions {
   };
   skipSecondaryEvaluation: boolean;
   signal?: AbortSignal;
+  planningDurationMs?: number;
 }
 
 function startProgressHeartbeat(opts: {
@@ -263,13 +267,13 @@ function ensureConcreteSectionBackgrounds(sections: HTMLElement[]): void {
   }
 }
 
-function buildStyleFragment(doc: Document): string {
+function buildStyleFragment(doc: Document, fallbackStyleBlock?: string): string {
   const styleText = Array.from(doc.querySelectorAll<HTMLStyleElement>('style'))
     .map((style) => style.textContent?.trim() ?? '')
     .filter(Boolean)
     .join('\n\n');
   if (!styleText) {
-    return '<style>\n</style>';
+    return fallbackStyleBlock ?? '<style>\n</style>';
   }
 
   const needsReducedMotion = /\b(?:animation\s*:|@keyframes\b)/i.test(styleText) && !/prefers-reduced-motion/i.test(styleText);
@@ -426,6 +430,13 @@ async function runBoundedLlmPresentationRepair(input: {
 }
 
 export function repairPresentationFragmentHtml(html: string): { html: string; changed: boolean } {
+  return repairPresentationFragmentHtmlWithOptions(html);
+}
+
+export function repairPresentationFragmentHtmlWithOptions(
+  html: string,
+  options: { styleSystemHtml?: string } = {},
+): { html: string; changed: boolean } {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
 
@@ -443,7 +454,7 @@ export function repairPresentationFragmentHtml(html: string): { html: string; ch
   }
 
   const repairedHtml = [
-    buildStyleFragment(doc),
+    buildStyleFragment(doc, options.styleSystemHtml),
     ...sections.map((section) => section.outerHTML),
   ].join('\n');
 
@@ -629,6 +640,7 @@ export async function repairPresentationRuntimeOutput(
   options: {
     model?: LanguageModel;
     projectRulesBlock?: string;
+    styleSystemHtml?: string;
     signal?: AbortSignal;
   } = {},
 ): Promise<PresentationRuntimeRepairResult> {
@@ -659,7 +671,9 @@ export async function repairPresentationRuntimeOutput(
     pct: 88,
   });
 
-  const repaired = repairPresentationFragmentHtml(html);
+  const repaired = repairPresentationFragmentHtmlWithOptions(html, {
+    ...(options.styleSystemHtml ? { styleSystemHtml: options.styleSystemHtml } : {}),
+  });
   if (repaired.changed) {
     const repairedValidation = validatePresentationRuntimeOutput(
       repaired.html,
@@ -754,10 +768,20 @@ export async function runQueuedPresentationRuntime(
     isEdit,
     guidanceProfile,
     signal,
+    planningDurationMs,
   } = opts;
 
   const runtimeStart = performance.now();
   let firstPreviewAt: number | undefined;
+  const phaseTimings: NonNullable<ArtifactRuntimeTelemetry['phaseTimings']> = [];
+  if (typeof planningDurationMs === 'number') {
+    phaseTimings.push({
+      phaseId: 'planning',
+      label: 'Planning',
+      durationMs: Math.round(planningDurationMs),
+      order: 0,
+    });
+  }
   const runtimeRunId = runPlan?.runId ?? 'presentation-runtime';
   const effectivePlanResult = buildQueuedPresentationPlanResult(planResult, runPlan);
   const slideBriefs = effectivePlanResult.slideBriefs ?? [];
@@ -776,16 +800,38 @@ export async function runQueuedPresentationRuntime(
     role: 'generator',
     message: queuedLabel,
     partId: queuedStepId,
-    pct: 25,
+    pct: 18,
   });
   onEvent({
     type: 'progress',
     message: runPlan
       ? `Creating ${slideBriefs.length} slide part${slideBriefs.length === 1 ? '' : 's'} from the runtime plan…`
       : `Creating ${slideBriefs.length} queued slide${slideBriefs.length === 1 ? '' : 's'}…`,
-    pct: 25,
+    pct: 18,
   });
 
+  const styleStartedAt = performance.now();
+  const styleSystem = await resolvePresentationStyleSystem({
+    planResult: effectivePlanResult,
+    ...(runPlan ? { runPlan } : {}),
+    ...(guidanceProfile ? { guidanceProfile } : {}),
+    projectRulesBlock: input.projectRulesBlock,
+  });
+  phaseTimings.push({
+    phaseId: 'style-system',
+    label: 'Style shell',
+    durationMs: Math.round(performance.now() - styleStartedAt),
+    order: 1,
+  });
+  onEvent({
+    type: 'progress',
+    message: `Style system locked: ${styleSystem.templateId}`,
+    pct: 18,
+    partId: 'style-system',
+    runId: runtimeRunId,
+  });
+
+  const generationStartedAt = performance.now();
   const batchResult = await runBatchQueue({
     planResult: effectivePlanResult,
     model,
@@ -793,11 +839,31 @@ export async function runQueuedPresentationRuntime(
     ...(isEdit && input.existingSlidesHtml ? { initialHtml: input.existingSlidesHtml } : {}),
     ...(guidanceProfile ? { guidanceProfile } : {}),
     ...(runPlan ? { runPlan } : {}),
+    styleSystemHtml: styleSystem.styleBlock,
+    onSlideDraft: (combinedHtml, slideIndex, totalSlides) => {
+      firstPreviewAt ??= performance.now();
+      onEvent({ type: 'batch-slide-draft', html: combinedHtml, slideIndex, totalSlides });
+    },
     onSlideComplete: (combinedHtml, slideIndex, totalSlides) => {
       firstPreviewAt ??= performance.now();
       onEvent({ type: 'batch-slide-complete', html: combinedHtml, slideIndex, totalSlides });
     },
     ...(signal ? { signal } : {}),
+  });
+  phaseTimings.push({
+    phaseId: 'slide-generation',
+    label: 'Slide generation',
+    durationMs: Math.round(performance.now() - generationStartedAt),
+    order: 2,
+  });
+  (batchResult.slideTimingsMs ?? []).forEach((durationMs, index) => {
+    phaseTimings.push({
+      phaseId: 'slide',
+      label: `Slide ${index + 1}`,
+      durationMs,
+      partId: `slide-${index + 1}`,
+      order: 3 + index,
+    });
   });
 
   emitArtifactRunEvent(onEvent, {
@@ -806,7 +872,7 @@ export async function runQueuedPresentationRuntime(
     role: 'generator',
     message: queuedLabel,
     partId: queuedStepId,
-    pct: 80,
+    pct: 70,
   });
   emitArtifactRunEvent(onEvent, {
     runId: runtimeRunId,
@@ -814,9 +880,10 @@ export async function runQueuedPresentationRuntime(
     role: 'validator',
     message: 'Checking queued slides…',
     partId: 'evaluate',
-    pct: 82,
+    pct: 70,
   });
 
+  const validationStartedAt = performance.now();
   const slideRepair = repairQueuedPresentationSlideFragments({
     html: batchResult.html,
     planResult: effectivePlanResult,
@@ -839,9 +906,16 @@ export async function runQueuedPresentationRuntime(
   onEvent({
     type: 'progress',
     message: validation.summary,
-    pct: validation.passed ? 86 : 82,
+    pct: validation.passed ? 82 : 78,
+  });
+  phaseTimings.push({
+    phaseId: 'validation',
+    label: 'Validation',
+    durationMs: Math.round(performance.now() - validationStartedAt),
+    order: 20,
   });
 
+  const repairStartedAt = performance.now();
   const repair = await repairPresentationRuntimeOutput(
     slideRepair.html,
     validation,
@@ -852,9 +926,16 @@ export async function runQueuedPresentationRuntime(
     {
       model,
       projectRulesBlock: input.projectRulesBlock,
+      styleSystemHtml: styleSystem.styleBlock,
       signal,
     },
   );
+  phaseTimings.push({
+    phaseId: 'repair',
+    label: 'Deterministic repair',
+    durationMs: Math.round(performance.now() - repairStartedAt),
+    order: 21,
+  });
 
   if (validation.passed || !repair.repaired) {
     emitArtifactRunEvent(onEvent, {
@@ -868,6 +949,7 @@ export async function runQueuedPresentationRuntime(
   }
 
   onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing presentation…' });
+  const finalizeStartedAt = performance.now();
   let finalValidation = repair.validation ?? validation;
   let finalHtml = repair.html;
   let llmQualityPolishCount = 0;
@@ -895,6 +977,7 @@ export async function runQueuedPresentationRuntime(
   let qualityPolishAction: ArtifactRuntimeTelemetry['qualityPolishAction'] | undefined = qualityDecision?.action;
 
   if (qualityDecision?.shouldPolish && qualityDecision.action === 'llm-polish') {
+    const polishStartedAt = performance.now();
     onEvent({ type: 'step-start', stepId: 'quality-polish', label: 'Polishing quality…' });
     emitArtifactRunEvent(onEvent, {
       runId: runtimeRunId,
@@ -968,6 +1051,12 @@ export async function runQueuedPresentationRuntime(
       partId: 'quality-polish',
       pct: 94,
     });
+    phaseTimings.push({
+      phaseId: 'quality-polish',
+      label: 'Quality polish',
+      durationMs: Math.round(performance.now() - polishStartedAt),
+      order: 22,
+    });
   }
 
   const outputHtml = sanitizeInnerHtml(finalHtml);
@@ -982,6 +1071,15 @@ export async function runQueuedPresentationRuntime(
     queuedPartCount: slideBriefs.length,
     completedPartCount: batchResult.slideCount,
     repairedPartCount: slideRepair.repairedPartCount + (repair.repairedPartCount ?? 0),
+    phaseTimings: [
+      ...phaseTimings,
+      {
+        phaseId: 'finalize',
+        label: 'Finalize',
+        durationMs: Math.round(performance.now() - finalizeStartedAt),
+        order: 99,
+      },
+    ],
     ...qualityTelemetry,
     validationByPart: finalValidation.validationByPart,
   }, qualityDecision, qualityPolishAction);
@@ -1039,7 +1137,9 @@ export async function runPresentationRuntime(
   onEvent({ type: 'step-start', stepId: 'plan', label: 'Analyzing your request…' });
   onEvent({ type: 'progress', message: 'Understanding your request…', pct: 10 });
 
+  const planningStartedAt = performance.now();
   let planResult = await plan(input.prompt, isEdit);
+  const planningDurationMs = performance.now() - planningStartedAt;
   if (planResult.blocked) {
     onEvent({ type: 'step-error', stepId: 'plan', error: planResult.blockReason ?? 'Request blocked.' });
     throw new Error(planResult.blockReason ?? 'Request blocked.');
@@ -1088,6 +1188,7 @@ export async function runPresentationRuntime(
       onEvent,
       isEdit,
       ...(guidanceProfile ? { guidanceProfile } : {}),
+      planningDurationMs,
       ...(signal ? { signal } : {}),
     });
   }
@@ -1103,6 +1204,7 @@ export async function runPresentationRuntime(
     ...(guidanceProfile ? { guidanceProfile } : {}),
     editCorrectionPolicy,
     skipSecondaryEvaluation,
+    planningDurationMs,
     ...(signal ? { signal } : {}),
   });
 }
@@ -1122,10 +1224,20 @@ export async function runSinglePresentationRuntime(
     editCorrectionPolicy,
     skipSecondaryEvaluation,
     signal,
+    planningDurationMs,
   } = opts;
   const runtimeRunId = runPlan?.runId ?? 'presentation-runtime';
   const runtimeStart = performance.now();
   let firstPreviewAt: number | undefined;
+  const phaseTimings: NonNullable<ArtifactRuntimeTelemetry['phaseTimings']> = [];
+  if (typeof planningDurationMs === 'number') {
+    phaseTimings.push({
+      phaseId: 'planning',
+      label: 'Planning',
+      durationMs: Math.round(planningDurationMs),
+      order: 0,
+    });
+  }
   const runtimeOnEvent: EventListener = (event) => {
     if (!firstPreviewAt && (event.type === 'draft-complete' || event.type === 'streaming')) {
       firstPreviewAt = performance.now();
@@ -1143,6 +1255,7 @@ export async function runSinglePresentationRuntime(
 
   const designStepId = isEdit ? 'targeted-design' : 'design';
   const designLabel = isEdit ? 'Editing slides...' : 'Designing your slide...';
+  const designStartedAt = performance.now();
   emitArtifactRunEvent(onEvent, {
     runId: runtimeRunId,
     type: 'runtime.part-started',
@@ -1200,6 +1313,12 @@ export async function runSinglePresentationRuntime(
       stopDesignHeartbeat();
     }
   })();
+  phaseTimings.push({
+    phaseId: 'slide-generation',
+    label: isEdit ? 'Slide editing' : 'Slide generation',
+    durationMs: Math.round(performance.now() - designStartedAt),
+    order: 1,
+  });
 
   onEvent({
     type: 'progress',
@@ -1236,6 +1355,7 @@ export async function runSinglePresentationRuntime(
   // Step 3: run deterministic + bounded LLM repair for blocking issues (mirrors queued path)
   let repairResult: PresentationRuntimeRepairResult | undefined;
   if (!runtimeValidation.passed) {
+    const repairStartedAt = performance.now();
     onEvent({ type: 'progress', message: 'Repairing slide issues...', pct: 72 });
     repairResult = await repairPresentationRuntimeOutput(
       designResult.html,
@@ -1246,6 +1366,12 @@ export async function runSinglePresentationRuntime(
       onEvent,
       { model, projectRulesBlock: input.projectRulesBlock, signal },
     );
+    phaseTimings.push({
+      phaseId: 'repair',
+      label: 'Deterministic repair',
+      durationMs: Math.round(performance.now() - repairStartedAt),
+      order: 2,
+    });
     if (repairResult.repaired) {
       finalHtml = repairResult.html;
     }
@@ -1299,6 +1425,7 @@ export async function runSinglePresentationRuntime(
   });
 
   if (shouldEvaluate) {
+    const evaluationStartedAt = performance.now();
     emitArtifactRunEvent(onEvent, {
       runId: runtimeRunId,
       type: 'runtime.validation-started',
@@ -1367,6 +1494,12 @@ export async function runSinglePresentationRuntime(
         onEvent({ type: 'step-skipped', stepId: 'quality-polish', label: 'Polishing quality…' });
       }
     }
+    phaseTimings.push({
+      phaseId: needsExcellenceEvaluation ? 'quality-polish' : 'validation',
+      label: needsExcellenceEvaluation ? 'Quality polish' : 'Validation',
+      durationMs: Math.round(performance.now() - evaluationStartedAt),
+      order: 3,
+    });
   } else {
     onEvent({ type: 'step-skipped', stepId: 'evaluate', label: 'Evaluating quality...' });
     onEvent({
@@ -1383,6 +1516,7 @@ export async function runSinglePresentationRuntime(
   if (signal?.aborted) throw new DOMException('Workflow aborted', 'AbortError');
 
   onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing slide...' });
+  const finalizeStartedAt = performance.now();
 
   const outputHtml = sanitizeInnerHtml(finalHtml);
   const finalQualityTelemetry = buildPresentationQualityTelemetry({
@@ -1421,6 +1555,15 @@ export async function runSinglePresentationRuntime(
     runMode: 'single-stream',
     queuedPartCount: 1,
     completedPartCount: designResult.slideCount,
+    phaseTimings: [
+      ...phaseTimings,
+      {
+        phaseId: 'finalize',
+        label: 'Finalize',
+        durationMs: Math.round(performance.now() - finalizeStartedAt),
+        order: 99,
+      },
+    ],
     ...finalQualityTelemetry,
     validationByPart: runtimeValidation.validationByPart,
   }, qualityDecision, needsExcellenceEvaluation && shouldEvaluate ? 'llm-polish' : qualityDecision?.action);
@@ -1499,6 +1642,12 @@ export function finalizeStaticPresentationRuntime(
       queuedPartCount: input.slideCount,
       completedPartCount: input.slideCount,
       repairedPartCount: 0,
+      phaseTimings: [{
+        phaseId: 'deterministic-finalize',
+        label: 'Deterministic finalize',
+        durationMs: Math.round(performance.now() - runtimeStart),
+        order: 0,
+      }],
       ...qualityTelemetry,
       validationByPart,
     }, qualityDecision),

@@ -30,6 +30,47 @@ function readAdvancedDiagnostics(payload: Record<string, unknown>): string[] {
   );
 }
 
+interface RuntimeTiming {
+  phaseId: string;
+  label: string;
+  durationMs: number;
+  partId?: string;
+}
+
+function isRuntimeTiming(value: unknown): value is RuntimeTiming {
+  if (!value || typeof value !== 'object') return false;
+  const timing = value as RuntimeTiming;
+  return typeof timing.phaseId === 'string'
+    && typeof timing.label === 'string'
+    && typeof timing.durationMs === 'number';
+}
+
+function readRuntimePayload(payload: Record<string, unknown>): Record<string, unknown> | null {
+  const outputs = payload.outputs;
+  if (!outputs || typeof outputs !== 'object') return null;
+  const outputRecord = outputs as Record<string, unknown>;
+  const directRuntime = outputRecord.runtime;
+  if (directRuntime && typeof directRuntime === 'object') return directRuntime as Record<string, unknown>;
+  const envelope = outputRecord.envelope;
+  if (!envelope || typeof envelope !== 'object') return null;
+  const presentation = (envelope as Record<string, unknown>).presentation;
+  if (!presentation || typeof presentation !== 'object') return null;
+  const runtime = (presentation as Record<string, unknown>).runtime;
+  return runtime && typeof runtime === 'object' ? runtime as Record<string, unknown> : null;
+}
+
+function readRuntimeTimings(payload: Record<string, unknown>): RuntimeTiming[] {
+  const runtime = readRuntimePayload(payload);
+  const phaseTimings = runtime?.phaseTimings;
+  if (!Array.isArray(phaseTimings)) return [];
+  return phaseTimings.filter(isRuntimeTiming).slice(0, 12);
+}
+
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  return `${(ms / 1000).toFixed(ms < 10000 ? 1 : 0)}s`;
+}
+
 export function RunHistoryPanel({
   open,
   onOpenChange,
@@ -58,6 +99,7 @@ export function RunHistoryPanel({
           ) : runs.map((run) => {
             const outputBuffer = run.outputBufferId ? readRunOutputBuffer(run.outputBufferId) : null;
             const advancedDiagnostics = outputBuffer ? readAdvancedDiagnostics(outputBuffer.payload) : [];
+            const runtimeTimings = outputBuffer ? readRuntimeTimings(outputBuffer.payload) : [];
             return (
               <section key={run.runId} className="rounded-lg border border-border p-4 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -111,6 +153,21 @@ export function RunHistoryPanel({
                       <div className="rounded-md bg-muted/40 px-3 py-2">
                         <p className="font-medium">Summary</p>
                         <p className="text-muted-foreground">{outputBuffer.summary}</p>
+                        {runtimeTimings.length > 0 && (
+                          <details className="mt-2">
+                            <summary className="cursor-pointer text-xs font-semibold text-muted-foreground">
+                              Timing
+                            </summary>
+                            <ul className="mt-2 space-y-1 text-muted-foreground">
+                              {runtimeTimings.map((timing, index) => (
+                                <li key={`${timing.phaseId}-${timing.partId ?? index}`} className="flex justify-between gap-3">
+                                  <span>{timing.partId ? `${timing.label} (${timing.partId})` : timing.label}</span>
+                                  <span className="tabular-nums">{formatDuration(timing.durationMs)}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
                         {advancedDiagnostics.length > 0 && (
                           <details className="mt-2">
                             <summary className="cursor-pointer text-xs font-semibold text-muted-foreground">

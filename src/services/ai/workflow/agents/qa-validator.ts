@@ -31,6 +31,12 @@ export interface QAResult {
 
 const BLOCKING_RULES = new Set([
   'structure',
+  'style-block',
+  'single-style-system',
+  'style-system',
+  'section-style-block',
+  'css-vars',
+  'style-class-coverage',
   'background-color',
   'palette-compliance',
   'no-external-images',
@@ -96,16 +102,73 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
   }
 
   // ── <style> block check (standalone slide architecture) ────
-  const hasStyleBlock = /<style[\s>][\s\S]*?<\/style>/i.test(html);
-  const styleText = (html.match(/<style[\s>][\s\S]*?<\/style>/gi) ?? [])
+  const styleBlocks = html.match(/<style[\s>][\s\S]*?<\/style>/gi) ?? [];
+  const hasStyleBlock = styleBlocks.length > 0;
+  const styleTexts = styleBlocks
     .map((block) => block.replace(/<\/?style[^>]*>/gi, ''))
-    .join('\n');
-  if (!hasStyleBlock) {
+    .map((text) => text.trim());
+  const styleText = styleTexts.filter(Boolean).join('\n');
+  if (!hasStyleBlock || styleText.length === 0) {
     violations.push({
       slide: 0,
       rule: 'style-block',
-      severity: 'warning',
-      detail: 'Missing <style> block. Standalone slides should use CSS classes and @keyframes defined in a <style> block, not inline styles on every element.',
+      severity: 'error',
+      detail: 'Missing non-empty <style> block. Presentations need one reusable deck-level style system before any slide sections.',
+    });
+  } else if (styleBlocks.length !== 1) {
+    violations.push({
+      slide: 0,
+      rule: 'single-style-system',
+      severity: 'error',
+      detail: `Found ${styleBlocks.length} <style> blocks. Presentations must use exactly one deck-level style block; slide sections must not reset or append style systems.`,
+    });
+  }
+
+  if (/<section\b[\s\S]*?<style\b/i.test(html)) {
+    violations.push({
+      slide: 0,
+      rule: 'section-style-block',
+      severity: 'error',
+      detail: 'A slide section contains a <style> block. Keep the style system in the single deck-level <style> block.',
+    });
+  }
+
+  if (hasStyleBlock && styleText.length > 0) {
+    const hasRootTokens = /:(?:root|scope)\s*\{/i.test(styleText) && /--[a-z0-9-]+\s*:/i.test(styleText);
+    const hasClassRules = /\.[a-z0-9_-]+\s*[{,]/i.test(styleText);
+    if (styleText.length < 120 || !hasRootTokens || !hasClassRules) {
+      violations.push({
+        slide: 0,
+        rule: 'style-system',
+        severity: 'error',
+        detail: 'The deck style block is too thin to be a reusable style system. Define :root tokens and class-based rules that the slides reuse.',
+      });
+    }
+    if (!hasRootTokens) {
+      violations.push({
+        slide: 0,
+        rule: 'css-vars',
+        severity: 'error',
+        detail: 'No theme CSS variables detected. Define reusable :root tokens for palette, type, surfaces, and accents.',
+      });
+    }
+    if (!hasClassRules) {
+      violations.push({
+        slide: 0,
+        rule: 'style-class-coverage',
+        severity: 'error',
+        detail: 'No reusable CSS class rules detected in the style block.',
+      });
+    }
+  }
+
+  const sectionStyleBlocks = sections.filter((section) => /<style\b/i.test(section)).length;
+  if (sectionStyleBlocks > 0) {
+    violations.push({
+      slide: 0,
+      rule: 'section-style-block',
+      severity: 'error',
+      detail: `${sectionStyleBlocks} slide section(s) include their own <style> block. Use one shared deck style block only.`,
     });
   }
 
@@ -224,18 +287,8 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
       });
     }
 
-    // Rule: CSS custom properties are strongly recommended for maintainable themes,
-    // but not strictly required (some valid slides use static color tokens only).
-    if (i === 0 && hasStyleBlock) {
-      if (!/--(?:primary|accent|bg|surface)\s*:/.test(html)) {
-        violations.push({
-          slide: slideNum,
-          rule: 'css-vars',
-          severity: 'warning',
-          detail: 'No theme CSS variables detected. Consider defining variables (for example --primary/--bg) in <style> for easier style consistency.',
-        });
-      }
-    }
+    // Deck-level CSS variable checks run once above so empty/thin style systems
+    // cannot be approved as finished presentation output.
 
     // Rule: palette compliance — check that data-background-color matches expected
     if (options.expectedBgColor) {

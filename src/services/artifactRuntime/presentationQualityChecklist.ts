@@ -149,10 +149,14 @@ function buildCssDesignContractCheck(html: string): PresentationQualityCheck {
   const namedIssues: PresentationNamedFailure[] = [];
   const sections = extractSections(html);
 
-  if (styleBlocks.length === 0) {
+  const nonEmptyStyleTexts = styleTexts.filter((style) => style.trim().length > 0);
+  const hasRootTokens = /:(?:root|scope)\s*\{/i.test(styleText) && /--[a-z0-9-]+\s*:/i.test(styleText);
+  const hasClassRules = /\.[a-z0-9_-]+\s*[{,]/i.test(styleText);
+
+  if (styleBlocks.length === 0 || nonEmptyStyleTexts.length === 0 || styleText.trim().length < 120 || !hasRootTokens || !hasClassRules) {
     namedIssues.push({
       id: 'missing-style-system',
-      message: 'No <style> block found. Presentation output needs a reusable class-based style system.',
+      message: 'Missing usable deck style system. Presentation output needs one non-empty <style> block with :root tokens and reusable class rules.',
     });
   }
 
@@ -206,20 +210,28 @@ function buildCssDesignContractCheck(html: string): PresentationQualityCheck {
     });
   }
 
-  const rootStyleBlockCount = styleTexts.filter((style) => /:root\s*\{/i.test(style)).length;
+  const rootStyleBlockCount = styleTexts.filter((style) => /:(?:root|scope)\s*\{/i.test(style)).length;
   const laterSectionsWithRootVars = sections.slice(1).filter((section) => /style=["'][^"']*--[a-z0-9-]+\s*:/i.test(section)).length;
-  if (rootStyleBlockCount > 1 || laterSectionsWithRootVars > 0) {
+  if (styleBlocks.length > 1 || rootStyleBlockCount > 1 || laterSectionsWithRootVars > 0) {
     namedIssues.push({
       id: 'duplicate-root-style-system',
-      message: `CSS root/style tokens are duplicated (${rootStyleBlockCount} :root style block(s), ${laterSectionsWithRootVars} later slide inline token set(s)). Keep shared tokens in one style system.`,
+      message: `CSS root/style tokens are duplicated (${styleBlocks.length} style block(s), ${rootStyleBlockCount} :root style block(s), ${laterSectionsWithRootVars} later slide inline token set(s)). Keep shared tokens in one style system.`,
     });
   }
 
-  const styleResetBlockCount = styleTexts.slice(1).filter((style) => /:root\s*\{|--(?:primary|accent|bg|text|ink)\s*:|\.[a-z0-9_-]+\s*\{/i.test(style)).length;
+  const styleResetBlockCount = styleTexts.slice(1).filter((style) => /:(?:root|scope)\s*\{|--(?:primary|accent|bg|text|ink)\s*:|\.[a-z0-9_-]+\s*\{/i.test(style)).length;
   if (styleResetBlockCount > 0) {
     namedIssues.push({
       id: 'append-slide-style-reset',
       message: `Later style block(s) appear to reset the deck style system ${styleResetBlockCount} time(s). Reuse the first shared style block and add only scoped extensions.`,
+    });
+  }
+
+  const sectionsWithStyleBlocks = sections.filter((section) => /<style\b/i.test(section)).length;
+  if (sectionsWithStyleBlocks > 0) {
+    namedIssues.push({
+      id: 'append-slide-style-reset',
+      message: `${sectionsWithStyleBlocks} slide section(s) include their own <style> block. Slides must reuse the single deck style system.`,
     });
   }
 
@@ -246,8 +258,8 @@ function buildCssDesignContractCheck(html: string): PresentationQualityCheck {
     id: 'css-design-contract',
     label: 'CSS design contract',
     passed: namedIssues.length === 0,
-    blockingCount: 0,
-    advisoryCount: namedIssues.length,
+    blockingCount: namedIssues.length,
+    advisoryCount: 0,
     details: namedIssues.map((issue) => issue.message),
     namedIssues: namedIssues.length > 0 ? namedIssues : undefined,
   };
@@ -352,7 +364,7 @@ function buildPresentationQualitySignals(input: {
     scoreQualitySignal({
       id: 'continuity',
       label: 'Continuity',
-      score: Math.min(100, (/<style\b|:root|--[a-z0-9-]+:/i.test(input.html) ? 45 : 0) + Math.min(55, sharedClassCount * 12)),
+      score: Math.min(100, (/<style\b|:(?:root|scope)|--[a-z0-9-]+:/i.test(input.html) ? 45 : 0) + Math.min(55, sharedClassCount * 12)),
       target: targetForSignal(input.qualityBar, 'continuity'),
       detail: `${sharedClassCount} shared class token(s) preserve deck continuity.`,
     }),

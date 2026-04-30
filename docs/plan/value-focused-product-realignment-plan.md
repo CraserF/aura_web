@@ -36,6 +36,7 @@ This tracker is the first place to update when work begins, moves, blocks, or co
 | W7 | Presentation quality recovery | Done | Continue W8 document scaffolding and W9 benchmark/render validation | 16 typed `SlideLayoutDefinition` records in `layouts.ts` (cover → closing) with targetable slot contracts, `data-layout` guidance, text budgets, min font sizes, quality rules, and typed motion/SVG motif lists; 5 `MotionPreset` records and 7 `SvgMotifFamily` records are wired into compact slot-contract prompts with preset IDs, budgets, keyframe limits, motif IDs, SVG viewBox/slot guidance, and reduced-motion requirements; `selectLayout()` fuzzy keyword matcher feeds `buildSlideBlueprintPack()` in `presentationPrompts.ts` and now covers runtime role phrases such as stage-setting, problem, mechanism, comparison, and recommendation; QA flags custom keyframes outside approved motion presets; new registry/prompt tests plus existing prompt/validation tests, scoped lint, typecheck, and build pass | 2026-04-30 |
 | W8 | Document scaffolding | Done | Continue W9 validation and release process | 13 typed `DocumentSectionModuleDefinition` records in `documentSectionModules.ts` (cover to pull-quote) with named slots, text budgets, heading level behavior, table/list rules, density level, visual treatment (mapped to existing `doc-*` CSS classes), page-break preference, and accessibility expectations; `selectDocumentModule()` now handles fuzzy keywords, runtime role hints, and blueprint module aliases such as `doc-kpi-grid`, `doc-callout`, `doc-pullquote`, and `doc-progress`; `buildDocumentSectionModulePrompt()` serializer is injected into `buildDocumentRuntimeModulePrompt` and `buildDocumentRuntimeModuleRepairPrompt` in `documentRuntime.ts`; heading-aware module contracts, validation, normalization, and deterministic repair respect cover and pull-quote heading behavior; new module barrel-exported from `templates/index.ts`; 29 section-module tests and 57 focused runtime tests pass; typecheck and build pass | 2026-04-30 |
 | W9 | Validation and release process | Done | Use release gates to close M5/M6 product-quality evidence | Benchmark matrix codified in `WORKFLOW_BENCHMARK_CASES`; release gates structured in `releaseGates.ts` across W9 levels 1-5; benchmark harness/tests passing (`benchmark-harness.test.ts`, `workflow-benchmark-cases.test.ts`, `m3d-benchmarks.test.ts`); release smoke, scaffold guardrail, and release gate tests passing (`release-smoke.test.ts`, `scaffolding-guardrails.test.ts`, `release-gates.test.ts`); benchmark runner typecheck fixed for post-ExecutionMode contracts and smoke-tested with empty case filter; focused local run logged in `logs/ollama-benchmark/2026-04-30T15-47-06-278Z/` and summarized in `docs/validation/workflow-quality-benchmark.md`; agent-in-app QA protocol notes in `docs/validation/agent-in-app-qa-prototype.md`; `npm run typecheck` passes | 2026-04-30 |
+| W10 | Deterministic presentation recovery and observability | Review | Run full verification and collect fresh visual evidence for M5 | Runtime now locks a deterministic presentation style shell before queued slide generation, strips per-slide style resets, blocks empty/multiple style systems from approval, adds active-deck project colour application, collapses default context chips, records presentation phase timings, and adds regression tests for the broken launch-plan empty-style failure | 2026-04-30 |
 
 ### Milestone Tracker
 
@@ -45,7 +46,7 @@ This tracker is the first place to update when work begins, moves, blocks, or co
 | M2: Better starts | Users can start with a strong visual variant and editable default color theme | W2, W3 | Done | 5 variants available, color theme persist path exists, project rules hidden behind advanced; W2 and W3 both Done |
 | M3: Visible work | Long-running creation and editing flows explain their steps | W4 | Done | Chat shows step count, slide/section count, stall indicator, and retry attempts; W4 Done |
 | M4: Project ownership | Each project owns its version history and export behavior | W5, W6 | Done | W5: histories isolated per project-scoped git repos; W6: "Save with history" packs raw git objects after committing the current snapshot, import restores valid history with the original project id, existing repos are replaced rather than mixed, malformed history/document paths are rejected; both W5 and W6 Done |
-| M5: Presentation recovery | Decks regain strong visual quality with scaffolded animation and SVG art | W7, W9 | In progress | W7 scaffold layer is Done and W9 release process is Done; focused local run records concrete failed signals (`visual-richness`, `continuity`, `reference-style-match`, `viewport-safety`) in `logs/ollama-benchmark/2026-04-30T15-47-06-278Z/`; product release remains gated by `VALUE_REALIGNMENT_RELEASE_GATES` manual frontier/Ollama queued visual evidence and viewport captures |
+| M5: Presentation recovery | Decks regain strong visual quality with scaffolded animation and SVG art | W7, W9, W10 | In progress | W7 scaffold layer and W9 release process are Done; W10 deterministic recovery is in Review after the launch-plan empty-style regression was addressed in code; product release remains gated by `VALUE_REALIGNMENT_RELEASE_GATES` manual frontier/Ollama queued visual evidence and viewport captures |
 | M6: Document recovery | Documents use independent scaffolds and slot-based editing | W8, W9 | In progress | W8 scaffolds are complete and W9 release process is Done; product release remains gated by `VALUE_REALIGNMENT_RELEASE_GATES` document visual/product review evidence to confirm polished examples and slot-targeted edits |
 
 ### Tracking Instructions
@@ -2343,6 +2344,28 @@ Do not ship the full realignment until:
 - Repair loops are bounded.
 - Animation and SVG scaffolds are bounded and validated.
 - Benchmark decks are visibly better than baseline.
+
+## Workstream 10: Deterministic Presentation Recovery And Observability
+
+### Goal
+
+Recover presentation creation quality after the queued runtime regression by making the deck style system runtime-owned, observable, and impossible to approve when broken.
+
+### Required Behaviors
+
+- Queued presentation creation locks one deterministic style shell before slide generation.
+- Generated slide parts reuse that style shell and return sections only.
+- Empty, missing, duplicated, or per-slide style systems are blocking validation failures.
+- Active presentations can re-apply the project creation colours without an AI call.
+- Multi-slide creation/edit progress reports per-slide completion and phase timing.
+- Default context controls collapse to one compact button unless the user has changed context defaults or a warning is present.
+
+### Evidence Needed Before Done
+
+- Regression fixture for the broken launch-plan deck fails validation instead of approval.
+- Tests prove queued assembly has one style block and strips model-generated style resets.
+- Run history shows phase timing for presentation runs.
+- Manual visual evidence confirms fresh launch and executive decks render as styled slides, not unstyled HTML.
 
 ## Implementation Roadmap
 

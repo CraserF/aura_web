@@ -2,6 +2,10 @@ import type { ProjectData, ProjectDocument } from '@/types/project';
 import { sanitizeFilename } from '@/lib/sanitizeFilename';
 import { sanitizeSlideHtml } from '@/services/ai/utils/sanitizeHtml';
 import {
+  applyProjectColorsToPresentationHtml,
+  hasUsablePresentationStyleSystem,
+} from '@/services/artifactRuntime';
+import {
   buildStandaloneHtmlDocument,
   resolveStandaloneHtml,
   type StandaloneArtifactExport,
@@ -13,9 +17,16 @@ export interface PresentationStandaloneHtmlInput {
 }
 
 export async function exportPresentationStandaloneHtml(input: PresentationStandaloneHtmlInput): Promise<StandaloneArtifactExport> {
-  const sanitized = sanitizeSlideHtml(input.document.contentHtml);
+  const sourceHtml = input.project.colorTheme && !hasUsablePresentationStyleSystem(input.document.contentHtml)
+    ? (await applyProjectColorsToPresentationHtml({
+        html: input.document.contentHtml,
+        colorTheme: input.project.colorTheme,
+        visualVariantId: input.project.visualVariantId,
+      })).html
+    : input.document.contentHtml;
+  const sanitized = sanitizeSlideHtml(sourceHtml);
   const resolved = resolveStandaloneHtml(sanitized, input.project.media ?? [], 'relative');
-  const hasInlineStyles = /<style[\s>]/i.test(input.document.contentHtml);
+  const hasInlineStyles = /<style[\s>]/i.test(sourceHtml);
   const legacyCss = hasInlineStyles ? '' : (input.document.themeCss ?? '');
   const head = `
 <style>

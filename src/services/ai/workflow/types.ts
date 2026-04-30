@@ -26,6 +26,7 @@ export type WorkflowEvent =
   | { type: 'progress';        message: string; pct?: number; partId?: string; runId?: string }
   | { type: 'retry-attempt';   stepId: string; attempt: number; maxAttempts: number }
   | { type: 'draft-complete';  html: string }
+  | { type: 'batch-slide-draft'; html: string; slideIndex: number; totalSlides: number }
   | { type: 'batch-slide-complete'; html: string; slideIndex: number; totalSlides: number }
   | { type: 'complete';        result: unknown };
 
@@ -79,6 +80,13 @@ export interface ArtifactRuntimeTelemetry {
   qualityPolishingSkippedReason?: string;
   qualityDecision?: ArtifactQualityDecisionStatus;
   qualityPolishAction?: ArtifactQualityPolishAction;
+  phaseTimings?: Array<{
+    phaseId: string;
+    label: string;
+    durationMs: number;
+    partId?: string;
+    order?: number;
+  }>;
   qualityChecks?: Array<{
     id: string;
     label: string;

@@ -83,6 +83,16 @@ function extractStyleBlock(html: string): string {
   return html.match(/<style[^>]*>[\s\S]*?<\/style>/i)?.[0] ?? '';
 }
 
+function withExistingStyleForSectionOnlyValidation(
+  existingSlidesHtml: string | undefined,
+  candidateHtml: string,
+): string {
+  if (!existingSlidesHtml || extractStyleBlock(candidateHtml)) return candidateHtml;
+  const existingStyleBlock = extractStyleBlock(existingSlidesHtml);
+  if (!existingStyleBlock) return candidateHtml;
+  return `${existingStyleBlock}\n${candidateHtml}`;
+}
+
 function extractClassNames(html: string): string[] {
   const classMatches = [...html.matchAll(/class=["']([^"']+)["']/gi)];
   const classes = new Set<string>();
@@ -270,6 +280,7 @@ function createDesignAgent(
   systemPrompt: string,
   planResult: PlanResult,
   maxCorrectionSteps = 5,
+  validationContextHtml?: string,
 ) {
   return new ToolLoopAgent({
     model,
@@ -287,7 +298,8 @@ function createDesignAgent(
         execute: async ({ html }) => {
           // Post-process before validation (same pipeline as final output)
           const { html: processed } = postProcess(html, planResult.blueprint.palette.fontImport);
-          const result = validateSlides(processed, {
+          const htmlForQa = withExistingStyleForSectionOnlyValidation(validationContextHtml, processed);
+          const result = validateSlides(htmlForQa, {
             expectedBgColor: planResult.blueprint.palette.bg,
             isCreate: planResult.intent === 'create',
             styleManifest: planResult.styleManifest,
@@ -338,7 +350,8 @@ function createDesignAgent(
           // Pre-flight QA review: surface issues, but let the runtime finalizer
           // handle deterministic repair so the tool loop does not churn.
           const { html: processed } = postProcess(html, planResult.blueprint.palette.fontImport);
-          const result = validateSlides(processed, {
+          const htmlForQa = withExistingStyleForSectionOnlyValidation(validationContextHtml, processed);
+          const result = validateSlides(htmlForQa, {
             expectedBgColor: planResult.blueprint.palette.bg,
             isCreate: planResult.intent === 'create',
             styleManifest: planResult.styleManifest,
@@ -376,11 +389,13 @@ export async function design(
   taskBrief?: string,
 ): Promise<DesignResult> {
   const t0 = performance.now();
+  const sectionOnly = /Locked runtime-owned deck style:/i.test(taskBrief ?? '');
   const systemPrompt = buildPresentationCreateSystemPrompt({
     planResult,
     ...(runPlan ? { runPlan } : {}),
     ...(guidanceProfile ? { guidanceProfile } : {}),
     ...(projectRulesBlock ? { projectRulesBlock } : {}),
+    ...(sectionOnly ? { sectionOnly: true } : {}),
   });
 
   const userPrompt = buildPresentationCreateUserPrompt({
@@ -440,7 +455,8 @@ export async function design(
     styleManifest: planResult.styleManifest,
     exemplarPackId: planResult.exemplarPackId,
   };
-  const draftQa = validateSlides(draftHtml, qaOptions);
+  const draftQaHtml = withExistingStyleForSectionOnlyValidation(existingSlidesHtml, draftHtml);
+  const draftQa = validateSlides(draftQaHtml, qaOptions);
   if (draftQa.passed && countSlides(draftHtml) > 0) {
     const elapsed = (performance.now() - t0).toFixed(0);
     aiDebugLog('designer', `fast-path QA passed in ${elapsed}ms`);
@@ -461,6 +477,7 @@ export async function design(
     systemPrompt,
     planResult,
     runPlan?.metricsBudget.maxToolLoopSteps,
+    existingSlidesHtml,
   );
 
   // Feed the draft output back to the agent for validation
@@ -653,7 +670,9 @@ export async function designEdit(
     styleManifest: planResult.styleManifest,
     exemplarPackId: planResult.exemplarPackId,
   };
-  const htmlToQA = isAddSlides ? draftHtml : processedDraft;
+  const htmlToQA = isAddSlides
+    ? withExistingStyleForSectionOnlyValidation(existingSlidesHtml, draftHtml)
+    : processedDraft;
   const draftQa = validateSlides(htmlToQA, qaOptions);
   const continuity = isAddSlides ? assessContinuity(existingSlidesHtml, draftHtml) : null;
   if (continuity) {
@@ -713,6 +732,7 @@ export async function designEdit(
     systemPrompt,
     planResult,
     correctionPolicy.maxCorrectionSteps,
+    existingSlidesHtml,
   );
 
   // For the agent loop, pass the raw draft (not the merged version) so it sees what it generated.

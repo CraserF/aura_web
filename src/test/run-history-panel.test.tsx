@@ -76,4 +76,37 @@ describe('RunHistoryPanel advanced diagnostics', () => {
     });
     view.container.remove();
   });
+
+  it('renders runtime phase timings from the output buffer', () => {
+    createRunRecord('run-timing', { ...baseIntent, artifactType: 'presentation' });
+    updateRunRecordStatus('run-timing', 'completed');
+    writeRunOutputBuffer('output-run-timing', 'Presentation created.', {
+      structuredStatus: {
+        title: 'Done',
+        detail: 'Presentation created.',
+      },
+      outputs: {
+        runtime: {
+          phaseTimings: [
+            { phaseId: 'planning', label: 'Planning', durationMs: 42, order: 0 },
+            { phaseId: 'slide', label: 'Slide 1', durationMs: 1280, partId: 'slide-1', order: 1 },
+          ],
+        },
+      },
+    });
+    setRunOutputSummary('run-timing', 'Presentation created.', 'output-run-timing');
+
+    const view = renderPanel();
+
+    expect(document.body.textContent).toContain('Timing');
+    expect(document.body.textContent).toContain('Planning');
+    expect(document.body.textContent).toContain('42ms');
+    expect(document.body.textContent).toContain('Slide 1 (slide-1)');
+    expect(document.body.textContent).toContain('1.3s');
+
+    act(() => {
+      view.root.unmount();
+    });
+    view.container.remove();
+  });
 });

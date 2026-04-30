@@ -8,6 +8,7 @@ export type RunEventType =
   | 'run.policy-applied'
   | 'run.completed'
   | 'run.failed'
+  | 'runtime.phase'
   | 'artifact.updated'
   | 'artifact.created'
   | 'dependency.broken'

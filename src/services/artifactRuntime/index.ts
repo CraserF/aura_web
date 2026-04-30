@@ -78,6 +78,20 @@ export {
   buildPresentationRevisionSystemPrompt,
 } from './presentationPrompts';
 export {
+  applyColorThemeToStyleText,
+  applyProjectColorsToPresentationHtml,
+  applyStyleBlockToPresentationHtml,
+  assemblePresentationWithSingleStyle,
+  extractPresentationSectionFragments,
+  extractPresentationStyleBlocks,
+  extractPresentationStyleText,
+  hasUsablePresentationStyleSystem,
+  parseColorThemeFromRulesBlock,
+  parseVisualVariantIdFromRulesBlock,
+  resolvePresentationStyleSystem,
+  updatePresentationSectionBackgrounds,
+} from './presentationStyleSystem';
+export {
   buildCoreArtifactContractPack,
   buildDocumentDesignFamilyPack,
   buildDocumentIframeContractPack,
