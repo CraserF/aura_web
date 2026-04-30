@@ -61,12 +61,29 @@ export interface WorkflowStep {
   label: string;
   status: 'pending' | 'active' | 'done' | 'error' | 'skipped';
   retryAttempt?: number;
+  maxRetries?: number;
 }
 
 /** AI generation status */
 export type GenerationStatus =
   | { state: 'idle' }
-  | { state: 'generating'; startedAt: number; step?: string; pct?: number; steps?: WorkflowStep[] }
+  | {
+      state: 'generating';
+      startedAt: number;
+      step?: string;
+      pct?: number;
+      steps?: WorkflowStep[];
+      /** Current workflow step index (1-based) */
+      currentStep?: number;
+      /** Total visible workflow steps */
+      totalSteps?: number;
+      /** Current item index (1-based) within a multi-item operation */
+      currentItem?: number;
+      /** Total item count for the operation */
+      totalItems?: number;
+      /** Human label for the item type, e.g. "slide" or "section" */
+      itemLabel?: string;
+    }
   | { state: 'error'; message: string };
 
 /** Supported AI providers */

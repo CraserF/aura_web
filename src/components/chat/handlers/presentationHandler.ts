@@ -22,7 +22,13 @@ import { useProjectStore } from '@/stores/projectStore';
 import type { RunRequest } from '@/services/runs/types';
 import type { RunResult } from '@/services/contracts/runResult';
 import { resolveTargets } from '@/services/editing/resolveTargets';
-import { publicWorkflowProgressLabel, workflowStepUpdateFromRuntimeEvent } from '@/services/chat/workflowProgress';
+import {
+  countRunPlanParts,
+  parseWorkflowItemProgress,
+  publicWorkflowProgressLabel,
+  resolveWorkflowStepProgress,
+  workflowStepUpdateFromRuntimeEvent,
+} from '@/services/chat/workflowProgress';
 import { validateArtifactAgainstProfile } from '@/services/validation';
 import { summarizeValidationResult } from '@/services/validation/profiles';
 import { deriveLifecycleFromValidation } from '@/services/lifecycle/state';
@@ -49,6 +55,8 @@ export interface PresentationHandlerContext {
     sourceRefs: string[],
   ) => Promise<void>;
 }
+
+type GeneratingStatusPatch = Partial<Omit<Extract<GenerationStatus, { state: 'generating' }>, 'state' | 'startedAt' | 'steps'>>;
 
 export async function handlePresentationWorkflow(ctx: PresentationHandlerContext): Promise<RunResult> {
   const {
@@ -107,13 +115,29 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         { id: 'finalize', label: 'Finishing', status: 'pending' },
       ];
 
-  setStatus({
+  const generationStartedAt = Date.now();
+  const totalSlides = countRunPlanParts(runRequest.artifactRunPlan, ['slide']);
+  const currentPublicStepLabel = () => {
+    const currentStep = workflowStepsRef.current.find((step) => step.status === 'active')
+      ?? workflowStepsRef.current.find((step) => step.status === 'pending')
+      ?? workflowStepsRef.current[workflowStepsRef.current.length - 1];
+    return currentStep
+      ? publicWorkflowProgressLabel({ stepId: currentStep.id, label: currentStep.label })
+      : 'Working...';
+  };
+  const buildGeneratingStatus = (updates: GeneratingStatusPatch = {}): GenerationStatus => ({
     state: 'generating',
-    startedAt: Date.now(),
+    startedAt: generationStartedAt,
+    step: currentPublicStepLabel(),
+    steps: [...workflowStepsRef.current],
+    ...resolveWorkflowStepProgress(workflowStepsRef.current),
+    ...updates,
+  });
+
+  setStatus(buildGeneratingStatus({
     step: 'Starting…',
     pct: 0,
-    steps: workflowStepsRef.current,
-  });
+  }));
   setStreamingContent('');
 
   const abortController = new AbortController();
@@ -138,65 +162,88 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
 
       switch (event.type) {
         case 'step-start':
-          setStatus({
-            state: 'generating',
-            startedAt: Date.now(),
+          setStatus(buildGeneratingStatus({
             step: publicWorkflowProgressLabel({ stepId: event.stepId, label: event.label }),
-            steps: [...workflowStepsRef.current],
-          });
+            ...parseWorkflowItemProgress({
+              stepId: event.stepId,
+              message: event.label,
+              totalItems: totalSlides,
+              itemLabel: 'slide',
+            }),
+          }));
           break;
         case 'step-done':
-          setStatus({ state: 'generating', startedAt: Date.now(), steps: [...workflowStepsRef.current] });
+          setStatus(buildGeneratingStatus());
           break;
         case 'step-error':
-          setStatus({
-            state: 'generating',
-            startedAt: Date.now(),
+          setStatus(buildGeneratingStatus({
             step: publicWorkflowProgressLabel({ stepId: event.stepId, label: event.error }),
-            steps: [...workflowStepsRef.current],
-          });
+            ...parseWorkflowItemProgress({
+              stepId: event.stepId,
+              message: event.error,
+              totalItems: totalSlides,
+              itemLabel: 'slide',
+            }),
+          }));
           break;
         case 'step-skipped':
-          setStatus({ state: 'generating', startedAt: Date.now(), steps: [...workflowStepsRef.current] });
+          setStatus(buildGeneratingStatus());
           break;
         case 'retry-attempt':
+          updateStepStatus(event.stepId, 'active', 'Polishing quality');
           workflowStepsRef.current = workflowStepsRef.current.map((s) =>
-            s.id === event.stepId ? { ...s, retryAttempt: event.attempt } : s,
+            s.id === event.stepId
+              ? { ...s, retryAttempt: event.attempt, maxRetries: event.maxAttempts }
+              : s,
           );
-          setStatus({
-            state: 'generating',
-            startedAt: Date.now(),
-            step: publicWorkflowProgressLabel({ stepId: event.stepId, label: `Retrying ${event.stepId}` }),
-            steps: [...workflowStepsRef.current],
-          });
+          setStatus(buildGeneratingStatus({
+            step: `Polishing quality (attempt ${event.attempt} of ${event.maxAttempts})`,
+            ...parseWorkflowItemProgress({
+              stepId: event.stepId,
+              totalItems: totalSlides,
+              itemLabel: 'slide',
+            }),
+          }));
           break;
         case 'streaming':
           appendStreamingContent(event.chunk);
           break;
         case 'draft-complete':
           if (event.html) setSlides(event.html);
-          setStatus({ state: 'generating', startedAt: Date.now(), step: 'Checking quality', pct: 72, steps: [...workflowStepsRef.current] });
+          setStatus(buildGeneratingStatus({ step: 'Checking quality', pct: 72 }));
           break;
         case 'batch-slide-complete':
           setSlides(event.html);
-          setStatus({ state: 'generating', startedAt: Date.now(), step: 'Creating slides', pct: Math.round(20 + (event.slideIndex / event.totalSlides) * 70), steps: [...workflowStepsRef.current] });
+          setStatus(buildGeneratingStatus({
+            step: 'Creating slides',
+            pct: Math.round(20 + (event.slideIndex / event.totalSlides) * 70),
+            currentItem: event.slideIndex,
+            totalItems: event.totalSlides,
+            itemLabel: 'slide',
+          }));
           break;
         case 'step-update':
-          setStatus({
-            state: 'generating',
-            startedAt: Date.now(),
+          setStatus(buildGeneratingStatus({
             step: publicWorkflowProgressLabel({ stepId: event.stepId, label: event.label }),
-            steps: [...workflowStepsRef.current],
-          });
+            ...parseWorkflowItemProgress({
+              stepId: event.stepId,
+              message: event.label,
+              totalItems: totalSlides,
+              itemLabel: 'slide',
+            }),
+          }));
           break;
         case 'progress':
-          setStatus({
-            state: 'generating',
-            startedAt: Date.now(),
+          setStatus(buildGeneratingStatus({
             step: publicWorkflowProgressLabel({ stepId: event.partId, label: event.message }),
             pct: event.pct,
-            steps: [...workflowStepsRef.current],
-          });
+            ...parseWorkflowItemProgress({
+              partId: event.partId,
+              message: event.message,
+              totalItems: totalSlides,
+              itemLabel: 'slide',
+            }),
+          }));
           break;
       }
     };

@@ -131,6 +131,7 @@ describe('ChatBar submission paths', () => {
 
   afterEach(() => {
     useChatStore.getState().setStatus({ state: 'idle' });
+    vi.useRealTimers();
   });
 
   it('loads retry prompts back into the composer without auto-submitting', async () => {
@@ -261,6 +262,53 @@ describe('ChatBar submission paths', () => {
     expect(view.container.querySelector('[aria-label="Choose output mode"]')).not.toBeNull();
     expect(view.container.querySelector('[aria-label="Choose document style"]')).not.toBeNull();
     expect(view.container.querySelector('[aria-label="Open recent runs"]')).not.toBeNull();
+
+    view.unmount();
+  });
+
+  it('shows explicit step and item counts during generation', async () => {
+    const view = renderChatBar();
+
+    act(() => {
+      useChatStore.getState().setStatus({
+        state: 'generating',
+        startedAt: Date.now(),
+        step: 'Creating slides',
+        currentStep: 2,
+        totalSteps: 5,
+        currentItem: 3,
+        totalItems: 6,
+        itemLabel: 'slide',
+      });
+    });
+    await flushEffects();
+
+    expect(view.container.textContent).toContain('Step 2 of 5: Creating slides · Slide 3 of 6');
+
+    view.unmount();
+  });
+
+  it('shows the age of the last progress update when generation stalls', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-30T12:00:00Z'));
+    const view = renderChatBar();
+
+    act(() => {
+      useChatStore.getState().setStatus({
+        state: 'generating',
+        startedAt: Date.now(),
+        step: 'Creating slides',
+        currentStep: 2,
+        totalSteps: 5,
+      });
+    });
+    await flushEffects();
+
+    act(() => {
+      vi.advanceTimersByTime(15000);
+    });
+
+    expect(view.container.textContent).toContain('still working (last update 15s ago)');
 
     view.unmount();
   });

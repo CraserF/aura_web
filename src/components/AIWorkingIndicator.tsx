@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useChatStore } from '@/stores/chatStore';
 import type { WorkflowStep } from '@/types';
-import { publicWorkflowProgressLabel } from '@/services/chat/workflowProgress';
+import { formatGenerationStatusText, publicWorkflowProgressLabel } from '@/services/chat/workflowProgress';
 
 const STEP_ICONS: Record<string, string> = {
   plan: '🧠',
@@ -43,7 +43,9 @@ function StepBadge({ step }: { step: WorkflowStep }) {
       {!isActive && <span className="opacity-60">{icon}</span>}
       <span>{publicWorkflowProgressLabel({ stepId: step.id, label: step.label })}</span>
       {step.retryAttempt && step.retryAttempt > 0 && (
-        <span className="text-amber-400 text-[9px]">(retry {step.retryAttempt})</span>
+        <span className="text-amber-400 text-[9px]">
+          {step.maxRetries ? `(retry ${step.retryAttempt}/${step.maxRetries})` : `(retry ${step.retryAttempt})`}
+        </span>
       )}
       {isDone && <span className="text-emerald-500/70 dark:text-emerald-400/70">✓</span>}
       {isSkipped && <span className="text-muted-foreground/30">—</span>}
@@ -90,7 +92,7 @@ export function AIWorkingIndicator() {
   if (status.state !== 'generating') return null;
 
   const steps = status.steps;
-  const currentStep = publicWorkflowProgressLabel({ label: status.step });
+  const currentStep = formatGenerationStatusText(status);
   const pct = status.pct ?? 0;
 
   // Split steps by status for the visual hierarchy

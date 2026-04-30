@@ -1,5 +1,6 @@
-import type { WorkflowStep } from '@/types';
+import type { GenerationStatus, WorkflowStep } from '@/types';
 import type { WorkflowEvent } from '@/services/ai/workflow/types';
+import type { ArtifactPartKind, ArtifactRunPlan } from '@/services/artifactRuntime/types';
 
 const PRESENTATION_STEP_ANCHORS = ['evaluate', 'finalize'];
 const DOCUMENT_STEP_ANCHORS = ['qa', 'finalize'];
@@ -34,6 +35,17 @@ export interface RuntimeWorkflowStepUpdate {
   stepId: string;
   status: WorkflowStep['status'];
   label?: string;
+}
+
+export interface WorkflowStepProgress {
+  currentStep?: number;
+  totalSteps?: number;
+}
+
+export interface WorkflowItemProgress {
+  currentItem?: number;
+  totalItems?: number;
+  itemLabel?: string;
 }
 
 export function humanizeWorkflowStepId(stepId: string): string {
@@ -73,10 +85,15 @@ export function publicWorkflowProgressLabel(input: {
   if (stepId) {
     if (/^(?:plan|document-outline)$/i.test(stepId)) return 'Planning';
     if (/^document-modules$/i.test(stepId)) return label || 'Document modules';
-    if (/^(?:design|targeted-design|generate|slide-\d+)$/i.test(stepId)) {
+    if (/^(?:design|targeted-design|slide-\d+)$/i.test(stepId)) {
       return /\b(?:repair(?:ing|ed)?|revise|revised|revision|polish(?:ing|ed)?|retry(?:ing)?)\b/i.test(text)
         ? 'Polishing quality'
         : 'Creating slides';
+    }
+    if (/^generate$/i.test(stepId)) {
+      if (/\b(?:document|section|module)\b/i.test(text)) return label || 'Creating document';
+      if (/\b(?:slide|deck|presentation)\b/i.test(text)) return 'Creating slides';
+      return label || 'Creating';
     }
     if (/^(?:qa|qa-validate|evaluate|review|document-validation|validation)$/i.test(stepId)) {
       return 'Checking quality';
@@ -89,9 +106,87 @@ export function publicWorkflowProgressLabel(input: {
   if (/\b(?:repair(?:ing|ed)?|revise|revised|revision|polish(?:ing|ed)?|retry(?:ing)?)\b/i.test(text)) return 'Polishing quality';
   if (/\b(?:quality|qa|check|checking|review|evaluate|validation|validate|safe|contract)\b/i.test(text)) return 'Checking quality';
   if (/\b(?:finish|final|finalizing)\b/i.test(text)) return 'Finishing';
-  if (/\b(?:create|creating|generate|generating|craft|crafting|write|writing|slide|draft)\b/i.test(text)) return 'Creating slides';
+  if (/\b(?:document|section|module)\b/i.test(text)) return label || 'Creating document';
+  if (/\b(?:slide|deck|presentation)\b/i.test(text)) return 'Creating slides';
+  if (/\b(?:create|creating|generate|generating|craft|crafting|write|writing|draft)\b/i.test(text)) return label || 'Creating';
 
   return label || 'Working...';
+}
+
+export function resolveWorkflowStepProgress(steps?: WorkflowStep[]): WorkflowStepProgress {
+  const visibleSteps = steps?.filter((step) => step.status !== 'skipped') ?? [];
+  if (visibleSteps.length === 0) return {};
+
+  const activeIndex = visibleSteps.findIndex((step) => step.status === 'active' || step.status === 'error');
+  const pendingIndex = visibleSteps.findIndex((step) => step.status === 'pending');
+  const resolvedIndex = activeIndex >= 0
+    ? activeIndex
+    : pendingIndex >= 0
+      ? pendingIndex
+      : visibleSteps.length - 1;
+
+  return {
+    currentStep: resolvedIndex + 1,
+    totalSteps: visibleSteps.length,
+  };
+}
+
+export function countRunPlanParts(
+  runPlan: Pick<ArtifactRunPlan, 'workQueue'> | undefined,
+  kinds: ArtifactPartKind[],
+): number | undefined {
+  const count = runPlan?.workQueue.filter((part) => kinds.includes(part.kind)).length ?? 0;
+  return count > 0 ? count : undefined;
+}
+
+export function parseWorkflowItemProgress(input: {
+  stepId?: string;
+  partId?: string;
+  message?: string;
+  totalItems?: number;
+  itemLabel?: string;
+}): WorkflowItemProgress {
+  const text = input.message?.trim() ?? '';
+  const labeledMatch = findLabeledItemProgress(text);
+  if (labeledMatch) {
+    return {
+      currentItem: labeledMatch.currentItem,
+      totalItems: labeledMatch.totalItems,
+      itemLabel: input.itemLabel ?? labeledMatch.itemLabel,
+    };
+  }
+
+  const id = input.partId ?? input.stepId;
+  const idMatch = id ? parseItemProgressFromId(id) : null;
+  if (!idMatch) return {};
+
+  return {
+    currentItem: idMatch.currentItem,
+    ...(input.totalItems ? { totalItems: input.totalItems } : {}),
+    itemLabel: input.itemLabel ?? idMatch.itemLabel,
+  };
+}
+
+export function formatGenerationStatusText(
+  status: Extract<GenerationStatus, { state: 'generating' }>,
+): string {
+  const rawStep = status.step?.trim() || 'Working...';
+  const base = /\battempt\s+\d+\s+of\s+\d+\b/i.test(rawStep)
+    ? rawStep
+    : publicWorkflowProgressLabel({ label: rawStep });
+  const stepText = status.currentStep !== undefined && status.totalSteps !== undefined
+    ? `Step ${status.currentStep} of ${status.totalSteps}: ${base}`
+    : base;
+
+  if (status.currentItem !== undefined && status.totalItems !== undefined) {
+    return `${stepText} · ${formatItemLabel(status.itemLabel)} ${status.currentItem} of ${status.totalItems}`;
+  }
+
+  if (status.currentItem !== undefined) {
+    return `${stepText} · ${formatItemLabel(status.itemLabel)} ${status.currentItem}`;
+  }
+
+  return stepText;
 }
 
 export function workflowStepUpdateFromRuntimeEvent(
@@ -204,4 +299,55 @@ function resolveStepAnchors(stepId: string): string[] {
   }
 
   return FALLBACK_STEP_ANCHORS;
+}
+
+function findLabeledItemProgress(text: string): WorkflowItemProgress | null {
+  const itemThenCount = /\b(slides?|sections?|modules?|parts?)\s+(\d+)\s*(?:of|\/)\s*(\d+)\b/i.exec(text);
+  if (itemThenCount?.[1] && itemThenCount[2] && itemThenCount[3]) {
+    return {
+      itemLabel: normalizeItemLabel(itemThenCount[1]),
+      currentItem: parseInt(itemThenCount[2], 10),
+      totalItems: parseInt(itemThenCount[3], 10),
+    };
+  }
+
+  const countThenItem = /\b(\d+)\s*(?:of|\/)\s*(\d+)\s+(slides?|sections?|modules?|parts?)\b/i.exec(text);
+  if (countThenItem?.[1] && countThenItem[2] && countThenItem[3]) {
+    return {
+      itemLabel: normalizeItemLabel(countThenItem[3]),
+      currentItem: parseInt(countThenItem[1], 10),
+      totalItems: parseInt(countThenItem[2], 10),
+    };
+  }
+
+  return null;
+}
+
+function parseItemProgressFromId(id: string): WorkflowItemProgress | null {
+  const slideMatch = /^slide-(\d+)$/i.exec(id);
+  if (slideMatch?.[1]) {
+    return {
+      currentItem: parseInt(slideMatch[1], 10),
+      itemLabel: 'slide',
+    };
+  }
+
+  const documentModuleMatch = /^document-module-(\d+)$/i.exec(id);
+  if (documentModuleMatch?.[1]) {
+    return {
+      currentItem: parseInt(documentModuleMatch[1], 10),
+      itemLabel: 'section',
+    };
+  }
+
+  return null;
+}
+
+function normalizeItemLabel(label: string): string {
+  return /^slides?$/i.test(label) ? 'slide' : 'section';
+}
+
+function formatItemLabel(label?: string): string {
+  const normalized = label?.trim() || 'item';
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }

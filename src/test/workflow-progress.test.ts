@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { WorkflowStep } from '@/types';
 import {
+  formatGenerationStatusText,
   humanizeWorkflowStepId,
+  parseWorkflowItemProgress,
   publicWorkflowProgressLabel,
+  resolveWorkflowStepProgress,
   upsertWorkflowStepStatus,
   workflowStepUpdateFromRuntimeEvent,
 } from '@/services/chat/workflowProgress';
@@ -127,6 +130,45 @@ describe('workflow progress helpers', () => {
       label: 'Document module 3',
     });
   });
+
+  it('resolves visible step position from active workflow steps', () => {
+    expect(resolveWorkflowStepProgress([
+      { id: 'plan', label: 'Planning', status: 'done' },
+      { id: 'design', label: 'Creating slides', status: 'active' },
+      { id: 'evaluate', label: 'Checking quality', status: 'pending' },
+      { id: 'finalize', label: 'Finishing', status: 'pending' },
+    ])).toEqual({ currentStep: 2, totalSteps: 4 });
+  });
+
+  it('parses labeled slide and section progress without mistaking retry attempts for items', () => {
+    expect(parseWorkflowItemProgress({
+      message: 'Designing slide 4 of 9: Timeline',
+    })).toEqual({ currentItem: 4, totalItems: 9, itemLabel: 'slide' });
+
+    expect(parseWorkflowItemProgress({
+      stepId: 'document-module-3',
+      totalItems: 5,
+      itemLabel: 'section',
+    })).toEqual({ currentItem: 3, totalItems: 5, itemLabel: 'section' });
+
+    expect(parseWorkflowItemProgress({
+      message: 'Polishing quality (attempt 1 of 2)',
+      itemLabel: 'section',
+    })).toEqual({});
+  });
+
+  it('formats compact generation progress with step and item counts', () => {
+    expect(formatGenerationStatusText({
+      state: 'generating',
+      startedAt: 1,
+      step: 'Preparing theme and layouts',
+      currentStep: 3,
+      totalSteps: 8,
+      currentItem: 4,
+      totalItems: 9,
+      itemLabel: 'slide',
+    })).toBe('Step 3 of 8: Preparing theme and layouts · Slide 4 of 9');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -174,5 +216,12 @@ describe('publicWorkflowProgressLabel', () => {
       stepId: 'document-modules',
       label: 'Document modules',
     })).toBe('Document modules');
+  });
+
+  it('keeps document generation labels document-specific', () => {
+    expect(publicWorkflowProgressLabel({
+      stepId: 'generate',
+      label: 'Writing document…',
+    })).toBe('Writing document…');
   });
 });

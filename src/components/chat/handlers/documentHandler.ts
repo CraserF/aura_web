@@ -18,7 +18,13 @@ import { useProjectStore } from '@/stores/projectStore';
 import type { RunResult } from '@/services/contracts/runResult';
 import type { RunRequest } from '@/services/runs/types';
 import { resolveTargets } from '@/services/editing/resolveTargets';
-import { workflowStepUpdateFromRuntimeEvent } from '@/services/chat/workflowProgress';
+import {
+  countRunPlanParts,
+  parseWorkflowItemProgress,
+  publicWorkflowProgressLabel,
+  resolveWorkflowStepProgress,
+  workflowStepUpdateFromRuntimeEvent,
+} from '@/services/chat/workflowProgress';
 import { validateArtifactAgainstProfile } from '@/services/validation';
 import { summarizeValidationResult } from '@/services/validation/profiles';
 import { deriveLifecycleFromValidation } from '@/services/lifecycle/state';
@@ -43,6 +49,8 @@ export interface DocumentHandlerContext {
     sourceRefs: string[],
   ) => Promise<void>;
 }
+
+type GeneratingStatusPatch = Partial<Omit<Extract<GenerationStatus, { state: 'generating' }>, 'state' | 'startedAt' | 'steps'>>;
 
 export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promise<RunResult> {
   const {
@@ -95,7 +103,26 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
     { id: 'finalize', label: 'Finishing', status: 'pending' },
   ];
 
-  setStatus({ state: 'generating', startedAt: Date.now(), step: 'Starting…', pct: 0, steps: workflowStepsRef.current });
+  const generationStartedAt = Date.now();
+  const totalSections = countRunPlanParts(runRequest.artifactRunPlan, ['document-module', 'section']);
+  const currentPublicStepLabel = () => {
+    const currentStep = workflowStepsRef.current.find((step) => step.status === 'active')
+      ?? workflowStepsRef.current.find((step) => step.status === 'pending')
+      ?? workflowStepsRef.current[workflowStepsRef.current.length - 1];
+    return currentStep
+      ? publicWorkflowProgressLabel({ stepId: currentStep.id, label: currentStep.label })
+      : 'Working...';
+  };
+  const buildGeneratingStatus = (updates: GeneratingStatusPatch = {}): GenerationStatus => ({
+    state: 'generating',
+    startedAt: generationStartedAt,
+    step: currentPublicStepLabel(),
+    steps: [...workflowStepsRef.current],
+    ...resolveWorkflowStepProgress(workflowStepsRef.current),
+    ...updates,
+  });
+
+  setStatus(buildGeneratingStatus({ step: 'Starting…', pct: 0 }));
   setStreamingContent('');
 
   const abortController = new AbortController();
@@ -119,23 +146,73 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
       }
 
       switch (event.type) {
-        case 'step-start':
-          setStatus({ state: 'generating', startedAt: Date.now(), step: event.label, steps: [...workflowStepsRef.current] });
+        case 'step-start': {
+          setStatus(buildGeneratingStatus({
+            step: publicWorkflowProgressLabel({ stepId: event.stepId, label: event.label }),
+            ...parseWorkflowItemProgress({
+              stepId: event.stepId,
+              message: event.label,
+              totalItems: totalSections,
+              itemLabel: 'section',
+            }),
+          }));
           break;
+        }
         case 'step-done':
-          setStatus({ state: 'generating', startedAt: Date.now(), steps: [...workflowStepsRef.current] });
+          setStatus(buildGeneratingStatus());
           break;
         case 'streaming':
           appendStreamingContent(event.chunk);
           break;
-        case 'progress':
-          setStatus({ state: 'generating', startedAt: Date.now(), step: event.message, pct: event.pct, steps: [...workflowStepsRef.current] });
+        case 'progress': {
+          setStatus(buildGeneratingStatus({
+            step: publicWorkflowProgressLabel({ stepId: event.partId, label: event.message }),
+            pct: event.pct,
+            ...parseWorkflowItemProgress({
+              partId: event.partId,
+              message: event.message,
+              totalItems: totalSections,
+              itemLabel: 'section',
+            }),
+          }));
           break;
+        }
         case 'step-error':
-          setStatus({ state: 'generating', startedAt: Date.now(), step: `Issue in ${event.stepId}`, steps: [...workflowStepsRef.current] });
+          setStatus(buildGeneratingStatus({
+            step: `Issue in ${event.stepId}`,
+            ...parseWorkflowItemProgress({
+              stepId: event.stepId,
+              totalItems: totalSections,
+              itemLabel: 'section',
+            }),
+          }));
           break;
         case 'step-update':
-          setStatus({ state: 'generating', startedAt: Date.now(), step: event.label, steps: [...workflowStepsRef.current] });
+          setStatus(buildGeneratingStatus({
+            step: publicWorkflowProgressLabel({ stepId: event.stepId, label: event.label }),
+            ...parseWorkflowItemProgress({
+              stepId: event.stepId,
+              message: event.label,
+              totalItems: totalSections,
+              itemLabel: 'section',
+            }),
+          }));
+          break;
+        case 'retry-attempt':
+          updateStepStatus(event.stepId, 'active', 'Polishing quality');
+          workflowStepsRef.current = workflowStepsRef.current.map((s) =>
+            s.id === event.stepId
+              ? { ...s, retryAttempt: event.attempt, maxRetries: event.maxAttempts }
+              : s,
+          );
+          setStatus(buildGeneratingStatus({
+            step: `Polishing quality (attempt ${event.attempt} of ${event.maxAttempts})`,
+            ...parseWorkflowItemProgress({
+              stepId: event.stepId,
+              totalItems: totalSections,
+              itemLabel: 'section',
+            }),
+          }));
           break;
       }
     };

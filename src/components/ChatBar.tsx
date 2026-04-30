@@ -20,7 +20,7 @@ import { loadPresetCollection } from '@/services/presets/storage';
 import { resolveProjectRulesSnapshot } from '@/services/projectRules/resolve';
 import { loadContextPolicy } from '@/services/projectRules/load';
 import { mergeContextPolicy } from '@/services/projectRules/merge';
-import { upsertWorkflowStepStatus } from '@/services/chat/workflowProgress';
+import { formatGenerationStatusText, upsertWorkflowStepStatus } from '@/services/chat/workflowProgress';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,6 +68,8 @@ export function ChatBar() {
   const [runHistoryOpen, setRunHistoryOpen] = useState(false);
   const [lastContext, setLastContext] = useState<ContextBundle | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [stallSeconds, setStallSeconds] = useState(0);
+  const statusUpdatedAtRef = useRef<number>(Date.now());
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -145,6 +147,22 @@ export function ChatBar() {
     handleSubmit();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingAutoSubmitPrompt, isGenerating]);
+
+  // Reset stall timer whenever generation status changes
+  useEffect(() => {
+    statusUpdatedAtRef.current = Date.now();
+    setStallSeconds(0);
+  }, [status]);
+
+  // Tick stall counter while generating
+  useEffect(() => {
+    if (!isGenerating) { setStallSeconds(0); return; }
+    const timer = setInterval(() => {
+      const elapsed = Math.round((Date.now() - statusUpdatedAtRef.current) / 1000);
+      setStallSeconds(elapsed >= 15 ? elapsed : 0);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isGenerating]);
 
   const updateStepStatus = useCallback(
     (stepId: string, stepStatus: WorkflowStep['status'], label?: string) => {
@@ -471,6 +489,11 @@ export function ChatBar() {
   const showDocumentStyleMenu = !activeDocument || activeDocument.type === 'document';
   const documentStyleLabel = DOCUMENT_STYLE_OPTIONS.find((option) => option.value === documentStylePreset)?.label ?? 'Auto';
 
+  const stepDisplayText = (() => {
+    if (status.state !== 'generating') return '';
+    return formatGenerationStatusText(status);
+  })();
+
   const placeholder = isGenerating
     ? 'Generating\u2026'
     : activeDocument
@@ -492,7 +515,9 @@ export function ChatBar() {
           <div className="mb-2 rounded-lg border border-border/70 bg-muted/60 px-3 py-2">
             <div className="flex items-center justify-between gap-2">
               <p className="truncate text-[11px] font-medium text-foreground/80">
-                {status.step ?? 'Working...'}
+                {stallSeconds >= 15
+                  ? `${stepDisplayText} · still working (last update ${stallSeconds}s ago)`
+                  : stepDisplayText}
               </p>
               {typeof status.pct === 'number' && status.pct > 0 && (
                 <span className="text-[10px] tabular-nums text-muted-foreground">{status.pct}%</span>

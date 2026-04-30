@@ -57,4 +57,28 @@ describe('AIWorkingIndicator runtime progress labels', () => {
 
     view.unmount();
   });
+
+  it('shows bounded retry attempts in progress badges', () => {
+    act(() => {
+      useChatStore.getState().setStatus({
+        state: 'generating',
+        startedAt: Date.now(),
+        step: 'Polishing quality',
+        currentStep: 3,
+        totalSteps: 4,
+        steps: [
+          { id: 'plan', label: 'Planning', status: 'done' },
+          { id: 'evaluate', label: 'Polishing quality', status: 'active', retryAttempt: 2, maxRetries: 3 },
+          { id: 'finalize', label: 'Finishing', status: 'pending' },
+        ],
+      });
+    });
+
+    const view = renderIndicator();
+
+    expect(view.container.textContent).toContain('Step 3 of 4: Polishing quality');
+    expect(view.container.textContent).toContain('(retry 2/3)');
+
+    view.unmount();
+  });
 });
