@@ -12,6 +12,7 @@
  */
 
 import type { ExemplarPackId, StyleManifest } from '../../templates';
+import { MOTION_PRESET_REGISTRY } from '../../templates/motionPresets';
 
 export interface QAViolation {
   slide: number;
@@ -35,6 +36,9 @@ const BLOCKING_RULES = new Set([
   'no-external-images',
   'template-content-leak',
 ]);
+const APPROVED_KEYFRAME_NAMES = new Set(
+  Object.values(MOTION_PRESET_REGISTRY).flatMap((preset) => preset.keyframeNames.map((name) => name.toLowerCase())),
+);
 
 function getViolationTier(rule: string): QAViolation['tier'] {
   return BLOCKING_RULES.has(rule) ? 'blocking' : 'advisory';
@@ -106,13 +110,25 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
   }
 
   // ── @keyframes check ──────────────────────────────────────
-  const hasKeyframes = /@keyframes\s+\w+/i.test(html);
+  const keyframeNames = Array.from(styleText.matchAll(/@keyframes\s+([\w-]+)/gi))
+    .map(([, name]) => name ?? '')
+    .filter(Boolean);
+  const hasKeyframes = keyframeNames.length > 0;
   if (!hasKeyframes && hasStyleBlock) {
     violations.push({
       slide: 0,
       rule: 'animations',
       severity: 'warning',
-      detail: 'No @keyframes animations found in <style> block. Every slide should include at least 2-3 CSS animations.',
+      detail: 'No approved CSS motion preset found. Keep static slides if appropriate, or use one approved preset such as fade-rise, stagger-reveal, accent-pulse, path-draw, or scene-entrance.',
+    });
+  }
+  const customKeyframeNames = keyframeNames.filter((name) => !APPROVED_KEYFRAME_NAMES.has(name.toLowerCase()));
+  if (customKeyframeNames.length > 0) {
+    violations.push({
+      slide: 0,
+      rule: 'motion-preset',
+      severity: 'warning',
+      detail: `Custom keyframe name(s) detected (${Array.from(new Set(customKeyframeNames)).join(', ')}). Use approved scaffolded motion presets or rename to the approved preset keyframes.`,
     });
   }
 

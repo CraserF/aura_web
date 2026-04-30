@@ -33,7 +33,7 @@ This tracker is the first place to update when work begins, moves, blocks, or co
 | W4 | Explicit chat and run progress | Done | Continue W5 project-scoped version control | `GenerationStatus` now carries `currentStep`/`totalSteps` plus item counts; `workflowProgress.ts` centralizes step position, slide/section parsing, and compact status text; presentation and document handlers preserve run start time, show slide/section counts from events and run plans, and expose bounded retry attempts; ChatBar and AIWorkingIndicator show `Step X of Y`, `Slide/Section X of Y`, and "last update Xs ago" stall detail; targeted progress/UI tests, typecheck, and build pass | 2026-04-30 |
 | W5 | Project-scoped version control | Done | Continue W6 new .aura format and optional history export | `projectSnapshot.ts` canonical serializer now covers project metadata, sections, media, memory, and documents with path-safe document filenames; `versionHistory.ts` uses path-safe `/projects/{projectId}` repo paths, isolated histories, deleted-document cleanup, and no-op prevention via `git.statusMatrix`; `VersionHistoryPanel` scopes list/read/restore to `project.id`; imported current-format `.aura` files without history receive a fresh local project id; project/manual artifact edits create project-scoped commits; legacy v1 `.aura` format is rejected with a clear error; focused version-history/import tests, typecheck, and build pass | 2026-04-30 |
 | W6 | New `.aura` format and optional history export | Done | Continue W7 presentation quality recovery | `.aura` writer is shared by normal and history exports; `ProjectManifest.hasHistory` is only set when git files are packed; `exportProjectGit`/`importProjectGit` read/write raw `.git` objects from the virtual FS; imports reject unsafe or empty history payloads, replace any existing repo for that project id before restoring, and preserve the original project id only when history is valid; imports without history assign a new UUID as before; unsupported manifest versions and unsafe document archive paths are rejected; "Save with history" commits the current project snapshot before export; focused storage/import tests, typecheck, and build pass | 2026-04-30 |
-| W7 | Presentation quality recovery | Not started | Add layout-first slide scaffolds, motion presets, SVG motifs, and quality checks | Benchmark deck outputs, render checks, prompt/runtime diff | 2026-04-29 |
+| W7 | Presentation quality recovery | Done | Continue W8 document scaffolding and W9 benchmark/render validation | 16 typed `SlideLayoutDefinition` records in `layouts.ts` (cover → closing) with targetable slot contracts, `data-layout` guidance, text budgets, min font sizes, quality rules, and typed motion/SVG motif lists; 5 `MotionPreset` records and 7 `SvgMotifFamily` records are wired into compact slot-contract prompts with preset IDs, budgets, keyframe limits, motif IDs, SVG viewBox/slot guidance, and reduced-motion requirements; `selectLayout()` fuzzy keyword matcher feeds `buildSlideBlueprintPack()` in `presentationPrompts.ts` and now covers runtime role phrases such as stage-setting, problem, mechanism, comparison, and recommendation; QA flags custom keyframes outside approved motion presets; new registry/prompt tests plus existing prompt/validation tests, scoped lint, typecheck, and build pass | 2026-04-30 |
 | W8 | Document scaffolding | Not started | Add independent document section/theme scaffolds and slot-based edits | Document examples, section registry, edit tests | 2026-04-29 |
 | W9 | Validation and release process | Not started | Define benchmark set and prototype agent-in-the-app QA with local model where feasible | Test matrix, benchmark results, local QA notes | 2026-04-29 |
 
@@ -45,7 +45,7 @@ This tracker is the first place to update when work begins, moves, blocks, or co
 | M2: Better starts | Users can start with a strong visual variant and editable default color theme | W2, W3 | Done | 5 variants available, color theme persist path exists, project rules hidden behind advanced; W2 and W3 both Done |
 | M3: Visible work | Long-running creation and editing flows explain their steps | W4 | Done | Chat shows step count, slide/section count, stall indicator, and retry attempts; W4 Done |
 | M4: Project ownership | Each project owns its version history and export behavior | W5, W6 | Done | W5: histories isolated per project-scoped git repos; W6: "Save with history" packs raw git objects after committing the current snapshot, import restores valid history with the original project id, existing repos are replaced rather than mixed, malformed history/document paths are rejected; both W5 and W6 Done |
-| M5: Presentation recovery | Decks regain strong visual quality with scaffolded animation and SVG art | W7, W9 | Not started | Benchmark decks are visibly better, motion/SVG guardrails pass, render checks pass |
+| M5: Presentation recovery | Decks regain strong visual quality with scaffolded animation and SVG art | W7, W9 | In progress | W7 scaffold layer Done: layout slots, bounded motion presets, SVG motif guidance, prompt injection, and custom-keyframe QA are in place; W9 still needs benchmark deck runs, render checks, and product review evidence |
 | M6: Document recovery | Documents use independent scaffolds and slot-based editing | W8, W9 | Not started | Document examples are polished, edits target sections/slots, validation passes |
 
 ### Tracking Instructions
@@ -1725,6 +1725,22 @@ Do not simply revert to the old workflow. Instead:
 - Move from "model invents a slide" to "model fills a known slide layout."
 - Add stronger screenshot and text-fit validation.
 - Improve progress events and repair-loop visibility.
+
+### Implementation Status
+
+Workstream 7 is complete for the current scaffold layer.
+
+Completed behavior:
+
+- The presentation template system now has a typed slide layout registry with 16 layout definitions covering cover, intro, agenda, section breaker, statement, timeline, columns, comparison, metrics, process, quote, case study, data story, roadmap, and closing slides.
+- Each layout defines required and optional slots, text budgets, minimum font sizes, quality rules, allowed motion presets, and allowed SVG motif families.
+- Slot contracts are injected into queued slide prompts from the runtime slide blueprint, including a stable `data-layout` value and slot class guidance so future edits can target individual slide regions.
+- Approved motion presets are scaffolded with bounded keyframe names, duration limits, animated-element limits, content-heavy restrictions, and reduced-motion expectations.
+- Approved SVG motif families are scaffolded with named motif slots, viewBox guidance, placement constraints, and safe usage rules.
+- Runtime slide-role phrases now resolve to the intended scaffold contracts for stage-setting, problem, comparison, mechanism, recommendation, metric, timeline, case-study, and closing flows.
+- Presentation QA now warns when generated CSS uses custom keyframe names outside the approved motion preset registry.
+
+Remaining milestone work moves to W9: benchmark deck runs, screenshot/render checks, and product review evidence for visual improvement.
 
 ### Presentation Design System
 

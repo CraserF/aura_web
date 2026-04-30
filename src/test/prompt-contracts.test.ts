@@ -158,12 +158,12 @@ describe('artifact prompt contracts', () => {
     expect(followUpPrompt).toContain('SLIDE BLUEPRINT');
     expect(followUpPrompt).toContain('Role:');
     expect(followUpPrompt).toContain('Continuity:');
-    // Step 1: cap updated to 8.5 KB to accommodate compact design vocabulary pack
+    // Caps allow the compact design vocabulary plus W7 slot/motion/SVG scaffold contract.
     expect(createPrompt.length).toBeLessThanOrEqual(8500);
     expect(editPrompt.length).toBeLessThanOrEqual(8500);
-    expect(slide1Prompt.length).toBeLessThanOrEqual(4500);
-    expect(appendedPrompt.length).toBeLessThanOrEqual(3500);
-    expect(followUpPrompt.length).toBeLessThanOrEqual(3500);
+    expect(slide1Prompt.length).toBeLessThanOrEqual(6000);
+    expect(appendedPrompt.length).toBeLessThanOrEqual(5000);
+    expect(followUpPrompt.length).toBeLessThanOrEqual(5000);
     expect(revisionPrompt.length).toBeLessThanOrEqual(3500);
 
     for (const prompt of [createPrompt, editPrompt, slide1Prompt, appendedPrompt, followUpPrompt, revisionPrompt]) {

@@ -66,11 +66,35 @@ export {
 } from './reference-quality-corpus';
 
 export {
+  buildPresentationDesignSystemPrompt,
   PRESENTATION_LAYOUT_RECIPES,
   PRESENTATION_MOTION_BUDGETS,
   PRESENTATION_TYPE_SCALE,
-  buildPresentationDesignSystemPrompt,
   type PresentationLayoutRecipe,
   type PresentationMotionBudget,
   type PresentationTypeScale,
 } from './design-system';
+
+export {
+  SLIDE_LAYOUT_REGISTRY,
+  selectLayout,
+  buildSlotContractPrompt,
+  type SlideLayoutId,
+  type SlideSlotDefinition,
+  type SlideLayoutDefinition,
+} from './layouts';
+
+export {
+  MOTION_PRESET_REGISTRY,
+  buildMotionPresetPrompt,
+  type MotionPresetId,
+  type MotionPreset,
+} from './motionPresets';
+
+export {
+  SVG_MOTIF_REGISTRY,
+  buildSvgMotifPrompt,
+  type SvgMotifId,
+  type SvgMotifFamily,
+  type SvgMotifSlot,
+} from './svgMotifs';

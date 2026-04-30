@@ -1,4 +1,5 @@
 import { getReferenceQualityProfile } from '@/services/ai/templates';
+import { selectLayout, buildSlotContractPrompt } from '@/services/ai/templates/layouts';
 import type { PlanResult, SlideBrief } from '@/services/ai/workflow/agents/planner';
 import {
   buildCoreArtifactContractPack,
@@ -171,13 +172,19 @@ Continuity rules: ${narrativePlan.continuityRules.join(' ')}`;
 function buildSlideBlueprintPack(blueprint?: PresentationSlideBlueprint): string {
   if (!blueprint) return '';
 
-  return `## SLIDE BLUEPRINT
+  const layout = selectLayout(blueprint.layoutPattern);
+  const slotContract = buildSlotContractPrompt(layout);
+
+  return buildPrompt([
+    `## SLIDE BLUEPRINT
 
 Role: ${blueprint.role}
 Narrative beat: ${blueprint.narrativeBeat}
 Layout pattern: ${blueprint.layoutPattern}
 Motif: ${blueprint.motifInstruction}
-Continuity: ${blueprint.continuityInstruction}`;
+Continuity: ${blueprint.continuityInstruction}`,
+    slotContract,
+  ]);
 }
 
 function buildFinalFormatPack(): string {
