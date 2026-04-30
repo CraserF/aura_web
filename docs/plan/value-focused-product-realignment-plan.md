@@ -32,7 +32,7 @@ This tracker is the first place to update when work begins, moves, blocks, or co
 | W3 | UI simplification | Done | Continue W4 explicit chat/run progress | Toolbar: Open+Save merged into File dropdown, Validate+Version History moved to More (…) dropdown, Present button renders only for presentation artifacts; ProjectInitReport auto-modal replaced with dismissible success banner + "View details" link; ChatBar: Document style, output mode/preset, and Runs hidden behind a SlidersHorizontal toggle button; Project Style and Doctor moved behind the sidebar advanced menu; hotkey hint text removed; targeted UX tests, typecheck, and build pass | 2026-04-29 |
 | W4 | Explicit chat and run progress | Done | Continue W5 project-scoped version control | `GenerationStatus` now carries `currentStep`/`totalSteps` plus item counts; `workflowProgress.ts` centralizes step position, slide/section parsing, and compact status text; presentation and document handlers preserve run start time, show slide/section counts from events and run plans, and expose bounded retry attempts; ChatBar and AIWorkingIndicator show `Step X of Y`, `Slide/Section X of Y`, and "last update Xs ago" stall detail; targeted progress/UI tests, typecheck, and build pass | 2026-04-30 |
 | W5 | Project-scoped version control | Done | Continue W6 new .aura format and optional history export | `projectSnapshot.ts` canonical serializer now covers project metadata, sections, media, memory, and documents with path-safe document filenames; `versionHistory.ts` uses path-safe `/projects/{projectId}` repo paths, isolated histories, deleted-document cleanup, and no-op prevention via `git.statusMatrix`; `VersionHistoryPanel` scopes list/read/restore to `project.id`; imported current-format `.aura` files without history receive a fresh local project id; project/manual artifact edits create project-scoped commits; legacy v1 `.aura` format is rejected with a clear error; focused version-history/import tests, typecheck, and build pass | 2026-04-30 |
-| W6 | New `.aura` format and optional history export | Not started | Design replacement format without backwards compatibility and add export-with-history option | Format spec, export/import tests, unsupported legacy-file behavior | 2026-04-29 |
+| W6 | New `.aura` format and optional history export | Done | Continue W7 presentation quality recovery | `.aura` writer is shared by normal and history exports; `ProjectManifest.hasHistory` is only set when git files are packed; `exportProjectGit`/`importProjectGit` read/write raw `.git` objects from the virtual FS; imports reject unsafe or empty history payloads, replace any existing repo for that project id before restoring, and preserve the original project id only when history is valid; imports without history assign a new UUID as before; unsupported manifest versions and unsafe document archive paths are rejected; "Save with history" commits the current project snapshot before export; focused storage/import tests, typecheck, and build pass | 2026-04-30 |
 | W7 | Presentation quality recovery | Not started | Add layout-first slide scaffolds, motion presets, SVG motifs, and quality checks | Benchmark deck outputs, render checks, prompt/runtime diff | 2026-04-29 |
 | W8 | Document scaffolding | Not started | Add independent document section/theme scaffolds and slot-based edits | Document examples, section registry, edit tests | 2026-04-29 |
 | W9 | Validation and release process | Not started | Define benchmark set and prototype agent-in-the-app QA with local model where feasible | Test matrix, benchmark results, local QA notes | 2026-04-29 |
@@ -44,7 +44,7 @@ This tracker is the first place to update when work begins, moves, blocks, or co
 | M1: Direction cleanup | Product docs and UI language stop pointing toward API/MCP | W0, W1 | Done | Old API/MCP docs deleted, README rewritten, ExecutionMode removed, provider API distinction clear; W0 and W1 both Done |
 | M2: Better starts | Users can start with a strong visual variant and editable default color theme | W2, W3 | Done | 5 variants available, color theme persist path exists, project rules hidden behind advanced; W2 and W3 both Done |
 | M3: Visible work | Long-running creation and editing flows explain their steps | W4 | Done | Chat shows step count, slide/section count, stall indicator, and retry attempts; W4 Done |
-| M4: Project ownership | Each project owns its version history and export behavior | W5, W6 | In progress | W5 Done — histories are isolated per project and current-format imports start fresh histories; W6 still needs the new `.aura` format and explicit history export/import |
+| M4: Project ownership | Each project owns its version history and export behavior | W5, W6 | Done | W5: histories isolated per project-scoped git repos; W6: "Save with history" packs raw git objects after committing the current snapshot, import restores valid history with the original project id, existing repos are replaced rather than mixed, malformed history/document paths are rejected; both W5 and W6 Done |
 | M5: Presentation recovery | Decks regain strong visual quality with scaffolded animation and SVG art | W7, W9 | Not started | Benchmark decks are visibly better, motion/SVG guardrails pass, render checks pass |
 | M6: Document recovery | Documents use independent scaffolds and slot-based editing | W8, W9 | Not started | Document examples are polished, edits target sections/slots, validation passes |
 
@@ -1321,7 +1321,7 @@ Potential UI component:
 - Queue state is visible.
 - Cancel behavior remains available and safe.
 
-## Workstream 5: Project-Scoped Version Control And `.aura` History Export
+## Workstream 5: Project-Scoped Version Control
 
 ### Goal
 
@@ -1489,6 +1489,28 @@ This means:
 
 The serializer should know the complete expected file list and remove anything else under the project repo, excluding `.git`.
 
+## Workstream 6: New `.aura` Format And Optional History Export
+
+### Goal
+
+Make `.aura` export/import represent the current project model cleanly, with no legacy presentation-upgrade path, and make git history export an explicit user action.
+
+The normal save path should remain lean and should import as a fresh local project id. The history save path should preserve the original project id only when a valid history payload is present and restored.
+
+### Implementation Status
+
+Workstream 6 is complete for the current implementation slice.
+
+Completed behavior:
+
+- Normal `.aura` export and "Save with history" share the same project archive writer.
+- "Save with history" commits the current project snapshot before export, then packages the project repo under `version-history/git/`.
+- `hasHistory` is written only when git history files are actually present.
+- Imports without history assign a fresh project id.
+- Imports with valid history restore the git repo and preserve the original project id.
+- Importing history replaces any existing repo for that project id rather than merging histories.
+- Unsafe git history paths, empty declared history payloads, unsupported manifest versions, and unsafe document archive paths are rejected.
+
 ### `.aura` History Export
 
 The `.aura` format should optionally include history. This should be a user-facing export option, not the default behavior.
@@ -1588,7 +1610,7 @@ Add focused tests:
 - `.aura` import restores history when included.
 - The new `.aura` format does not carry legacy backwards-compatibility requirements.
 
-## Workstream 6: Presentation Workflow Recovery And Quality
+## Workstream 7: Presentation Workflow Recovery And Quality
 
 ### Goal
 
@@ -1981,7 +2003,7 @@ For each benchmark:
 - Benchmarks show improvement over current behavior.
 - CSS animation presets and SVG motif presets are scaffolded, bounded, and validated.
 
-## Workstream 7: Document And Presentation Tooling
+## Workstream 8: Document And Presentation Tooling
 
 ### Goal
 
@@ -2207,7 +2229,7 @@ The system should prevent common artifact failures:
 - Animation and SVG guardrails prevent excessive or broken visual effects.
 - Repair targets the failing part rather than regenerating everything.
 
-## Workstream 8: Validation, Quality, And Release Process
+## Workstream 9: Validation, Quality, And Release Process
 
 ### Goal
 

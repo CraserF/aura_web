@@ -234,3 +234,127 @@ export async function clearAllVersionHistory(): Promise<void> {
   _fs = null;
   _fs = new LightningFS(FS_NAME, { wipe: true });
 }
+
+// ── History export / import ─────────────────────────────────
+
+/**
+ * Export the raw git objects for a project repo.
+ * Returns a flat list of {path, content} pairs for every file under .git/.
+ * Used to pack history into a .aura archive.
+ */
+export async function exportProjectGit(
+  projectId: string,
+): Promise<Array<{ path: string; content: Uint8Array }>> {
+  const fs = getFs();
+  const gitDir = `${repoDir(projectId)}/.git`;
+  const result: Array<{ path: string; content: Uint8Array }> = [];
+
+  async function walk(dir: string, relBase: string): Promise<void> {
+    let entries: string[];
+    try {
+      entries = (await fs.promises.readdir(dir)) as string[];
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const fullPath = `${dir}/${entry}`;
+      const relPath = relBase ? `${relBase}/${entry}` : entry;
+      const stat = (await fs.promises.stat(fullPath)) as { isDirectory(): boolean };
+      if (stat.isDirectory()) {
+        await walk(fullPath, relPath);
+      } else {
+        const rawContent = (await fs.promises.readFile(fullPath)) as string | Uint8Array;
+        const content = typeof rawContent === 'string' ? new TextEncoder().encode(rawContent) : rawContent;
+        result.push({ path: relPath, content });
+      }
+    }
+  }
+
+  await walk(gitDir, '');
+  return result;
+}
+
+/**
+ * Validate that a git entry path from an imported archive is safe.
+ * Rejects paths with directory traversal sequences or absolute paths.
+ */
+export function validateGitEntryPath(entryPath: string): boolean {
+  if (!entryPath) return false;
+  if (entryPath.startsWith('/')) return false;
+  if (entryPath.includes('\\')) return false;
+  if (entryPath.includes('\0')) return false;
+  const parts = entryPath.split('/');
+  return !parts.some((p) => !p || p === '..' || p === '.');
+}
+
+/**
+ * Restore a git repo from exported entries.
+ * Called during .aura import when the archive contains version history.
+ * Validates each path before writing to prevent directory traversal.
+ */
+export async function importProjectGit(
+  projectId: string,
+  entries: Array<{ path: string; content: Uint8Array }>,
+): Promise<void> {
+  const fs = getFs();
+  const dir = repoDir(projectId);
+  const gitDir = `${dir}/.git`;
+  if (entries.length === 0) {
+    throw new Error('Cannot import empty git history.');
+  }
+  const invalidEntry = entries.find(({ path: entryPath }) => !validateGitEntryPath(entryPath));
+  if (invalidEntry) {
+    throw new Error(`Invalid git history path: ${invalidEntry.path}`);
+  }
+
+  await fs.promises.mkdir(PROJECTS_ROOT).catch(() => {});
+  await removeTreeFs(fs, dir);
+  await mkdirpFs(fs, gitDir);
+
+  for (const { path: entryPath, content } of entries) {
+    const fullPath = `${gitDir}/${entryPath}`;
+    const parentDir = fullPath.substring(0, fullPath.lastIndexOf('/'));
+    await mkdirpFs(fs, parentDir);
+    await fs.promises.writeFile(fullPath, content);
+  }
+}
+
+/** Recursively remove a virtual FS path if it exists. */
+async function removeTreeFs(
+  fs: InstanceType<typeof LightningFS>,
+  path: string,
+): Promise<void> {
+  let stat: { isDirectory(): boolean };
+  try {
+    stat = (await fs.promises.stat(path)) as { isDirectory(): boolean };
+  } catch {
+    return;
+  }
+
+  if (!stat.isDirectory()) {
+    await fs.promises.unlink(path).catch(() => {});
+    return;
+  }
+
+  const entries = (await fs.promises.readdir(path).catch(() => [])) as string[];
+  for (const entry of entries) {
+    await removeTreeFs(fs, `${path}/${entry}`);
+  }
+  await fs.promises.rmdir(path).catch(() => {});
+}
+
+/** Recursively create directories in the virtual FS (mkdir -p). */
+async function mkdirpFs(
+  fs: InstanceType<typeof LightningFS>,
+  dirPath: string,
+): Promise<void> {
+  try {
+    await fs.promises.mkdir(dirPath);
+  } catch {
+    const parent = dirPath.substring(0, dirPath.lastIndexOf('/'));
+    if (parent && parent !== dirPath) {
+      await mkdirpFs(fs, parent);
+      await fs.promises.mkdir(dirPath).catch(() => {});
+    }
+  }
+}

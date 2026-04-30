@@ -19,6 +19,7 @@ import { resolveStandaloneHtml } from '@/services/export/standalone';
 import { exportMemoryTree, hasArchivedMemory, importMemoryTree } from '@/services/memory';
 import { normalizeProjectData } from '@/services/projectRules/load';
 import { exportSheetParquet, importSheetParquet } from '@/services/spreadsheet/workbook';
+import { exportProjectGit, importProjectGit, validateGitEntryPath } from '@/services/storage/versionHistory';
 
 const FORMAT_VERSION = '2.4';
 
@@ -31,10 +32,24 @@ function parseOptionalJson<T>(value: string | null | undefined): T | null {
   }
 }
 
-/** Pack a full project into a .aura zip and trigger download */
-export async function downloadProjectFile(project: ProjectData): Promise<void> {
-  const zip = new JSZip();
+function archiveDocumentStem(id: string): string {
+  const trimmedId = id.trim();
+  if (!trimmedId) {
+    throw new Error('Document id is required for .aura export.');
+  }
+  return encodeURIComponent(trimmedId).replace(/\./g, '%2E');
+}
 
+function validateArchiveDocumentStem(stem: string): boolean {
+  return Boolean(stem)
+    && !stem.includes('/')
+    && !stem.includes('\\')
+    && !stem.includes('\0')
+    && stem !== '.'
+    && stem !== '..';
+}
+
+async function writeProjectArchive(zip: JSZip, project: ProjectData, hasHistory = false): Promise<void> {
   const manifest: ProjectManifest = {
     version: FORMAT_VERSION,
     schemaType: 'project',
@@ -48,6 +63,7 @@ export async function downloadProjectFile(project: ProjectData): Promise<void> {
     colorTheme: project.colorTheme,
     createdAt: project.createdAt,
     updatedAt: Date.now(),
+    ...(hasHistory ? { hasHistory: true } : {}),
   };
 
   zip.file('manifest.json', JSON.stringify(manifest, null, 2));
@@ -75,6 +91,7 @@ export async function downloadProjectFile(project: ProjectData): Promise<void> {
 
   const docsFolder = zip.folder('documents')!;
   for (const doc of project.documents) {
+    const docStem = archiveDocumentStem(doc.id);
     const resolvedHtml = resolveStandaloneHtml(doc.contentHtml, project.media ?? [], 'relative').html;
     const meta = {
       id: doc.id,
@@ -97,10 +114,10 @@ export async function downloadProjectFile(project: ProjectData): Promise<void> {
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     };
-    docsFolder.file(`${doc.id}.meta.json`, JSON.stringify(meta, null, 2));
-    docsFolder.file(`${doc.id}.html`, resolvedHtml);
+    docsFolder.file(`${docStem}.meta.json`, JSON.stringify(meta, null, 2));
+    docsFolder.file(`${docStem}.html`, resolvedHtml);
     if (doc.themeCss) {
-      docsFolder.file(`${doc.id}.css`, doc.themeCss);
+      docsFolder.file(`${docStem}.css`, doc.themeCss);
     }
     if (doc.type === 'spreadsheet' && doc.workbook) {
       for (const sheet of doc.workbook.sheets) {
@@ -109,11 +126,47 @@ export async function downloadProjectFile(project: ProjectData): Promise<void> {
             setTimeout(() => reject(new Error('DuckDB export timeout')), 5000),
           );
           const parquet = await Promise.race([exportSheetParquet(sheet.tableName), timeoutPromise]);
-          docsFolder.file(`${doc.id}.${sheet.id}.parquet`, parquet);
+          docsFolder.file(`${docStem}.${sheet.id}.parquet`, parquet);
         } catch {
           // Keep save resilient if a sheet table is not initialized or DuckDB is unavailable.
         }
       }
+    }
+  }
+}
+
+/** Pack a full project into a .aura zip and trigger download */
+export async function downloadProjectFile(project: ProjectData): Promise<void> {
+  const zip = new JSZip();
+  await writeProjectArchive(zip, project);
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const filename = `${sanitizeFilename(project.title)}.aura`;
+  saveAs(blob, filename);
+}
+
+/**
+ * Pack a full project into a .aura zip including version history, and trigger download.
+ * The archive includes a `version-history/git/` subtree with the raw git objects
+ * so that history can be restored on import. The manifest flags `hasHistory: true`
+ * only when git history files were actually packed.
+ */
+export async function downloadProjectFileWithHistory(project: ProjectData): Promise<void> {
+  const zip = new JSZip();
+
+  let gitEntries: Array<{ path: string; content: Uint8Array }> = [];
+  try {
+    gitEntries = await exportProjectGit(project.id);
+  } catch {
+    // If no repo exists yet, save a normal current-project archive.
+  }
+
+  await writeProjectArchive(zip, project, gitEntries.length > 0);
+
+  if (gitEntries.length > 0) {
+    const gitFolder = zip.folder('version-history/git')!;
+    for (const { path: entryPath, content } of gitEntries) {
+      gitFolder.file(entryPath, content);
     }
   }
 
@@ -135,6 +188,11 @@ export async function openProjectFile(file: File): Promise<ProjectData> {
   if (manifest.schemaType !== 'project') {
     throw new Error(
       'This .aura file uses a legacy format that is no longer supported. Please re-export your project from an updated version of Aura.',
+    );
+  }
+  if (manifest.version !== FORMAT_VERSION) {
+    throw new Error(
+      `Unsupported .aura project format version "${manifest.version ?? 'unknown'}". This version supports ${FORMAT_VERSION}.`,
     );
   }
 
@@ -179,13 +237,16 @@ export async function openProjectFile(file: File): Promise<ProjectData> {
       if (!metaJson) continue;
 
       const meta = JSON.parse(metaJson) as ProjectDocument;
-      const docId = meta.id;
+      const docStem = metaPath.replace(/^documents\//, '').replace(/\.meta\.json$/, '');
+      if (!validateArchiveDocumentStem(docStem)) {
+        throw new Error(`Invalid .aura file: unsafe document archive path "${metaPath}".`);
+      }
 
       const storedHtml =
-        (await zip.file(`documents/${docId}.html`)?.async('string')) ?? '';
+        (await zip.file(`documents/${docStem}.html`)?.async('string')) ?? '';
       const contentHtml = resolveStandaloneHtml(storedHtml, media, 'inline').html;
       const themeCss =
-        (await zip.file(`documents/${docId}.css`)?.async('string')) ?? '';
+        (await zip.file(`documents/${docStem}.css`)?.async('string')) ?? '';
 
       documents.push({
         ...meta,
@@ -195,7 +256,7 @@ export async function openProjectFile(file: File): Promise<ProjectData> {
 
       if (meta.type === 'spreadsheet' && meta.workbook?.sheets?.length) {
         for (const sheet of meta.workbook.sheets) {
-          const parquetPath = `documents/${docId}.${sheet.id}.parquet`;
+          const parquetPath = `documents/${docStem}.${sheet.id}.parquet`;
           const parquetBytes = await zip.file(parquetPath)?.async('uint8array');
           if (parquetBytes) {
             try {
@@ -230,10 +291,34 @@ export async function openProjectFile(file: File): Promise<ProjectData> {
     ? importMemoryTree(memoryEntries.filter((entry) => entry.content))
     : undefined;
 
+  // If the archive includes version history, restore it and keep the original project ID.
+  // Otherwise assign a fresh ID so the import never shares history with an existing project.
+  let projectId: string = crypto.randomUUID();
+  if (manifest.hasHistory) {
+    const gitFilePaths = Object.keys(zip.files).filter((p) =>
+      p.startsWith('version-history/git/') && !zip.files[p]!.dir,
+    );
+    if (gitFilePaths.length === 0) {
+      throw new Error('Invalid .aura file: manifest declares history but no git history files are present.');
+    }
+
+    const gitEntries = await Promise.all(
+      gitFilePaths.map(async (zipPath) => {
+        const relPath = zipPath.replace(/^version-history\/git\//, '');
+        const content = (await zip.file(zipPath)!.async('uint8array')) as Uint8Array;
+        return { path: relPath, content };
+      }),
+    );
+    const invalidEntry = gitEntries.find(({ path: p }) => !validateGitEntryPath(p));
+    if (invalidEntry) {
+      throw new Error(`Invalid .aura file: unsafe git history path "${invalidEntry.path}".`);
+    }
+    await importProjectGit(manifest.id, gitEntries);
+    projectId = manifest.id;
+  }
+
   return normalizeProjectData({
-    // Current exports do not contain version history. Import them as a fresh
-    // local project so they cannot attach to an existing project's repo.
-    id: crypto.randomUUID(),
+    id: projectId,
     title: manifest.title,
     description: manifest.description,
     visibility: manifest.visibility ?? 'private',

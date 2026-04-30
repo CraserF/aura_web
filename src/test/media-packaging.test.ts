@@ -8,6 +8,10 @@ interface MockZipLoadResult {
 
 let zipLoadResult: MockZipLoadResult | null = null;
 let writtenFiles: Record<string, { value: unknown; options?: unknown }> = {};
+const versionHistoryMock = vi.hoisted(() => ({
+  gitEntries: [] as Array<{ path: string; content: Uint8Array }>,
+  importedGit: [] as Array<{ projectId: string; entries: Array<{ path: string; content: Uint8Array }> }>,
+}));
 
 class MockFolder {
   constructor(private readonly prefix: string) {}
@@ -48,6 +52,23 @@ vi.mock('file-saver', () => ({
   saveAs: vi.fn(),
 }));
 
+vi.mock('@/services/storage/versionHistory', () => ({
+  exportProjectGit: vi.fn(async () => versionHistoryMock.gitEntries),
+  importProjectGit: vi.fn(async (
+    projectId: string,
+    entries: Array<{ path: string; content: Uint8Array }>,
+  ) => {
+    versionHistoryMock.importedGit.push({ projectId, entries });
+  }),
+  validateGitEntryPath: (entryPath: string) => {
+    if (!entryPath) return false;
+    if (entryPath.startsWith('/')) return false;
+    if (entryPath.includes('\\')) return false;
+    if (entryPath.includes('\0')) return false;
+    return !entryPath.split('/').some((part) => !part || part === '.' || part === '..');
+  },
+}));
+
 vi.mock('@/services/charts', () => ({
   extractChartSpecsFromHtml: vi.fn(() => ({})),
 }));
@@ -61,6 +82,8 @@ describe('media packaging', () => {
   beforeEach(() => {
     writtenFiles = {};
     zipLoadResult = null;
+    versionHistoryMock.gitEntries = [];
+    versionHistoryMock.importedGit = [];
   });
 
   it('writes media assets and relative document refs into project archives', async () => {
@@ -196,5 +219,230 @@ describe('media packaging', () => {
     expect(project.documents[0]?.starterRef?.artifactKey).toBe('brief');
     expect(project.visualVariantId).toBe('research');
     expect(project.colorTheme).toEqual({ background: '#f8fafc', primary: '#1e3a5f', accent: '#0891b2' });
+  });
+
+  it('writes optional git history only when history entries are available', async () => {
+    const { downloadProjectFileWithHistory } = await import('@/services/storage/projectFormat');
+    versionHistoryMock.gitEntries = [{
+      path: 'HEAD',
+      content: new TextEncoder().encode('ref: refs/heads/main\n'),
+    }];
+
+    await downloadProjectFileWithHistory({
+      id: 'project-1',
+      title: 'History Project',
+      visibility: 'private',
+      documents: [],
+      activeDocumentId: null,
+      chatHistory: [],
+      sections: { drafts: [], main: [], suggestions: [], issues: [] },
+      createdAt: 1,
+      updatedAt: 1,
+    });
+
+    const manifest = JSON.parse(String(writtenFiles['manifest.json']?.value));
+    expect(manifest.hasHistory).toBe(true);
+    expect(writtenFiles['version-history/git/HEAD']?.value).toEqual(versionHistoryMock.gitEntries[0]?.content);
+  });
+
+  it('does not mark the archive as history-bearing when no git entries are available', async () => {
+    const { downloadProjectFileWithHistory } = await import('@/services/storage/projectFormat');
+
+    await downloadProjectFileWithHistory({
+      id: 'project-empty-history',
+      title: 'No History Project',
+      visibility: 'private',
+      documents: [],
+      activeDocumentId: null,
+      chatHistory: [],
+      sections: { drafts: [], main: [], suggestions: [], issues: [] },
+      createdAt: 1,
+      updatedAt: 1,
+    });
+
+    const manifest = JSON.parse(String(writtenFiles['manifest.json']?.value));
+    expect(manifest).not.toHaveProperty('hasHistory');
+    expect(Object.keys(writtenFiles).some((path) => path.startsWith('version-history/git/'))).toBe(false);
+  });
+
+  it('restores git history and preserves project id when a history payload is present', async () => {
+    zipLoadResult = {
+      files: {
+        'version-history/git/HEAD': {},
+      },
+      file(path: string) {
+        const files: Record<string, { async: (type: string) => Promise<unknown> }> = {
+          'manifest.json': {
+            async: async () => JSON.stringify({
+              version: '2.4',
+              schemaType: 'project',
+              id: 'project-with-history',
+              title: 'History Project',
+              documentCount: 0,
+              activeDocumentId: null,
+              visibility: 'private',
+              createdAt: 1,
+              updatedAt: 2,
+              hasHistory: true,
+            }),
+          },
+          'version-history/git/HEAD': {
+            async: async () => new TextEncoder().encode('ref: refs/heads/main\n'),
+          },
+        };
+        return files[path];
+      },
+      folder() {
+        return null;
+      },
+    };
+
+    const { openProjectFile } = await import('@/services/storage/projectFormat');
+    const project = await openProjectFile(new File(['data'], 'project.aura'));
+
+    expect(project.id).toBe('project-with-history');
+    expect(versionHistoryMock.importedGit).toHaveLength(1);
+    expect(versionHistoryMock.importedGit[0]?.projectId).toBe('project-with-history');
+    expect(versionHistoryMock.importedGit[0]?.entries[0]?.path).toBe('HEAD');
+  });
+
+  it('rejects history archives with unsafe git paths', async () => {
+    zipLoadResult = {
+      files: {
+        'version-history/git/../outside': {},
+      },
+      file(path: string) {
+        const files: Record<string, { async: (type: string) => Promise<unknown> }> = {
+          'manifest.json': {
+            async: async () => JSON.stringify({
+              version: '2.4',
+              schemaType: 'project',
+              id: 'project-with-history',
+              title: 'History Project',
+              documentCount: 0,
+              activeDocumentId: null,
+              visibility: 'private',
+              createdAt: 1,
+              updatedAt: 2,
+              hasHistory: true,
+            }),
+          },
+          'version-history/git/../outside': {
+            async: async () => new Uint8Array([1]),
+          },
+        };
+        return files[path];
+      },
+      folder() {
+        return null;
+      },
+    };
+
+    const { openProjectFile } = await import('@/services/storage/projectFormat');
+    await expect(openProjectFile(new File(['data'], 'project.aura'))).rejects.toThrow('unsafe git history path');
+    expect(versionHistoryMock.importedGit).toHaveLength(0);
+  });
+
+  it('rejects archives with unsafe document entry paths', async () => {
+    zipLoadResult = {
+      files: {
+        'documents/../outside.meta.json': {},
+      },
+      file(path: string) {
+        const files: Record<string, { async: (type: string) => Promise<unknown> }> = {
+          'manifest.json': {
+            async: async () => JSON.stringify({
+              version: '2.4',
+              schemaType: 'project',
+              id: 'project-with-bad-doc',
+              title: 'Bad Project',
+              documentCount: 1,
+              activeDocumentId: null,
+              visibility: 'private',
+              createdAt: 1,
+              updatedAt: 2,
+            }),
+          },
+          'documents/../outside.meta.json': {
+            async: async () => JSON.stringify({
+              id: '../outside',
+              title: 'Bad Doc',
+              type: 'document',
+              contentHtml: '',
+              themeCss: '',
+              slideCount: 0,
+              order: 0,
+              createdAt: 1,
+              updatedAt: 2,
+            }),
+          },
+        };
+        return files[path];
+      },
+      folder(name: string) {
+        if (name === 'documents') return {};
+        return null;
+      },
+    };
+
+    const { openProjectFile } = await import('@/services/storage/projectFormat');
+    await expect(openProjectFile(new File(['data'], 'project.aura'))).rejects.toThrow('unsafe document archive path');
+  });
+
+  it('rejects archives that declare history without any git files', async () => {
+    zipLoadResult = {
+      files: {},
+      file(path: string) {
+        if (path !== 'manifest.json') return undefined;
+        return {
+          async: async () => JSON.stringify({
+            version: '2.4',
+            schemaType: 'project',
+            id: 'project-with-empty-history',
+            title: 'History Project',
+            documentCount: 0,
+            activeDocumentId: null,
+            visibility: 'private',
+            createdAt: 1,
+            updatedAt: 2,
+            hasHistory: true,
+          }),
+        };
+      },
+      folder() {
+        return null;
+      },
+    };
+
+    const { openProjectFile } = await import('@/services/storage/projectFormat');
+    await expect(openProjectFile(new File(['data'], 'project.aura'))).rejects.toThrow('declares history');
+  });
+
+  it('rejects unsupported project manifest versions', async () => {
+    zipLoadResult = {
+      files: {},
+      file(path: string) {
+        if (path !== 'manifest.json') return undefined;
+        return {
+          async: async () => JSON.stringify({
+            version: '1.0',
+            schemaType: 'project',
+            id: 'old-project',
+            title: 'Old Project',
+            documentCount: 0,
+            activeDocumentId: null,
+            visibility: 'private',
+            createdAt: 1,
+            updatedAt: 2,
+          }),
+        };
+      },
+      folder() {
+        return null;
+      },
+    };
+
+    const { openProjectFile } = await import('@/services/storage/projectFormat');
+    await expect(openProjectFile(new File(['data'], 'project.aura'))).rejects.toThrow('Unsupported .aura project format version');
   });
 });

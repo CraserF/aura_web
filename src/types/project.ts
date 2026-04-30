@@ -233,6 +233,8 @@ export interface ProjectManifest {
   colorTheme?: ColorTheme;
   createdAt: number;
   updatedAt: number;
+  /** True when this archive also contains the git version history under version-history/git/ */
+  hasHistory?: boolean;
 }
 
 /** A version history entry (backed by isomorphic-git) */

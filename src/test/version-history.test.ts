@@ -15,17 +15,17 @@ const versionHistoryMock = vi.hoisted(() => {
     oid: string;
     message: string;
     timestamp: number;
-    files: Map<string, string>;
+    files: Map<string, string | Uint8Array>;
   }
 
-  const files = new Map<string, string>();
+  const files = new Map<string, string | Uint8Array>();
   const dirs = new Set<string>(['/']);
   const commitsByDir = new Map<string, CommitRecord[]>();
   let commitCounter = 0;
 
   const filesForDir = (dir: string) => {
     const prefix = `${dir}/`;
-    const result = new Map<string, string>();
+    const result = new Map<string, string | Uint8Array>();
     for (const [path, content] of files.entries()) {
       if (path.startsWith(prefix)) {
         result.set(path.slice(prefix.length), content);
@@ -94,7 +94,7 @@ const versionHistoryMock = vi.hoisted(() => {
     readBlob: vi.fn(async ({ dir, oid, filepath }: { dir: string; oid: string; filepath: string }) => {
       const content = findCommit(dir, oid)?.files.get(filepath);
       if (content === undefined) throw new Error(`Blob not found: ${filepath}`);
-      return { blob: new TextEncoder().encode(content) };
+      return { blob: typeof content === 'string' ? new TextEncoder().encode(content) : content };
     }),
     readTree: vi.fn(async ({ dir, oid, filepath }: { dir: string; oid: string; filepath: string }) => {
       const commit = findCommit(dir, oid);
@@ -117,11 +117,26 @@ const versionHistoryMock = vi.hoisted(() => {
         dirs.add(path);
       },
       writeFile: async (path: string, content: unknown) => {
-        files.set(path, String(content));
+        const value = ArrayBuffer.isView(content)
+          ? new Uint8Array(content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength))
+          : String(content);
+        files.set(path, value);
+      },
+      readFile: async (path: string) => {
+        const content = files.get(path);
+        if (content === undefined) throw new Error(`File not found: ${path}`);
+        return content;
       },
       readdir: async (path: string) => {
         const prefix = `${path}/`;
         const entries = new Set<string>();
+        for (const dirPath of dirs) {
+          if (dirPath.startsWith(prefix)) {
+            const rest = dirPath.slice(prefix.length);
+            const [entry] = rest.split('/');
+            if (entry) entries.add(entry);
+          }
+        }
         for (const filePath of files.keys()) {
           if (filePath.startsWith(prefix)) {
             const rest = filePath.slice(prefix.length);
@@ -131,8 +146,24 @@ const versionHistoryMock = vi.hoisted(() => {
         }
         return Array.from(entries);
       },
+      stat: async (path: string) => {
+        if (dirs.has(path)) {
+          return { isDirectory: () => true };
+        }
+        if (files.has(path)) {
+          return { isDirectory: () => false };
+        }
+        const prefix = `${path}/`;
+        if ([...dirs].some((dirPath) => dirPath.startsWith(prefix)) || [...files.keys()].some((filePath) => filePath.startsWith(prefix))) {
+          return { isDirectory: () => true };
+        }
+        throw new Error(`Path not found: ${path}`);
+      },
       unlink: async (path: string) => {
         files.delete(path);
+      },
+      rmdir: async (path: string) => {
+        dirs.delete(path);
       },
     };
 
@@ -159,9 +190,12 @@ import { serializeProjectSnapshot, deserializeProjectSnapshot } from '@/services
 import {
   clearAllVersionHistory,
   commitVersion,
+  exportProjectGit,
   getRepoDirForProject,
+  importProjectGit,
   listVersions,
   readVersionSnapshot,
+  validateGitEntryPath,
 } from '@/services/storage/versionHistory';
 import type { ProjectData } from '@/types/project';
 
@@ -472,5 +506,96 @@ describe('snapshot document field coverage', () => {
 
     expect(result.documents[0]?.createdAt).toBe(111);
     expect(result.documents[0]?.updatedAt).toBe(222);
+  });
+});
+
+// ── W6: validateGitEntryPath ──────────────────────────────────────────────
+
+describe('validateGitEntryPath', () => {
+  it('accepts normal relative paths', () => {
+    expect(validateGitEntryPath('HEAD')).toBe(true);
+    expect(validateGitEntryPath('objects/ab/cdef1234')).toBe(true);
+    expect(validateGitEntryPath('refs/heads/main')).toBe(true);
+    expect(validateGitEntryPath('packed-refs')).toBe(true);
+  });
+
+  it('rejects empty string', () => {
+    expect(validateGitEntryPath('')).toBe(false);
+  });
+
+  it('rejects absolute paths', () => {
+    expect(validateGitEntryPath('/etc/passwd')).toBe(false);
+    expect(validateGitEntryPath('/objects/foo')).toBe(false);
+  });
+
+  it('rejects directory traversal with ..', () => {
+    expect(validateGitEntryPath('../etc/passwd')).toBe(false);
+    expect(validateGitEntryPath('objects/../../etc/passwd')).toBe(false);
+    expect(validateGitEntryPath('refs/../../../secret')).toBe(false);
+  });
+
+  it('rejects paths with . segments', () => {
+    expect(validateGitEntryPath('./HEAD')).toBe(false);
+    expect(validateGitEntryPath('objects/./foo')).toBe(false);
+  });
+
+  it('rejects backslashes, empty segments, and null bytes', () => {
+    expect(validateGitEntryPath('objects\\aa\\bbbb')).toBe(false);
+    expect(validateGitEntryPath('objects//bbbb')).toBe(false);
+    expect(validateGitEntryPath('objects/aa/\0bbbb')).toBe(false);
+  });
+});
+
+// ── W6: git history import/export ─────────────────────────────────────────
+
+describe('project git history import/export', () => {
+  beforeEach(async () => {
+    await clearAllVersionHistory();
+  });
+
+  it('rejects unsafe git paths during import instead of silently filtering them', async () => {
+    await expect(importProjectGit('history-project', [
+      { path: 'HEAD', content: new TextEncoder().encode('ref: refs/heads/main\n') },
+      { path: '../outside', content: new Uint8Array([1]) },
+    ])).rejects.toThrow('Invalid git history path');
+  });
+
+  it('rejects empty git history imports', async () => {
+    await expect(importProjectGit('history-project', [])).rejects.toThrow('Cannot import empty git history');
+  });
+
+  it('replaces an existing repo when importing history for the same project id', async () => {
+    await importProjectGit('history-project', [
+      { path: 'HEAD', content: new TextEncoder().encode('ref: refs/heads/main\n') },
+      { path: 'objects/aa/stale', content: new Uint8Array([1]) },
+    ]);
+
+    await importProjectGit('history-project', [
+      { path: 'HEAD', content: new TextEncoder().encode('ref: refs/heads/restored\n') },
+    ]);
+
+    const entries = await exportProjectGit('history-project');
+    expect(entries.map((entry) => entry.path).sort()).toEqual(['HEAD']);
+    expect(new TextDecoder().decode(entries[0]?.content)).toBe('ref: refs/heads/restored\n');
+  });
+});
+
+// ── W6: hasHistory manifest flag ──────────────────────────────────────────
+
+describe('hasHistory manifest flag', () => {
+  it('serializeProjectSnapshot does not include hasHistory (that is a .aura manifest concern)', () => {
+    const project = makeProject();
+    const snapshot = serializeProjectSnapshot(project);
+    const manifest = JSON.parse(snapshot['manifest.json']) as Record<string, unknown>;
+    // The git snapshot manifest is separate from the .aura ProjectManifest
+    // so hasHistory should not appear in the snapshot manifest
+    expect(manifest).not.toHaveProperty('hasHistory');
+  });
+
+  it('deserializeProjectSnapshot round-trip is unaffected by hasHistory being absent', () => {
+    const project = makeProject({ title: 'No History Project' });
+    const snapshot = serializeProjectSnapshot(project);
+    const result = deserializeProjectSnapshot(snapshot);
+    expect(result.manifest.title).toBe('No History Project');
   });
 });

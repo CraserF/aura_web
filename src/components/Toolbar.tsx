@@ -24,7 +24,7 @@ import { listDocumentStarters } from '@/services/bootstrap/documentStarters';
 import { listProjectStarterKits } from '@/services/bootstrap/starterKits';
 import { listSpreadsheetStarters } from '@/services/bootstrap/spreadsheetStarters';
 import { listPresentationStarters } from '@/services/bootstrap/projectStarter';
-import { downloadProjectFile } from '@/services/storage/projectFormat';
+import { downloadProjectFile, downloadProjectFileWithHistory } from '@/services/storage/projectFormat';
 import { openProjectFile } from '@/services/storage/projectFormat';
 import { commitVersion } from '@/services/storage/versionHistory';
 import { useRef, useState } from 'react';
@@ -185,6 +185,15 @@ export function Toolbar({
     });
   };
 
+  const handleSaveWithHistory = async () => {
+    const projectToSave = {
+      ...project,
+      chatHistory: messages,
+    };
+    await commitVersion(projectToSave, `Save project: ${project.title}`);
+    await downloadProjectFileWithHistory(projectToSave);
+  };
+
   const handleOpen = () => {
     setToolbarNotice(null);
     if (hasContent) {
@@ -326,6 +335,10 @@ export function Toolbar({
               <DropdownMenuItem onSelect={() => void handleSave()} disabled={!hasContent}>
                 <Download className="mr-2 size-3.5" />
                 Save .aura
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void handleSaveWithHistory()} disabled={!hasContent}>
+                <History className="mr-2 size-3.5" />
+                Save with history
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -488,6 +501,10 @@ export function Toolbar({
                 <DropdownMenuItem onSelect={() => void handleSave()} disabled={!hasContent}>
                   <Download className="mr-2 size-3.5" />
                   Save .aura
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => void handleSaveWithHistory()} disabled={!hasContent}>
+                  <History className="mr-2 size-3.5" />
+                  Save with history
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
