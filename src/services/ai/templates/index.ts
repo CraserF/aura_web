@@ -98,3 +98,12 @@ export {
   type SvgMotifFamily,
   type SvgMotifSlot,
 } from './svgMotifs';
+
+export {
+  DOCUMENT_SECTION_MODULE_REGISTRY,
+  selectDocumentModule,
+  buildDocumentSectionModulePrompt,
+  type DocumentSectionModuleId,
+  type DocumentSectionSlot,
+  type DocumentSectionModuleDefinition,
+} from './documentSectionModules';

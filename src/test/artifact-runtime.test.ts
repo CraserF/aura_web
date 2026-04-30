@@ -230,6 +230,15 @@ describe('ArtifactRuntime plan', () => {
     expect(modulePrompt).toContain('remote assets');
     expect(modulePrompt).not.toContain('TEMPLATE EXAMPLES');
     expect(modulePrompt.length).toBeLessThan(3_500);
+    const kpiPrompt = buildDocumentRuntimeModulePrompt({
+      taskBrief: 'Create an executive briefing document',
+      documentType: 'brief',
+      outline: 'Thesis and module list.',
+      part: parts[2]!,
+      designFamily: 'executive-light',
+    });
+    expect(kpiPrompt).toContain('SECTION MODULE: KEY FINDINGS');
+    expect(kpiPrompt).toContain('doc-kpi-row');
   });
 
   it('selects document runtime generation mode inside the runtime helper', async () => {
@@ -384,6 +393,36 @@ describe('ArtifactRuntime plan', () => {
     expect(repairPrompt).toContain('data-runtime-part="document-module-1"');
     expect(repairPrompt).toContain('fix only the failed module issues');
     expect(repairPrompt.length).toBeLessThan(3_500);
+  });
+
+  it('allows headingless pull-quote modules when their section scaffold requires no heading', () => {
+    const plan = buildArtifactRunPlan({
+      runId: 'doc-pullquote-run',
+      prompt: 'Create an editorial report with a pull quote',
+      artifactType: 'document',
+      operation: 'create',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    const parts = attachDocumentRuntimeParts({
+      runPlan: plan,
+      documentType: 'report',
+      blueprintLabel: 'Editorial Report',
+      recommendedModules: ['doc-pullquote'],
+      isEdit: false,
+    });
+    const html = `<main class="doc-shell">
+      <section class="doc-section doc-runtime-module" data-runtime-part="document-module-1">
+        <blockquote>Customers described the new flow as much clearer and easier to trust.</blockquote>
+        <cite>Research interview synthesis</cite>
+      </section>
+    </main>`;
+
+    const validation = validateDocumentRuntimeModules(html, parts);
+    expect(validation.passed).toBe(true);
+    expect(validation.advisoryCount).toBe(0);
   });
 
   it('resolves targeted document edits to runtime modules and applies module-local replacements', () => {
@@ -837,7 +876,7 @@ describe('ArtifactRuntime plan', () => {
 
     expect(validation.passed).toBe(true);
     expect(validation.blockingCount).toBe(0);
-    expect(validation.validationByPart).toHaveLength(2);
+    expect(validation.validationByPart.filter((part) => part.partId.startsWith('slide-'))).toHaveLength(2);
     expect(validation.validationByPart.every((part) => part.validationPassed)).toBe(true);
     expect(validation.summary).toContain('Queued presentation runtime');
   });

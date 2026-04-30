@@ -68,7 +68,18 @@ ${input.blueprintLabel ? `Blueprint: ${input.blueprintLabel}` : 'Blueprint: runt
 Use the family as a compact design direction, not a second preset system.`;
 }
 
-export function buildDocumentModuleContractPack(input: { partId: string; repair?: boolean }): string {
+function formatDocumentModuleHeadingRule(headingLevel: 'h1' | 'h2' | 'h3' | 'none' = 'h2'): string {
+  if (headingLevel === 'none') {
+    return 'omit h1-h4; use the section module semantic structure';
+  }
+  return `include one clear <${headingLevel}>`;
+}
+
+export function buildDocumentModuleContractPack(input: {
+  partId: string;
+  repair?: boolean;
+  headingLevel?: 'h1' | 'h2' | 'h3' | 'none';
+}): string {
   const wrapperClassName = getDocumentRuntimeModuleWrapperClassName();
   const sharedClasses = DOCUMENT_RUNTIME_SHARED_MODULE_CLASSES.join(', ');
 
@@ -76,8 +87,8 @@ export function buildDocumentModuleContractPack(input: { partId: string; repair?
 
 Return only one semantic HTML module:
 - use exactly one wrapper: <section class="${wrapperClassName}" data-runtime-part="${input.partId}">
-- include one clear <h2>
-- include useful body content with <p>, <ul>, <ol>, <table>, or simple nested <div> blocks only when useful
+- ${formatDocumentModuleHeadingRule(input.headingLevel)}
+- include useful body content with p/list/table/div blocks only when useful
 - use shared classes when helpful: ${sharedClasses}
 - keep module layout mobile-safe and readable in a framed iframe
 - ${input.repair ? 'fix only the failed module issues and preserve useful existing structure' : 'do not repeat the document shell'}

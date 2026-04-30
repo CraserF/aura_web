@@ -13,6 +13,10 @@ import {
   getDocumentRuntimeModuleWrapperClassName,
 } from '@/services/artifactRuntime/documentDesignSystem';
 import { buildDocumentQualityTelemetry } from '@/services/artifactRuntime/documentQualityChecklist';
+import {
+  buildDocumentSectionModulePrompt,
+  selectDocumentModule,
+} from '@/services/ai/templates/documentSectionModules';
 import { decideArtifactQualityPolish, type ArtifactQualityPolishDecision } from '@/services/artifactRuntime/qualityDecision';
 import type {
   ArtifactPart,
@@ -394,6 +398,15 @@ function formatDocumentModuleBlueprint(blueprint?: DocumentModuleBlueprint): str
   ].join('\n');
 }
 
+function selectDocumentSectionModuleForPart(part: ArtifactPart) {
+  return selectDocumentModule(part.title, {
+    brief: part.brief,
+    role: part.documentModuleBlueprint?.role,
+    componentPattern: part.documentModuleBlueprint?.componentPattern,
+    visualRhythm: part.documentModuleBlueprint?.visualRhythmInstruction,
+  });
+}
+
 function formatDocumentModuleLine(part: ArtifactPart, index: number): string {
   const blueprint = formatDocumentModuleBlueprint(part.documentModuleBlueprint);
   return blueprint
@@ -541,6 +554,9 @@ Return only a compact content blueprint in markdown:
 }
 
 export function buildDocumentRuntimeModulePrompt(input: BuildDocumentRuntimeModulePromptInput): string {
+  const sectionModule = selectDocumentSectionModuleForPart(input.part);
+  const sectionModulePrompt = buildDocumentSectionModulePrompt(sectionModule);
+
   return [
     buildCoreArtifactContractPack(),
     buildDocumentIframeContractPack(),
@@ -549,6 +565,7 @@ export function buildDocumentRuntimeModulePrompt(input: BuildDocumentRuntimeModu
       designFamily: input.designFamily,
     }),
     buildQualityBarContractPack(input.qualityBar),
+    sectionModulePrompt,
     `## MODULE TASK
 
 Task brief:
@@ -569,11 +586,14 @@ ${input.existingModuleHtml}
 
 preserve the useful structure of this existing module while applying the requested edit.` : 'Create the module from the outline and task brief.'}
 
-${buildDocumentModuleContractPack({ partId: input.part.id })}`,
+${buildDocumentModuleContractPack({ partId: input.part.id, headingLevel: sectionModule.headingLevel })}`,
   ].join('\n\n');
 }
 
 export function buildDocumentRuntimeModuleRepairPrompt(input: BuildDocumentRuntimeModuleRepairPromptInput): string {
+  const sectionModule = selectDocumentSectionModuleForPart(input.part);
+  const sectionModulePrompt = buildDocumentSectionModulePrompt(sectionModule);
+
   return [
     buildCoreArtifactContractPack(),
     buildDocumentIframeContractPack(),
@@ -583,6 +603,7 @@ export function buildDocumentRuntimeModuleRepairPrompt(input: BuildDocumentRunti
     }),
     buildQualityBarContractPack(input.qualityBar),
     buildValidatorFeedbackPack(input.issues.map((issue) => `${issue.severity}: ${issue.summary}`)),
+    sectionModulePrompt,
     `## MODULE REPAIR TASK
 
 Repair one failed document module fragment.
@@ -600,7 +621,7 @@ ${input.existingModuleHtml ? `Existing module:
 ${input.existingModuleHtml}
 \`\`\`` : 'The module is missing and must be created from the runtime part brief.'}
 
-${buildDocumentModuleContractPack({ partId: input.part.id, repair: true })}`,
+${buildDocumentModuleContractPack({ partId: input.part.id, repair: true, headingLevel: sectionModule.headingLevel })}`,
   ].join('\n\n');
 }
 
@@ -663,6 +684,12 @@ function findRuntimePartElement(doc: Document, partId: string): HTMLElement | nu
     .find((element) => element.getAttribute('data-runtime-part') === partId) ?? null;
 }
 
+function hasDocumentModuleHeading(element: HTMLElement, part: ArtifactPart): boolean {
+  const headingLevel = selectDocumentSectionModuleForPart(part).headingLevel;
+  if (headingLevel === 'none') return true;
+  return !!element.querySelector('h1, h2, h3, h4');
+}
+
 export function validateDocumentRuntimeModules(
   html: string,
   parts: ArtifactPart[],
@@ -710,7 +737,7 @@ export function validateDocumentRuntimeModules(
       });
     }
 
-    if (!element.querySelector('h2, h3, h4')) {
+    if (!hasDocumentModuleHeading(element, part)) {
       headinglessCount += 1;
       moduleIssues.push({
         partId: part.id,
@@ -1021,9 +1048,11 @@ function getDocumentModuleRoot(doc: Document): HTMLElement {
 }
 
 function ensureDocumentModuleHeading(doc: Document, element: HTMLElement, part: ArtifactPart): boolean {
-  if (element.querySelector('h2, h3, h4')) return false;
+  const headingLevel = selectDocumentSectionModuleForPart(part).headingLevel;
+  if (headingLevel === 'none') return false;
+  if (element.querySelector('h1, h2, h3, h4')) return false;
 
-  const heading = doc.createElement('h2');
+  const heading = doc.createElement(headingLevel);
   heading.textContent = part.title;
   element.prepend(heading);
   return true;
@@ -1080,13 +1109,16 @@ function normalizeDocumentRuntimeModuleHtml(html: string, part: ArtifactPart): s
 
   const existing = findRuntimePartElement(doc, part.id);
   const candidate = existing
-    ?? doc.body.querySelector<HTMLElement>('section, article, div')
+    ?? doc.body.querySelector<HTMLElement>('section, article, div, blockquote, figure')
     ?? createDocumentModuleShell(doc, part);
+  const shouldPreserveCandidateElement = candidate.matches('blockquote, figure');
 
   const wrapper = doc.createElement('section');
   wrapper.className = getDocumentRuntimeModuleWrapperClassName(candidate.classList);
   wrapper.setAttribute('data-runtime-part', part.id);
-  wrapper.innerHTML = candidate.innerHTML.trim() || `<p>${escapeDocumentText(part.brief)}</p>`;
+  wrapper.innerHTML = (
+    shouldPreserveCandidateElement ? candidate.outerHTML : candidate.innerHTML
+  ).trim() || `<p>${escapeDocumentText(part.brief)}</p>`;
 
   ensureDocumentModuleHeading(doc, wrapper, part);
   ensureDocumentModuleBody(doc, wrapper, part);
