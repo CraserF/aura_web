@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { History, GitCommit, RotateCcw, X, Clock } from 'lucide-react';
 import { listVersions, readVersionSnapshot } from '@/services/storage/versionHistory';
+import { deserializeProjectSnapshot } from '@/services/storage/projectSnapshot';
 import { normalizeProjectData } from '@/services/projectRules/load';
 import { useProjectStore } from '@/stores/projectStore';
-import type { VersionEntry, ProjectDocument, ColorTheme } from '@/types/project';
-import type { ChatMessage } from '@/types';
+import type { VersionEntry } from '@/types/project';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -38,37 +38,33 @@ export function VersionHistoryPanel({ open, onClose }: VersionHistoryPanelProps)
     if (!open) return;
     setLoading(true);
     setError(null);
-    listVersions()
+    listVersions(project.id)
       .then(setVersions)
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false));
-  }, [open]);
+  }, [open, project.id]);
 
   const handleRestore = async (version: VersionEntry) => {
     setRestoring(version.hash);
     try {
-      const snapshot = await readVersionSnapshot(version.hash);
-      if (!snapshot) {
+      const rawSnapshot = await readVersionSnapshot(project.id, version.hash);
+      if (!rawSnapshot) {
         setError('Could not read version snapshot.');
         return;
       }
 
-      const manifest = JSON.parse(snapshot.manifest) as {
-        id: string;
-        title: string;
-        updatedAt: number;
-        activeDocumentId?: string | null;
-        visualVariantId?: string;
-        colorTheme?: ColorTheme;
-      };
-      const chatHistory = JSON.parse(snapshot.chatHistory) as ChatMessage[];
-      const contextPolicy = JSON.parse(snapshot.contextPolicy) as typeof project.contextPolicy;
-      const workflowPresets = JSON.parse(snapshot.workflowPresets) as typeof project.workflowPresets;
-      const media = JSON.parse(snapshot.media) as typeof project.media;
-
-      const documents: ProjectDocument[] = Object.values(snapshot.documents).map(
-        (raw) => JSON.parse(raw) as ProjectDocument,
-      );
+      // Map from the raw git storage shape to the ProjectSnapshotFiles shape
+      const { manifest, documents, chatHistory, projectRulesMarkdown, contextPolicy, workflowPresets, media, memoryTree } =
+        deserializeProjectSnapshot({
+          'manifest.json': rawSnapshot.manifest,
+          'chat-history.json': rawSnapshot.chatHistory,
+          'project-rules.md': rawSnapshot.projectRules,
+          'context-policy.json': rawSnapshot.contextPolicy,
+          'workflow-presets.json': rawSnapshot.workflowPresets,
+          'media.json': rawSnapshot.media,
+          'memory.json': rawSnapshot.memory,
+          documents: rawSnapshot.documents,
+        });
 
       const restoredActiveDocumentId =
         manifest.activeDocumentId && documents.some((d) => d.id === manifest.activeDocumentId)
@@ -78,18 +74,23 @@ export function VersionHistoryPanel({ open, onClose }: VersionHistoryPanelProps)
       setProject(normalizeProjectData({
         ...project,
         title: manifest.title,
+        description: manifest.description,
+        visibility: manifest.visibility ?? project.visibility,
         documents,
         activeDocumentId: restoredActiveDocumentId,
         chatHistory,
         media: media ?? undefined,
+        memoryTree,
         visualVariantId: manifest.visualVariantId,
         colorTheme: manifest.colorTheme,
         projectRules: {
-          markdown: snapshot.projectRules,
+          markdown: projectRulesMarkdown,
           updatedAt: manifest.updatedAt,
         },
         contextPolicy: contextPolicy ?? undefined,
         workflowPresets: workflowPresets ?? undefined,
+        sections: manifest.sections ?? project.sections,
+        createdAt: manifest.createdAt ?? project.createdAt,
         updatedAt: manifest.updatedAt,
       }));
 

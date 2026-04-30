@@ -15,7 +15,6 @@ import { saveAs } from 'file-saver';
 import type { ProjectData, ProjectDocument, ProjectManifest } from '@/types/project';
 import type { ChatMessage } from '@/types';
 import { sanitizeFilename } from '@/lib/sanitizeFilename';
-import { extractChartSpecsFromHtml } from '@/services/charts';
 import { resolveStandaloneHtml } from '@/services/export/standalone';
 import { exportMemoryTree, hasArchivedMemory, importMemoryTree } from '@/services/memory';
 import { normalizeProjectData } from '@/services/projectRules/load';
@@ -132,9 +131,11 @@ export async function openProjectFile(file: File): Promise<ProjectData> {
 
   const manifest = JSON.parse(manifestJson) as ProjectManifest;
 
-  // Support both v1 (presentation-only) and v2 (project) formats
+  // Legacy presentation-only packages are no longer upgraded into projects.
   if (manifest.schemaType !== 'project') {
-    return upgradeV1ToProject(zip, manifest as unknown as Record<string, unknown>);
+    throw new Error(
+      'This .aura file uses a legacy format that is no longer supported. Please re-export your project from an updated version of Aura.',
+    );
   }
 
   const chatHistoryJson =
@@ -230,7 +231,9 @@ export async function openProjectFile(file: File): Promise<ProjectData> {
     : undefined;
 
   return normalizeProjectData({
-    id: manifest.id,
+    // Current exports do not contain version history. Import them as a fresh
+    // local project so they cannot attach to an existing project's repo.
+    id: crypto.randomUUID(),
     title: manifest.title,
     description: manifest.description,
     visibility: manifest.visibility ?? 'private',
@@ -250,46 +253,5 @@ export async function openProjectFile(file: File): Promise<ProjectData> {
     sections: { drafts: [], main: [], suggestions: [], issues: [] },
     createdAt: manifest.createdAt,
     updatedAt: manifest.updatedAt,
-  });
-}
-
-/** Upgrade a v1 presentation .aura file to the v2 project format */
-async function upgradeV1ToProject(
-  zip: JSZip,
-  v1Manifest: Record<string, unknown>,
-): Promise<ProjectData> {
-  const slidesHtml = (await zip.file('slides.html')?.async('string')) ?? '';
-  const themeCss = (await zip.file('theme.css')?.async('string')) ?? '';
-  const chatHistoryJson =
-    (await zip.file('chat-history.json')?.async('string')) ?? '[]';
-  const chatHistory = JSON.parse(chatHistoryJson) as ChatMessage[];
-
-  const docId = crypto.randomUUID();
-  const now = Date.now();
-  const title = (v1Manifest.title as string) ?? 'Untitled Presentation';
-
-  const doc: ProjectDocument = {
-    id: docId,
-    title,
-    type: 'presentation',
-    contentHtml: slidesHtml,
-    themeCss,
-    slideCount: (v1Manifest.slideCount as number) ?? 0,
-    chartSpecs: extractChartSpecsFromHtml(slidesHtml),
-    order: 0,
-    createdAt: (v1Manifest.createdAt as number) ?? now,
-    updatedAt: (v1Manifest.updatedAt as number) ?? now,
-  };
-
-  return normalizeProjectData({
-    id: crypto.randomUUID(),
-    title,
-    visibility: 'private',
-    documents: [doc],
-    activeDocumentId: docId,
-    chatHistory,
-    sections: { drafts: [], main: [], suggestions: [], issues: [] },
-    createdAt: (v1Manifest.createdAt as number) ?? now,
-    updatedAt: (v1Manifest.updatedAt as number) ?? now,
   });
 }

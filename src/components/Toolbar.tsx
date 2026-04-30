@@ -26,6 +26,7 @@ import { listSpreadsheetStarters } from '@/services/bootstrap/spreadsheetStarter
 import { listPresentationStarters } from '@/services/bootstrap/projectStarter';
 import { downloadProjectFile } from '@/services/storage/projectFormat';
 import { openProjectFile } from '@/services/storage/projectFormat';
+import { commitVersion } from '@/services/storage/versionHistory';
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -145,6 +146,7 @@ export function Toolbar({
       resetProject();
       setProject(initResult.project);
       clearMessages();
+      commitVersion(initResult.project, `Create project: ${initResult.project.title}`).catch((e) => console.warn('[VersionHistory] initial commit failed:', e));
 
       if (selection.mode !== 'blank') {
         setInitReport(initResult.report);
@@ -206,6 +208,7 @@ export function Toolbar({
       const loadedProject = await openProjectFile(file);
       setProject(loadedProject);
       setMessages(loadedProject.chatHistory);
+      commitVersion(loadedProject, `Import project: ${loadedProject.title}`).catch((e) => console.warn('[VersionHistory] import commit failed:', e));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error reading file';
       setToolbarError(`Failed to open file: ${message}`);

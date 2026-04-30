@@ -15,6 +15,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import type { ProjectDocument } from '@/types/project';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { commitVersion } from '@/services/storage/versionHistory';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -408,8 +409,23 @@ export function ProjectSidebar({
     onRequestAddDocument?.(type, parentId);
   };
 
+  const commitLatestProject = (message: string) => {
+    const latestProject = useProjectStore.getState().project;
+    void commitVersion(latestProject, message).catch((error) => {
+      console.warn('[VersionHistory] manual sidebar commit failed:', error);
+    });
+  };
+
   const handleRename = (id: string, title: string) => {
+    const document = project.documents.find((doc) => doc.id === id);
     updateDocument(id, { title });
+    commitLatestProject(`Rename ${document?.type ?? 'document'}: ${title}`);
+  };
+
+  const handleDelete = (id: string) => {
+    const document = project.documents.find((doc) => doc.id === id);
+    removeDocument(id);
+    commitLatestProject(`Delete ${document?.type ?? 'document'}: ${document?.title ?? id}`);
   };
 
   const handleSelectDocument = (id: string) => {
@@ -439,6 +455,7 @@ export function ProjectSidebar({
                 value={project.title}
                 onSave={(v) => {
                   setProjectTitle(v);
+                  commitLatestProject(`Rename project: ${v}`);
                   setEditingProjectTitle(false);
                 }}
                 onCancel={() => setEditingProjectTitle(false)}
@@ -499,7 +516,7 @@ export function ProjectSidebar({
                 depth={0}
                 activeDocumentId={activeDocumentId}
                 onSelect={handleSelectDocument}
-                onDelete={removeDocument}
+                onDelete={handleDelete}
                 onRename={handleRename}
                 onAddSubDocument={handleAddSubDocument}
               />

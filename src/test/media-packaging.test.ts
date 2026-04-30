@@ -1,6 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-let zipLoadResult: any = null;
+interface MockZipLoadResult {
+  files: Record<string, unknown>;
+  file: (path: string) => { async: (type: string) => Promise<unknown> } | undefined;
+  folder: (name: string) => unknown;
+}
+
+let zipLoadResult: MockZipLoadResult | null = null;
 let writtenFiles: Record<string, { value: unknown; options?: unknown }> = {};
 
 class MockFolder {
@@ -182,6 +188,7 @@ describe('media packaging', () => {
     const { openProjectFile } = await import('@/services/storage/projectFormat');
     const project = await openProjectFile(new File(['data'], 'project.aura'));
 
+    expect(project.id).not.toBe('project-1');
     expect(project.media).toHaveLength(1);
     expect(project.media?.[0]?.relativePath).toBe('media/hero.png');
     expect(project.media?.[0]?.dataUrl).toContain('data:image/png;base64,');

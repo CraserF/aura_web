@@ -22,6 +22,7 @@ import {
   autosaveProject,
   getProjectAutosave,
 } from '@/services/storage/projectAutosave';
+import { commitVersion } from '@/services/storage/versionHistory';
 import { runDoctor } from '@/services/diagnostics/runDoctor';
 import type { DoctorReport } from '@/services/diagnostics/types';
 import type { LinkedTableRef, ProjectDocument, WorkbookMeta } from '@/types/project';
@@ -276,6 +277,10 @@ export default function App() {
         updatedAt: Date.now(),
       };
       addDocument(doc);
+      const latestProject = useProjectStore.getState().project;
+      void commitVersion(latestProject, `Create ${type}: ${doc.title}`).catch((error) => {
+        console.warn('[VersionHistory] manual create commit failed:', error);
+      });
     },
     [addDocument, project.documents.length],
   );
@@ -285,6 +290,10 @@ export default function App() {
       ...project,
       ...updates,
       updatedAt: Date.now(),
+    });
+    const latestProject = useProjectStore.getState().project;
+    void commitVersion(latestProject, 'Update project rules').catch((error) => {
+      console.warn('[VersionHistory] project rules commit failed:', error);
     });
   }, [project, setProject]);
 
@@ -380,6 +389,10 @@ export default function App() {
         activeDocument.id,
         markDocumentPublished(artifactValidationResult?.profileId ?? 'publish-ready', activeDocument.lastSuccessfulPresetId),
       );
+      const latestProject = useProjectStore.getState().project;
+      void commitVersion(latestProject, `Publish document: ${activeDocument.title}`).catch((error) => {
+        console.warn('[VersionHistory] publish commit failed:', error);
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to export PDF.';
       setDocumentError(message);
@@ -406,6 +419,10 @@ export default function App() {
         activeDocument.id,
         markDocumentPublished(artifactValidationResult?.profileId ?? 'publish-ready', activeDocument.lastSuccessfulPresetId),
       );
+      const latestProject = useProjectStore.getState().project;
+      void commitVersion(latestProject, `Publish document: ${activeDocument.title}`).catch((error) => {
+        console.warn('[VersionHistory] publish commit failed:', error);
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to export Word document.';
       setDocumentError(message);
@@ -461,6 +478,10 @@ export default function App() {
         chartSpecs: extractChartSpecsFromHtml(result.html),
         linkedTableRefs: extractLinkedTableRefsFromHtml(result.html),
       });
+      const latestProject = useProjectStore.getState().project;
+      void commitVersion(latestProject, `Edit document: ${result.title || activeDocument.title}`).catch((error) => {
+        console.warn('[VersionHistory] manual text edit commit failed:', error);
+      });
       setEditorInitialMarkdown(result.markdown);
       setTextEditorOpen(false);
     } catch (err) {
@@ -475,6 +496,19 @@ export default function App() {
     if (!activeDocument || activeDocument.type !== 'document') return;
     updateDocument(activeDocument.id, {
       pagesEnabled: !activeDocument.pagesEnabled,
+    });
+    const latestProject = useProjectStore.getState().project;
+    void commitVersion(latestProject, `Update document view: ${activeDocument.title}`).catch((error) => {
+      console.warn('[VersionHistory] document view commit failed:', error);
+    });
+  }, [activeDocument, updateDocument]);
+
+  const handleSpreadsheetChange = useCallback((updates: Partial<ProjectDocument>) => {
+    if (!activeDocument || activeDocument.type !== 'spreadsheet') return;
+    updateDocument(activeDocument.id, updates);
+    const latestProject = useProjectStore.getState().project;
+    void commitVersion(latestProject, `Update spreadsheet: ${activeDocument.title}`).catch((error) => {
+      console.warn('[VersionHistory] spreadsheet commit failed:', error);
     });
   }, [activeDocument, updateDocument]);
 
@@ -910,7 +944,7 @@ export default function App() {
             <div className="flex flex-1 flex-col overflow-hidden">
               <SpreadsheetCanvas
                 document={activeDocument}
-                onChange={(updates) => updateDocument(activeDocument.id, updates)}
+                onChange={handleSpreadsheetChange}
               />
             </div>
           )}

@@ -1,12 +1,12 @@
 /**
  * Version History — isomorphic-git wrapper for client-side Git.
  *
- * Provides automatic project versioning using Git under the hood.
+ * Provides project-scoped versioning using Git under the hood.
  * All operations happen in-browser using lightning-fs (IndexedDB).
  *
- * The repo is stored under a virtual filesystem path "/aura-project".
- * Each AI generation commit is created automatically by the agent workflow.
- * Users can browse history and restore to any past commit.
+ * Each project gets its own git repo at `/projects/{projectId}` inside
+ * a shared virtual filesystem. Histories are fully isolated: commits to
+ * project A never appear in project B's history.
  */
 
 import { Buffer } from 'buffer';
@@ -14,9 +14,10 @@ import git from 'isomorphic-git';
 import LightningFS from '@isomorphic-git/lightning-fs';
 import type { ProjectData } from '@/types/project';
 import type { VersionEntry } from '@/types/project';
+import { serializeProjectSnapshot } from '@/services/storage/projectSnapshot';
 
 const FS_NAME = 'aura-project-fs';
-const REPO_DIR = '/project';
+const PROJECTS_ROOT = '/projects';
 const AUTHOR = { name: 'Aura', email: 'aura@local' };
 const globalWithBuffer = globalThis as typeof globalThis & { Buffer?: typeof Buffer };
 
@@ -24,7 +25,7 @@ if (!globalWithBuffer.Buffer) {
   globalWithBuffer.Buffer = Buffer;
 }
 
-// Singleton filesystem instance
+// Singleton filesystem instance (shared across all projects)
 let _fs: InstanceType<typeof LightningFS> | null = null;
 
 function getFs(): InstanceType<typeof LightningFS> {
@@ -34,103 +35,101 @@ function getFs(): InstanceType<typeof LightningFS> {
   return _fs;
 }
 
-/** Ensure the git repo is initialised */
-async function ensureRepo(): Promise<void> {
+function repoDir(projectId: string): string {
+  const trimmedProjectId = projectId.trim();
+  if (!trimmedProjectId) {
+    throw new Error('Project id is required for version history.');
+  }
+  const safeProjectId = encodeURIComponent(trimmedProjectId).replace(/\./g, '%2E');
+  return `${PROJECTS_ROOT}/${safeProjectId}`;
+}
+
+/** Returns the virtual filesystem repo path for a given project. Exposed for testing. */
+export function getRepoDirForProject(projectId: string): string {
+  return repoDir(projectId);
+}
+
+/** Ensure the git repo exists for the given project */
+async function ensureRepo(projectId: string): Promise<void> {
   const fs = getFs();
+  const dir = repoDir(projectId);
   try {
-    await git.resolveRef({ fs, dir: REPO_DIR, ref: 'HEAD' });
+    await git.resolveRef({ fs, dir, ref: 'HEAD' });
   } catch {
     // Not yet initialised — create the repo
-    await fs.promises.mkdir(REPO_DIR).catch(() => { /* directory already exists — ignore */ });
-    await git.init({ fs, dir: REPO_DIR });
+    await fs.promises.mkdir(PROJECTS_ROOT).catch(() => { /* already exists */ });
+    await fs.promises.mkdir(dir).catch(() => { /* already exists */ });
+    await git.init({ fs, dir });
   }
 }
 
-/** Serialise the project data to files in the virtual FS */
-async function writeProjectFiles(project: ProjectData): Promise<void> {
+/** Write snapshot files to the virtual FS for the given project */
+async function writeSnapshotFiles(projectId: string, project: ProjectData): Promise<void> {
   const fs = getFs();
+  const dir = repoDir(projectId);
+  const snapshot = serializeProjectSnapshot(project);
 
-  // Write manifest
-  await fs.promises.writeFile(
-    `${REPO_DIR}/manifest.json`,
-    JSON.stringify(
-      {
-        id: project.id,
-        title: project.title,
-        activeDocumentId: project.activeDocumentId,
-        visualVariantId: project.visualVariantId,
-        colorTheme: project.colorTheme,
-        updatedAt: project.updatedAt,
-      },
-      null,
-      2,
-    ),
-  );
+  const topLevelKeys = [
+    'manifest.json',
+    'chat-history.json',
+    'project-rules.md',
+    'context-policy.json',
+    'workflow-presets.json',
+    'media.json',
+    'memory.json',
+  ] as const;
 
-  // Write each document
-    await fs.promises.mkdir(`${REPO_DIR}/documents`).catch(() => { /* directory already exists — ignore */ });
-  for (const doc of project.documents) {
-    const docObj = {
-      id: doc.id,
-      title: doc.title,
-      type: doc.type,
-      contentHtml: doc.contentHtml,
-      sourceMarkdown: doc.sourceMarkdown,
-      themeCss: doc.themeCss,
-      slideCount: doc.slideCount,
-      description: doc.description,
-      starterRef: doc.starterRef,
-      parentId: doc.parentId,
-      pagesEnabled: doc.pagesEnabled,
-      chartSpecs: doc.chartSpecs,
-      workbook: doc.workbook,
-      linkedTableRefs: doc.linkedTableRefs,
-      lifecycleState: doc.lifecycleState,
-      lastValidationProfileId: doc.lastValidationProfileId,
-      lastSuccessfulPresetId: doc.lastSuccessfulPresetId,
-      staleReason: doc.staleReason,
-      order: doc.order,
-      createdAt: doc.createdAt,
-      updatedAt: doc.updatedAt,
-    };
-    await fs.promises.writeFile(
-      `${REPO_DIR}/documents/${doc.id}.json`,
-      JSON.stringify(docObj, null, 2),
-    );
+  for (const key of topLevelKeys) {
+    await fs.promises.writeFile(`${dir}/${key}`, snapshot[key]);
   }
 
-  // Write chat history
-  await fs.promises.writeFile(
-    `${REPO_DIR}/chat-history.json`,
-    JSON.stringify(project.chatHistory, null, 2),
-  );
+  // Ensure documents directory exists
+  await fs.promises.mkdir(`${dir}/documents`).catch(() => { /* already exists */ });
 
-  await fs.promises.writeFile(
-    `${REPO_DIR}/project-rules.md`,
-    project.projectRules?.markdown ?? '',
-  );
-  await fs.promises.writeFile(
-    `${REPO_DIR}/context-policy.json`,
-    JSON.stringify(project.contextPolicy ?? {}, null, 2),
-  );
-  await fs.promises.writeFile(
-    `${REPO_DIR}/workflow-presets.json`,
-    JSON.stringify(project.workflowPresets ?? {}, null, 2),
-  );
-  await fs.promises.writeFile(
-    `${REPO_DIR}/media.json`,
-    JSON.stringify(project.media ?? [], null, 2),
-  );
+  // Remove document files that are no longer in the project
+  let existingDocFiles: string[] = [];
+  try {
+    existingDocFiles = await fs.promises.readdir(`${dir}/documents`) as string[];
+  } catch { /* directory not yet created — nothing to clean */ }
+
+  const expectedDocNames = new Set(Object.keys(snapshot.documents));
+  for (const existing of existingDocFiles) {
+    if (!expectedDocNames.has(existing)) {
+      await fs.promises.unlink(`${dir}/documents/${existing}`).catch(() => {});
+      await git.remove({ fs, dir, filepath: `documents/${existing}` }).catch(() => {});
+    }
+  }
+
+  for (const [filename, content] of Object.entries(snapshot.documents)) {
+    await fs.promises.writeFile(`${dir}/documents/${filename}`, content);
+  }
 }
 
-/** Stage all files and create a commit */
-async function stageAndCommit(message: string): Promise<string> {
+/** Stage all files and create a commit; returns null if nothing changed */
+async function stageAndCommit(projectId: string, message: string): Promise<string | null> {
   const fs = getFs();
+  const dir = repoDir(projectId);
 
-  await git.add({ fs, dir: REPO_DIR, filepath: '.' });
+  await git.add({ fs, dir, filepath: '.' });
+
+  // Skip no-op commits when HEAD already exists
+  let hasHead = true;
+  try {
+    await git.resolveRef({ fs, dir, ref: 'HEAD' });
+  } catch {
+    hasHead = false;
+  }
+
+  if (hasHead) {
+    const statusMatrix = await git.statusMatrix({ fs, dir });
+    // Each row: [filepath, HEAD, workdir, stage] — stage === 1 means identical to HEAD
+    const hasChanges = statusMatrix.some(([, , , stage]) => stage !== 1);
+    if (!hasChanges) return null;
+  }
+
   const hash = await git.commit({
     fs,
-    dir: REPO_DIR,
+    dir,
     author: AUTHOR,
     message,
   });
@@ -141,31 +140,32 @@ async function stageAndCommit(message: string): Promise<string> {
 
 /**
  * Record a new version of the project with a commit message.
- * Called automatically after each AI generation.
+ * Uses project.id to determine the repo path.
+ * Returns the commit hash on success or null on failure/no-op.
  */
 export async function commitVersion(
   project: ProjectData,
   message: string,
-): Promise<string> {
+): Promise<string | null> {
   try {
-    await ensureRepo();
-    await writeProjectFiles(project);
-    const hash = await stageAndCommit(message);
+    await ensureRepo(project.id);
+    await writeSnapshotFiles(project.id, project);
+    const hash = await stageAndCommit(project.id, message);
     return hash;
   } catch (err) {
     console.warn('[VersionHistory] commit failed:', err);
-    return '';
+    return null;
   }
 }
 
 /**
- * List all commits in reverse chronological order.
+ * List all commits for a project in reverse chronological order.
  */
-export async function listVersions(): Promise<VersionEntry[]> {
+export async function listVersions(projectId: string): Promise<VersionEntry[]> {
   try {
-    await ensureRepo();
+    await ensureRepo(projectId);
     const fs = getFs();
-    const commits = await git.log({ fs, dir: REPO_DIR, depth: 50 });
+    const commits = await git.log({ fs, dir: repoDir(projectId), depth: 50 });
     return commits.map((c) => ({
       hash: c.oid,
       message: c.commit.message.trim(),
@@ -178,10 +178,12 @@ export async function listVersions(): Promise<VersionEntry[]> {
 }
 
 /**
- * Read the project snapshot at a specific commit hash.
- * Returns raw JSON strings for the caller to parse.
+ * Read the project snapshot at a specific commit hash for a given project.
  */
-export async function readVersionSnapshot(hash: string): Promise<{
+export async function readVersionSnapshot(
+  projectId: string,
+  hash: string,
+): Promise<{
   manifest: string;
   documents: Record<string, string>;
   chatHistory: string;
@@ -189,17 +191,18 @@ export async function readVersionSnapshot(hash: string): Promise<{
   contextPolicy: string;
   workflowPresets: string;
   media: string;
+  memory: string;
 } | null> {
   try {
     const fs = getFs();
+    const dir = repoDir(projectId);
 
     const readBlob = async (path: string): Promise<string> => {
-      const { blob } = await git.readBlob({ fs, dir: REPO_DIR, oid: hash, filepath: path });
+      const { blob } = await git.readBlob({ fs, dir, oid: hash, filepath: path });
       return new TextDecoder().decode(blob);
     };
 
-    // List document files from the commit tree
-    const { tree } = await git.readTree({ fs, dir: REPO_DIR, oid: hash, filepath: 'documents' }).catch(() => ({ tree: [] }));
+    const { tree } = await git.readTree({ fs, dir, oid: hash, filepath: 'documents' }).catch(() => ({ tree: [] }));
     const documentEntries: Record<string, string> = {};
     for (const entry of tree) {
       if (entry.type === 'blob' && entry.path.endsWith('.json')) {
@@ -216,6 +219,7 @@ export async function readVersionSnapshot(hash: string): Promise<{
       contextPolicy: await readBlob('context-policy.json').catch(() => 'null'),
       workflowPresets: await readBlob('workflow-presets.json').catch(() => 'null'),
       media: await readBlob('media.json').catch(() => '[]'),
+      memory: await readBlob('memory.json').catch(() => 'null'),
     };
   } catch (err) {
     console.warn('[VersionHistory] readSnapshot failed:', err);
@@ -224,10 +228,9 @@ export async function readVersionSnapshot(hash: string): Promise<{
 }
 
 /**
- * Reset the virtual FS (useful for testing or project reset).
+ * Wipe all version history (all projects). Used in tests.
  */
-export async function clearVersionHistory(): Promise<void> {
+export async function clearAllVersionHistory(): Promise<void> {
   _fs = null;
-  const newFs = new LightningFS(FS_NAME, { wipe: true });
-  _fs = newFs;
+  _fs = new LightningFS(FS_NAME, { wipe: true });
 }
