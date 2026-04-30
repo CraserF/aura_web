@@ -20,7 +20,7 @@ import {
   isDeckLikeCreatePrompt,
 } from '@/services/ai/validation';
 
-const STYLE_CHANGE_RE = /\b(style|theme|palette|color|font|typography|spacing|visual|design|look)\b/i;
+const STYLE_CHANGE_RE = /\b(restyle|style|theme|palette|color|font|typography|spacing|visual|design|look)\b/i;
 const STRUCTURE_CHANGE_RE = /\b(reorder|reorganize|restructure|re-layout|relayout|move section|insert section|add subsection|convert layout)\b/i;
 const MULTI_ARTIFACT_RE = /\b(?:create|make|build|generate|add)\b[\s\S]*\b(\d+|several|multiple|few)\s+(?:slides?|sections?|artifacts?)\b/i;
 const TITLE_RE = /\b(title slide|hero slide|cover slide|opening slide|opening statement)\b/i;

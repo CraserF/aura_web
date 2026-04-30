@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { LanguageModel } from 'ai';
 import type { PlanResult } from '@/services/ai/workflow/agents/planner';
+import type { PresentationOutput } from '@/services/ai/workflow/types';
 
 import { detectAnimationLevel, getTemplateBlueprint, resolveTemplatePlan } from '@/services/ai/templates';
 import { buildArtifactRunPlan } from '@/services/artifactRuntime/build';
@@ -10,11 +11,25 @@ const batchQueueMocks = vi.hoisted(() => ({
   runBatchQueue: vi.fn(),
 }));
 
+const designerMocks = vi.hoisted(() => ({
+  design: vi.fn(),
+  designEdit: vi.fn(),
+}));
+
 vi.mock('@/services/ai/workflow/batchQueue', () => ({
   runBatchQueue: batchQueueMocks.runBatchQueue,
 }));
 
-const { runQueuedPresentationRuntime } = await import('@/services/artifactRuntime/presentationRuntime');
+vi.mock('@/services/ai/workflow/agents/designer', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/services/ai/workflow/agents/designer')>();
+  return {
+    ...original,
+    design: designerMocks.design,
+    designEdit: designerMocks.designEdit,
+  };
+});
+
+const { runPresentationRuntime, runQueuedPresentationRuntime } = await import('@/services/artifactRuntime/presentationRuntime');
 
 function createPlanResult(): PlanResult {
   const prompt = 'Create 2 slides: opening thesis, next move';
@@ -44,6 +59,38 @@ function createPlanResult(): PlanResult {
     ],
     styleManifest: templatePlan.styleManifest,
   };
+}
+
+async function createPackedDeck(): Promise<PresentationOutput> {
+  const runPlan = buildArtifactRunPlan({
+    runId: 'artifact-pack-source-seed',
+    prompt: 'Create 2 slides: opening thesis, next move',
+    artifactType: 'presentation',
+    operation: 'create',
+    activeDocument: null,
+    providerId: 'openai',
+    providerModel: 'gpt-4o',
+    allowFullRegeneration: false,
+  });
+
+  return runQueuedPresentationRuntime({
+    runPlan,
+    planResult: createPlanResult(),
+    model: {} as LanguageModel,
+    input: {
+      prompt: 'Create 2 slides: opening thesis, next move',
+      chatHistory: [],
+    },
+    onEvent: vi.fn(),
+    isEdit: false,
+  });
+}
+
+function editPolicy() {
+  return {
+    mode: 'best-effort',
+    maxCorrectionSteps: 0,
+  } as const;
 }
 
 describe('artifact pack presentation runtime routing', () => {
@@ -104,5 +151,138 @@ describe('artifact pack presentation runtime routing', () => {
       packVersion: '1.0.0',
     }));
     expect(output.runtime?.runMode).toBe('queued-create');
+  });
+
+  it('patches manifest-backed editorial-stage source slots without calling freeform design', async () => {
+    const seed = await createPackedDeck();
+    batchQueueMocks.runBatchQueue.mockReset();
+    designerMocks.design.mockReset();
+    designerMocks.designEdit.mockReset();
+    const editRunPlan = buildArtifactRunPlan({
+      runId: 'artifact-pack-source-text-edit',
+      prompt: 'Change slide 1 title to "Sharper opening"',
+      artifactType: 'presentation',
+      operation: 'edit',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    expect(editRunPlan.artifactAllowedEditSurface?.kind).toBe('text-edit');
+    const output = await runPresentationRuntime({
+      model: {} as LanguageModel,
+      input: {
+        prompt: 'Change slide 1 title to "Sharper opening"',
+        existingSlidesHtml: seed.html,
+        chatHistory: [],
+        artifactRunPlan: editRunPlan,
+        artifactManifest: seed.artifactManifest,
+        artifactSourcePayload: seed.artifactSourcePayload,
+      },
+      onEvent: vi.fn(),
+      editCorrectionPolicy: editPolicy(),
+      skipSecondaryEvaluation: true,
+    });
+    const source = output.artifactSourcePayload as { slides: Array<{ slots: Record<string, string> }> };
+
+    expect(batchQueueMocks.runBatchQueue).not.toHaveBeenCalled();
+    expect(designerMocks.designEdit).not.toHaveBeenCalled();
+    expect(output.runtime?.runMode).toBe('deterministic-action');
+    expect(output.html).toContain('Sharper opening');
+    expect(source.slides[0]?.slots.title).toBe('Sharper opening');
+    expect(output.artifactManifest).toEqual(expect.objectContaining({
+      packId: 'presentation/editorial-stage-v1',
+      packVersion: '1.0.0',
+      validationStatus: expect.stringMatching(/^(passed|warnings)$/),
+    }));
+  });
+
+  it('appends slides to existing editorial-stage source without rebuilding existing slots', async () => {
+    const seed = await createPackedDeck();
+    batchQueueMocks.runBatchQueue.mockReset();
+    designerMocks.designEdit.mockReset();
+    const seedSource = seed.artifactSourcePayload as { slides: Array<{ slideId: string; slots: Record<string, string> }> };
+    const firstTitle = seedSource.slides[0]?.slots.title;
+    const editRunPlan = buildArtifactRunPlan({
+      runId: 'artifact-pack-source-add-slide',
+      prompt: 'Add one slide about the rollout checkpoint',
+      artifactType: 'presentation',
+      operation: 'edit',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    expect(editRunPlan.artifactAllowedEditSurface?.kind).toBe('add-slide');
+    const output = await runPresentationRuntime({
+      model: {} as LanguageModel,
+      input: {
+        prompt: 'Add one slide about the rollout checkpoint',
+        existingSlidesHtml: seed.html,
+        chatHistory: [],
+        artifactRunPlan: editRunPlan,
+        artifactManifest: seed.artifactManifest,
+        artifactSourcePayload: seed.artifactSourcePayload,
+      },
+      onEvent: vi.fn(),
+      editCorrectionPolicy: editPolicy(),
+      skipSecondaryEvaluation: true,
+    });
+    const source = output.artifactSourcePayload as {
+      rhythmPlan: unknown[];
+      slides: Array<{ slideId: string; slots: Record<string, string> }>;
+    };
+
+    expect(batchQueueMocks.runBatchQueue).not.toHaveBeenCalled();
+    expect(designerMocks.designEdit).not.toHaveBeenCalled();
+    expect(source.slides).toHaveLength(seedSource.slides.length + 1);
+    expect(source.rhythmPlan).toHaveLength(source.slides.length);
+    expect(source.slides[0]?.slots.title).toBe(firstTitle);
+    expect(new Set(source.slides.map((slide) => slide.slideId)).size).toBe(source.slides.length);
+  });
+
+  it('restyles editorial-stage source by swapping direction tokens only', async () => {
+    const seed = await createPackedDeck();
+    batchQueueMocks.runBatchQueue.mockReset();
+    designerMocks.designEdit.mockReset();
+    const seedSource = seed.artifactSourcePayload as { directionId: string; slides: Array<{ slots: Record<string, string> }> };
+    const beforeSlots = JSON.stringify(seedSource.slides.map((slide) => slide.slots));
+    const editRunPlan = buildArtifactRunPlan({
+      runId: 'artifact-pack-source-restyle',
+      prompt: 'Restyle this deck for a launch narrative',
+      artifactType: 'presentation',
+      operation: 'edit',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+      projectRulesBlock: 'Design direction: bold-editorial',
+    });
+
+    expect(editRunPlan.artifactAllowedEditSurface?.kind).toBe('restyle');
+    const output = await runPresentationRuntime({
+      model: {} as LanguageModel,
+      input: {
+        prompt: 'Restyle this deck for a launch narrative',
+        existingSlidesHtml: seed.html,
+        chatHistory: [],
+        artifactRunPlan: editRunPlan,
+        artifactManifest: seed.artifactManifest,
+        artifactSourcePayload: seed.artifactSourcePayload,
+      },
+      onEvent: vi.fn(),
+      editCorrectionPolicy: editPolicy(),
+      skipSecondaryEvaluation: true,
+    });
+    const source = output.artifactSourcePayload as { directionId: string; slides: Array<{ slots: Record<string, string> }> };
+
+    expect(batchQueueMocks.runBatchQueue).not.toHaveBeenCalled();
+    expect(designerMocks.designEdit).not.toHaveBeenCalled();
+    expect(seedSource.directionId).not.toBe('bold-editorial');
+    expect(source.directionId).toBe('bold-editorial');
+    expect(JSON.stringify(source.slides.map((slide) => slide.slots))).toBe(beforeSlots);
+    expect(output.artifactManifest?.designDirectionId).toBe('bold-editorial');
   });
 });

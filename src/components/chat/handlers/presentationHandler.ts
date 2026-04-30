@@ -309,6 +309,12 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         memoryContext,
         projectRulesBlock: runRequest.projectRulesSnapshot.promptBlock || undefined,
         artifactRunPlan: runRequest.artifactRunPlan,
+        ...(isEditFlow && activeDocument?.type === 'presentation' && activeDocument.artifactManifest ? {
+          artifactManifest: activeDocument.artifactManifest,
+        } : {}),
+        ...(isEditFlow && activeDocument?.type === 'presentation' && activeDocument.artifactSourcePayload ? {
+          artifactSourcePayload: activeDocument.artifactSourcePayload,
+        } : {}),
         templateGuidance: runRequest.artifactRunPlan.templateGuidance,
         ...(isEditFlow ? {
           editing: {

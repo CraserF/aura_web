@@ -86,6 +86,7 @@ describe('initProject', () => {
     expect(project.visualVariantId).toBe('launch');
     expect(project.colorTheme).toEqual(colorTheme);
     expect(project.projectRules?.markdown).toContain('## Visual Direction: Launch');
+    expect(project.projectRules?.markdown).toContain('Design direction: bold-editorial');
     expect(project.projectRules?.markdown).toContain(
       'Color palette - background: #101010; primary: #ffffff; accent: #22c55e.',
     );
@@ -105,6 +106,7 @@ describe('initProject', () => {
     });
 
     expect(project.projectRules?.markdown.startsWith('## Visual Direction: Teaching')).toBe(true);
+    expect(project.projectRules?.markdown).toContain('Design direction: warm-narrative');
     expect(project.projectRules?.markdown).toContain('# Project rules');
     expect(project.visualVariantId).toBe('teaching');
     expect(project.colorTheme).toEqual(colorTheme);

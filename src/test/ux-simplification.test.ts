@@ -52,6 +52,19 @@ describe('non-technical UX simplification', () => {
     expect(toolbarSource).not.toContain('providerId = useSettingsStore');
   });
 
+  it('keeps new project setup focused on style direction defaults', () => {
+    const dialogSource = readSource('components/NewProjectDialog.tsx');
+    const toolbarSource = readSource('components/Toolbar.tsx');
+
+    expect(dialogSource).toContain('Style direction');
+    expect(dialogSource).not.toContain('Presentation scaffold');
+    expect(dialogSource).not.toContain('presentationSetup');
+    expect(dialogSource).not.toContain('type="color"');
+    expect(dialogSource).not.toContain('Export intent');
+    expect(dialogSource).not.toContain('Slide count');
+    expect(toolbarSource).not.toContain('## Presentation Scaffold');
+  });
+
   it('keeps project style and diagnostics behind sidebar advanced options', () => {
     const sidebarSource = readSource('components/ProjectSidebar.tsx');
 

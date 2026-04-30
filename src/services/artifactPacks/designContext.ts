@@ -57,13 +57,29 @@ function cloneDirection(direction: ArtifactDesignDirection): ArtifactDesignDirec
   };
 }
 
+const VISUAL_VARIANT_DIRECTION_ALIASES: Record<string, ArtifactDesignDirectionId> = {
+  executive: 'modern-minimal',
+  launch: 'bold-editorial',
+  editorial: 'editorial-magazine',
+  research: 'data-utility',
+  teaching: 'warm-narrative',
+};
+
+function resolveDirectionHint(value: string | undefined): ArtifactDesignDirectionId {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized && normalized in VISUAL_VARIANT_DIRECTION_ALIASES) {
+    return VISUAL_VARIANT_DIRECTION_ALIASES[normalized]!;
+  }
+  return resolveArtifactDesignDirectionId(value);
+}
+
 export function extractDesignDirectionFromRules(markdown: string | undefined): ArtifactDesignDirectionId | undefined {
   if (!markdown) return undefined;
   const match =
     markdown.match(/(?:^|\n)\s*(?:Design direction|Visual direction|Direction)\s*:\s*([^\n]+)/i)
     ?? markdown.match(/(?:^|\n)\s*-\s*(?:Design direction|Visual direction|Direction)\s*:\s*([^\n]+)/i);
   if (!match?.[1]) return undefined;
-  return resolveArtifactDesignDirectionId(match[1]);
+  return resolveDirectionHint(match[1]);
 }
 
 export function defaultAudienceForArtifactType(artifactType: DocumentType): string {

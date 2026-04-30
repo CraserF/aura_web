@@ -24,6 +24,35 @@ Recommended implementation branch after docs are reviewed:
 
 - `codex/artifact-pack-design-rebuild`
 
+## Progress Log
+
+### 2026-04-30 - Presentation Source-Edit Runtime And Simplified Creation UI
+
+Completed on `codex/artifact-pack-design-rebuild`:
+
+- Added an editorial-stage source operation layer so text edits, add-slide requests, and restyles patch the pack source payload and recompile instead of asking the model to rewrite HTML/CSS.
+- Routed manifest-backed `presentation/editorial-stage-v1@1.0.0` edits through the deterministic source-edit runtime before queued/freeform generation.
+- Persisted source-backed edit outputs with refreshed `artifactManifest` and updated `artifactSourcePayload`; blocking compile validation keeps the previous source payload.
+- Passed active presentation `artifactManifest` and `artifactSourcePayload` into the presentation workflow during edits.
+- Made add-slide and restyle request detection explicit in the artifact run plan.
+- Simplified the new-project flow by removing default scaffold/theme/export/audience/slide-count/color-picker controls and keeping style direction as the guided user choice.
+- Mapped visual variants to artifact design directions through project rules using `Design direction: <id>`.
+- Added contract tests proving source-backed text edits, add-slide, and restyle do not call `runBatchQueue` or `designEdit`.
+
+Verification completed:
+
+- `npm test -- src/test/artifact-pack-runtime-routing.test.ts src/test/editorial-stage-compiler.test.ts src/test/editorial-stage-validator.test.ts src/test/artifact-pack-registry.test.ts src/test/artifact-pack-design-context.test.ts src/test/new-project-dialog.test.tsx src/test/init-project.test.ts src/test/ux-simplification.test.ts`
+- `npm run typecheck`
+- targeted ESLint on changed source and test files
+- `git diff --check`
+- `npm run build`
+
+Remaining next phase:
+
+- Improve the visual craft of the editorial-stage layouts and example deck, then run the manual screenshot quality gate.
+- Add stronger source-payload repair for rejected slot edits instead of only conservative prompt parsing.
+- Begin document pack source-payload foundations after the presentation pack passes the visual gate.
+
 ## Implementation Order
 
 ### 1. Stabilize The Planning Docs
@@ -251,4 +280,3 @@ Before making the new pack default:
 - Do not copy reference repo assets or code.
 - Do not make documents/spreadsheets presentation-shaped.
 - Do not ship packs without examples.
-

@@ -215,7 +215,6 @@ describe('Toolbar new project dialog', () => {
     expect(initProjectMock).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
       visualVariantId: 'executive',
       colorTheme: DEFAULT_COLOR_THEME,
-      projectRulesMarkdown: expect.stringContaining('## Presentation Scaffold'),
     }));
 
     view.unmount();
@@ -274,7 +273,6 @@ describe('Toolbar new project dialog', () => {
       starterKitId: 'executive-briefing',
       visualVariantId: 'executive',
       colorTheme: DEFAULT_COLOR_THEME,
-      projectRulesMarkdown: expect.stringContaining('Scaffold: executive-editorial-v1'),
     }));
     expect(useProjectStore.getState().project.title).toBe('Executive Briefing');
     expect(view.container.textContent).toContain('Project created with 1 starter artifact.');
@@ -329,7 +327,6 @@ describe('Toolbar new project dialog', () => {
       }],
       visualVariantId: 'executive',
       colorTheme: DEFAULT_COLOR_THEME,
-      projectRulesMarkdown: expect.stringContaining('Export intent: html'),
     }));
     expect(useProjectStore.getState().project.documents[0]?.type).toBe('spreadsheet');
 

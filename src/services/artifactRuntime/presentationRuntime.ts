@@ -20,8 +20,14 @@ import {
 } from '@/services/presentationScaffolds';
 import {
   isEditorialStagePresentationRun,
+  runEditorialStagePresentationEditRuntime,
   runEditorialStagePresentationQueue,
 } from '@/services/artifactPacks/packs/presentation/editorial-stage-v1/runtime';
+import {
+  EDITORIAL_STAGE_PACK_ID,
+  normalizeEditorialStageSource,
+} from '@/services/artifactPacks/packs/presentation/editorial-stage-v1/sourceOps';
+import type { EditorialStageSource } from '@/services/artifactPacks/packs/presentation/editorial-stage-v1/schemas';
 import {
   applyArtifactRunPlanToPresentationPlan,
   buildSlideBriefsFromRunPlan,
@@ -715,6 +721,220 @@ function combineArtifactPackValidation(
   };
 }
 
+function resolveEditorialStageSourceBackedEdit(input: PresentationInput): EditorialStageSource | null {
+  const source = normalizeEditorialStageSource(input.artifactSourcePayload);
+  if (!source) return null;
+
+  const manifestMatches =
+    input.artifactManifest?.packId === EDITORIAL_STAGE_PACK_ID &&
+    input.artifactManifest.packVersion === source.packVersion;
+  const htmlMatches =
+    !input.existingSlidesHtml ||
+    new RegExp(`\\bdata-pack=["']${EDITORIAL_STAGE_PACK_ID.replace('/', '\\/')}["']`, 'i').test(input.existingSlidesHtml);
+  const runPlanCompatible = !input.artifactRunPlan?.artifactPackId || input.artifactRunPlan.artifactPackId === EDITORIAL_STAGE_PACK_ID;
+  const editSurfaceKind = input.artifactRunPlan?.artifactAllowedEditSurface?.kind;
+  const supportedEditSurface =
+    editSurfaceKind === 'text-edit' ||
+    editSurfaceKind === 'add-slide' ||
+    editSurfaceKind === 'restyle';
+  if (!manifestMatches || !htmlMatches || !runPlanCompatible || !supportedEditSurface) return null;
+
+  return source.packId === EDITORIAL_STAGE_PACK_ID && source.packVersion === '1.0.0' ? source : null;
+}
+
+async function runEditorialStageSourceEditPresentationRuntime(opts: {
+  runPlan?: ArtifactRunPlan;
+  planResult: PlanResult;
+  input: PresentationInput;
+  onEvent: EventListener;
+  source: EditorialStageSource;
+  planningDurationMs?: number;
+  signal?: AbortSignal;
+}): Promise<PresentationOutput> {
+  const {
+    runPlan,
+    planResult,
+    input,
+    onEvent,
+    source,
+    planningDurationMs,
+    signal,
+  } = opts;
+  const runtimeStart = performance.now();
+  const runtimeRunId = runPlan?.runId ?? 'presentation-runtime';
+  const phaseTimings: NonNullable<ArtifactRuntimeTelemetry['phaseTimings']> = [];
+  if (typeof planningDurationMs === 'number') {
+    phaseTimings.push({
+      phaseId: 'planning',
+      label: 'Planning',
+      durationMs: Math.round(planningDurationMs),
+      order: 0,
+    });
+  }
+
+  let firstPreviewAt: number | undefined;
+  const editStartedAt = performance.now();
+  onEvent({ type: 'step-start', stepId: 'targeted-design', label: 'Updating presentation source…' });
+  emitArtifactRunEvent(onEvent, {
+    runId: runtimeRunId,
+    type: 'runtime.part-started',
+    role: 'generator',
+    message: 'Updating presentation source payload…',
+    partId: 'targeted-design',
+    pct: 30,
+  });
+
+  if (signal?.aborted) throw new DOMException('Workflow aborted', 'AbortError');
+
+  const editResult = await runEditorialStagePresentationEditRuntime({
+    source,
+    prompt: input.prompt,
+    planResult,
+    ...(runPlan ? { runPlan } : {}),
+    onEvent,
+    onSlideDraft: (combinedHtml, slideIndex, totalSlides) => {
+      firstPreviewAt ??= performance.now();
+      onEvent({ type: 'batch-slide-draft', html: combinedHtml, slideIndex, totalSlides });
+    },
+    onSlideComplete: (combinedHtml, slideIndex, totalSlides) => {
+      firstPreviewAt ??= performance.now();
+      onEvent({ type: 'batch-slide-complete', html: combinedHtml, slideIndex, totalSlides });
+    },
+  });
+
+  phaseTimings.push({
+    phaseId: 'source-edit',
+    label: 'Source edit',
+    durationMs: Math.round(performance.now() - editStartedAt),
+    order: 1,
+  });
+  onEvent({ type: 'step-done', stepId: 'targeted-design', label: 'Updating presentation source…' });
+  emitArtifactRunEvent(onEvent, {
+    runId: runtimeRunId,
+    type: 'runtime.part-completed',
+    role: 'generator',
+    message: editResult.changed
+      ? 'Presentation source payload updated.'
+      : editResult.reason ?? 'Presentation source payload recompiled.',
+    partId: 'targeted-design',
+    pct: 70,
+  });
+
+  if (signal?.aborted) throw new DOMException('Workflow aborted', 'AbortError');
+
+  const validationStartedAt = performance.now();
+  emitArtifactRunEvent(onEvent, {
+    runId: runtimeRunId,
+    type: 'runtime.validation-started',
+    role: 'validator',
+    message: 'Checking compiled presentation source…',
+    partId: 'evaluate',
+    pct: 72,
+  });
+  const validation = combineArtifactPackValidation(
+    validatePresentationRuntimeOutput(editResult.html, planResult, editResult.slideCount, { skipExpectedBackground: true }),
+    editResult.compileResult.validation,
+  );
+  phaseTimings.push({
+    phaseId: 'validation',
+    label: 'Validation',
+    durationMs: Math.round(performance.now() - validationStartedAt),
+    order: 2,
+  });
+  onEvent({
+    type: 'progress',
+    message: validation.summary,
+    pct: validation.passed ? 84 : 78,
+    partId: 'evaluate',
+    runId: runtimeRunId,
+  });
+  emitArtifactRunEvent(onEvent, {
+    runId: runtimeRunId,
+    type: 'runtime.validation-completed',
+    role: 'validator',
+    message: 'Checking compiled presentation source…',
+    partId: 'evaluate',
+    pct: 88,
+  });
+
+  const finalizeStartedAt = performance.now();
+  onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing presentation…' });
+  const compiledOutputHtml = sanitizeInnerHtml(editResult.html);
+  const shouldPersistSourceEdit = validation.blockingCount === 0;
+  const outputHtml = shouldPersistSourceEdit
+    ? compiledOutputHtml
+    : sanitizeInnerHtml(input.existingSlidesHtml ?? editResult.html);
+  const outputSource = shouldPersistSourceEdit ? editResult.source : source;
+  const outputSlideCount = shouldPersistSourceEdit ? editResult.slideCount : source.slides.length;
+  const qualityTelemetry = buildPresentationQualityTelemetry({
+    html: outputHtml,
+    promptText: input.prompt,
+    qualityBar: runPlan?.qualityBar,
+  });
+  const editSurfaceIds = Array.from(new Set([
+    ...(input.artifactManifest?.editSurfaces ?? []),
+    ...(runPlan?.artifactAllowedEditSurface?.id ? [runPlan.artifactAllowedEditSurface.id] : []),
+  ]));
+  const runtimeTelemetry = applyQualityDecisionTelemetry({
+    ...(firstPreviewAt ? { timeToFirstPreviewMs: Math.round(firstPreviewAt - runtimeStart) } : {}),
+    totalRuntimeMs: Math.round(performance.now() - runtimeStart),
+    validationPassed: validation.passed,
+    validationBlockingCount: validation.blockingCount,
+    validationAdvisoryCount: validation.advisoryCount,
+    repairCount: 0,
+    runMode: 'deterministic-action',
+    queuedPartCount: editResult.slideCount,
+    completedPartCount: editResult.slideCount,
+    repairedPartCount: 0,
+    phaseTimings: [
+      ...phaseTimings,
+      {
+        phaseId: 'finalize',
+        label: 'Finalize',
+        durationMs: Math.round(performance.now() - finalizeStartedAt),
+        order: 99,
+      },
+    ],
+    ...qualityTelemetry,
+    validationByPart: validation.validationByPart,
+  }, undefined, undefined);
+  const output: PresentationOutput = {
+    html: outputHtml,
+    title: outputSource.title,
+    slideCount: outputSlideCount,
+    reviewPassed: validation.passed,
+    runtime: runtimeTelemetry,
+    artifactManifest: {
+      packId: EDITORIAL_STAGE_PACK_ID,
+      packVersion: outputSource.packVersion,
+      designDirectionId: outputSource.directionId,
+      sourcePayloadVersion: 1,
+      renderer: 'presentation',
+      exports: [outputSource.outputMode],
+      ...(editSurfaceIds.length > 0 ? { editSurfaces: editSurfaceIds } : {}),
+      validationStatus: validation.passed
+        ? (validation.advisoryCount > 0 ? 'warnings' : 'passed')
+        : 'failed',
+      updatedAt: Date.now(),
+    },
+    artifactSourcePayload: outputSource,
+  };
+
+  onEvent({ type: 'draft-complete', html: outputHtml });
+  onEvent({ type: 'step-done', stepId: 'finalize', label: 'Finalizing presentation…' });
+  emitArtifactRunEvent(onEvent, {
+    runId: runtimeRunId,
+    type: 'runtime.finalized',
+    role: 'finalizer',
+    message: 'Finalizing presentation…',
+    partId: 'finalize',
+    pct: 100,
+  });
+  onEvent({ type: 'complete', result: output });
+
+  return output;
+}
+
 export async function repairPresentationRuntimeOutput(
   html: string,
   validation: PresentationRuntimeValidationResult,
@@ -1404,6 +1624,21 @@ export async function runPresentationRuntime(
   onEvent({ type: 'step-done', stepId: 'plan', label: 'Analyzing your request…' });
 
   if (signal?.aborted) throw new DOMException('Workflow aborted', 'AbortError');
+
+  const editorialStageSourceEdit = isEdit
+    ? resolveEditorialStageSourceBackedEdit(input)
+    : null;
+  if (editorialStageSourceEdit) {
+    return runEditorialStageSourceEditPresentationRuntime({
+      ...(input.artifactRunPlan ? { runPlan: input.artifactRunPlan } : {}),
+      planResult,
+      input,
+      onEvent,
+      source: editorialStageSourceEdit,
+      planningDurationMs,
+      ...(signal ? { signal } : {}),
+    });
+  }
 
   if (canRunQueuedPresentationRuntimeWithPlan(planResult, input.artifactRunPlan)) {
     return runQueuedPresentationRuntime({

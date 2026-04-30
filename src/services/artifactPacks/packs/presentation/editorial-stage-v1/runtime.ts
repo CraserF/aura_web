@@ -3,6 +3,12 @@ import type { EventListener } from '@/services/ai/workflow/types';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
 import { compileEditorialStagePack } from './compiler';
 import {
+  addEditorialStageSlideFromBrief,
+  compileEditorialStageSourceUpdate,
+  patchEditorialStageTextSlots,
+  restyleEditorialStageSource,
+} from './sourceOps';
+import {
   EDITORIAL_STAGE_LAYOUT_BY_ID,
   type EditorialStageLayout,
   type EditorialStageLayoutId,
@@ -27,6 +33,21 @@ export interface EditorialStagePresentationQueueResult {
   source: EditorialStageSource;
   compileResult: ReturnType<typeof compileEditorialStagePack>;
   styleBlock: string;
+}
+
+export interface EditorialStagePresentationEditInput {
+  source: EditorialStageSource;
+  prompt: string;
+  planResult: PlanResult;
+  runPlan?: ArtifactRunPlan;
+  onEvent: EventListener;
+  onSlideDraft?: (combinedHtml: string, slideIndex: number, totalSlides: number) => void;
+  onSlideComplete: (combinedHtml: string, slideIndex: number, totalSlides: number) => void;
+}
+
+export interface EditorialStagePresentationEditResult extends EditorialStagePresentationQueueResult {
+  changed: boolean;
+  reason?: string;
 }
 
 const PACK_ID = 'presentation/editorial-stage-v1';
@@ -338,6 +359,93 @@ export async function runEditorialStagePresentationQueue(
     source,
     compileResult,
     styleBlock,
+  };
+}
+
+function resolveEditBriefs(input: EditorialStagePresentationEditInput): SlideBrief[] {
+  if ((input.planResult.slideBriefs?.length ?? 0) > 0) {
+    return input.planResult.slideBriefs!;
+  }
+  const nextIndex = input.source.slides.length + 1;
+  return [{
+    index: nextIndex,
+    title: `Slide ${nextIndex}`,
+    contentGuidance: input.prompt,
+  }];
+}
+
+function isAddSlideEdit(input: EditorialStagePresentationEditInput): boolean {
+  return input.planResult.intent === 'add_slides' ||
+    input.runPlan?.artifactAllowedEditSurface?.kind === 'add-slide' ||
+    /\b(add|append|insert|include)\b[\s\S]*\bslides?\b/i.test(input.prompt);
+}
+
+function isRestyleEdit(input: EditorialStagePresentationEditInput): boolean {
+  return input.runPlan?.artifactAllowedEditSurface?.kind === 'restyle' ||
+    input.runPlan?.requestKind === 'restyle' ||
+    /\b(style|restyle|theme|direction|palette|color|visual)\b/i.test(input.prompt) &&
+      !/\b(text|copy|title|heading|subtitle|paragraph|quote)\b/i.test(input.prompt);
+}
+
+export async function runEditorialStagePresentationEditRuntime(
+  input: EditorialStagePresentationEditInput,
+): Promise<EditorialStagePresentationEditResult> {
+  input.onEvent({
+    type: 'progress',
+    message: isRestyleEdit(input)
+      ? 'Restyling artifact-pack source.'
+      : isAddSlideEdit(input)
+        ? 'Adding slide from artifact-pack source.'
+        : 'Patching artifact-pack source slots.',
+    pct: 34,
+    partId: 'targeted-design',
+    runId: input.runPlan?.runId,
+  });
+
+  const edit = (() => {
+    if (isRestyleEdit(input)) {
+      return restyleEditorialStageSource(input.source, input.runPlan?.designDirectionId);
+    }
+    if (isAddSlideEdit(input)) {
+      return resolveEditBriefs(input).reduce(
+        (nextEdit, brief) => addEditorialStageSlideFromBrief(nextEdit.source, brief),
+        { source: input.source, changed: false } as ReturnType<typeof addEditorialStageSlideFromBrief>,
+      );
+    }
+    return patchEditorialStageTextSlots(input.source, input.prompt);
+  })();
+  const compiled = compileEditorialStageSourceUpdate(edit, {
+    outputMode: input.source.outputMode,
+  });
+  const sections = compiled.html.match(/<section\b[\s\S]*?<\/section>/gi) ?? [];
+
+  sections.forEach((_section, index) => {
+    const combinedHtml = [compiled.styleBlock, ...sections.slice(0, index + 1)].join('\n');
+    input.onSlideDraft?.(combinedHtml, index + 1, sections.length);
+    input.onSlideComplete(combinedHtml, index + 1, sections.length);
+  });
+
+  input.onEvent({
+    type: 'progress',
+    message: compiled.changed
+      ? 'Artifact-pack source recompiled.'
+      : compiled.reason ?? 'Artifact-pack source recompiled without source changes.',
+    pct: 70,
+    partId: 'targeted-design',
+    runId: input.runPlan?.runId,
+  });
+
+  return {
+    html: compiled.html,
+    slideCount: compiled.slideCount,
+    title: compiled.title,
+    slideTimingsMs: [],
+    styleSystemApplied: true,
+    source: compiled.source,
+    compileResult: compiled.compileResult,
+    styleBlock: compiled.styleBlock,
+    changed: compiled.changed,
+    ...(compiled.reason ? { reason: compiled.reason } : {}),
   };
 }
 

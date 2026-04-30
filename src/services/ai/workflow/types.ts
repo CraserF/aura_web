@@ -50,6 +50,8 @@ export interface PresentationInput {
   memoryContext?: string;
   projectRulesBlock?: string;
   artifactRunPlan?: ArtifactRunPlan;
+  artifactManifest?: ProjectArtifactManifest;
+  artifactSourcePayload?: unknown;
   templateGuidance?: TemplateGuidanceProfile;
   editing?: {
     resolvedTargets: ResolvedTarget[];

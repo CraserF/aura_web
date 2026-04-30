@@ -11,12 +11,6 @@ import {
   listVisualVariants,
 } from '@/services/bootstrap/visualVariants';
 import type { VisualVariantId } from '@/services/bootstrap/visualVariants';
-import {
-  listPresentationScaffolds,
-  type PresentationExportIntent,
-  type PresentationScaffoldDirectionId,
-  type PresentationScaffoldId,
-} from '@/services/presentationScaffolds';
 import type { ColorTheme } from '@/types/project';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,18 +23,9 @@ import {
 } from '@/components/ui/dialog';
 
 export type NewProjectSelection =
-  | { mode: 'blank'; variantId: VisualVariantId; colorTheme: ColorTheme; presentationSetup?: PresentationSetupSelection }
-  | { mode: 'starter-kit'; kitId: string; variantId: VisualVariantId; colorTheme: ColorTheme; presentationSetup?: PresentationSetupSelection }
-  | { mode: 'quick-start'; artifactType: StarterArtifactType; starterId: string; variantId: VisualVariantId; colorTheme: ColorTheme; presentationSetup?: PresentationSetupSelection };
-
-export interface PresentationSetupSelection {
-  scaffoldId: PresentationScaffoldId;
-  directionId: PresentationScaffoldDirectionId;
-  themeId: PresentationScaffoldDirectionId;
-  slideCount: number;
-  audience: string;
-  exportIntent: PresentationExportIntent;
-}
+  | { mode: 'blank'; variantId: VisualVariantId; colorTheme: ColorTheme }
+  | { mode: 'starter-kit'; kitId: string; variantId: VisualVariantId; colorTheme: ColorTheme }
+  | { mode: 'quick-start'; artifactType: StarterArtifactType; starterId: string; variantId: VisualVariantId; colorTheme: ColorTheme };
 
 interface NewProjectDialogProps {
   open: boolean;
@@ -66,8 +51,6 @@ function describeQuickStartType(type: StarterArtifactType): string {
 }
 
 const VARIANTS = listVisualVariants();
-const PRESENTATION_SCAFFOLDS = listPresentationScaffolds();
-const DEFAULT_PRESENTATION_SCAFFOLD = PRESENTATION_SCAFFOLDS[0]!;
 
 export function NewProjectDialog({
   open,
@@ -83,17 +66,9 @@ export function NewProjectDialog({
   const [artifactType, setArtifactType] = useState<StarterArtifactType>('document');
   const [selectedStarterId, setSelectedStarterId] = useState(documentStarters[0]?.id ?? '');
   const [variantId, setVariantId] = useState<VisualVariantId>(DEFAULT_VISUAL_VARIANT_ID);
-  const [presentationScaffoldId, setPresentationScaffoldId] = useState<PresentationScaffoldId>(DEFAULT_PRESENTATION_SCAFFOLD.id);
-  const [presentationThemeId, setPresentationThemeId] = useState<PresentationScaffoldDirectionId>('executive');
-  const [presentationSlideCount, setPresentationSlideCount] = useState(5);
-  const [presentationAudience, setPresentationAudience] = useState('executive decision makers');
-  const [presentationExportIntent, setPresentationExportIntent] = useState<PresentationExportIntent>('html');
 
   const selectedVariant = VARIANTS.find((v) => v.id === variantId) ?? VARIANTS[0]!;
   const [colorTheme, setColorTheme] = useState<ColorTheme>(selectedVariant.palette);
-  const selectedScaffold = PRESENTATION_SCAFFOLDS.find((scaffold) => scaffold.id === presentationScaffoldId) ?? DEFAULT_PRESENTATION_SCAFFOLD;
-  const selectedScaffoldTheme = selectedScaffold.themes.find((theme) => theme.id === presentationThemeId)
-    ?? selectedScaffold.themes[0]!;
 
   useEffect(() => {
     if (!open) return;
@@ -102,11 +77,6 @@ export function NewProjectDialog({
     setArtifactType('document');
     setSelectedStarterId(documentStarters[0]?.id ?? '');
     setVariantId(DEFAULT_VISUAL_VARIANT_ID);
-    setPresentationScaffoldId(DEFAULT_PRESENTATION_SCAFFOLD.id);
-    setPresentationThemeId(DEFAULT_PRESENTATION_SCAFFOLD.fallbackThemeId);
-    setPresentationSlideCount(5);
-    setPresentationAudience('executive decision makers');
-    setPresentationExportIntent('html');
     const defaultVariant = VARIANTS.find((v) => v.id === DEFAULT_VISUAL_VARIANT_ID) ?? VARIANTS[0]!;
     setColorTheme(defaultVariant.palette);
   }, [documentStarters, open, starterKits]);
@@ -115,9 +85,6 @@ export function NewProjectDialog({
     setVariantId(id);
     const variant = VARIANTS.find((v) => v.id === id);
     if (variant) setColorTheme(variant.palette);
-    if (selectedScaffold.supportedDirections.includes(id)) {
-      setPresentationThemeId(id);
-    }
   };
 
   const starterOptions = artifactType === 'document'
@@ -132,24 +99,15 @@ export function NewProjectDialog({
 
   const selectedKit = starterKits.find((kit) => kit.id === selectedKitId);
   const selectedStarter = starterOptions.find((starter) => starter.id === selectedStarterId);
-  const buildPresentationSetup = (): PresentationSetupSelection => ({
-    scaffoldId: presentationScaffoldId,
-    directionId: presentationThemeId,
-    themeId: presentationThemeId,
-    slideCount: presentationSlideCount,
-    audience: presentationAudience.trim() || 'presentation viewers',
-    exportIntent: presentationExportIntent,
-  });
 
   const handleCreate = () => {
-    const presentationSetup = buildPresentationSetup();
     if (mode === 'blank') {
-      onSubmit({ mode: 'blank', variantId, colorTheme, presentationSetup });
+      onSubmit({ mode: 'blank', variantId, colorTheme });
       return;
     }
 
     if (mode === 'starter-kit' && selectedKitId) {
-      onSubmit({ mode: 'starter-kit', kitId: selectedKitId, variantId, colorTheme, presentationSetup });
+      onSubmit({ mode: 'starter-kit', kitId: selectedKitId, variantId, colorTheme });
       return;
     }
 
@@ -160,7 +118,6 @@ export function NewProjectDialog({
         starterId: selectedStarterId,
         variantId,
         colorTheme,
-        presentationSetup,
       });
     }
   };
@@ -291,9 +248,8 @@ export function NewProjectDialog({
             </div>
           )}
 
-          {/* Visual direction */}
           <div className="space-y-3 rounded-xl border border-border p-4">
-            <p className="text-sm font-medium text-foreground">Visual direction</p>
+            <p className="text-sm font-medium text-foreground">Style direction</p>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
               {VARIANTS.map((variant) => (
                 <button
@@ -321,140 +277,10 @@ export function NewProjectDialog({
                   </div>
                   <p className="text-xs font-semibold leading-tight">{variant.label}</p>
                   <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-                    {variant.layoutFamilies.slice(0, 2).join(' / ')}
+                    {variant.shortDescription}
                   </p>
                 </button>
               ))}
-            </div>
-            <p className="text-xs text-muted-foreground">{selectedVariant.shortDescription}</p>
-
-            {/* Color theme editing */}
-            <div className="flex items-center gap-3 pt-0.5">
-              <span className="text-xs text-muted-foreground">Colors</span>
-              <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
-                <input
-                  type="color"
-                  value={colorTheme.background}
-                  onChange={(e) => setColorTheme((t) => ({ ...t, background: e.target.value }))}
-                  className="h-5 w-5 cursor-pointer rounded border-0 bg-transparent p-0"
-                  title="Background"
-                />
-                BG
-              </label>
-              <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
-                <input
-                  type="color"
-                  value={colorTheme.primary}
-                  onChange={(e) => setColorTheme((t) => ({ ...t, primary: e.target.value }))}
-                  className="h-5 w-5 cursor-pointer rounded border-0 bg-transparent p-0"
-                  title="Primary"
-                />
-                Primary
-              </label>
-              <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
-                <input
-                  type="color"
-                  value={colorTheme.accent}
-                  onChange={(e) => setColorTheme((t) => ({ ...t, accent: e.target.value }))}
-                  className="h-5 w-5 cursor-pointer rounded border-0 bg-transparent p-0"
-                  title="Accent"
-                />
-                Accent
-              </label>
-            </div>
-          </div>
-
-          <div className="space-y-3 rounded-xl border border-border p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-foreground">Presentation scaffold</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {selectedScaffold.label}: {selectedScaffold.bestFor.slice(0, 3).join(', ')}.
-                </p>
-              </div>
-              <select
-                className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                value={presentationScaffoldId}
-                onChange={(event) => setPresentationScaffoldId(event.target.value as PresentationScaffoldId)}
-              >
-                {PRESENTATION_SCAFFOLDS.map((scaffold) => (
-                  <option key={scaffold.id} value={scaffold.id}>
-                    {scaffold.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid gap-2 sm:grid-cols-5">
-              {selectedScaffold.themes.map((theme) => (
-                <button
-                  key={theme.id}
-                  type="button"
-                  className={`rounded-lg border p-2 text-left ${
-                    presentationThemeId === theme.id
-                      ? 'border-foreground bg-muted/40'
-                      : 'border-border hover:border-muted-foreground'
-                  }`}
-                  onClick={() => {
-                    setPresentationThemeId(theme.id);
-                    handleVariantChange(theme.directionId as VisualVariantId);
-                    setColorTheme(theme.colorTheme);
-                  }}
-                >
-                  <div className="mb-2 flex h-6 overflow-hidden rounded">
-                    <span className="block flex-1" style={{ background: theme.tokens['--pes-bg'] }} />
-                    <span className="block flex-1" style={{ background: theme.tokens['--pes-primary'] }} />
-                    <span className="block flex-1" style={{ background: theme.tokens['--pes-accent'] }} />
-                  </div>
-                  <p className="text-xs font-semibold">{theme.label}</p>
-                  <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-                    {theme.bestFor[0]}
-                  </p>
-                </button>
-              ))}
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              <label className="space-y-1 text-xs text-muted-foreground">
-                <span className="block">Slides</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={presentationSlideCount}
-                  onChange={(event) => setPresentationSlideCount(Math.max(1, Math.min(10, Number(event.target.value) || 1)))}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-                />
-              </label>
-              <label className="space-y-1 text-xs text-muted-foreground">
-                <span className="block">Export</span>
-                <select
-                  value={presentationExportIntent}
-                  onChange={(event) => setPresentationExportIntent(event.target.value as PresentationExportIntent)}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-                >
-                  <option value="html">HTML</option>
-                  <option value="pdf">PDF</option>
-                  <option value="editable-pptx">Editable PPTX</option>
-                </select>
-              </label>
-              <label className="space-y-1 text-xs text-muted-foreground">
-                <span className="block">Audience</span>
-                <input
-                  value={presentationAudience}
-                  onChange={(event) => setPresentationAudience(event.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-                />
-              </label>
-            </div>
-
-            <div className="rounded-lg border border-border bg-muted/20 p-3">
-              <p className="font-mono text-xs uppercase text-muted-foreground">
-                {selectedScaffoldTheme.label} / {presentationExportIntent}
-              </p>
-              <p className="mt-1 text-sm font-semibold text-foreground">
-                {selectedScaffold.exampleDeckHtml.includes('data-scaffold') ? 'Compiled scaffold preview available' : 'Preview will compile from the scaffold pack'}
-              </p>
             </div>
           </div>
         </div>

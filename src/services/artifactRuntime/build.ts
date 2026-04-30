@@ -554,6 +554,7 @@ function resolveArtifactEditSurface(input: {
   editSurfaces: readonly ArtifactEditSurface[];
   workflow: ArtifactRunPlan['workflow'];
   operation: BuildArtifactRunPlanInput['operation'];
+  prompt: string;
 }): ArtifactEditSurface | undefined {
   if (input.editSurfaces.length === 0) return undefined;
   if (input.operation === 'create') {
@@ -565,6 +566,9 @@ function resolveArtifactEditSurface(input: {
   if (input.workflow.requestKind === 'queue') {
     return input.editSurfaces.find((surface) =>
       surface.kind === 'add-slide' || surface.kind === 'add-module' || surface.kind === 'add-sheet') ?? input.editSurfaces[0];
+  }
+  if (/\b(add|append|insert|include)\b[\s\S]*\bslides?\b/i.test(input.prompt)) {
+    return input.editSurfaces.find((surface) => surface.kind === 'add-slide') ?? input.editSurfaces[0];
   }
   return input.editSurfaces.find((surface) => surface.kind === 'text-edit') ?? input.editSurfaces[0];
 }
@@ -748,6 +752,7 @@ export function buildArtifactRunPlan(input: BuildArtifactRunPlanInput): Artifact
     editSurfaces: artifactPack?.manifest.editSurfaces ?? [],
     workflow,
     operation: planInput.operation,
+    prompt: planInput.prompt,
   });
   const workflowWithArtifactPack: ArtifactRunPlan['workflow'] = {
     ...workflow,

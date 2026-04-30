@@ -10,6 +10,8 @@ describe('artifact pack design context', () => {
   it('extracts direction hints from project rules', () => {
     expect(extractDesignDirectionFromRules('Direction: Data Utility')).toBe('data-utility');
     expect(extractDesignDirectionFromRules('- Visual direction: Warm teaching story')).toBe('warm-narrative');
+    expect(extractDesignDirectionFromRules('Design direction: bold-editorial')).toBe('bold-editorial');
+    expect(extractDesignDirectionFromRules('Visual direction: Executive')).toBe('modern-minimal');
   });
 
   it('defaults artifact types to suitable directions', () => {
@@ -47,4 +49,3 @@ describe('artifact pack design context', () => {
     expect(context.constraints.some((constraint) => constraint.startsWith('Avoid:'))).toBe(true);
   });
 });
-

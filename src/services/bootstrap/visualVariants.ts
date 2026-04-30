@@ -1,4 +1,5 @@
 import type { ColorTheme } from '@/types/project';
+import type { ArtifactDesignDirectionId } from '@/services/artifactPacks/types';
 
 export type VisualVariantId =
   | 'executive'
@@ -10,6 +11,7 @@ export type VisualVariantId =
 export interface VisualVariant {
   id: VisualVariantId;
   label: string;
+  artifactDesignDirectionId: ArtifactDesignDirectionId;
   shortDescription: string;
   palette: ColorTheme;
   promptTraits: string[];
@@ -23,6 +25,7 @@ const VISUAL_VARIANTS: VisualVariant[] = [
   {
     id: 'executive',
     label: 'Executive',
+    artifactDesignDirectionId: 'modern-minimal',
     shortDescription: 'Board updates, leadership briefings, strategy memos.',
     palette: { background: '#ffffff', primary: '#1a1a2e', accent: '#2563eb' },
     promptTraits: [
@@ -39,6 +42,7 @@ const VISUAL_VARIANTS: VisualVariant[] = [
   {
     id: 'launch',
     label: 'Launch',
+    artifactDesignDirectionId: 'bold-editorial',
     shortDescription: 'Product launches, go-to-market plans, pitch narratives.',
     palette: { background: '#0f0f1a', primary: '#ffffff', accent: '#f59e0b' },
     promptTraits: [
@@ -54,6 +58,7 @@ const VISUAL_VARIANTS: VisualVariant[] = [
   {
     id: 'editorial',
     label: 'Editorial',
+    artifactDesignDirectionId: 'editorial-magazine',
     shortDescription: 'Essays, brand narratives, thought leadership, visual storytelling.',
     palette: { background: '#faf9f6', primary: '#1c1c1c', accent: '#c0392b' },
     promptTraits: [
@@ -69,6 +74,7 @@ const VISUAL_VARIANTS: VisualVariant[] = [
   {
     id: 'research',
     label: 'Research',
+    artifactDesignDirectionId: 'data-utility',
     shortDescription: 'Analysis, insights, evidence reviews, technical summaries.',
     palette: { background: '#f8fafc', primary: '#1e3a5f', accent: '#0891b2' },
     promptTraits: [
@@ -84,6 +90,7 @@ const VISUAL_VARIANTS: VisualVariant[] = [
   {
     id: 'teaching',
     label: 'Teaching',
+    artifactDesignDirectionId: 'warm-narrative',
     shortDescription: 'Training, workshops, explainers, lessons, onboarding.',
     palette: { background: '#ffffff', primary: '#1e293b', accent: '#7c3aed' },
     promptTraits: [
@@ -115,6 +122,8 @@ export function getVisualVariant(id: string): VisualVariant | undefined {
 export function buildVariantRulesBlock(variant: VisualVariant, colorTheme: ColorTheme): string {
   return [
     `## Visual Direction: ${variant.label}`,
+    '',
+    `Design direction: ${variant.artifactDesignDirectionId}`,
     '',
     `${variant.shortDescription}`,
     '',
