@@ -1,6 +1,7 @@
 import type { PlanResult, SlideBrief } from '@/services/ai/workflow/agents/planner';
 import type { EventListener } from '@/services/ai/workflow/types';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
+import type { ArtifactMediaResolver } from '@/services/artifactPacks/types';
 import { compileEditorialStagePack } from './compiler';
 import {
   addEditorialStageSlideFromBrief,
@@ -19,6 +20,7 @@ import type { EditorialStageRhythmEntry, EditorialStageSlide, EditorialStageSour
 export interface EditorialStagePresentationQueueInput {
   planResult: PlanResult;
   runPlan?: ArtifactRunPlan;
+  mediaResolver?: ArtifactMediaResolver;
   onEvent: EventListener;
   onSlideDraft?: (combinedHtml: string, slideIndex: number, totalSlides: number) => void;
   onSlideComplete: (combinedHtml: string, slideIndex: number, totalSlides: number) => void;
@@ -40,6 +42,7 @@ export interface EditorialStagePresentationEditInput {
   prompt: string;
   planResult: PlanResult;
   runPlan?: ArtifactRunPlan;
+  mediaResolver?: ArtifactMediaResolver;
   onEvent: EventListener;
   onSlideDraft?: (combinedHtml: string, slideIndex: number, totalSlides: number) => void;
   onSlideComplete: (combinedHtml: string, slideIndex: number, totalSlides: number) => void;
@@ -185,13 +188,13 @@ function slotValue(input: {
       return cleanText(kicker, input.slot.maxLength);
     case 'title':
     case 'question':
-      return title || 'A clearer path forward';
+      return title || 'Decision point';
     case 'subtitle':
     case 'bridge':
     case 'context':
     case 'body':
     case 'interpretation':
-      return guidance || 'Frame the point in one concise, audience-ready statement.';
+      return guidance || 'Use the strongest available evidence to make the next decision explicit.';
     case 'quote':
       return guidance || 'The signal is clear enough to act on.';
     case 'metric_value':
@@ -206,15 +209,15 @@ function slotValue(input: {
     case 'caption':
       return input.slot.required ? footer : '';
     case 'left_label':
-      return 'Current';
+      return 'Baseline path';
     case 'right_label':
-      return 'Proposed';
+      return 'Focused path';
     case 'left_body':
       return guidance || 'The current path spreads attention across too many priorities.';
     case 'right_body':
       return 'The proposed path concentrates attention around the strongest proof.';
     case 'verdict':
-      return 'The better path is the one the audience can understand, repeat, and act on.';
+      return 'Choose the path the audience can understand, repeat, and act on.';
     case 'recommendation':
       return guidance || 'Commit to the focused path and make the next decision explicit.';
     case 'risk':
@@ -232,7 +235,7 @@ function slotValue(input: {
     default:
       if (input.slot.id.endsWith('_title')) return title || 'Next step';
       if (input.slot.id.endsWith('_body')) return guidance || 'Make the step concrete and measurable.';
-      return guidance || title || 'Focused point';
+      return guidance || title || 'Audience-ready point';
   }
 }
 
@@ -330,6 +333,7 @@ export async function runEditorialStagePresentationQueue(
     source,
     ...(input.runPlan?.artifactStructurePlan ? { structure: input.runPlan.artifactStructurePlan } : {}),
     ...(input.runPlan?.artifactDesignContextSpec ? { designContext: input.runPlan.artifactDesignContextSpec } : {}),
+    ...(input.mediaResolver ? { mediaResolver: input.mediaResolver } : {}),
     outputMode: source.outputMode,
   });
   const html = compileResult.output.content;
@@ -416,6 +420,7 @@ export async function runEditorialStagePresentationEditRuntime(
   })();
   const compiled = compileEditorialStageSourceUpdate(edit, {
     outputMode: input.source.outputMode,
+    ...(input.mediaResolver ? { mediaResolver: input.mediaResolver } : {}),
   });
   const sections = compiled.html.match(/<section\b[\s\S]*?<\/section>/gi) ?? [];
 

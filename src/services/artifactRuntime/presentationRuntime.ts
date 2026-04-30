@@ -49,7 +49,10 @@ import type {
 } from '@/services/ai/workflow/types';
 import type { TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
-import type { ArtifactValidationReport } from '@/services/artifactPacks';
+import {
+  createProjectMediaResolver,
+  type ArtifactValidationReport,
+} from '@/services/artifactPacks';
 
 export interface PresentationRuntimeValidationResult {
   passed: boolean;
@@ -762,6 +765,7 @@ async function runEditorialStageSourceEditPresentationRuntime(opts: {
   } = opts;
   const runtimeStart = performance.now();
   const runtimeRunId = runPlan?.runId ?? 'presentation-runtime';
+  const mediaResolver = createProjectMediaResolver(input.projectMedia ?? []);
   const phaseTimings: NonNullable<ArtifactRuntimeTelemetry['phaseTimings']> = [];
   if (typeof planningDurationMs === 'number') {
     phaseTimings.push({
@@ -791,6 +795,7 @@ async function runEditorialStageSourceEditPresentationRuntime(opts: {
     prompt: input.prompt,
     planResult,
     ...(runPlan ? { runPlan } : {}),
+    mediaResolver,
     onEvent,
     onSlideDraft: (combinedHtml, slideIndex, totalSlides) => {
       firstPreviewAt ??= performance.now();
@@ -1126,6 +1131,7 @@ export async function runQueuedPresentationRuntime(
   let scaffoldValidation: ScaffoldValidationResult | undefined;
   let artifactPackValidation: ArtifactValidationReport | undefined;
   let artifactSourcePayload: unknown;
+  const mediaResolver = createProjectMediaResolver(input.projectMedia ?? []);
   const styleStartedAt = performance.now();
   const generationStartedAt = performance.now();
   let batchResult: BatchQueueResult;
@@ -1149,6 +1155,7 @@ export async function runQueuedPresentationRuntime(
       planResult: effectivePlanResult,
       onEvent,
       ...(runPlan ? { runPlan } : {}),
+      mediaResolver,
       onSlideDraft: (combinedHtml, slideIndex, totalSlides) => {
         firstPreviewAt ??= performance.now();
         onEvent({ type: 'batch-slide-draft', html: combinedHtml, slideIndex, totalSlides });

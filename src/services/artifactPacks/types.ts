@@ -310,8 +310,24 @@ export interface DesignContextSpec {
 export interface ArtifactCompiledOutput {
   mode: ArtifactOutputMode;
   content: string;
+  /** Asset ids referenced by compiled output. Packaging resolves ids through project media. */
   assets: readonly string[];
   generatedAt?: number;
+}
+
+export interface ResolvedArtifactMediaAsset {
+  id: string;
+  filename: string;
+  mimeType: string;
+  relativePath: string;
+  /** App-preview URL. For persisted Aura projects this is currently the ProjectMediaAsset data URL. */
+  url: string;
+}
+
+export interface ArtifactMediaResolver {
+  resolveById(assetId: string): ResolvedArtifactMediaAsset | null;
+  resolveByRelativePath(relativePath: string): ResolvedArtifactMediaAsset | null;
+  list(): readonly ResolvedArtifactMediaAsset[];
 }
 
 export interface ArtifactSourcePayload<
@@ -342,6 +358,7 @@ export interface ArtifactPackCompileInput<
   structure: TPlan;
   designContext: DesignContextSpec;
   outputMode: ArtifactOutputMode;
+  mediaResolver?: ArtifactMediaResolver;
 }
 
 export interface ArtifactPackCompileResult {

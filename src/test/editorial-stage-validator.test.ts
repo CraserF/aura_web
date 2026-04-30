@@ -81,6 +81,103 @@ describe('editorial-stage presentation validator', () => {
     ]));
   });
 
+  it('emits stable named rhythm findings for repeated and card-wall runs', () => {
+    expect(validateEditorialStageLayoutSequence([
+      'story-split',
+      'story-split',
+    ]).findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'rhythm.adjacent_repeated_layout',
+        severity: 'advisory',
+        path: ['slides', 1, 'layoutId'],
+      }),
+    ]));
+
+    expect(validateEditorialStageLayoutSequence([
+      'story-split',
+      'comparison',
+      'process-pipeline',
+      'decision',
+      'comparison',
+      'process-pipeline',
+    ]).findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'rhythm.hero_breaker_gap',
+        severity: 'advisory',
+        path: ['slides', 0],
+      }),
+    ]));
+
+    expect(validateEditorialStageLayoutSequence([
+      'media-grid',
+      'comparison',
+      'lead-media',
+    ]).findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'rhythm.repeated_card_media_wall_risk',
+        severity: 'advisory',
+        path: ['slides', 2],
+      }),
+    ]));
+  });
+
+  it('blocks required media layouts without valid bound media', () => {
+    const source = createSource();
+    source.slides[0] = {
+      ...source.slides[0]!,
+      layoutId: 'lead-media',
+      role: 'explainer',
+      slots: {
+        kicker: 'Evidence',
+        title: 'Show the proof where the claim is made',
+        body: 'The launch story should point to one annotated evidence frame.',
+        caption: 'Proof frame',
+      },
+      media: [],
+      sourceNotes: [],
+    };
+
+    const report = validateEditorialStageSource(source);
+
+    expect(report.passed).toBe(false);
+    expect(report.findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'presentation.asset_missing_when_required',
+        severity: 'blocking',
+        path: ['slides', 0, 'media', 'lead_media'],
+      }),
+    ]));
+  });
+
+  it('rejects media bindings outside the declared slot aspect and crop contract', () => {
+    const source = createSource();
+    source.slides[0] = {
+      ...source.slides[0]!,
+      layoutId: 'lead-media',
+      role: 'explainer',
+      slots: {
+        kicker: 'Evidence',
+        title: 'Show the proof where the claim is made',
+        body: 'The launch story should point to one annotated evidence frame.',
+        caption: 'Proof frame',
+      },
+      media: [
+        {
+          slotId: 'lead_media',
+          assetId: 'proof-shot',
+          altText: 'Annotated proof screenshot',
+          aspectRatio: '1:1',
+          cropMode: 'cover-center',
+          caption: 'Proof frame',
+        },
+      ],
+      sourceNotes: ['Proof screenshot'],
+    };
+
+    expect(validateEditorialStageSource(source).findings.map((finding) => finding.id))
+      .toEqual(expect.arrayContaining(['media.aspect_invalid', 'media.crop_invalid']));
+  });
+
   it('catches compiled output contract violations', () => {
     const report = validateEditorialStageCompiledOutput(`
       <style data-aura-style-system="presentation/editorial-stage-v1"></style>

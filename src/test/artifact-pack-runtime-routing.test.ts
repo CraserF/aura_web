@@ -1,11 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import type { LanguageModel } from 'ai';
 import type { PlanResult } from '@/services/ai/workflow/agents/planner';
 import type { PresentationOutput } from '@/services/ai/workflow/types';
 
+import { createProjectMediaResolver } from '@/services/artifactPacks';
 import { detectAnimationLevel, getTemplateBlueprint, resolveTemplatePlan } from '@/services/ai/templates';
 import { buildArtifactRunPlan } from '@/services/artifactRuntime/build';
 import { buildSlideBriefsFromRunPlan } from '@/services/artifactRuntime/presentation';
+import { compileEditorialStagePack } from '@/services/artifactPacks/packs/presentation/editorial-stage-v1/compiler';
+import type { EditorialStageSource } from '@/services/artifactPacks/packs/presentation/editorial-stage-v1/schemas';
+import type { ProjectMediaAsset } from '@/types/project';
 
 const batchQueueMocks = vi.hoisted(() => ({
   runBatchQueue: vi.fn(),
@@ -30,6 +35,9 @@ vi.mock('@/services/ai/workflow/agents/designer', async (importOriginal) => {
 });
 
 const { runPresentationRuntime, runQueuedPresentationRuntime } = await import('@/services/artifactRuntime/presentationRuntime');
+
+const EXAMPLE_SOURCE_PATH = 'src/services/artifactPacks/packs/presentation/editorial-stage-v1/examples/source.json';
+const EXAMPLE_MEDIA_PATH = 'src/services/artifactPacks/packs/presentation/editorial-stage-v1/examples/media.json';
 
 function createPlanResult(): PlanResult {
   const prompt = 'Create 2 slides: opening thesis, next move';
@@ -284,5 +292,57 @@ describe('artifact pack presentation runtime routing', () => {
     expect(source.directionId).toBe('bold-editorial');
     expect(JSON.stringify(source.slides.map((slide) => slide.slots))).toBe(beforeSlots);
     expect(output.artifactManifest?.designDirectionId).toBe('bold-editorial');
+  });
+
+  it('threads project media through source-backed edits so real images survive recompilation', async () => {
+    const source = JSON.parse(readFileSync(EXAMPLE_SOURCE_PATH, 'utf8')) as EditorialStageSource;
+    const media = JSON.parse(readFileSync(EXAMPLE_MEDIA_PATH, 'utf8')) as ProjectMediaAsset[];
+    const seed = compileEditorialStagePack({
+      source,
+      outputMode: 'html',
+      mediaResolver: createProjectMediaResolver(media),
+    });
+    batchQueueMocks.runBatchQueue.mockReset();
+    designerMocks.designEdit.mockReset();
+    const editRunPlan = buildArtifactRunPlan({
+      runId: 'artifact-pack-source-media-edit',
+      prompt: 'Change slide 5 title to "Proof with the real screenshot"',
+      artifactType: 'presentation',
+      operation: 'edit',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    const output = await runPresentationRuntime({
+      model: {} as LanguageModel,
+      input: {
+        prompt: 'Change slide 5 title to "Proof with the real screenshot"',
+        existingSlidesHtml: seed.output.content,
+        chatHistory: [],
+        artifactRunPlan: editRunPlan,
+        artifactManifest: {
+          packId: 'presentation/editorial-stage-v1',
+          packVersion: '1.0.0',
+          sourcePayloadVersion: 1,
+          renderer: 'presentation',
+          validationStatus: 'passed',
+          updatedAt: Date.now(),
+        },
+        artifactSourcePayload: source,
+        projectMedia: media,
+      },
+      onEvent: vi.fn(),
+      editCorrectionPolicy: editPolicy(),
+      skipSecondaryEvaluation: true,
+    });
+
+    expect(batchQueueMocks.runBatchQueue).not.toHaveBeenCalled();
+    expect(designerMocks.designEdit).not.toHaveBeenCalled();
+    expect(output.reviewPassed).toBe(true);
+    expect(output.html).toContain('Proof with the real screenshot');
+    expect(output.html).toContain('<img src="data:image/svg+xml;base64,');
+    expect(output.html).not.toContain('<span>Launch proof screenshot</span>');
   });
 });

@@ -14,6 +14,60 @@
   --es-mono: "SFMono-Regular", "IBM Plex Mono", ui-monospace, monospace;
 }
 
+.es-direction-modern-minimal {
+  --es-canvas: #f8fafc;
+  --es-surface: #ffffff;
+  --es-ink: #101827;
+  --es-muted: #64748b;
+  --es-line: #cbd5e1;
+  --es-accent: #2563eb;
+  --es-accent-alt: #0f766e;
+  --es-night: #0f172a;
+  --es-reverse: #f8fafc;
+  --es-data: #2563eb;
+  --es-display: "Inter", "Aptos Display", system-ui, sans-serif;
+}
+
+.es-direction-data-utility {
+  --es-canvas: #f4f7fb;
+  --es-surface: #ffffff;
+  --es-ink: #111827;
+  --es-muted: #526070;
+  --es-line: #b8c4d4;
+  --es-accent: #2563a8;
+  --es-accent-alt: #3f7f52;
+  --es-night: #152033;
+  --es-reverse: #f7fbff;
+  --es-data: #174ea6;
+  --es-display: "Inter", "Aptos Display", system-ui, sans-serif;
+}
+
+.es-direction-warm-narrative {
+  --es-canvas: #fbf5ea;
+  --es-surface: #fffaf2;
+  --es-ink: #24201a;
+  --es-muted: #75695c;
+  --es-line: #dfd2bd;
+  --es-accent: #9f4f2f;
+  --es-accent-alt: #4f7d6b;
+  --es-night: #231d18;
+  --es-reverse: #fff7e8;
+  --es-data: #8f5a24;
+}
+
+.es-direction-bold-editorial {
+  --es-canvas: #f7f0df;
+  --es-surface: #fffaf0;
+  --es-ink: #121212;
+  --es-muted: #5d564c;
+  --es-line: #1f1f1f;
+  --es-accent: #d13f24;
+  --es-accent-alt: #0f5f6a;
+  --es-night: #070707;
+  --es-reverse: #fff7e6;
+  --es-data: #d13f24;
+}
+
 .es-slide {
   box-sizing: border-box;
   position: relative;
@@ -80,7 +134,7 @@
 .es-chrome,
 .es-section-number,
 .es-slide header > p,
-.es-slide aside > p,
+.es-slide aside > p:first-child,
 .es-story-copy > p:first-child,
 .es-question > p:first-child,
 .es-closing > p:first-child {
@@ -120,7 +174,7 @@
   grid-template-rows: auto 1fr auto;
   background:
     linear-gradient(90deg, var(--es-accent) 0 8px, transparent 8px),
-    radial-gradient(circle at 78% 22%, rgba(180, 71, 47, .2), transparent 220px),
+    linear-gradient(0deg, rgba(255, 250, 240, .05) 0 1px, transparent 1px 92px),
     var(--es-night);
 }
 
@@ -214,10 +268,18 @@
   gap: 56px;
 }
 
+.es-story-split.es-no-media {
+  grid-template-columns: 1fr;
+}
+
 .es-story-copy {
   display: grid;
   align-content: center;
   gap: 20px;
+}
+
+.es-story-split.es-no-media .es-story-copy {
+  max-width: 900px;
 }
 
 .es-story-copy blockquote {
@@ -249,6 +311,59 @@
     linear-gradient(135deg, rgba(31, 111, 104, .18), transparent 46%),
     repeating-linear-gradient(135deg, rgba(23, 23, 23, .08) 0 1px, transparent 1px 18px),
     var(--es-surface);
+}
+
+.es-media-bound {
+  position: relative;
+  place-items: stretch;
+  padding: 22px;
+  background:
+    linear-gradient(135deg, rgba(37, 99, 168, .18), transparent 52%),
+    linear-gradient(0deg, rgba(23, 23, 23, .12), rgba(23, 23, 23, .12)),
+    var(--es-surface);
+}
+
+.es-media-bound img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: cover;
+  object-position: center;
+}
+
+.es-media-bound span {
+  align-self: end;
+  justify-self: start;
+  max-width: 72%;
+  padding: 8px 10px;
+  background: rgba(255, 253, 247, .86);
+  color: var(--es-ink);
+  font-family: var(--es-mono);
+  font-size: 13px;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.es-crop-contain {
+  background-size: contain;
+}
+
+.es-crop-contain img {
+  object-fit: contain;
+}
+
+.es-crop-cover-top,
+.es-crop-cover-center {
+  background-size: cover;
+}
+
+.es-crop-cover-top img {
+  object-position: top center;
+}
+
+.es-crop-cover-center img {
+  object-position: center;
 }
 
 .es-media-frame .es-media-placeholder {
@@ -340,6 +455,17 @@
     var(--es-night);
 }
 
+.es-question.es-mood-hero-light {
+  background:
+    linear-gradient(90deg, var(--es-accent-alt) 0 8px, transparent 8px),
+    var(--es-surface);
+  color: var(--es-ink);
+}
+
+.es-question.es-mood-hero-light > p:nth-of-type(2) {
+  color: var(--es-muted);
+}
+
 .es-question h2 {
   max-width: 930px;
   font-size: 78px;
@@ -373,8 +499,8 @@
 }
 
 .es-comparison {
-  grid-template-rows: auto 1fr auto;
-  gap: 28px;
+  grid-template-rows: auto 320px auto;
+  gap: 22px;
 }
 
 .es-comparison header {
@@ -386,16 +512,18 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 18px;
+  min-height: 0;
 }
 
 .es-compare-lanes article {
   padding: 30px;
   border-top: 4px solid var(--es-accent);
   background: var(--es-surface);
+  min-height: 0;
 }
 
 .es-compare-lanes h3 {
-  margin-bottom: 44px;
+  margin-bottom: 34px;
   font-family: var(--es-mono);
   font-size: 16px;
   text-transform: uppercase;
@@ -404,9 +532,10 @@
 
 .es-verdict {
   max-width: 760px;
-  padding-top: 20px;
+  padding-top: 14px;
   border-top: 1px solid var(--es-line);
-  font-size: 28px;
+  font-size: 24px;
+  line-height: 1.18;
 }
 
 .es-lead-media {
@@ -415,7 +544,7 @@
 }
 
 .es-lead-media figure > div {
-  min-height: 520px;
+  min-height: 492px;
 }
 
 .es-lead-media aside {
@@ -425,7 +554,10 @@
 }
 
 .es-lead-media aside p:last-child {
+  max-width: 340px;
   font-size: 23px;
+  line-height: 1.22;
+  color: var(--es-muted);
 }
 
 .es-decision {
@@ -476,7 +608,8 @@
   grid-template-rows: auto auto 1fr;
   gap: 32px;
   background:
-    radial-gradient(circle at 88% 22%, rgba(180, 71, 47, .2), transparent 230px),
+    linear-gradient(90deg, var(--es-accent) 0 8px, transparent 8px),
+    linear-gradient(0deg, rgba(255, 250, 240, .05) 0 1px, transparent 1px 88px),
     var(--es-night);
 }
 
@@ -487,6 +620,52 @@
 
 .es-closing ol {
   align-self: end;
+}
+
+.es-direction-modern-minimal h1,
+.es-direction-modern-minimal h2,
+.es-direction-data-utility h1,
+.es-direction-data-utility h2 {
+  font-weight: 760;
+  line-height: 1;
+}
+
+.es-direction-modern-minimal .es-cover,
+.es-direction-modern-minimal.es-cover {
+  background:
+    linear-gradient(90deg, var(--es-accent) 0 6px, transparent 6px),
+    var(--es-night);
+}
+
+.es-direction-data-utility .es-number-block strong,
+.es-direction-data-utility.es-big-number .es-number-block strong {
+  font-size: 112px;
+}
+
+.es-direction-data-utility .es-decision main,
+.es-direction-data-utility.es-decision main {
+  grid-template-columns: minmax(0, .78fr) 1.22fr;
+}
+
+.es-direction-warm-narrative h1,
+.es-direction-warm-narrative h2,
+.es-direction-warm-narrative blockquote {
+  font-weight: 680;
+}
+
+.es-direction-bold-editorial h1 {
+  max-width: 980px;
+  font-size: 92px;
+}
+
+.es-direction-bold-editorial h2 {
+  max-width: 980px;
+  font-size: 64px;
+}
+
+.es-direction-bold-editorial .es-compare-lanes article,
+.es-direction-bold-editorial.es-comparison .es-compare-lanes article {
+  border-top-width: 6px;
 }
 
 @media (prefers-reduced-motion: reduce) {

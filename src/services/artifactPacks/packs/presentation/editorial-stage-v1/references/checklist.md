@@ -1,15 +1,19 @@
 # Editorial Stage Checklist
 
-- Pack id is `presentation/editorial-stage-v1` and version is `1`.
+- Pack id is `presentation/editorial-stage-v1` and version is `1.0.0`.
 - Source payload validates with unknown keys rejected.
 - Slide 1 uses `cover`.
 - Decks with 6 or more slides include a breaker every 3 to 4 slides.
+- Missing 3-4 slide attention resets trigger `rhythm.hero_breaker_gap`.
 - No three adjacent slides repeat the same mood and density.
 - Adjacent content slides do not reuse the same layout family.
+- Adjacent repeated layouts trigger `rhythm.adjacent_repeated_layout`.
 - No slide depends on a circular motif, radial decoration, or repeated equal card wall.
+- Three-slide card/media-wall runs trigger `rhythm.repeated_card_media_wall_risk`.
 - Every metric is source-backed or clearly qualitative.
 - Kicker is a slide hook; footer is metadata or source context. They do not duplicate each other.
 - Media slots use allowed aspect ratios and safe crop modes.
+- Required media slots without a binding trigger `presentation.asset_missing_when_required`.
 - Product screenshots and diagrams prefer `contain` or `cover-top`.
 - Titles fit the layout-specific character budget.
 - Accent color is used for signposting, not broad decoration.

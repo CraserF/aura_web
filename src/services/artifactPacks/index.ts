@@ -13,6 +13,7 @@ export {
   extractDesignDirectionFromRules,
   resolveDesignDirectionForArtifact,
 } from './designContext';
+export { createProjectMediaResolver } from './mediaResolver';
 export {
   getArtifactPack,
   listArtifactPackManifests,
@@ -33,6 +34,7 @@ export type {
   ArtifactEditSurface,
   ArtifactEditSurfaceKind,
   ArtifactExampleRef,
+  ArtifactMediaResolver,
   ArtifactOutputMode,
   ArtifactPack,
   ArtifactPackCompileInput,
@@ -56,6 +58,6 @@ export type {
   DesignContextSpec,
   MediaBinding,
   MediaBindingPlan,
+  ResolvedArtifactMediaAsset,
   TypographyTokens,
 } from './types';
-

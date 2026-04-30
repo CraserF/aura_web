@@ -7,7 +7,7 @@
   "audience": "executive decision makers",
   "directionId": "editorial-magazine",
   "outputMode": "html",
-  "brief": "A staged decision brief that argues for doing fewer launch motions with stronger proof.",
+  "brief": "A staged decision brief that argues for doing fewer launch motions with stronger proof, real evidence, and a cleaner operating cadence.",
   "rhythmPlan": [
     {
       "slideIndex": 1,
@@ -54,24 +54,54 @@
       "density": "calm",
       "visualWeight": "hero",
       "motion": "hero",
-      "transitionPurpose": "Reset attention before the recommendation.",
+      "transitionPurpose": "Reset attention before the operating recommendation.",
       "mediaNeeds": []
     },
     {
       "slideIndex": 5,
       "slideId": "slide-5",
-      "narrativeRole": "Decision path",
-      "layoutId": "decision",
+      "narrativeRole": "Evidence frame",
+      "layoutId": "lead-media",
       "mood": "light",
       "density": "balanced",
       "visualWeight": "standard",
-      "motion": "cascade",
-      "transitionPurpose": "Name the recommended choice.",
-      "mediaNeeds": []
+      "motion": "directional",
+      "transitionPurpose": "Show the audience where the proof will appear.",
+      "mediaNeeds": [
+        {
+          "slotId": "lead_media",
+          "purpose": "Annotated launch proof screenshot",
+          "required": true
+        }
+      ]
     },
     {
       "slideIndex": 6,
       "slideId": "slide-6",
+      "narrativeRole": "Trade-off",
+      "layoutId": "comparison",
+      "mood": "light",
+      "density": "balanced",
+      "visualWeight": "standard",
+      "motion": "directional",
+      "transitionPurpose": "Make the trade-off legible.",
+      "mediaNeeds": []
+    },
+    {
+      "slideIndex": 7,
+      "slideId": "slide-7",
+      "narrativeRole": "Operating mechanism",
+      "layoutId": "process-pipeline",
+      "mood": "dark",
+      "density": "balanced",
+      "visualWeight": "standard",
+      "motion": "pipeline",
+      "transitionPurpose": "Translate the recommendation into work.",
+      "mediaNeeds": []
+    },
+    {
+      "slideIndex": 8,
+      "slideId": "slide-8",
       "narrativeRole": "Action close",
       "layoutId": "closing-action",
       "mood": "hero-dark",
@@ -113,7 +143,7 @@
         "title": "The broad launch is diluting attention",
         "quote": "The team is carrying too many stories for one market moment.",
         "body": "Three audiences are being served at once, which makes proof harder to notice and harder to repeat.",
-        "caption": "Audience and channel notes"
+        "caption": ""
       },
       "media": [],
       "sourceNotes": []
@@ -156,25 +186,74 @@
     },
     {
       "slideId": "slide-5",
-      "layoutId": "decision",
-      "role": "decision",
+      "layoutId": "lead-media",
+      "role": "explainer",
       "mood": "light",
       "density": "balanced",
       "visualWeight": "standard",
-      "motion": "cascade",
+      "motion": "directional",
       "slots": {
-        "kicker": "Recommendation",
-        "title": "Commit to the focused segment for one launch cycle",
-        "recommendation": "Lead with the buyer segment showing qualified demand and build every channel around that proof.",
-        "risk": "The broader story waits one cycle, which needs clear internal framing.",
-        "tradeoff": "We trade surface area for repetition, quality, and message memory.",
-        "ask": "Approve the focused cycle and review proof after four weeks."
+        "kicker": "Evidence",
+        "title": "Show the proof where the claim is made",
+        "body": "The launch story should point to one annotated evidence frame: demand source, buyer language, and the channel where attention is already compounding.",
+        "caption": "Evidence frame planned for launch proof screenshot"
+      },
+      "media": [
+        {
+          "slotId": "lead_media",
+          "assetId": "launch-proof-screenshot",
+          "altText": "Annotated screenshot showing focused buyer demand and launch proof points",
+          "aspectRatio": "16:9",
+          "cropMode": "contain",
+          "caption": "Evidence frame planned for launch proof screenshot"
+        }
+      ],
+      "sourceNotes": ["Launch proof screenshot"]
+    },
+    {
+      "slideId": "slide-6",
+      "layoutId": "comparison",
+      "role": "comparison",
+      "mood": "light",
+      "density": "balanced",
+      "visualWeight": "standard",
+      "motion": "directional",
+      "slots": {
+        "kicker": "Trade-off",
+        "title": "The choice is not smaller; it is sharper",
+        "left_label": "Broad cycle",
+        "left_body": "Many audiences receive a lighter story, so the team spends more time explaining and less time proving.",
+        "right_label": "Focused cycle",
+        "right_body": "One buyer segment receives the strongest proof, giving sales and marketing a claim they can repeat.",
+        "verdict": "The focused cycle is easier to remember, measure, and repeat."
       },
       "media": [],
       "sourceNotes": []
     },
     {
-      "slideId": "slide-6",
+      "slideId": "slide-7",
+      "layoutId": "process-pipeline",
+      "role": "mechanism",
+      "mood": "dark",
+      "density": "balanced",
+      "visualWeight": "standard",
+      "motion": "pipeline",
+      "slots": {
+        "kicker": "Mechanism",
+        "title": "Turn focus into an operating cadence",
+        "step_1_title": "Lock proof",
+        "step_1_body": "Confirm the evidence frame, source, and buyer language before rewriting assets.",
+        "step_2_title": "Rewrite assets",
+        "step_2_body": "Align launch page, sales narrative, and outbound story around the same claim.",
+        "step_3_title": "Review signal",
+        "step_3_body": "Check traction after four weeks and decide whether to widen the story.",
+        "takeaway": "The cadence makes focus feel operational, not philosophical."
+      },
+      "media": [],
+      "sourceNotes": []
+    },
+    {
+      "slideId": "slide-8",
       "layoutId": "closing-action",
       "role": "closing-action",
       "mood": "hero-dark",

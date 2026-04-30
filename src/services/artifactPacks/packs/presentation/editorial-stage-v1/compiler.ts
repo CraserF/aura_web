@@ -1,5 +1,6 @@
 import type {
   ArtifactCompiledOutput,
+  ArtifactMediaResolver,
   ArtifactOutputMode,
   ArtifactPackCompileResult,
   ArtifactStructurePlan,
@@ -26,6 +27,7 @@ export interface EditorialStageCompileInput {
   structure?: ArtifactStructurePlan;
   designContext?: DesignContextSpec;
   outputMode?: ArtifactOutputMode;
+  mediaResolver?: ArtifactMediaResolver;
 }
 
 const escapeHtml = (value: string): string =>
@@ -95,26 +97,85 @@ const stripEmptyOptionalSlotWrappers = (html: string, layout: EditorialStageLayo
       return nextHtml.replace(emptySimpleElement, '');
     }, html);
 
-const addSectionMarkers = (html: string, slide: EditorialStageSlide): string =>
+const stripUnboundOptionalMediaWrappers = (html: string, slide: EditorialStageSlide, layout: EditorialStageLayout): string => {
+  const boundMediaSlots = new Set(slide.media.map((media) => media.slotId));
+
+  return layout.mediaSlots
+    .filter((slot) => !slot.required && !boundMediaSlots.has(slot.id))
+    .reduce((nextHtml, slot) => {
+      const slotId = slot.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const mediaFigure = new RegExp(
+        `\\s*<figure\\b[^>]*\\sdata-media-slot=["']${slotId}["'][^>]*>[\\s\\S]*?<\\/figure>`,
+        'gi',
+      );
+      return nextHtml.replace(mediaFigure, '');
+    }, html);
+};
+
+const enrichBoundMediaWrappers = (
+  html: string,
+  slide: EditorialStageSlide,
+  mediaResolver: ArtifactMediaResolver | undefined,
+): string =>
+  slide.media.reduce((nextHtml, media) => {
+    const slotId = media.slotId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const figurePattern = new RegExp(
+      `(<figure\\b[^>]*\\sdata-media-slot=["']${slotId}["'][^>]*>\\s*)<div[^>]*><\\/div>`,
+      'i',
+    );
+    const cropClass = `es-crop-${media.cropMode}`;
+    const label = escapeHtml(media.altText);
+    return nextHtml.replace(figurePattern, (_match, figureStart: string) => {
+      const asset = mediaResolver?.resolveById(media.assetId);
+      const mediaContent = asset?.url
+        ? `<img src="${escapeHtml(asset.url)}" alt="${label}" />`
+        : `<span>${label}</span>`;
+      return `${figureStart}<div class="es-media-placeholder es-media-bound ${cropClass}" data-asset-id="${escapeHtml(media.assetId)}" role="img" aria-label="${label}">${mediaContent}</div>`;
+    });
+  }, html);
+
+const optionalMediaClass = (slide: EditorialStageSlide): string | undefined => {
+  const layout = EDITORIAL_STAGE_LAYOUT_BY_ID[slide.layoutId];
+  if (!layout?.mediaSlots.some((slot) => !slot.required)) return undefined;
+  if (slide.layoutId === 'cover') return undefined;
+  return slide.media.length > 0 ? undefined : 'es-no-media';
+};
+
+const addSectionMarkers = (html: string, slide: EditorialStageSlide, source: EditorialStageSource): string =>
   html.replace(/<section\b([^>]*)>/i, (section, attrs: string) => {
     const hasPackMarker = /\sdata-pack\s*=/.test(attrs);
     const hasSlideId = /\sdata-slide-id\s*=/.test(attrs);
     const hasBackground = /\sdata-background-color\s*=/.test(attrs);
+    const hasDirection = /\sdata-direction\s*=/.test(attrs);
     const background = slide.mood === 'hero-dark' || slide.mood === 'dark'
       ? '#111318'
       : slide.mood === 'hero-light'
         ? '#fffdf7'
         : '#f7f3e8';
+    const missingOptionalMediaClass = optionalMediaClass(slide);
+    const directionClass = `es-direction-${source.directionId}`;
+    const enrichedSection = section.replace(/\sclass=(["'])([^"']*)\1/i, (_classAttr, quote: string, className: string) => {
+      const classes = new Set(className.split(/\s+/).filter(Boolean));
+      classes.add(directionClass);
+      if (missingOptionalMediaClass) classes.add(missingOptionalMediaClass);
+      return ` class=${quote}${[...classes].join(' ')}${quote}`;
+    });
     const additions = [
       hasPackMarker ? '' : ` data-pack="${PACK_ID}"`,
       hasSlideId ? '' : ` data-slide-id="${escapeHtml(slide.slideId)}"`,
+      hasDirection ? '' : ` data-direction="${escapeHtml(source.directionId)}"`,
       hasBackground ? '' : ` data-background-color="${background}"`,
     ].join('');
 
-    return section.replace('>', `${additions}>`);
+    return enrichedSection.replace('>', `${additions}>`);
   });
 
-const compileSlide = (slide: EditorialStageSlide, index: number) => {
+const compileSlide = (
+  slide: EditorialStageSlide,
+  index: number,
+  source: EditorialStageSource,
+  mediaResolver: ArtifactMediaResolver | undefined,
+) => {
   const layout = EDITORIAL_STAGE_LAYOUT_BY_ID[slide.layoutId];
 
   if (!layout) {
@@ -129,8 +190,10 @@ const compileSlide = (slide: EditorialStageSlide, index: number) => {
   }
 
   const withSlots = replaceSlots(layout.template, slide, layout);
-  const stripped = stripEmptyOptionalSlotWrappers(withSlots, layout);
-  const marked = addSectionMarkers(stripped, slide);
+  const withoutEmptySlots = stripEmptyOptionalSlotWrappers(withSlots, layout);
+  const withoutUnboundMedia = stripUnboundOptionalMediaWrappers(withoutEmptySlots, slide, layout);
+  const withBoundMedia = enrichBoundMediaWrappers(withoutUnboundMedia, slide, mediaResolver);
+  const marked = addSectionMarkers(withBoundMedia, slide, source);
 
   return { html: marked };
 };
@@ -147,12 +210,40 @@ const collectAssets = (source: EditorialStageSource): readonly string[] => {
   return [...assetIds];
 };
 
+const collectMediaResolutionFindings = (
+  source: EditorialStageSource,
+  mediaResolver: ArtifactMediaResolver | undefined,
+): readonly ArtifactValidationFinding[] => {
+  if (!mediaResolver) return [];
+  const findings: ArtifactValidationFinding[] = [];
+  source.slides.forEach((slide, slideIndex) => {
+    const layout = EDITORIAL_STAGE_LAYOUT_BY_ID[slide.layoutId];
+    for (const [mediaIndex, media] of slide.media.entries()) {
+      if (mediaResolver.resolveById(media.assetId)) continue;
+      const mediaSlot = layout?.mediaSlots.find((slot) => slot.id === media.slotId);
+      const required = mediaSlot?.required ?? false;
+      findings.push({
+        id: required ? 'media.required_unresolved' : 'media.asset_unresolved',
+        severity: required ? 'blocking' : 'advisory',
+        message: `Slide ${slideIndex + 1} media slot "${media.slotId}" references unresolved asset "${media.assetId}".`,
+        artifactType: 'presentation',
+        path: ['slides', slideIndex, 'media', mediaIndex, 'assetId'],
+        packId: PACK_ID,
+      });
+    }
+  });
+  return findings;
+};
+
 export const compileEditorialStageSlides = (
   source: EditorialStageSource,
+  mediaResolver?: ArtifactMediaResolver,
 ): { html: string; findings: readonly ArtifactValidationFinding[] } => {
-  const findings: ArtifactValidationFinding[] = [];
+  const findings: ArtifactValidationFinding[] = [
+    ...collectMediaResolutionFindings(source, mediaResolver),
+  ];
   const slides = source.slides.map((slide, index) => {
-    const compiled = compileSlide(slide, index);
+    const compiled = compileSlide(slide, index, source, mediaResolver);
     if (compiled.finding) {
       findings.push(compiled.finding);
     }
@@ -169,7 +260,7 @@ export const compileEditorialStagePack = (
   input: EditorialStageCompileInput,
 ): ArtifactPackCompileResult => {
   const sourceValidation = validateEditorialStageSource(input.source);
-  const compiledSlides = compileEditorialStageSlides(input.source);
+  const compiledSlides = compileEditorialStageSlides(input.source, input.mediaResolver);
   const output: ArtifactCompiledOutput = {
     mode: input.outputMode ?? input.source.outputMode,
     content: compiledSlides.html,

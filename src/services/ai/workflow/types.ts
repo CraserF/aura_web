@@ -6,7 +6,7 @@ import type { AIMessage, ProviderEntry } from '../types';
 import type { EditStrategy, EditingTelemetry, ResolvedTarget } from '@/services/editing/types';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
 import type { TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
-import type { ProjectArtifactManifest } from '@/types/project';
+import type { ProjectArtifactManifest, ProjectMediaAsset } from '@/types/project';
 import type {
   ArtifactQualityDecisionStatus,
   ArtifactQualityGrade,
@@ -52,6 +52,7 @@ export interface PresentationInput {
   artifactRunPlan?: ArtifactRunPlan;
   artifactManifest?: ProjectArtifactManifest;
   artifactSourcePayload?: unknown;
+  projectMedia?: ProjectMediaAsset[];
   templateGuidance?: TemplateGuidanceProfile;
   editing?: {
     resolvedTargets: ResolvedTarget[];

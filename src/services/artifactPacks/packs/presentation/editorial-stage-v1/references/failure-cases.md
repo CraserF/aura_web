@@ -20,9 +20,33 @@ Everything has similar scale or contrast. Repair by making one object dominant a
 
 The deck runs too long without a reset. Insert `section-divider`, `question-hero`, or `big-quote`.
 
+## rhythm.adjacent_repeated_layout
+
+Adjacent slides repeat the same skeleton and create a mechanical rhythm. Repair by switching one slide to a different layout family or inserting a breaker.
+
+## rhythm.hero_breaker_gap
+
+Three or four slides pass without a hero, section divider, question, or quote reset. Repair by inserting `section-divider`, `question-hero`, or `big-quote`, or by changing a content slide into a stronger proof/decision moment.
+
+## rhythm.repeated_card_media_wall_risk
+
+Three consecutive slides use dense, media-grid, comparison, or lead-media structures and begin to feel like repeated cards. Repair by making one slide type-led (`big-number`, `question-hero`, `big-quote`, or `decision`) with a single dominant object.
+
 ## presentation.asset_missing_when_required
 
 A layout requires media but no valid asset is bound. Repair by binding an asset, switching to a non-media layout, or using a clearly labelled placeholder.
+
+## media.aspect_invalid
+
+The bound media aspect ratio does not fit the declared slot. Repair by changing the crop/aspect metadata or choosing a layout that fits the asset.
+
+## media.crop_invalid
+
+The bound media crop mode is not allowed for the slot. Product screenshots and diagrams usually need `contain` or `cover-top`.
+
+## presentation.fallback_copy
+
+The source payload still contains generic fallback copy such as "A clearer path forward" or "Frame the point". Repair by replacing it with source-derived language before compiling.
 
 ## presentation.chrome_kicker_duplicate
 

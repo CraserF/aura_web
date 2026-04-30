@@ -24,6 +24,65 @@ Recommended implementation branch after docs are reviewed:
 
 - `codex/artifact-pack-design-rebuild`
 
+## Execution Tracker
+
+Use this section as the live source of truth before starting each work session. Update it in the same PR/commit as implementation changes.
+
+Status key:
+
+- `Done`: implemented and verified.
+- `Active`: current phase; do this before starting broad new surfaces.
+- `Next`: next major phase after the active gate passes.
+- `Queued`: important, but intentionally deferred.
+- `Blocked`: cannot proceed until the blocker is removed.
+
+| Phase | Status | Goal | Current Gate | Evidence | Next Action |
+| --- | --- | --- | --- | --- | --- |
+| 0. Research and synthesis docs | Done | Capture lessons from reference repos and convert them into Aura-owned rules. | Docs exist in `docs/plan`. | Reference lessons, synthesis, rebuild plan. | Keep docs linked from this checklist. |
+| 1. Artifact pack foundation | Done | Add pack types, registry, directions, design context, and source metadata. | Registry/types compile and tests pass. | `artifactPacks` foundation and registry tests. | Extend only when a pack requires it. |
+| 2. Editorial Stage default presentation pack | Done | Replace prompt-authored decks with compiler-owned presentation source payloads. | Default presentation create uses `presentation/editorial-stage-v1`. | Pack runtime routing tests. | Keep legacy scaffold out of normal UI/runtime. |
+| 3. Source-backed presentation edits | Done | Text edit, add-slide, and restyle patch source payloads and recompile. | No `designEdit`/`runBatchQueue` for pack-backed source edits. | `artifact-pack-runtime-routing.test.ts`. | Add repair loops for rejected source edits later. |
+| 4. Simplified creation UI | Done | Users choose artifact shape and style direction, not scaffold/theme internals. | No scaffold/theme/export/color picker in default new-project flow. | UI and UX simplification tests. | Add guided edit chips after visual gate. |
+| 5. Editorial Stage visual quality gate | Active | Make the default deck visually credible across directions. | Manual screenshot gate plus deterministic example/render tests. | Compiler, validator, render smoke, regenerated example, 24 headless screenshots in `/private/tmp/editorial-stage-visual-gate`. | Review full screenshot set; only then mark Phase 5 done or log concrete fixes. |
+| 6. Real media asset rendering | Done | Render actual project media in declared pack slots instead of metadata-backed evidence frames. | Bound media has data URLs, safe crop classes, alt text, and export-safe markup. | Media resolver, compiler/runtime threading, example media fixture, and focused tests. | Carry export-specific media restrictions into Phase 10. |
+| 7. Presentation repair loop hardening | Next | Repair rejected slot/media/rhythm payloads without freeform HTML. | Rejected source payloads get targeted repair attempts. | Pending. | Add source-payload repair schemas after media path is real and screenshot gate failures are known. |
+| 8. Guided edit chips | Queued | Offer simple user controls that map to typed source operations. | Chips map to supported edit surfaces only. | Pending. | Add after Phase 5/6 gates so chips improve a solid default instead of masking weak output. |
+| 9. Design-system mode | Queued | Parse project `DESIGN.md`/rules into validated tokens and examples. | Project design context previews compile without arbitrary CSS. | Pending. | Start after guided edit surfaces are stable. |
+| 10. Export and preview gates | Queued | Add export-intent constraints and generated preview artifacts. | HTML/PDF/PPTX-safe restrictions are validated; `artifact.preview.png` exists for packs. | Pending. | Add after media rendering because exports must handle real assets. |
+| 11. Document packs | Queued | Add source-payload document packs without presentation-shaped UI. | `document/executive-memo-v1` compiles and validates. | Pending. | Start only after presentation visual gate passes. |
+| 12. Spreadsheet packs | Queued | Add deterministic workbook packs with formulas/charts/style validation. | `spreadsheet/operating-model-v1` compiles and validates. | Pending. | Start after document pack foundation or explicit priority shift. |
+| 13. Pack gallery and save-as-pack | Queued | Show compiled examples and later save current artifacts as pack candidates. | Gallery uses compiled Aura-owned examples. | Pending. | Do not begin before default packs look excellent. |
+
+### Active Phase Exit Criteria
+
+Phase 5 is not complete until all are true:
+
+- Example source and compiled HTML match exactly through compiler regeneration tests.
+- Direction variants for `editorial-magazine`, `modern-minimal`, and `data-utility` compile from the same source.
+- Screenshot or render gate confirms fixed 1280x720 stage, no blank slides, no visible placeholder media for optional slots, and no text/element collision in the example deck.
+- Validator reports zero blocking findings and zero unwaived craft advisories for fake metrics, missing media, fallback copy, card/media-wall run, repeated adjacent layouts, and breaker gaps.
+- Any remaining visual concern is documented as a concrete next action, not a vague "make it nicer" note.
+
+### Phase 6 Exit Criteria
+
+Phase 6 is not complete until all are true:
+
+- Project media is available to the presentation pack compiler during create and source-backed edit flows.
+- Media bindings keep only source-safe asset ids in `artifactSourcePayload`; compiled HTML receives resolved `src` values from the host resolver.
+- Required media slots with missing project assets block persistence; optional unresolved media only creates targeted advisory feedback.
+- Bound media renders as semantic `<img>` markup inside the locked media frame with crop class, `alt`, `role`, `aria-label`, and `data-asset-id`.
+- Example media fixtures compile into `examples/example.html` so the gallery/regression path tests real images, not placeholder labels.
+- Tests cover resolver normalization, real image compilation, unresolved required media, and runtime resolver threading.
+
+### Anti-Drift Rules
+
+- Do the active phase before queued phases unless the user explicitly reprioritizes.
+- Prefer one large structural improvement over many small prompt or copy tweaks.
+- Do not add new user-facing choices to compensate for weak defaults.
+- Do not let the model write raw presentation CSS or full-slide HTML in the normal pack path.
+- Do not mark a phase done without tests or a documented manual gate.
+- If a change does not improve source payloads, compiler output, validation, or the user-facing default flow, treat it as refinement and defer it.
+
 ## Progress Log
 
 ### 2026-04-30 - Presentation Source-Edit Runtime And Simplified Creation UI
@@ -52,6 +111,59 @@ Remaining next phase:
 - Improve the visual craft of the editorial-stage layouts and example deck, then run the manual screenshot quality gate.
 - Add stronger source-payload repair for rejected slot edits instead of only conservative prompt parsing.
 - Begin document pack source-payload foundations after the presentation pack passes the visual gate.
+
+### 2026-05-01 - Editorial Stage Visual Craft Gate Slice
+
+Completed on `codex/artifact-pack-design-rebuild`:
+
+- Added direction-aware compiler output: every slide now receives `data-direction` and an `es-direction-*` class so direction changes can alter tokens and typographic/layout posture.
+- Added direction-specific CSS tokens and posture adjustments for modern-minimal, data-utility, warm-narrative, and bold-editorial.
+- Removed the radial decorative gradients from cover/closing and replaced them with rule/grid treatments aligned to the pack design guide.
+- Omitted unbound optional media frames so optional media layouts do not show empty patterned placeholders.
+- Marked bound media with asset id, crop class, accessible label, and explicit bound-media styling.
+- Added validator gates for required media, invalid media aspect/crop, and generic fallback copy.
+- Replaced generic fallback copy in source builders with less placeholder-like defaults.
+- Rebuilt `examples/source.json` as an 8-slide reference deck with a bound lead-media evidence slide, comparison, pipeline, and closing.
+- Regenerated `examples/example.html` from the actual compiler and added tests to prevent source/example drift.
+- Added jsdom render smoke coverage for fixed-stage metadata, dimensions, and direction classes.
+
+Verification completed:
+
+- `npm test -- src/test/editorial-stage-compiler.test.ts src/test/editorial-stage-validator.test.ts src/test/editorial-stage-render-smoke.test.ts src/test/artifact-pack-runtime-routing.test.ts`
+
+Remaining next phase:
+
+- Run the manual screenshot gate across at least editorial-magazine, modern-minimal, and data-utility.
+- Add real project media asset resolution so media bindings can render actual images rather than metadata-backed evidence frames.
+- Expand layout craft on media-grid/comparison/process-pipeline if screenshots still read as equal-panel card walls.
+
+### 2026-05-01 - Tracker And Real Media Rendering Slice
+
+Completed on `codex/artifact-pack-design-rebuild`:
+
+- Added the execution tracker as the live source of truth with explicit active/next/queued phase statuses, phase gates, evidence, and anti-drift rules.
+- Added a Phase 6 exit checklist so media rendering cannot be marked done unless project media resolves through the host compiler path and missing required media blocks persistence.
+- Added `createProjectMediaResolver()` for project media assets with normalized `media/` paths and rejection of unsafe/out-of-namespace paths.
+- Threaded project media into the presentation workflow, editorial-stage queue runtime, and source-backed edit runtime.
+- Updated the editorial-stage compiler so bound media renders semantic `<img>` markup from resolved project assets while source payloads keep only asset ids.
+- Added validation feedback for unresolved required media and unresolved compiled media placeholders.
+- Added an example media fixture and regenerated `examples/example.html` with a real data-URL image in the lead-media slot.
+- Expanded deterministic render smoke coverage across `editorial-magazine`, `modern-minimal`, and `data-utility`, including direction metadata, media metadata, and no radial-gradient CSS.
+- Added a source-backed edit regression proving media survives deterministic recompilation after a text edit.
+- Ran a headless Chrome visual gate that generated 24 per-slide screenshots across `editorial-magazine`, `modern-minimal`, and `data-utility` into `/private/tmp/editorial-stage-visual-gate`.
+- Fixed the largest screenshot issues found in the gate: lead-media body copy no longer inherits uppercase label styling, and comparison verdicts now remain visible with tighter lane rhythm.
+
+Verification completed:
+
+- `npm test -- src/test/artifact-pack-media-resolver.test.ts src/test/editorial-stage-compiler.test.ts src/test/editorial-stage-validator.test.ts src/test/editorial-stage-render-smoke.test.ts src/test/artifact-pack-runtime-routing.test.ts`
+- targeted ESLint on changed source/test files
+- `git diff --check`
+- `npm run build`
+
+Remaining current gate:
+
+- Review the full screenshot set in `/private/tmp/editorial-stage-visual-gate` for any remaining subtle layout issues before marking Phase 5 done.
+- Then begin Phase 7 source-payload repair loops, using the validator finding ids added in Phase 5/6 as repair targets.
 
 ## Implementation Order
 

@@ -315,6 +315,7 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         ...(isEditFlow && activeDocument?.type === 'presentation' && activeDocument.artifactSourcePayload ? {
           artifactSourcePayload: activeDocument.artifactSourcePayload,
         } : {}),
+        projectMedia: useProjectStore.getState().project.media ?? [],
         templateGuidance: runRequest.artifactRunPlan.templateGuidance,
         ...(isEditFlow ? {
           editing: {

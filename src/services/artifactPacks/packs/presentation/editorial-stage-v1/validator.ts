@@ -24,6 +24,12 @@ const STYLE_SYSTEM_PATTERN =
   /<style\b[^>]*data-aura-style-system=["']presentation\/editorial-stage-v1["'][^>]*>/gi;
 const ANY_STYLE_PATTERN = /<style\b/gi;
 const SLOT_TOKEN_PATTERN = /\{\{\s*[\w.-]+\s*\}\}/;
+const FALLBACK_COPY_PATTERNS: Array<[RegExp, string]> = [
+  [/\bA clearer path forward\b/i, 'A clearer path forward'],
+  [/\bFrame the point\b/i, 'Frame the point'],
+  [/\bFocused point\b/i, 'Focused point'],
+  [/\bCurrent\s*\/\s*Proposed\b/i, 'Current / Proposed'],
+];
 
 type SourceLike = EditorialStageSource | unknown;
 
@@ -107,6 +113,7 @@ const pushSlotFindings = (
     }
 
     const declaredSlots = new Set(layout.slots.map((slot) => slot.id));
+    const declaredMediaSlots = new Map(layout.mediaSlots.map((slot) => [slot.id, slot]));
 
     for (const slot of layout.slots) {
       const value = slotText(slide.slots[slot.id]);
@@ -147,6 +154,18 @@ const pushSlotFindings = (
           ),
         );
       }
+
+      const fallbackPattern = FALLBACK_COPY_PATTERNS.find(([pattern]) => pattern.test(value));
+      if (fallbackPattern) {
+        findings.push(
+          finding(
+            'presentation.fallback_copy',
+            'advisory',
+            `Slide ${slideIndex + 1} still contains fallback copy "${fallbackPattern[1]}"; replace it with source-derived language.`,
+            ['slides', slideIndex, 'slots', slot.id],
+          ),
+        );
+      }
     }
 
     for (const [slotId, value] of Object.entries(slide.slots)) {
@@ -168,6 +187,57 @@ const pushSlotFindings = (
             'blocking',
             `Slide ${slideIndex + 1} slot "${slotId}" contains HTML-like markup; slots must be plain text.`,
             ['slides', slideIndex, 'slots', slotId],
+          ),
+        );
+      }
+    }
+
+    for (const mediaSlot of layout.mediaSlots) {
+      const binding = slide.media.find((media) => media.slotId === mediaSlot.id);
+      if (mediaSlot.required && !binding) {
+        findings.push(
+          finding(
+            'presentation.asset_missing_when_required',
+            'blocking',
+            `Slide ${slideIndex + 1} uses ${layout.id}, which requires media slot "${mediaSlot.id}". Bind an asset or choose a non-media layout.`,
+            ['slides', slideIndex, 'media', mediaSlot.id],
+          ),
+        );
+      }
+    }
+
+    for (const [mediaIndex, media] of slide.media.entries()) {
+      const mediaSlot = declaredMediaSlots.get(media.slotId);
+      if (!mediaSlot) {
+        findings.push(
+          finding(
+            'media.slot_unknown',
+            'blocking',
+            `Slide ${slideIndex + 1} binds undeclared media slot "${media.slotId}" for ${layout.id}.`,
+            ['slides', slideIndex, 'media', mediaIndex, 'slotId'],
+          ),
+        );
+        continue;
+      }
+
+      if (!mediaSlot.aspectRatios.includes(media.aspectRatio)) {
+        findings.push(
+          finding(
+            'media.aspect_invalid',
+            'blocking',
+            `Slide ${slideIndex + 1} media slot "${media.slotId}" uses unsupported aspect ratio "${media.aspectRatio}".`,
+            ['slides', slideIndex, 'media', mediaIndex, 'aspectRatio'],
+          ),
+        );
+      }
+
+      if (!mediaSlot.cropModes.includes(media.cropMode)) {
+        findings.push(
+          finding(
+            'media.crop_invalid',
+            'blocking',
+            `Slide ${slideIndex + 1} media slot "${media.slotId}" uses unsafe crop mode "${media.cropMode}".`,
+            ['slides', slideIndex, 'media', mediaIndex, 'cropMode'],
           ),
         );
       }
@@ -329,6 +399,17 @@ export const validateEditorialStageCompiledOutput = (
         'compiled.script_detected',
         'blocking',
         'Compiled presentation output must not include script tags.',
+        ['content'],
+      ),
+    );
+  }
+
+  if (/<div\b[^>]*class=["'][^"']*\bes-media-bound\b[^"']*["'][^>]*>\s*<span>/i.test(content)) {
+    findings.push(
+      finding(
+        'compiled.media_unresolved_placeholder',
+        'advisory',
+        'Compiled output contains a bound media placeholder without a resolved image asset.',
         ['content'],
       ),
     );

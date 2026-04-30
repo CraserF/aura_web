@@ -1,5 +1,9 @@
 import type { SlideBrief } from '@/services/ai/workflow/agents/planner';
-import type { ArtifactDesignDirectionId, ArtifactOutputMode } from '@/services/artifactPacks';
+import type {
+  ArtifactDesignDirectionId,
+  ArtifactMediaResolver,
+  ArtifactOutputMode,
+} from '@/services/artifactPacks';
 import { compileEditorialStagePack } from './compiler';
 import {
   EDITORIAL_STAGE_LAYOUT_BY_ID,
@@ -138,13 +142,13 @@ function slotValue(input: {
       return cleanText(kicker, input.slot.maxLength);
     case 'title':
     case 'question':
-      return title || 'A clearer path forward';
+      return title || 'Decision point';
     case 'subtitle':
     case 'bridge':
     case 'context':
     case 'body':
     case 'interpretation':
-      return guidance || 'Frame the point in one concise, audience-ready statement.';
+      return guidance || 'Use the strongest available evidence to make the next decision explicit.';
     case 'quote':
       return guidance || 'The signal is clear enough to act on.';
     case 'metric_value':
@@ -159,15 +163,15 @@ function slotValue(input: {
     case 'caption':
       return input.slot.required ? footer : '';
     case 'left_label':
-      return 'Current';
+      return 'Baseline path';
     case 'right_label':
-      return 'Proposed';
+      return 'Focused path';
     case 'left_body':
       return guidance || 'The current path spreads attention across too many priorities.';
     case 'right_body':
       return 'The proposed path concentrates attention around the strongest proof.';
     case 'verdict':
-      return 'The clearer path is the one the audience can understand, repeat, and act on.';
+      return 'Choose the path the audience can understand, repeat, and act on.';
     case 'recommendation':
       return guidance || 'Commit to the focused path and make the next decision explicit.';
     case 'risk':
@@ -185,7 +189,7 @@ function slotValue(input: {
     default:
       if (input.slot.id.endsWith('_title')) return title || 'Next step';
       if (input.slot.id.endsWith('_body')) return guidance || 'Make the step concrete and measurable.';
-      return guidance || title || 'Focused point';
+      return guidance || title || 'Audience-ready point';
   }
 }
 
@@ -423,11 +427,12 @@ export function patchEditorialStageTextSlots(
 
 export function compileEditorialStageSourceUpdate(
   edit: EditorialStageSourceEditResult,
-  options: { outputMode?: ArtifactOutputMode } = {},
+  options: { outputMode?: ArtifactOutputMode; mediaResolver?: ArtifactMediaResolver } = {},
 ): EditorialStageCompiledSourceUpdate {
   const compileResult = compileEditorialStagePack({
     source: edit.source,
     outputMode: options.outputMode ?? edit.source.outputMode,
+    ...(options.mediaResolver ? { mediaResolver: options.mediaResolver } : {}),
   });
   const html = compileResult.output.content;
   const sections = html.match(/<section\b[\s\S]*?<\/section>/gi) ?? [];

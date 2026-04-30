@@ -6,14 +6,72 @@
   --es-muted: #68635b;
   --es-line: #d7d0c3;
   --es-accent: #b4472f;
+  --es-accent-alt: #1f6f68;
   --es-night: #111318;
   --es-reverse: #fffaf0;
+  --es-data: #2563a8;
   --es-display: "Newsreader", "Iowan Old Style", Georgia, serif;
   --es-body: "Inter", "Aptos", system-ui, sans-serif;
   --es-mono: "SFMono-Regular", "IBM Plex Mono", ui-monospace, monospace;
 }
+
+.es-direction-modern-minimal {
+  --es-canvas: #f8fafc;
+  --es-surface: #ffffff;
+  --es-ink: #101827;
+  --es-muted: #64748b;
+  --es-line: #cbd5e1;
+  --es-accent: #2563eb;
+  --es-accent-alt: #0f766e;
+  --es-night: #0f172a;
+  --es-reverse: #f8fafc;
+  --es-data: #2563eb;
+  --es-display: "Inter", "Aptos Display", system-ui, sans-serif;
+}
+
+.es-direction-data-utility {
+  --es-canvas: #f4f7fb;
+  --es-surface: #ffffff;
+  --es-ink: #111827;
+  --es-muted: #526070;
+  --es-line: #b8c4d4;
+  --es-accent: #2563a8;
+  --es-accent-alt: #3f7f52;
+  --es-night: #152033;
+  --es-reverse: #f7fbff;
+  --es-data: #174ea6;
+  --es-display: "Inter", "Aptos Display", system-ui, sans-serif;
+}
+
+.es-direction-warm-narrative {
+  --es-canvas: #fbf5ea;
+  --es-surface: #fffaf2;
+  --es-ink: #24201a;
+  --es-muted: #75695c;
+  --es-line: #dfd2bd;
+  --es-accent: #9f4f2f;
+  --es-accent-alt: #4f7d6b;
+  --es-night: #231d18;
+  --es-reverse: #fff7e8;
+  --es-data: #8f5a24;
+}
+
+.es-direction-bold-editorial {
+  --es-canvas: #f7f0df;
+  --es-surface: #fffaf0;
+  --es-ink: #121212;
+  --es-muted: #5d564c;
+  --es-line: #1f1f1f;
+  --es-accent: #d13f24;
+  --es-accent-alt: #0f5f6a;
+  --es-night: #070707;
+  --es-reverse: #fff7e6;
+  --es-data: #d13f24;
+}
+
 .es-slide {
   box-sizing: border-box;
+  position: relative;
   display: grid;
   width: 1280px;
   height: 720px;
@@ -22,96 +80,135 @@
   background: var(--es-canvas);
   color: var(--es-ink);
   font-family: var(--es-body);
+  letter-spacing: 0;
 }
-.es-slide * { box-sizing: border-box; }
+
+.es-slide *,
+.es-slide *::before,
+.es-slide *::after {
+  box-sizing: border-box;
+}
+
 .es-slide h1,
 .es-slide h2,
+.es-slide h3,
 .es-slide p,
 .es-slide blockquote,
-.es-slide footer { margin: 0; }
+.es-slide figure,
+.es-slide ol,
+.es-slide dl {
+  margin: 0;
+}
+
 .es-slide h1,
 .es-slide h2 {
+  max-width: 920px;
   font-family: var(--es-display);
   font-weight: 720;
   line-height: .94;
   letter-spacing: 0;
 }
-.es-slide h1 { max-width: 880px; font-size: 84px; }
-.es-slide h2 { max-width: 900px; font-size: 58px; }
+
+.es-slide h1 {
+  font-size: 84px;
+}
+
+.es-slide h2 {
+  font-size: 58px;
+}
+
+.es-slide h3 {
+  font-size: 26px;
+  line-height: 1.05;
+}
+
 .es-slide p,
-.es-slide li { font-size: 24px; line-height: 1.26; }
+.es-slide dd,
+.es-slide li,
+.es-slide figcaption {
+  font-size: 24px;
+  line-height: 1.26;
+}
+
+.es-slide footer,
+.es-slide figcaption,
 .es-chrome,
+.es-section-number,
 .es-slide header > p,
-.es-slide footer {
+.es-slide aside > p:first-child,
+.es-story-copy > p:first-child,
+.es-question > p:first-child,
+.es-closing > p:first-child {
   font-family: var(--es-mono);
   font-size: 16px;
   font-weight: 700;
+  line-height: 1;
   text-transform: uppercase;
   color: var(--es-muted);
 }
+
+.es-slide footer {
+  position: absolute;
+  right: 72px;
+  bottom: 42px;
+}
+
+.es-mood-dark,
 .es-mood-hero-dark {
   background: var(--es-night);
   color: var(--es-reverse);
 }
+
+.es-mood-dark footer,
+.es-mood-hero-dark footer,
+.es-mood-dark header > p,
+.es-mood-hero-dark .es-chrome,
+.es-mood-hero-dark p:first-child {
+  color: rgba(255, 250, 240, .68);
+}
+
+.es-mood-hero-light {
+  background: var(--es-surface);
+}
+
 .es-cover {
   grid-template-rows: auto 1fr auto;
-  background: linear-gradient(90deg, var(--es-accent) 0 8px, transparent 8px), var(--es-night);
+  background:
+    linear-gradient(90deg, var(--es-accent) 0 8px, transparent 8px),
+    linear-gradient(0deg, rgba(255, 250, 240, .05) 0 1px, transparent 1px 92px),
+    var(--es-night);
 }
+
 .es-cover-lockup {
   align-self: center;
   display: grid;
   gap: 26px;
   max-width: 880px;
 }
+
 .es-cover-lockup p {
   max-width: 640px;
-  color: rgba(255, 250, 240, .78);
   font-size: 27px;
+  color: rgba(255, 250, 240, .78);
 }
-.es-big-number {
-  grid-template-columns: minmax(0, 1fr) 440px;
-  grid-template-rows: auto 1fr auto;
-  column-gap: 58px;
-}
-.es-big-number header {
-  grid-column: 1 / -1;
-  display: grid;
-  gap: 14px;
-}
-.es-number-block {
-  align-self: center;
-  display: grid;
-  gap: 14px;
-  padding-left: 32px;
-  border-left: 5px solid var(--es-accent);
-}
-.es-number-block strong {
-  color: var(--es-accent);
-  font-family: var(--es-mono);
-  font-size: 124px;
-  line-height: .9;
-}
-.es-number-block span {
-  max-width: 310px;
-  font-size: 23px;
-  line-height: 1.2;
-}
-.es-interpretation {
-  align-self: end;
-  max-width: 520px;
-  padding-top: 28px;
-  border-top: 1px solid var(--es-line);
-  font-size: 30px;
-}
-.es-closing {
-  grid-template-rows: auto auto 1fr;
-  gap: 32px;
+
+.es-divider {
+  align-content: center;
+  gap: 24px;
   background: var(--es-night);
 }
-.es-closing h2 {
-  max-width: 850px;
-  font-size: 72px;
+
+.es-section-number {
+  color: var(--es-accent);
 }
+
+.es-divider h2 {
+  max-width: 820px;
+  font-size: 76px;
+}
+
+.es-divider h2::after,
+.es-question h2::after,
 .es-closing h2::after {
   content: "";
   display: block;
@@ -120,20 +217,458 @@
   margin-top: 28px;
   background: var(--es-accent);
 }
-.es-closing ol {
+
+.es-divider > p:last-of-type {
+  max-width: 540px;
+  color: rgba(255, 250, 240, .74);
+}
+
+.es-big-number {
+  grid-template-columns: minmax(0, 1fr) 440px;
+  grid-template-rows: auto 1fr auto;
+  column-gap: 58px;
+}
+
+.es-big-number header {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 14px;
+}
+
+.es-number-block {
+  align-self: center;
+  display: grid;
+  gap: 14px;
+  padding-left: 32px;
+  border-left: 5px solid var(--es-accent);
+}
+
+.es-number-block strong {
+  font-family: var(--es-mono);
+  font-size: 124px;
+  line-height: .9;
+  color: var(--es-accent);
+}
+
+.es-number-block span {
+  max-width: 310px;
+  font-size: 23px;
+  line-height: 1.2;
+}
+
+.es-interpretation {
   align-self: end;
+  max-width: 520px;
+  padding: 28px 0 0;
+  border-top: 1px solid var(--es-line);
+  font-size: 30px;
+}
+
+.es-story-split {
+  grid-template-columns: minmax(0, 1fr) 430px;
+  gap: 56px;
+}
+
+.es-story-split.es-no-media {
+  grid-template-columns: 1fr;
+}
+
+.es-story-copy {
+  display: grid;
+  align-content: center;
+  gap: 20px;
+}
+
+.es-story-split.es-no-media .es-story-copy {
+  max-width: 900px;
+}
+
+.es-story-copy blockquote {
+  max-width: 640px;
+  padding-left: 24px;
+  border-left: 4px solid var(--es-accent);
+  font-family: var(--es-display);
+  font-size: 34px;
+  line-height: 1.03;
+}
+
+.es-story-copy > p:last-child {
+  max-width: 620px;
+}
+
+.es-media-frame,
+.es-lead-media figure,
+.es-grid-frames figure {
+  display: grid;
+  gap: 12px;
+}
+
+.es-media-placeholder,
+.es-grid-frames figure > div,
+.es-lead-media figure > div {
+  min-height: 300px;
+  border: 1px solid var(--es-line);
+  background:
+    linear-gradient(135deg, rgba(31, 111, 104, .18), transparent 46%),
+    repeating-linear-gradient(135deg, rgba(23, 23, 23, .08) 0 1px, transparent 1px 18px),
+    var(--es-surface);
+}
+
+.es-media-bound {
+  position: relative;
+  place-items: stretch;
+  padding: 22px;
+  background:
+    linear-gradient(135deg, rgba(37, 99, 168, .18), transparent 52%),
+    linear-gradient(0deg, rgba(23, 23, 23, .12), rgba(23, 23, 23, .12)),
+    var(--es-surface);
+}
+
+.es-media-bound img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: cover;
+  object-position: center;
+}
+
+.es-media-bound span {
+  align-self: end;
+  justify-self: start;
+  max-width: 72%;
+  padding: 8px 10px;
+  background: rgba(255, 253, 247, .86);
+  color: var(--es-ink);
+  font-family: var(--es-mono);
+  font-size: 13px;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.es-crop-contain {
+  background-size: contain;
+}
+
+.es-crop-contain img {
+  object-fit: contain;
+}
+
+.es-crop-cover-top,
+.es-crop-cover-center {
+  background-size: cover;
+}
+
+.es-crop-cover-top img {
+  object-position: top center;
+}
+
+.es-crop-cover-center img {
+  object-position: center;
+}
+
+.es-media-frame .es-media-placeholder {
+  height: 520px;
+}
+
+.es-media-grid {
+  grid-template-rows: auto 1fr;
+  gap: 30px;
+}
+
+.es-media-grid header {
+  display: grid;
+  gap: 12px;
+}
+
+.es-grid-frames {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.es-grid-frames figure > div {
+  min-height: 330px;
+}
+
+.es-pipeline {
+  grid-template-rows: auto 1fr auto;
+  gap: 34px;
+  background: var(--es-night);
+}
+
+.es-pipeline header {
+  display: grid;
+  gap: 12px;
+}
+
+.es-pipeline ol,
+.es-closing ol {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 18px;
   padding: 0;
   list-style: none;
+  counter-reset: step;
 }
+
+.es-pipeline li,
 .es-closing li {
+  position: relative;
   min-height: 210px;
   padding: 26px 24px;
   border-top: 4px solid var(--es-accent);
   background: rgba(255, 250, 240, .08);
 }
+
+.es-pipeline li::before,
+.es-closing li::before {
+  counter-increment: step;
+  content: "0" counter(step);
+  display: block;
+  margin-bottom: 22px;
+  font-family: var(--es-mono);
+  font-size: 16px;
+  color: var(--es-accent);
+}
+
+.es-pipeline b {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 28px;
+}
+
+.es-pipeline span {
+  display: block;
+  color: rgba(255, 250, 240, .78);
+}
+
+.es-pipeline > p {
+  max-width: 640px;
+  color: rgba(255, 250, 240, .78);
+}
+
+.es-question {
+  align-content: center;
+  gap: 24px;
+  background:
+    linear-gradient(90deg, var(--es-accent-alt) 0 8px, transparent 8px),
+    var(--es-night);
+}
+
+.es-question.es-mood-hero-light {
+  background:
+    linear-gradient(90deg, var(--es-accent-alt) 0 8px, transparent 8px),
+    var(--es-surface);
+  color: var(--es-ink);
+}
+
+.es-question.es-mood-hero-light > p:nth-of-type(2) {
+  color: var(--es-muted);
+}
+
+.es-question h2 {
+  max-width: 930px;
+  font-size: 78px;
+}
+
+.es-question > p:nth-of-type(2) {
+  max-width: 620px;
+  color: rgba(255, 250, 240, .76);
+}
+
+.es-big-quote {
+  align-content: center;
+  justify-items: start;
+  gap: 26px;
+}
+
+.es-big-quote blockquote {
+  max-width: 980px;
+  font-family: var(--es-display);
+  font-size: 64px;
+  line-height: .98;
+}
+
+.es-big-quote blockquote::before {
+  content: "";
+  display: block;
+  width: 120px;
+  height: 5px;
+  margin-bottom: 28px;
+  background: var(--es-accent);
+}
+
+.es-comparison {
+  grid-template-rows: auto 320px auto;
+  gap: 22px;
+}
+
+.es-comparison header {
+  display: grid;
+  gap: 12px;
+}
+
+.es-compare-lanes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  min-height: 0;
+}
+
+.es-compare-lanes article {
+  padding: 30px;
+  border-top: 4px solid var(--es-accent);
+  background: var(--es-surface);
+  min-height: 0;
+}
+
+.es-compare-lanes h3 {
+  margin-bottom: 34px;
+  font-family: var(--es-mono);
+  font-size: 16px;
+  text-transform: uppercase;
+  color: var(--es-accent);
+}
+
+.es-verdict {
+  max-width: 760px;
+  padding-top: 14px;
+  border-top: 1px solid var(--es-line);
+  font-size: 24px;
+  line-height: 1.18;
+}
+
+.es-lead-media {
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 46px;
+}
+
+.es-lead-media figure > div {
+  min-height: 492px;
+}
+
+.es-lead-media aside {
+  align-self: center;
+  display: grid;
+  gap: 20px;
+}
+
+.es-lead-media aside p:last-child {
+  max-width: 340px;
+  font-size: 23px;
+  line-height: 1.22;
+  color: var(--es-muted);
+}
+
+.es-decision {
+  grid-template-rows: auto 1fr;
+  gap: 34px;
+}
+
+.es-decision header {
+  display: grid;
+  gap: 12px;
+}
+
+.es-decision main {
+  display: grid;
+  grid-template-columns: minmax(0, .92fr) 1.08fr;
+  gap: 42px;
+  align-items: start;
+}
+
+.es-decision main > p {
+  padding-top: 24px;
+  border-top: 5px solid var(--es-accent);
+  font-family: var(--es-display);
+  font-size: 38px;
+  line-height: 1.02;
+}
+
+.es-decision dl {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  row-gap: 20px;
+  column-gap: 22px;
+}
+
+.es-decision dt {
+  font-family: var(--es-mono);
+  font-size: 16px;
+  text-transform: uppercase;
+  color: var(--es-muted);
+}
+
+.es-decision dd {
+  border-bottom: 1px solid var(--es-line);
+  padding-bottom: 18px;
+}
+
+.es-closing {
+  grid-template-rows: auto auto 1fr;
+  gap: 32px;
+  background:
+    linear-gradient(90deg, var(--es-accent) 0 8px, transparent 8px),
+    linear-gradient(0deg, rgba(255, 250, 240, .05) 0 1px, transparent 1px 88px),
+    var(--es-night);
+}
+
+.es-closing h2 {
+  max-width: 850px;
+  font-size: 72px;
+}
+
+.es-closing ol {
+  align-self: end;
+}
+
+.es-direction-modern-minimal h1,
+.es-direction-modern-minimal h2,
+.es-direction-data-utility h1,
+.es-direction-data-utility h2 {
+  font-weight: 760;
+  line-height: 1;
+}
+
+.es-direction-modern-minimal .es-cover,
+.es-direction-modern-minimal.es-cover {
+  background:
+    linear-gradient(90deg, var(--es-accent) 0 6px, transparent 6px),
+    var(--es-night);
+}
+
+.es-direction-data-utility .es-number-block strong,
+.es-direction-data-utility.es-big-number .es-number-block strong {
+  font-size: 112px;
+}
+
+.es-direction-data-utility .es-decision main,
+.es-direction-data-utility.es-decision main {
+  grid-template-columns: minmax(0, .78fr) 1.22fr;
+}
+
+.es-direction-warm-narrative h1,
+.es-direction-warm-narrative h2,
+.es-direction-warm-narrative blockquote {
+  font-weight: 680;
+}
+
+.es-direction-bold-editorial h1 {
+  max-width: 980px;
+  font-size: 92px;
+}
+
+.es-direction-bold-editorial h2 {
+  max-width: 980px;
+  font-size: 64px;
+}
+
+.es-direction-bold-editorial .es-compare-lanes article,
+.es-direction-bold-editorial.es-comparison .es-compare-lanes article {
+  border-top-width: 6px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .es-slide,
   .es-slide * {
@@ -142,7 +677,7 @@
   }
 }
 </style>
-<section class="es-slide es-cover es-mood-hero-dark" data-layout="cover" data-pack="presentation/editorial-stage-v1" data-slide-id="slide-1" data-background-color="#111318">
+<section class="es-slide es-cover es-mood-hero-dark es-direction-editorial-magazine" data-layout="cover" data-pack="presentation/editorial-stage-v1" data-slide-id="slide-1" data-direction="editorial-magazine" data-background-color="#111318">
   <div class="es-chrome" data-slot="kicker">Board review</div>
   <div class="es-cover-lockup">
     <h1 data-slot="title">Choose the focused launch path</h1>
@@ -150,25 +685,38 @@
   </div>
   <footer data-slot="meta">April 2026</footer>
 </section>
-<section class="es-slide es-big-number es-mood-light" data-layout="big-number" data-pack="presentation/editorial-stage-v1" data-slide-id="slide-2" data-background-color="#f7f3e8">
-  <header>
-    <p data-slot="kicker">Proof</p>
-    <h2 data-slot="title">One segment is already carrying momentum</h2>
-  </header>
-  <div class="es-number-block">
-    <strong data-slot="metric_value">42%</strong>
-    <span data-slot="metric_label">of qualified demand came from the focused buyer segment.</span>
-  </div>
+<section class="es-slide es-story-split es-mood-light es-direction-editorial-magazine es-no-media" data-layout="story-split" data-pack="presentation/editorial-stage-v1" data-slide-id="slide-2" data-direction="editorial-magazine" data-background-color="#f7f3e8">
+  <div class="es-story-copy"><p data-slot="kicker">Context</p><h2 data-slot="title">The broad launch is diluting attention</h2><blockquote data-slot="quote">The team is carrying too many stories for one market moment.</blockquote><p data-slot="body">Three audiences are being served at once, which makes proof harder to notice and harder to repeat.</p></div>
+</section>
+<section class="es-slide es-big-number es-mood-light es-direction-editorial-magazine" data-layout="big-number" data-pack="presentation/editorial-stage-v1" data-slide-id="slide-3" data-direction="editorial-magazine" data-background-color="#f7f3e8">
+  <header><p data-slot="kicker">Proof</p><h2 data-slot="title">One segment is already carrying momentum</h2></header>
+  <div class="es-number-block"><strong data-slot="metric_value">42%</strong><span data-slot="metric_label">of qualified demand came from the focused buyer segment.</span></div>
   <p class="es-interpretation" data-slot="interpretation">The strongest signal is narrow enough to act on and broad enough to compound.</p>
   <footer data-slot="source">Pipeline review</footer>
 </section>
-<section class="es-slide es-closing es-mood-hero-dark" data-layout="closing-action" data-pack="presentation/editorial-stage-v1" data-slide-id="slide-3" data-background-color="#111318">
+<section class="es-slide es-question es-mood-hero-light es-direction-editorial-magazine" data-layout="question-hero" data-pack="presentation/editorial-stage-v1" data-slide-id="slide-4" data-direction="editorial-magazine" data-background-color="#fffdf7">
+  <p data-slot="kicker">Decision</p>
+  <h2 data-slot="question">What if the launch wins by narrowing first?</h2>
+  <p data-slot="context">Focus gives the team a cleaner claim, stronger proof, and a simpler operating cadence.</p>
+  <footer data-slot="footer">Reset before recommendation</footer>
+</section>
+<section class="es-slide es-lead-media es-mood-light es-direction-editorial-magazine" data-layout="lead-media" data-pack="presentation/editorial-stage-v1" data-slide-id="slide-5" data-direction="editorial-magazine" data-background-color="#f7f3e8">
+  <figure data-media-slot="lead_media"><div class="es-media-placeholder es-media-bound es-crop-contain" data-asset-id="launch-proof-screenshot" role="img" aria-label="Annotated screenshot showing focused buyer demand and launch proof points"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjgwIiBoZWlnaHQ9IjcyMCIgdmlld0JveD0iMCAwIDEyODAgNzIwIj48cmVjdCB3aWR0aD0iMTI4MCIgaGVpZ2h0PSI3MjAiIGZpbGw9IiNmN2YzZTgiLz48cmVjdCB4PSI5NiIgeT0iOTYiIHdpZHRoPSIxMDg4IiBoZWlnaHQ9IjUyOCIgZmlsbD0iI2ZmZmFmMCIgc3Ryb2tlPSIjMTcxNzE3IiBzdHJva2Utd2lkdGg9IjQiLz48cGF0aCBkPSJNMTYwIDUwMCBMNDIwIDM2MCBMNjUwIDQxMCBMOTIwIDIyMCBMMTEyMCAyNjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2I0NDcyZiIgc3Ryb2tlLXdpZHRoPSIxOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PGcgZmlsbD0iIzE3MTcxNyIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIj48dGV4dCB4PSIxNTAiIHk9IjE3MCIgZm9udC1zaXplPSI1MiIgZm9udC13ZWlnaHQ9IjcwMCI+TGF1bmNoIHByb29mIGZyYW1lPC90ZXh0Pjx0ZXh0IHg9IjE1NCIgeT0iMjM1IiBmb250LXNpemU9IjMwIj5Gb2N1c2VkIGJ1eWVyIGRlbWFuZCBhbmQgY2hhbm5lbCBzaWduYWw8L3RleHQ+PHRleHQgeD0iMTU0IiB5PSI1ODAiIGZvbnQtc2l6ZT0iMjYiPkV2aWRlbmNlIHBsYWNlaG9sZGVyIGZvciBtYW51YWwgZ2F0ZTwvdGV4dD48L2c+PC9zdmc+" alt="Annotated screenshot showing focused buyer demand and launch proof points" /></div><figcaption data-slot="caption">Evidence frame planned for launch proof screenshot</figcaption></figure>
+  <aside><p data-slot="kicker">Evidence</p><h2 data-slot="title">Show the proof where the claim is made</h2><p data-slot="body">The launch story should point to one annotated evidence frame: demand source, buyer language, and the channel where attention is already compounding.</p></aside>
+</section>
+<section class="es-slide es-comparison es-mood-light es-direction-editorial-magazine" data-layout="comparison" data-pack="presentation/editorial-stage-v1" data-slide-id="slide-6" data-direction="editorial-magazine" data-background-color="#f7f3e8">
+  <header><p data-slot="kicker">Trade-off</p><h2 data-slot="title">The choice is not smaller; it is sharper</h2></header>
+  <div class="es-compare-lanes"><article><h3 data-slot="left_label">Broad cycle</h3><p data-slot="left_body">Many audiences receive a lighter story, so the team spends more time explaining and less time proving.</p></article><article><h3 data-slot="right_label">Focused cycle</h3><p data-slot="right_body">One buyer segment receives the strongest proof, giving sales and marketing a claim they can repeat.</p></article></div>
+  <p class="es-verdict" data-slot="verdict">The focused cycle is easier to remember, measure, and repeat.</p>
+</section>
+<section class="es-slide es-pipeline es-mood-dark es-direction-editorial-magazine" data-layout="process-pipeline" data-pack="presentation/editorial-stage-v1" data-slide-id="slide-7" data-direction="editorial-magazine" data-background-color="#111318">
+  <header><p data-slot="kicker">Mechanism</p><h2 data-slot="title">Turn focus into an operating cadence</h2></header>
+  <ol><li><b data-slot="step_1_title">Lock proof</b><span data-slot="step_1_body">Confirm the evidence frame, source, and buyer language before rewriting assets.</span></li><li><b data-slot="step_2_title">Rewrite assets</b><span data-slot="step_2_body">Align launch page, sales narrative, and outbound story around the same claim.</span></li><li><b data-slot="step_3_title">Review signal</b><span data-slot="step_3_body">Check traction after four weeks and decide whether to widen the story.</span></li></ol>
+  <p data-slot="takeaway">The cadence makes focus feel operational, not philosophical.</p>
+</section>
+<section class="es-slide es-closing es-mood-hero-dark es-direction-editorial-magazine" data-layout="closing-action" data-pack="presentation/editorial-stage-v1" data-slide-id="slide-8" data-direction="editorial-magazine" data-background-color="#111318">
   <p data-slot="kicker">Next</p>
   <h2 data-slot="title">Make focus the operating decision</h2>
-  <ol>
-    <li data-slot="action_1">Confirm the buyer segment and proof claim.</li>
-    <li data-slot="action_2">Rewrite launch assets around the single story.</li>
-    <li data-slot="action_3">Review traction after four weeks.</li>
-  </ol>
+  <ol><li data-slot="action_1">Confirm the buyer segment and proof claim.</li><li data-slot="action_2">Rewrite launch assets around the single story.</li><li data-slot="action_3">Review traction after four weeks.</li></ol>
   <footer data-slot="footer">Decision checkpoint</footer>
 </section>
