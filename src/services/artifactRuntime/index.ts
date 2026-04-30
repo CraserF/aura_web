@@ -124,6 +124,20 @@ export {
   PRESENTATION_VIEWPORT_MATRIX,
   validatePresentationViewportContract,
 } from './presentationViewport';
+export {
+  assembleScaffoldDeck,
+  buildScaffoldStyleBlock,
+  compileScaffoldSlide,
+  getPresentationScaffold,
+  isScaffoldedPresentationRun,
+  listPresentationScaffolds,
+  planDeckRhythm,
+  resolveDefaultScaffoldSelection,
+  resolveScaffoldForRunPlan,
+  runScaffoldedPresentationEditRuntime,
+  runScaffoldedPresentationQueue,
+  validateScaffoldedDeck,
+} from '@/services/presentationScaffolds';
 export { buildStaticPresentationStarterRuntime } from './starterPresentationRuntime';
 export {
   attachSpreadsheetRuntimeParts,
@@ -205,6 +219,22 @@ export type {
   PresentationViewportSpec,
   PresentationViewportValidationResult,
 } from './presentationViewport';
+export type {
+  DeckRhythmPlan,
+  PresentationAllowedEditSurface,
+  PresentationDesignContextSpec,
+  PresentationExportIntent,
+  PresentationMediaSlotPlan,
+  PresentationScaffold,
+  PresentationScaffoldDirectionId,
+  PresentationScaffoldId,
+  ScaffoldCompileResult,
+  ScaffoldValidationFinding,
+  ScaffoldValidationResult,
+  SlideSkeleton,
+  SlideSlotDefinition,
+  SlideSlotPayload,
+} from '@/services/presentationScaffolds';
 export type {
   RuntimeQualityDiagnosticLine,
 } from './qualityDiagnostics';

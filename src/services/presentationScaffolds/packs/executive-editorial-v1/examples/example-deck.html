@@ -1,0 +1,34 @@
+<style data-aura-style-system="executive-editorial-v1">
+:root { --pes-bg:#f8f6f0; --pes-surface:#ffffff; --pes-ink:#161616; --pes-muted:#5f6672; --pes-primary:#1f4f63; --pes-accent:#c7663b; --pes-secondary:#4c7f73; --pes-line:#d9ded8; --pes-soft:#edf1ee; --pes-hero-bg:#111827; --pes-hero-ink:#f8fafc; --pes-hero-muted:#cbd5e1; }
+.pes-slide{position:relative;box-sizing:border-box;overflow:hidden;width:100%;height:100%;padding:58px 68px 48px;color:var(--pes-ink);background:linear-gradient(135deg,var(--pes-bg),var(--pes-surface));font-family:Aptos,Inter,system-ui,sans-serif}
+.pes-mood-hero-dark{color:var(--pes-hero-ink);background:linear-gradient(135deg,var(--pes-hero-bg),var(--pes-primary))}
+.pes-shell{position:relative;z-index:2;display:grid;height:100%;gap:22px}.pes-cover .pes-shell{align-content:center;max-width:880px}.pes-kicker,.pes-footer{margin:0;color:var(--pes-primary);font-size:16px;font-weight:800}.pes-title{margin:0;font-size:84px;line-height:.92}.pes-subtitle,.pes-body{margin:0;color:var(--pes-muted);font-size:29px;line-height:1.25}.pes-heading{margin:0;font-size:56px;line-height:.98}.pes-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:30px}.pes-panel{display:grid;align-content:end;min-height:350px;border:1px solid var(--pes-line);border-radius:8px;padding:34px;background:var(--pes-surface)}.pes-panel-title{margin:0;font-size:38px;line-height:1.02}.pes-panel-copy{margin:14px 0 0;color:var(--pes-muted);font-size:23px;line-height:1.25}.pes-stack{display:grid;align-content:start;gap:18px}.pes-quote{margin:0;font-size:41px;line-height:1.02}.pes-footer{align-self:end}@keyframes pes-breathe{0%,100%{opacity:.58}50%{opacity:.86}}@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+<section class="pes-slide pes-cover pes-mood-hero-dark pes-density-calm" data-scaffold="executive-editorial-v1" data-skeleton="cover" data-background-color="#111827">
+  <div class="pes-shell">
+    <p class="pes-kicker" data-slot="kicker">Executive Brief</p>
+    <h1 class="pes-title" data-slot="title">A clearer path from signal to decision</h1>
+    <p class="pes-subtitle" data-slot="subtitle">A scaffolded Aura deck generated from locked structure, theme tokens, and approved content slots.</p>
+    <p class="pes-footer" data-slot="footer">Aura scaffold preview</p>
+  </div>
+</section>
+<section class="pes-slide pes-context pes-mood-light pes-density-balanced" data-scaffold="executive-editorial-v1" data-skeleton="context" data-background-color="#f8f6f0">
+  <div class="pes-shell">
+    <header class="pes-stack">
+      <p class="pes-kicker" data-slot="kicker">Context</p>
+      <h2 class="pes-heading" data-slot="title">The runtime owns the visual system</h2>
+    </header>
+    <div class="pes-grid">
+      <article class="pes-panel">
+        <p class="pes-kicker" data-slot="panel_label">Guardrail</p>
+        <h3 class="pes-panel-title" data-slot="panel_title">No invented classes</h3>
+        <p class="pes-panel-copy" data-slot="panel_body">The agent fills text slots; the compiler assembles the slide.</p>
+      </article>
+      <div class="pes-stack">
+        <p class="pes-body" data-slot="body">This reference deck demonstrates a scaffold-first deck path with separate CSS and HTML skeletons.</p>
+        <p class="pes-quote" data-slot="quote">Better output starts with less visual freedom.</p>
+      </div>
+    </div>
+    <p class="pes-footer" data-slot="footer">02 / 02</p>
+  </div>
+</section>

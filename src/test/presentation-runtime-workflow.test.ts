@@ -158,8 +158,9 @@ describe('presentation runtime workflow orchestration', () => {
       isEdit: false,
     });
 
-    expect(runBatchQueueMock).toHaveBeenCalledTimes(1);
+    expect(runBatchQueueMock).not.toHaveBeenCalled();
     expect(events.filter((event) => event.type === 'batch-slide-complete')).toHaveLength(2);
+    expect(output.html).toContain('data-scaffold="executive-editorial-v1"');
     expect(output.runtime?.runMode).toBe('queued-create');
     expect(output.runtime?.queuedPartCount).toBe(2);
     expect(output.runtime?.completedPartCount).toBe(2);
@@ -240,7 +241,7 @@ describe('presentation runtime workflow orchestration', () => {
       isEdit: false,
     });
 
-    expect(runBatchQueueMock).toHaveBeenCalledTimes(1);
+    expect(runBatchQueueMock).not.toHaveBeenCalled();
     expect(output.html).toContain('Runtime slide one');
     expect(output.html).toContain('Runtime slide two');
     expect(output.html).not.toContain('Legacy ignored');
@@ -302,7 +303,7 @@ describe('presentation runtime workflow orchestration', () => {
       skipSecondaryEvaluation: false,
     });
 
-    expect(runBatchQueueMock).toHaveBeenCalledTimes(1);
+    expect(runBatchQueueMock).not.toHaveBeenCalled();
     expect(output.runtime?.runMode).toBe('queued-create');
     expect(output.runtime?.queuedPartCount).toBe(2);
     expect(output.runtime?.validationPassed).toBe(true);
@@ -322,7 +323,7 @@ describe('presentation runtime workflow orchestration', () => {
     }));
   });
 
-  it('repairs failing queued slide fragments before final deck validation', async () => {
+  it('uses scaffolded queued slides instead of repairing model-authored fragments', async () => {
     const fullDeckHtml = `${VALID_STYLE}
       <section><h1 class="slide-title">Opening thesis</h1><p class="slide-body">Decision-ready opening.</p></section>
       <section data-background-color="#ffffff"><h2 class="slide-title">Next move</h2><p class="slide-body">Approve the next action.</p></section>`;
@@ -346,20 +347,16 @@ describe('presentation runtime workflow orchestration', () => {
       isEdit: false,
     });
 
-    expect(output.html).toContain('<section data-background-color="#ffffff"><h1 class="slide-title">Opening thesis</h1>');
+    expect(runBatchQueueMock).not.toHaveBeenCalled();
+    expect(output.html).toContain('data-scaffold="executive-editorial-v1"');
+    expect(output.html).toContain('Opening thesis');
     expect(output.runtime?.validationPassed).toBe(true);
-    expect(output.runtime?.repairCount).toBe(1);
-    expect(output.runtime?.repairedPartCount).toBe(1);
-    expect(events).toContainEqual(expect.objectContaining({
-      type: 'progress',
-      message: 'Repairing slide 1 fragment.',
-      partId: 'slide-1',
-      runId: 'presentation-runtime-workflow-run',
-    }));
+    expect(output.runtime?.repairCount).toBe(0);
+    expect(output.runtime?.repairedPartCount).toBe(0);
     expect(events).toContainEqual(expect.objectContaining({
       type: 'step-update',
       stepId: 'slide-1',
-      label: 'Repaired slide 1 fragment.',
+      label: 'Slide 1/2: linted',
       status: 'done',
     }));
     expect(events.some((event) =>

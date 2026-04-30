@@ -1,6 +1,7 @@
 import type { LanguageModel } from 'ai';
 
 import { runBatchQueue } from '@/services/ai/workflow/batchQueue';
+import type { BatchQueueResult } from '@/services/ai/workflow/batchQueue';
 import { design, designEdit } from '@/services/ai/workflow/agents/designer';
 import { plan } from '@/services/ai/workflow/agents/planner';
 import { validateSlides, type QAViolation } from '@/services/ai/workflow/agents/qa-validator';
@@ -9,6 +10,14 @@ import { sanitizeSlideHtml } from '@/services/ai/utils/sanitizeHtml';
 import { sanitizeInnerHtml } from '@/services/html/sanitizer';
 import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
 import { resolvePresentationStyleSystem } from '@/services/artifactRuntime/presentationStyleSystem';
+import {
+  isScaffoldedPresentationRun,
+  resolveScaffoldForRunPlan,
+  runScaffoldedPresentationEditRuntime,
+  runScaffoldedPresentationQueue,
+  validateScaffoldedDeck,
+  type ScaffoldValidationResult,
+} from '@/services/presentationScaffolds';
 import {
   applyArtifactRunPlanToPresentationPlan,
   buildSlideBriefsFromRunPlan,
@@ -608,10 +617,11 @@ export function validatePresentationRuntimeOutput(
   html: string,
   planResult: PlanResult,
   expectedSlideCount: number,
+  options: { skipExpectedBackground?: boolean } = {},
 ): PresentationRuntimeValidationResult {
   const qaResult = validateSlides(html, {
     expectedSlideCount,
-    expectedBgColor: planResult.blueprint.palette.bg,
+    expectedBgColor: options.skipExpectedBackground ? undefined : planResult.blueprint.palette.bg,
     isCreate: planResult.intent === 'batch_create' || planResult.intent === 'create',
     styleManifest: planResult.styleManifest,
     exemplarPackId: planResult.exemplarPackId,
@@ -627,6 +637,39 @@ export function validatePresentationRuntimeOutput(
     summary: qaResult.violations.length === 0
       ? 'Queued presentation runtime validation passed.'
       : `Queued presentation runtime found ${blockingCount} blocking issue(s) and ${advisoryCount} advisory issue(s).`,
+  };
+}
+
+function combineScaffoldValidation(
+  runtimeValidation: PresentationRuntimeValidationResult,
+  scaffoldValidation: ScaffoldValidationResult | undefined,
+): PresentationRuntimeValidationResult {
+  if (!scaffoldValidation || scaffoldValidation.findings.length === 0) {
+    return runtimeValidation;
+  }
+
+  const validationByPart = [
+    ...runtimeValidation.validationByPart,
+    ...scaffoldValidation.findings.map((finding, index) => ({
+      partId: finding.slideIndex ? `slide-${finding.slideIndex}` : `scaffold-${index + 1}`,
+      label: finding.id,
+      validationPassed: finding.severity !== 'blocking',
+      blockingCount: finding.severity === 'blocking' ? 1 : 0,
+      advisoryCount: finding.severity === 'advisory' ? 1 : 0,
+      rules: [finding.message],
+    })),
+  ];
+  const blockingCount = runtimeValidation.blockingCount + scaffoldValidation.blockingCount;
+  const advisoryCount = runtimeValidation.advisoryCount + scaffoldValidation.advisoryCount;
+
+  return {
+    passed: blockingCount === 0,
+    blockingCount,
+    advisoryCount,
+    validationByPart,
+    summary: blockingCount === 0
+      ? `Queued presentation runtime validation passed with ${scaffoldValidation.advisoryCount} scaffold advisory issue(s).`
+      : `Queued presentation runtime found ${blockingCount} blocking issue(s) and ${advisoryCount} advisory issue(s), including scaffold contract findings.`,
   };
 }
 
@@ -810,46 +853,91 @@ export async function runQueuedPresentationRuntime(
     pct: 18,
   });
 
+  const existingDeckIsScaffolded = !input.existingSlidesHtml || /\bdata-scaffold=["'][^"']+["']/i.test(input.existingSlidesHtml);
+  const useScaffoldRuntime = isScaffoldedPresentationRun(runPlan) && (!isEdit || existingDeckIsScaffolded);
+  let styleSystemHtmlForRepair = '';
+  let scaffoldValidation: ScaffoldValidationResult | undefined;
   const styleStartedAt = performance.now();
-  const styleSystem = await resolvePresentationStyleSystem({
-    planResult: effectivePlanResult,
-    ...(runPlan ? { runPlan } : {}),
-    ...(guidanceProfile ? { guidanceProfile } : {}),
-    projectRulesBlock: input.projectRulesBlock,
-  });
-  phaseTimings.push({
-    phaseId: 'style-system',
-    label: 'Style shell',
-    durationMs: Math.round(performance.now() - styleStartedAt),
-    order: 1,
-  });
-  onEvent({
-    type: 'progress',
-    message: `Style system locked: ${styleSystem.templateId}`,
-    pct: 18,
-    partId: 'style-system',
-    runId: runtimeRunId,
-  });
-
   const generationStartedAt = performance.now();
-  const batchResult = await runBatchQueue({
-    planResult: effectivePlanResult,
-    model,
-    onEvent,
-    ...(isEdit && input.existingSlidesHtml ? { initialHtml: input.existingSlidesHtml } : {}),
-    ...(guidanceProfile ? { guidanceProfile } : {}),
-    ...(runPlan ? { runPlan } : {}),
-    styleSystemHtml: styleSystem.styleBlock,
-    onSlideDraft: (combinedHtml, slideIndex, totalSlides) => {
-      firstPreviewAt ??= performance.now();
-      onEvent({ type: 'batch-slide-draft', html: combinedHtml, slideIndex, totalSlides });
-    },
-    onSlideComplete: (combinedHtml, slideIndex, totalSlides) => {
-      firstPreviewAt ??= performance.now();
-      onEvent({ type: 'batch-slide-complete', html: combinedHtml, slideIndex, totalSlides });
-    },
-    ...(signal ? { signal } : {}),
-  });
+  let batchResult: BatchQueueResult;
+
+  if (useScaffoldRuntime) {
+    const scaffoldSelection = resolveScaffoldForRunPlan(runPlan);
+    phaseTimings.push({
+      phaseId: 'style-system',
+      label: 'Scaffold shell',
+      durationMs: Math.round(performance.now() - styleStartedAt),
+      order: 1,
+    });
+    onEvent({
+      type: 'progress',
+      message: `Scaffold selected: ${scaffoldSelection.scaffold.label} / ${scaffoldSelection.theme.label}`,
+      pct: 18,
+      partId: 'style-system',
+      runId: runtimeRunId,
+    });
+
+    const scaffoldResult = await runScaffoldedPresentationQueue({
+      planResult: effectivePlanResult,
+      model,
+      onEvent,
+      ...(isEdit && input.existingSlidesHtml ? { initialHtml: input.existingSlidesHtml } : {}),
+      ...(isEdit && effectivePlanResult.intent !== 'add_slides' ? { replaceExistingSlides: true } : {}),
+      ...(runPlan ? { runPlan } : {}),
+      onSlideDraft: (combinedHtml, slideIndex, totalSlides) => {
+        firstPreviewAt ??= performance.now();
+        onEvent({ type: 'batch-slide-draft', html: combinedHtml, slideIndex, totalSlides });
+      },
+      onSlideComplete: (combinedHtml, slideIndex, totalSlides) => {
+        firstPreviewAt ??= performance.now();
+        onEvent({ type: 'batch-slide-complete', html: combinedHtml, slideIndex, totalSlides });
+      },
+      ...(signal ? { signal } : {}),
+    });
+    styleSystemHtmlForRepair = scaffoldResult.compileResult.styleBlock;
+    scaffoldValidation = scaffoldResult.validation;
+    batchResult = scaffoldResult;
+  } else {
+    const styleSystem = await resolvePresentationStyleSystem({
+      planResult: effectivePlanResult,
+      ...(runPlan ? { runPlan } : {}),
+      ...(guidanceProfile ? { guidanceProfile } : {}),
+      projectRulesBlock: input.projectRulesBlock,
+    });
+    styleSystemHtmlForRepair = styleSystem.styleBlock;
+    phaseTimings.push({
+      phaseId: 'style-system',
+      label: 'Style shell',
+      durationMs: Math.round(performance.now() - styleStartedAt),
+      order: 1,
+    });
+    onEvent({
+      type: 'progress',
+      message: `Style system locked: ${styleSystem.templateId}`,
+      pct: 18,
+      partId: 'style-system',
+      runId: runtimeRunId,
+    });
+
+    batchResult = await runBatchQueue({
+      planResult: effectivePlanResult,
+      model,
+      onEvent,
+      ...(isEdit && input.existingSlidesHtml ? { initialHtml: input.existingSlidesHtml } : {}),
+      ...(guidanceProfile ? { guidanceProfile } : {}),
+      ...(runPlan ? { runPlan } : {}),
+      styleSystemHtml: styleSystem.styleBlock,
+      onSlideDraft: (combinedHtml, slideIndex, totalSlides) => {
+        firstPreviewAt ??= performance.now();
+        onEvent({ type: 'batch-slide-draft', html: combinedHtml, slideIndex, totalSlides });
+      },
+      onSlideComplete: (combinedHtml, slideIndex, totalSlides) => {
+        firstPreviewAt ??= performance.now();
+        onEvent({ type: 'batch-slide-complete', html: combinedHtml, slideIndex, totalSlides });
+      },
+      ...(signal ? { signal } : {}),
+    });
+  }
   phaseTimings.push({
     phaseId: 'slide-generation',
     label: 'Slide generation',
@@ -884,12 +972,20 @@ export async function runQueuedPresentationRuntime(
   });
 
   const validationStartedAt = performance.now();
-  const slideRepair = repairQueuedPresentationSlideFragments({
-    html: batchResult.html,
-    planResult: effectivePlanResult,
-    ...(runPlan ? { runPlan } : {}),
-    onEvent,
-  });
+  const slideRepair = useScaffoldRuntime
+    ? {
+        html: batchResult.html,
+        repairCount: 0,
+        repairedPartCount: 0,
+        repaired: false,
+        validationByPart: [],
+      } satisfies QueuedPresentationSlideRepairResult
+    : repairQueuedPresentationSlideFragments({
+        html: batchResult.html,
+        planResult: effectivePlanResult,
+        ...(runPlan ? { runPlan } : {}),
+        onEvent,
+      });
   if (slideRepair.repaired) {
     onEvent({
       type: 'progress',
@@ -898,10 +994,14 @@ export async function runQueuedPresentationRuntime(
     });
   }
 
-  const validation = validatePresentationRuntimeOutput(
-    slideRepair.html,
-    effectivePlanResult,
-    batchResult.slideCount,
+  const validation = combineScaffoldValidation(
+    validatePresentationRuntimeOutput(
+      slideRepair.html,
+      effectivePlanResult,
+      batchResult.slideCount,
+      { skipExpectedBackground: useScaffoldRuntime },
+    ),
+    scaffoldValidation,
   );
   onEvent({
     type: 'progress',
@@ -916,20 +1016,28 @@ export async function runQueuedPresentationRuntime(
   });
 
   const repairStartedAt = performance.now();
-  const repair = await repairPresentationRuntimeOutput(
-    slideRepair.html,
-    validation,
-    effectivePlanResult,
-    batchResult.slideCount,
-    runPlan,
-    onEvent,
-    {
-      model,
-      projectRulesBlock: input.projectRulesBlock,
-      styleSystemHtml: styleSystem.styleBlock,
-      signal,
-    },
-  );
+  const repair = useScaffoldRuntime
+    ? {
+        html: slideRepair.html,
+        repairCount: 0,
+        repaired: false,
+        summary: 'Scaffolded output is compiler-owned; generic HTML repair skipped.',
+        validation,
+      } satisfies PresentationRuntimeRepairResult
+    : await repairPresentationRuntimeOutput(
+        slideRepair.html,
+        validation,
+        effectivePlanResult,
+        batchResult.slideCount,
+        runPlan,
+        onEvent,
+        {
+          model,
+          projectRulesBlock: input.projectRulesBlock,
+          styleSystemHtml: styleSystemHtmlForRepair,
+          signal,
+        },
+      );
   phaseTimings.push({
     phaseId: 'repair',
     label: 'Deterministic repair',
@@ -952,6 +1060,18 @@ export async function runQueuedPresentationRuntime(
   const finalizeStartedAt = performance.now();
   let finalValidation = repair.validation ?? validation;
   let finalHtml = repair.html;
+  if (useScaffoldRuntime) {
+    const scaffoldSelection = resolveScaffoldForRunPlan(runPlan);
+    finalValidation = combineScaffoldValidation(
+      validatePresentationRuntimeOutput(finalHtml, effectivePlanResult, batchResult.slideCount, { skipExpectedBackground: true }),
+      validateScaffoldedDeck({
+        html: finalHtml,
+        scaffold: scaffoldSelection.scaffold,
+        rhythmPlan: runPlan?.deckRhythmPlan,
+        exportIntent: scaffoldSelection.exportIntent,
+      }),
+    );
+  }
   let llmQualityPolishCount = 0;
   let qualityTelemetry = buildPresentationQualityTelemetry({
     html: sanitizeInnerHtml(finalHtml),
@@ -967,7 +1087,7 @@ export async function runQueuedPresentationRuntime(
         qualityScore: qualityTelemetry.qualityScore,
         qualityBlockingCount: qualityTelemetry.qualityBlockingCount,
         deterministicPolishAvailable: false,
-        llmPolishAvailable: canRunPresentationQualityLlmPolish(effectivePlanResult) && canStartOptionalLlmPolish({
+        llmPolishAvailable: !useScaffoldRuntime && canRunPresentationQualityLlmPolish(effectivePlanResult) && canStartOptionalLlmPolish({
           runPlan,
           usedPasses: llmQualityPolishCount,
           runtimeStartMs: runtimeStart,
@@ -1035,7 +1155,7 @@ export async function runQueuedPresentationRuntime(
           qualityBlockingCount: qualityTelemetry.qualityBlockingCount,
           llmPolishCount: llmQualityPolishCount,
           deterministicPolishAvailable: false,
-          llmPolishAvailable: canRunPresentationQualityLlmPolish(effectivePlanResult) && canStartOptionalLlmPolish({
+          llmPolishAvailable: !useScaffoldRuntime && canRunPresentationQualityLlmPolish(effectivePlanResult) && canStartOptionalLlmPolish({
             runPlan,
             usedPasses: llmQualityPolishCount,
             runtimeStartMs: runtimeStart,
@@ -1188,6 +1308,22 @@ export async function runPresentationRuntime(
       onEvent,
       isEdit,
       ...(guidanceProfile ? { guidanceProfile } : {}),
+      planningDurationMs,
+      ...(signal ? { signal } : {}),
+    });
+  }
+
+  if (
+    isEdit &&
+    isScaffoldedPresentationRun(input.artifactRunPlan) &&
+    (!input.existingSlidesHtml || /\bdata-scaffold=["'][^"']+["']/i.test(input.existingSlidesHtml))
+  ) {
+    return runScaffoldedPresentationEditRuntime({
+      ...(input.artifactRunPlan ? { runPlan: input.artifactRunPlan } : {}),
+      planResult,
+      model,
+      presentationInput: input,
+      onEvent,
       planningDurationMs,
       ...(signal ? { signal } : {}),
     });

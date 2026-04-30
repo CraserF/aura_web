@@ -200,6 +200,12 @@ function buildQueuedWorkItems(input: BuildArtifactWorkflowPlanInput, requestKind
 }
 
 function resolveQueuedPresentationSlideBriefs(input: BuildArtifactWorkflowPlanInput) {
+  const scaffoldSlideCount = input.projectRulesBlock
+    ? Number(input.projectRulesBlock.match(/\bSlide count\s*:\s*(\d+)/i)?.[1] ?? '')
+    : 0;
+  const projectDefaultSlideCount = Number.isFinite(scaffoldSlideCount) && scaffoldSlideCount > 0
+    ? Math.max(1, Math.min(10, scaffoldSlideCount))
+    : undefined;
   const shouldUseLocalDefaultCap = input.providerId === 'ollama'
     && input.operation === 'create'
     && isDeckLikeCreatePrompt(input.prompt)
@@ -207,7 +213,8 @@ function resolveQueuedPresentationSlideBriefs(input: BuildArtifactWorkflowPlanIn
     && !hasExplicitSlideBriefStructure(input.prompt);
 
   return parseSlideBriefs(input.prompt, {
-    ...(shouldUseLocalDefaultCap ? { defaultSlideCount: 3 } : {}),
+    ...(projectDefaultSlideCount ? { defaultSlideCount: projectDefaultSlideCount } : {}),
+    ...(shouldUseLocalDefaultCap && !projectDefaultSlideCount ? { defaultSlideCount: 3 } : {}),
   });
 }
 

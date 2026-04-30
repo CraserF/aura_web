@@ -43,7 +43,12 @@ export type PresentationNamedFailureId =
   | 'duplicate-root-style-system'
   | 'append-slide-style-reset'
   | 'weak-class-continuity'
-  | 'unscoped-extension-style';
+  | 'unscoped-extension-style'
+  // Scaffold contract
+  | 'scaffold-undefined-class'
+  | 'scaffold-style-system-count'
+  | 'scaffold-placeholder-token'
+  | 'scaffold-rhythm-risk';
 
 export interface PresentationNamedFailure {
   id: PresentationNamedFailureId;
@@ -141,6 +146,24 @@ function buildPromptEstimateCheck(promptTokenEstimate: number): PresentationQual
   };
 }
 
+function unique(items: string[]): string[] {
+  return Array.from(new Set(items));
+}
+
+function extractCssClassNames(styleText: string): string[] {
+  return unique(Array.from(styleText.matchAll(/\.(-?[_a-zA-Z]+[_a-zA-Z0-9-]*)/g))
+    .map((match) => match[1])
+    .filter((className): className is string => Boolean(className)));
+}
+
+function extractSectionClassNames(sections: string[]): string[] {
+  return unique(sections.flatMap((section) =>
+    Array.from(section.matchAll(/\bclass=["']([^"']+)["']/gi))
+      .flatMap((match) => (match[1] ?? '').split(/\s+/))
+      .map((className) => className.trim())
+      .filter(Boolean)));
+}
+
 function buildCssDesignContractCheck(html: string): PresentationQualityCheck {
   const styleBlocks = html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) ?? [];
   const styleTexts = styleBlocks.map((block) => block.replace(/<\/?style[^>]*>/gi, ''));
@@ -148,6 +171,7 @@ function buildCssDesignContractCheck(html: string): PresentationQualityCheck {
 
   const namedIssues: PresentationNamedFailure[] = [];
   const sections = extractSections(html);
+  const isScaffolded = /\bdata-scaffold=["'][^"']+["']/i.test(html);
 
   const nonEmptyStyleTexts = styleTexts.filter((style) => style.trim().length > 0);
   const hasRootTokens = /:(?:root|scope)\s*\{/i.test(styleText) && /--[a-z0-9-]+\s*:/i.test(styleText);
@@ -217,6 +241,32 @@ function buildCssDesignContractCheck(html: string): PresentationQualityCheck {
       id: 'duplicate-root-style-system',
       message: `CSS root/style tokens are duplicated (${styleBlocks.length} style block(s), ${rootStyleBlockCount} :root style block(s), ${laterSectionsWithRootVars} later slide inline token set(s)). Keep shared tokens in one style system.`,
     });
+  }
+
+  if (isScaffolded && styleBlocks.length !== 1) {
+    namedIssues.push({
+      id: 'scaffold-style-system-count',
+      message: `Scaffolded presentations must have exactly one compiler-owned style block; found ${styleBlocks.length}.`,
+    });
+  }
+
+  if (isScaffolded) {
+    const cssClasses = new Set(extractCssClassNames(styleText));
+    const undefinedClasses = extractSectionClassNames(sections)
+      .filter((className) => !cssClasses.has(className))
+      .slice(0, 8);
+    if (undefinedClasses.length > 0) {
+      namedIssues.push({
+        id: 'scaffold-undefined-class',
+        message: `Scaffolded presentation uses undefined class(es): ${undefinedClasses.join(', ')}.`,
+      });
+    }
+    if (/\{\{[^}]+\}\}|PLACEHOLDER|TODO|Lorem ipsum/i.test(html)) {
+      namedIssues.push({
+        id: 'scaffold-placeholder-token',
+        message: 'Scaffolded presentation still contains placeholder tokens.',
+      });
+    }
   }
 
   const styleResetBlockCount = styleTexts.slice(1).filter((style) => /:(?:root|scope)\s*\{|--(?:primary|accent|bg|text|ink)\s*:|\.[a-z0-9_-]+\s*\{/i.test(style)).length;

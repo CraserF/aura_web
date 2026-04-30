@@ -42,6 +42,24 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+function buildPresentationScaffoldRulesBlock(selection: NewProjectSelection): string | undefined {
+  const setup = selection.presentationSetup;
+  if (!setup) return undefined;
+
+  return [
+    '## Presentation Scaffold',
+    '',
+    `Scaffold: ${setup.scaffoldId}`,
+    `Direction: ${setup.directionId}`,
+    `Theme: ${setup.themeId}`,
+    `Slide count: ${setup.slideCount}`,
+    `Audience: ${setup.audience}`,
+    `Export intent: ${setup.exportIntent}`,
+    '',
+    'Agent contract: choose allowed skeletons, fill declared slots, and never author raw CSS or full slide HTML.',
+  ].join('\n');
+}
+
 interface ToolbarProps {
   chatPanelOpen: boolean;
   onToggleChatPanel: () => void;
@@ -129,6 +147,7 @@ export function Toolbar({
       const sharedVariantOptions = {
         visualVariantId: selection.variantId,
         colorTheme: selection.colorTheme,
+        projectRulesMarkdown: buildPresentationScaffoldRulesBlock(selection),
       };
       const initResult = selection.mode === 'blank'
         ? await initProject(baseProject, sharedVariantOptions)

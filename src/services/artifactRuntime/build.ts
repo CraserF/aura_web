@@ -1,5 +1,9 @@
 import { buildArtifactWorkflowPlan } from '@/services/artifactRuntime/planner';
 import { buildArtifactQualityBar } from '@/services/artifactRuntime/qualityBar';
+import {
+  planDeckRhythm,
+  resolveDefaultScaffoldSelection,
+} from '@/services/presentationScaffolds';
 import type { BuildArtifactWorkflowPlanInput, PresentationRecipeId, RuntimeOutputMode } from '@/services/artifactRuntime/types';
 import type {
   ArtifactQualityBar,
@@ -12,6 +16,12 @@ import type {
   PresentationSlideRole,
   ValidationGate,
 } from '@/services/artifactRuntime/types';
+import type { SlideBrief } from '@/services/ai/workflow/agents/planner';
+import type {
+  PresentationAllowedEditSurface,
+  PresentationExportIntent,
+  PresentationMediaSlotPlan,
+} from '@/services/presentationScaffolds';
 
 export interface BuildArtifactRunPlanInput extends BuildArtifactWorkflowPlanInput {
   runId: string;
@@ -385,6 +395,8 @@ function buildValidationGates(workflow: ArtifactRunPlan['workflow'], qualityBar:
         checks: [
           ...sharedChecks,
           'Fragment contains <style> and <section> output only.',
+          'Scaffolded runs use one locked scaffold CSS file plus skeleton sections.',
+          'The model returns structured slot payloads only; no raw CSS or full-slide HTML.',
           'Reduced-motion handling exists when animations are present.',
           'Slide count matches assembled section count.',
         ],
@@ -460,6 +472,108 @@ function buildValidationGates(workflow: ArtifactRunPlan['workflow'], qualityBar:
   ];
 }
 
+function resolvePresentationExportIntent(projectRulesBlock?: string): PresentationExportIntent {
+  const raw = projectRulesBlock?.match(/\bExport intent\s*:\s*([a-z0-9-]+)/i)?.[1]?.toLowerCase();
+  if (raw === 'pdf' || raw === 'editable-pptx') return raw;
+  return 'html';
+}
+
+function buildAllowedEditSurface(input: {
+  workflow: ArtifactRunPlan['workflow'];
+  operation: BuildArtifactRunPlanInput['operation'];
+  prompt: string;
+}): PresentationAllowedEditSurface {
+  const lockedAreas = [
+    'CSS selectors',
+    'class names',
+    'layout grids',
+    'motion keyframes',
+    'font stacks',
+    'section wrappers',
+    'data-background-color',
+    'validation gates',
+  ];
+  const allowedSlotKinds: PresentationAllowedEditSurface['allowedSlotKinds'] = [
+    'kicker',
+    'title',
+    'subtitle',
+    'paragraph',
+    'quote',
+    'metric-value',
+    'metric-label',
+    'step-title',
+    'step-body',
+    'footer',
+    'label',
+  ];
+
+  if (input.operation === 'create') {
+    return { kind: 'create', allowedSlotKinds, lockedAreas };
+  }
+
+  if (input.workflow.requestKind === 'restyle') {
+    return {
+      kind: 'restyle',
+      allowedSlotKinds: [],
+      lockedAreas,
+      reason: 'Restyle requests can swap scaffold theme tokens only.',
+    };
+  }
+
+  if (input.workflow.requestKind === 'queue' || /\b(add|append|insert)\b[\s\S]*\bslides?\b/i.test(input.prompt)) {
+    return {
+      kind: 'add-slide',
+      allowedSlotKinds,
+      lockedAreas,
+      reason: 'Add-slide requests choose an allowed skeleton and fill its slots.',
+    };
+  }
+
+  if (input.workflow.preservationIntent === 'structure') {
+    return {
+      kind: 'restructure',
+      allowedSlotKinds,
+      lockedAreas,
+      reason: 'Restructure requests rerun scaffold rhythm and recompile existing slot payloads.',
+    };
+  }
+
+  return {
+    kind: 'text-edit',
+    allowedSlotKinds,
+    lockedAreas,
+    reason: 'Text edits patch data-slot payloads and recompile.',
+  };
+}
+
+function buildScaffoldSlideBriefs(workQueue: ArtifactPart[], prompt: string): SlideBrief[] {
+  const slideParts = workQueue
+    .filter((part) => part.kind === 'slide')
+    .sort((left, right) => left.orderIndex - right.orderIndex);
+
+  if (slideParts.length > 0) {
+    return slideParts.map((part, index) => ({
+      index: index + 1,
+      title: part.title,
+      contentGuidance: part.brief,
+      visualGuidance: part.presentationSlideBlueprint?.layoutPattern,
+    }));
+  }
+
+  return [{
+    index: 1,
+    title: 'Presentation',
+    contentGuidance: prompt,
+  }];
+}
+
+function buildPresentationMediaSlotPlan(): PresentationMediaSlotPlan {
+  return {
+    allowedAssetIds: [],
+    requiredSlots: [],
+  };
+}
+
 export function buildArtifactRunPlan(input: BuildArtifactRunPlanInput): ArtifactRunPlan {
   const planInput = withGuidedOutputMode(input);
   const workflow = buildArtifactWorkflowPlan(planInput);
@@ -484,6 +598,23 @@ export function buildArtifactRunPlan(input: BuildArtifactRunPlanInput): Artifact
     presentationNarrativePlan,
     designManifest,
   );
+  const presentationScaffoldSelection = workflow.artifactType === 'presentation'
+    ? resolveDefaultScaffoldSelection({
+        projectRulesBlock: planInput.projectRulesBlock,
+        guidedOutputMode: planInput.guidedOutputMode,
+        ...(workflow.presentationRecipeId ? { presentationRecipeId: workflow.presentationRecipeId } : {}),
+        exportIntent: resolvePresentationExportIntent(planInput.projectRulesBlock),
+      })
+    : undefined;
+  const deckRhythmPlan = presentationScaffoldSelection
+    ? planDeckRhythm({
+        scaffold: presentationScaffoldSelection.scaffold,
+        theme: presentationScaffoldSelection.theme,
+        directionId: presentationScaffoldSelection.directionId,
+        exportIntent: presentationScaffoldSelection.exportIntent,
+        briefs: buildScaffoldSlideBriefs(workQueue, planInput.prompt),
+      })
+    : undefined;
 
   return {
     version: 1,
@@ -495,6 +626,20 @@ export function buildArtifactRunPlan(input: BuildArtifactRunPlanInput): Artifact
     requestKind: workflow.requestKind,
     preservationIntent: workflow.preservationIntent,
     ...(workflow.presentationRecipeId ? { presentationRecipeId: workflow.presentationRecipeId } : {}),
+    ...(presentationScaffoldSelection ? {
+      presentationScaffoldId: presentationScaffoldSelection.scaffoldId,
+      presentationThemeId: presentationScaffoldSelection.themeId,
+      presentationDirectionId: presentationScaffoldSelection.directionId,
+      presentationExportIntent: presentationScaffoldSelection.exportIntent,
+      deckRhythmPlan,
+      allowedEditSurface: buildAllowedEditSurface({
+        workflow,
+        operation: planInput.operation,
+        prompt: planInput.prompt,
+      }),
+      designContextSpec: presentationScaffoldSelection.designContextSpec,
+      mediaSlotPlan: buildPresentationMediaSlotPlan(),
+    } : {}),
     ...(workflow.documentThemeFamily ? { documentThemeFamily: workflow.documentThemeFamily } : {}),
     queueMode: workflow.queueMode,
     templateGuidance: workflow.templateGuidance,

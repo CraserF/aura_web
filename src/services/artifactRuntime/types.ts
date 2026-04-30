@@ -1,6 +1,15 @@
 import type { DocumentType, ProjectDocument } from '@/types/project';
 import type { ProviderId } from '@/types';
 import type { ExemplarPackId, ReferenceStylePackId, TemplateId } from '@/services/ai/templates';
+import type {
+  DeckRhythmPlan,
+  PresentationAllowedEditSurface,
+  PresentationDesignContextSpec,
+  PresentationExportIntent,
+  PresentationMediaSlotPlan,
+  PresentationScaffoldDirectionId,
+  PresentationScaffoldId,
+} from '@/services/presentationScaffolds/types';
 
 export type ArtifactWorkflowRequestKind =
   | 'create'
@@ -214,6 +223,14 @@ export interface ArtifactWorkflowPlan {
   requestKind: ArtifactWorkflowRequestKind;
   preservationIntent: WorkflowPreservationIntent;
   presentationRecipeId?: PresentationRecipeId;
+  presentationScaffoldId?: PresentationScaffoldId;
+  presentationThemeId?: PresentationScaffoldDirectionId;
+  presentationDirectionId?: PresentationScaffoldDirectionId;
+  presentationExportIntent?: PresentationExportIntent;
+  deckRhythmPlan?: DeckRhythmPlan;
+  allowedEditSurface?: PresentationAllowedEditSurface;
+  designContextSpec?: PresentationDesignContextSpec;
+  mediaSlotPlan?: PresentationMediaSlotPlan;
   documentThemeFamily?: DocumentThemeFamily;
   queueMode: 'none' | 'sequential';
   queuedWorkItems: QueuedWorkItem[];
@@ -365,6 +382,14 @@ export interface ArtifactRunPlan {
   requestKind: ArtifactWorkflowRequestKind;
   preservationIntent: WorkflowPreservationIntent;
   presentationRecipeId?: PresentationRecipeId;
+  presentationScaffoldId?: PresentationScaffoldId;
+  presentationThemeId?: PresentationScaffoldDirectionId;
+  presentationDirectionId?: PresentationScaffoldDirectionId;
+  presentationExportIntent?: PresentationExportIntent;
+  deckRhythmPlan?: DeckRhythmPlan;
+  allowedEditSurface?: PresentationAllowedEditSurface;
+  designContextSpec?: PresentationDesignContextSpec;
+  mediaSlotPlan?: PresentationMediaSlotPlan;
   documentThemeFamily?: DocumentThemeFamily;
   queueMode: 'none' | 'sequential';
   templateGuidance: TemplateGuidanceProfile;

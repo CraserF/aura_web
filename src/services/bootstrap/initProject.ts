@@ -43,11 +43,16 @@ function mergeProjectStarterKit(
   if (starterKitOrOptions.starterKitId) {
     const starterKit = getProjectStarterKit(starterKitOrOptions.starterKitId);
     if (starterKit) {
+      const combinedRules = [
+        starterKit.projectRulesMarkdown,
+        starterKitOrOptions.projectRulesMarkdown,
+      ].map((block) => block?.trim()).filter(Boolean).join('\n\n');
+
       return {
         starterKitId: starterKit.id,
         artifacts: starterKitOrOptions.artifacts ?? starterKit.artifacts,
         defaultProjectTitle: starterKitOrOptions.defaultProjectTitle ?? starterKit.defaultProjectTitle,
-        projectRulesMarkdown: starterKitOrOptions.projectRulesMarkdown ?? starterKit.projectRulesMarkdown,
+        projectRulesMarkdown: combinedRules || undefined,
         contextPolicyOverrides: starterKitOrOptions.contextPolicyOverrides ?? starterKit.contextPolicyOverrides,
         workflowPresets: starterKitOrOptions.workflowPresets ?? starterKit.workflowPresets,
         visualVariantId: starterKitOrOptions.visualVariantId,

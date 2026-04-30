@@ -10,6 +10,26 @@ declare module '*.md?raw' {
   export default content;
 }
 
+declare module '*.css?raw' {
+  const content: string;
+  export default content;
+}
+
+declare module '*.css?inline' {
+  const content: string;
+  export default content;
+}
+
+declare module '*.css?raw&inline' {
+  const content: string;
+  export default content;
+}
+
+declare module 'virtual:presentation-scaffold-css/*' {
+  const content: string;
+  export default content;
+}
+
 declare module '*.js?url' {
   const url: string;
   export default url;

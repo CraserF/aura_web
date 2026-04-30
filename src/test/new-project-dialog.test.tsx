@@ -212,10 +212,11 @@ describe('Toolbar new project dialog', () => {
 
     expect(useProjectStore.getState().project.documents).toHaveLength(0);
     expect(useProjectStore.getState().project.visualVariantId).toBe('executive');
-    expect(initProjectMock).toHaveBeenCalledWith(expect.any(Object), {
+    expect(initProjectMock).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
       visualVariantId: 'executive',
       colorTheme: DEFAULT_COLOR_THEME,
-    });
+      projectRulesMarkdown: expect.stringContaining('## Presentation Scaffold'),
+    }));
 
     view.unmount();
   });
@@ -269,11 +270,12 @@ describe('Toolbar new project dialog', () => {
     clickButtonByText('Create project');
     await flushEffects();
 
-    expect(initProjectMock).toHaveBeenCalledWith(expect.any(Object), {
+    expect(initProjectMock).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
       starterKitId: 'executive-briefing',
       visualVariantId: 'executive',
       colorTheme: DEFAULT_COLOR_THEME,
-    });
+      projectRulesMarkdown: expect.stringContaining('Scaffold: executive-editorial-v1'),
+    }));
     expect(useProjectStore.getState().project.title).toBe('Executive Briefing');
     expect(view.container.textContent).toContain('Project created with 1 starter artifact.');
     expect(view.container.textContent).not.toContain('2 starter artifacts');
@@ -319,7 +321,7 @@ describe('Toolbar new project dialog', () => {
     clickButtonByText('Create project');
     await flushEffects();
 
-    expect(initProjectMock).toHaveBeenCalledWith(expect.any(Object), {
+    expect(initProjectMock).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
       artifacts: [{
         key: 'primary',
         type: 'spreadsheet',
@@ -327,7 +329,8 @@ describe('Toolbar new project dialog', () => {
       }],
       visualVariantId: 'executive',
       colorTheme: DEFAULT_COLOR_THEME,
-    });
+      projectRulesMarkdown: expect.stringContaining('Export intent: html'),
+    }));
     expect(useProjectStore.getState().project.documents[0]?.type).toBe('spreadsheet');
 
     view.unmount();

@@ -4,17 +4,25 @@ import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
 function shouldUseQueuedSlides(runPlan: ArtifactRunPlan): boolean {
   return (
     runPlan.artifactType === 'presentation' &&
-    runPlan.queueMode === 'sequential' &&
-    runPlan.workQueue.some((part) => part.kind === 'slide')
+    (
+      (runPlan.queueMode === 'sequential' && runPlan.workQueue.some((part) => part.kind === 'slide')) ||
+      (Boolean(runPlan.presentationScaffoldId) && runPlan.operation === 'create')
+    )
   );
 }
 
 export function buildSlideBriefsFromRunPlan(runPlan: ArtifactRunPlan): SlideBrief[] {
   if (!shouldUseQueuedSlides(runPlan)) return [];
 
-  return runPlan.workQueue
+  const slideParts = runPlan.workQueue
     .filter((part) => part.kind === 'slide')
-    .sort((a, b) => a.orderIndex - b.orderIndex)
+    .sort((a, b) => a.orderIndex - b.orderIndex);
+
+  const effectiveParts = slideParts.length > 0
+    ? slideParts
+    : runPlan.workQueue.filter((part) => part.kind === 'deck').slice(0, 1);
+
+  return effectiveParts
     .map((part, index) => {
       const blueprint = part.presentationSlideBlueprint;
       return {
