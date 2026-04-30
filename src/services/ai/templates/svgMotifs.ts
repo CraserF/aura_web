@@ -92,6 +92,7 @@ export const SVG_MOTIF_REGISTRY: Record<SvgMotifId, SvgMotifFamily> = {
       'Line runs left-to-right (horizontal) or top-to-bottom (vertical).',
       'Dots or ticks mark each event position.',
       'Current position (if applicable) can use a filled dot with accent color.',
+      'Use CSS variable stroke/fill values only - no hardcoded colors or external assets.',
       'Max 5 milestone points on one timeline.',
       'Can be animated with path-draw motion preset.',
     ],
@@ -144,6 +145,7 @@ export const SVG_MOTIF_REGISTRY: Record<SvgMotifId, SvgMotifFamily> = {
     usageRules: [
       'Rules must be thin (1-2px stroke) and restrained.',
       'Use accent or text color at 20-40% opacity.',
+      'Use CSS variable stroke/fill values only - no hardcoded colors or external assets.',
       'Do not frame the entire slide with a heavy border.',
       'Complements quote, editorial, and executive slides.',
     ],
@@ -172,6 +174,7 @@ export const SVG_MOTIF_REGISTRY: Record<SvgMotifId, SvgMotifFamily> = {
       'Max 5 nodes in a linear or circular flow.',
       'Arrows must clearly indicate direction.',
       'Node shapes should be simple: rect, circle, or rounded-rect.',
+      'Use CSS variable stroke/fill values only - no hardcoded colors or external assets.',
       'Can be animated with path-draw preset on connectors.',
     ],
     promptGuidance:
@@ -224,7 +227,7 @@ export const SVG_MOTIF_REGISTRY: Record<SvgMotifId, SvgMotifFamily> = {
       'Sits at z-index 0, strictly behind all content.',
       'Must not obscure text - keep opacity of any shapes over text zones below 0.15.',
       'Use CSS gradients or SVG linearGradient/radialGradient with variable stops.',
-      'No bitmap images or base64 content.',
+      'No external bitmap images, remote assets, or base64 content.',
       'Complement the scene-entrance or fade-rise motion presets.',
     ],
     promptGuidance:

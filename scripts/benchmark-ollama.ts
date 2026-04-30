@@ -17,6 +17,7 @@
  */
 
 import { mkdir, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import type { LanguageModel } from 'ai';
 import { generateText } from 'ai';
@@ -50,6 +51,11 @@ import type {
   BenchmarkQualityGrade,
   BenchmarkRunResult,
 } from '@/services/benchmarkHarness';
+
+const require = createRequire(import.meta.url);
+const { JSDOM } = require('jsdom') as {
+  JSDOM: new (html?: string) => { window: Window & typeof globalThis };
+};
 
 const MODEL = process.env['AURA_OLLAMA_MODEL'] ?? 'gemma4:e2b';
 const BASE_URL = process.env['AURA_OLLAMA_BASE_URL'] ?? 'http://127.0.0.1:11434';
@@ -125,6 +131,7 @@ interface BenchmarkRunArtifacts {
   outputHtml?: string;
   outputJson?: unknown;
   judgeHtml?: string;
+  skippedReason?: string;
 }
 
 interface JudgeRubric {
@@ -133,6 +140,31 @@ interface JudgeRubric {
   notBoring: string;
   starterSimilarity: string;
   userUsefulness: string;
+}
+
+function ensureBrowserLikeGlobals(): void {
+  const globalScope = globalThis as typeof globalThis & {
+    DOMParser?: typeof DOMParser;
+    Element?: typeof Element;
+    HTMLElement?: typeof HTMLElement;
+    Node?: typeof Node;
+    SVGElement?: typeof SVGElement;
+    document?: Document;
+    window?: Window & typeof globalThis;
+  };
+
+  if (globalScope.DOMParser && globalScope.document && globalScope.window && globalScope.HTMLElement) {
+    return;
+  }
+
+  const dom = new JSDOM('<!doctype html><html><body></body></html>');
+  globalScope.DOMParser = dom.window.DOMParser;
+  globalScope.Element = dom.window.Element;
+  globalScope.HTMLElement = dom.window.HTMLElement;
+  globalScope.Node = dom.window.Node;
+  globalScope.SVGElement = dom.window.SVGElement;
+  globalScope.document = dom.window.document;
+  globalScope.window = dom.window as unknown as Window & typeof globalThis;
 }
 
 function elapsedMs(startMs: number): number {
@@ -254,7 +286,6 @@ function buildRunPlanInput(benchCase: WorkflowBenchmarkCaseDefinition, runIndex:
     artifactType: benchCase.artifactType,
     operation,
     activeDocument: operation === 'create' ? null : makeExistingDocument(benchCase.artifactType),
-    mode: 'execute',
     providerId: 'ollama',
     providerModel: MODEL,
     allowFullRegeneration: benchCase.caseFamily === 'structural-rewrite',
@@ -509,6 +540,29 @@ async function runSpreadsheetCase(
   let routingKind: ArtifactWorkflowRequestKind | undefined;
   let qualityThreshold = DEFAULT_LOCAL_QUALITY_THRESHOLD;
 
+  if (typeof Worker === 'undefined') {
+    return {
+      telemetry: {
+        qualityScore: 0,
+        qualityGrade: 'needs-polish',
+        validationPassed: false,
+        validationBlockingCount: 0,
+        failedSignalIds: [],
+        firstProgressMs: null,
+        firstUsableOutputMs: null,
+        totalMs: elapsedMs(startMs),
+      },
+      qualityThreshold,
+      expectedRoutingKind: expectedRoutingKindForCase(benchCase),
+      events: capture.events,
+      outputJson: {
+        skipped: true,
+        reason: 'Worker API is unavailable in the Node benchmark runner.',
+      },
+      skippedReason: 'Worker API is unavailable in the Node benchmark runner. Run spreadsheet benchmark cases in the browser app.',
+    };
+  }
+
   try {
     const planInput = buildRunPlanInput(benchCase, runIndex);
     const activeDocument = planInput.activeDocument;
@@ -622,6 +676,28 @@ function createRunResult(input: {
     totalMs: telemetry.totalMs,
     consistencyScore,
   });
+
+  if (artifacts.skippedReason) {
+    return {
+      caseId: benchCase.id,
+      artifactType: benchCase.artifactType,
+      provider: 'ollama',
+      model: MODEL,
+      runIndex,
+      timings: {
+        firstProgressMs: telemetry.firstProgressMs,
+        firstUsableOutputMs: telemetry.firstUsableOutputMs,
+        totalMs: telemetry.totalMs,
+      },
+      score,
+      qualityGrade: telemetry.qualityGrade,
+      failedSignals: telemetry.failedSignalIds,
+      failureClassification: 'none',
+      result: 'skipped',
+      notes: artifacts.skippedReason,
+    };
+  }
+
   const passed = benchmarkCasePassed({
     qualityScore: telemetry.qualityScore,
     validationPassed: telemetry.validationPassed,
@@ -691,6 +767,8 @@ async function createJudgeModel(llmConfig: LLMConfig): Promise<LanguageModel | n
 }
 
 async function main(): Promise<void> {
+  ensureBrowserLikeGlobals();
+
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const outputDir = join(process.cwd(), 'logs', 'ollama-benchmark', timestamp);
   await mkdir(outputDir, { recursive: true });
@@ -724,7 +802,7 @@ async function main(): Promise<void> {
       process.stdout.write(`  ${benchCase.id} [run ${runIndex + 1}/${RERUNS}]... `);
       const artifacts = await runBenchmarkCase(benchCase, runIndex, llmConfig);
       runs.push(artifacts);
-      const state = artifacts.telemetry.error ? 'ERROR' : 'done';
+      const state = artifacts.skippedReason ? 'SKIP' : artifacts.telemetry.error ? 'ERROR' : 'done';
       console.log(`${state} quality=${artifacts.telemetry.qualityScore} totalMs=${artifacts.telemetry.totalMs}`);
     }
 

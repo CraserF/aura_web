@@ -60,6 +60,10 @@ vi.mock('@/services/storage/projectFormat', () => ({
   openProjectFile: vi.fn(),
 }));
 
+vi.mock('@/services/storage/versionHistory', () => ({
+  commitVersion: vi.fn(async () => null),
+}));
+
 import { Toolbar } from '@/components/Toolbar';
 import { useChatStore } from '@/stores/chatStore';
 import { usePresentationStore } from '@/stores/presentationStore';

@@ -100,6 +100,49 @@ Ollama runs: `npm run benchmark:ollama` uses `WORKFLOW_BENCHMARK_CASES` fixture 
 
 Any case where a high deterministic quality score produces output a human reviewer would rate as boring, incomplete, or not premium should be logged as a scoring bug candidate in this document. That gap is the primary signal the scoring system is miscalibrated and needs adjustment before the recovery is closed.
 
+## Release Gate Registry
+
+The W9 release process is codified in `src/services/validation/releaseGates.ts` as `VALUE_REALIGNMENT_RELEASE_GATES`.
+
+The registry covers:
+
+- Level 1 unit guardrails: scaffold, motion, SVG, and document section registry tests.
+- Level 2 integration smoke: starter, queued presentation, benchmark matrix, and harness tests.
+- Level 3 render contracts: viewport, quality checklist, and static render checks.
+- Level 4 product benchmarks: benchmark typecheck plus `npm run benchmark:ollama`.
+- Level 5 agent-in-app visual QA: frontier/Ollama captures, diagnostics, and viewport screenshots.
+
+Workstream 9 is complete when the process and gates are testable. M5/M6 product release remains blocked until the Level 4/5 evidence passes or records an accepted failure classification.
+
+## Latest Benchmark Evidence
+
+### 2026-04-30 Focused Local Run
+
+Command:
+
+```bash
+AURA_OLLAMA_CASES=presentation-title-opening,spreadsheet-create AURA_OLLAMA_RERUNS=1 npm run benchmark:ollama
+```
+
+Output:
+
+- `logs/ollama-benchmark/2026-04-30T15-47-06-278Z/scorecard.md`
+- `logs/ollama-benchmark/2026-04-30T15-47-06-278Z/summary.json`
+
+Key findings:
+
+- `presentation-title-opening` completed with visible progress (`firstProgressMs: 11`) and first usable output at ~40.0s (`firstUsableOutputMs: 40036`), but failed local quality threshold (`qualityScore: 57`, threshold 78).
+- Failed quality signals: `visual-richness`, `continuity`, `reference-style-match`, `viewport-safety`.
+- Failure classification: `quality-continuity`.
+- `spreadsheet-create` is now explicitly marked `SKIP` in Node benchmark runs because browser `Worker` is unavailable in this runner context.
+
+Follow-up:
+
+- Keep Node benchmark runner for presentation/document local-model checks.
+- Run spreadsheet benchmark cases through in-app/browser QA where `Worker` is available.
+- Capture one additional Ollama queued-deck case and one frontier run to close the manual visual gate.
+- Use `VALUE_REALIGNMENT_RELEASE_GATES` as the source of truth for required W9 release evidence.
+
 ## Related Docs
 
 - [major-change-protocol.md](./major-change-protocol.md)
