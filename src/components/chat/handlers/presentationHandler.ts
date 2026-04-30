@@ -342,10 +342,12 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
     let memoryArtifactSummary = result.title
       ? `Generated presentation "${result.title}" with ${result.slideCount} slides.`
       : `Generated presentation with ${result.slideCount} slides.`;
-    let changedDocumentId = activeDocument?.id;
+    let changedDocumentId: string | undefined;
     const changeAction: 'created' | 'updated' = activeDocument?.type === 'presentation' ? 'updated' : 'created';
+    const safetyPassed = runtimeQualitySafetyPassed(result.runtime, result.reviewPassed);
+    const shouldPersistResult = result.reviewPassed && safetyPassed;
 
-    if (result.html) {
+    if (result.html && shouldPersistResult) {
       if (activeDocument?.type === 'presentation') {
         const chartSpecs = extractChartSpecsFromHtml(result.html);
         updateDocument(activeDocument.id, {
@@ -378,7 +380,9 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         memorySourceRefs = [...memorySourceRefs, `document:${newDoc.id}`];
         changedDocumentId = newDoc.id;
       }
+    }
 
+    if (result.html) {
       if (result.title) setTitle(result.title);
       setSlides(result.html);
       memoryArtifactSummary = result.title
@@ -389,8 +393,10 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
     const action = isEditFlow ? 'Edited' : 'Created';
     const slideInfo = result.slideCount > 0 ? ` (${result.slideCount} slide${result.slideCount !== 1 ? 's' : ''})` : '';
     const commitMsg = `${action} presentation${slideInfo}: ${prompt.slice(0, 50)}`;
-    const updatedProject = useProjectStore.getState().project;
-    commitVersion(updatedProject, commitMsg).catch((e) => console.warn('[VersionHistory] commit failed:', e));
+    if (changedDocumentId) {
+      const updatedProject = useProjectStore.getState().project;
+      commitVersion(updatedProject, commitMsg).catch((e) => console.warn('[VersionHistory] commit failed:', e));
+    }
     void queueMemoryExtraction(llmConfig, memoryConversation, memoryArtifactSummary, memorySourceRefs);
     const persistedDocument = changedDocumentId
       ? useProjectStore.getState().project.documents.find((document) => document.id === changedDocumentId)
@@ -398,7 +404,6 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
     const rawArtifactValidation = persistedDocument
       ? validateArtifactAgainstProfile(persistedDocument)
       : undefined;
-    const safetyPassed = runtimeQualitySafetyPassed(result.runtime, result.reviewPassed);
     const artifactValidation = persistedDocument && rawArtifactValidation && !safetyPassed
       ? addQualitySafetyIssue(
           rawArtifactValidation,
@@ -439,10 +444,12 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
             ? 'Presentation QA passed.'
             : 'Presentation QA completed with advisories.',
         };
-    const changedTargets = [{
-      documentId: changedDocumentId,
-      action: changeAction,
-    }] as const;
+    const changedTargets = changedDocumentId
+      ? [{
+          documentId: changedDocumentId,
+          action: changeAction,
+        }]
+      : [];
     const publish = artifactValidation
       ? {
           profileId: artifactValidation.profileId,

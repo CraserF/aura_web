@@ -26,10 +26,16 @@ interface ReadyEvent {
   currentSlide?: HTMLElement;
 }
 
+interface RevealEventDeck {
+  on(event: 'slidechanged', callback: (event: SlideChangedEvent) => void): void;
+  on(event: 'ready', callback: (event: ReadyEvent) => void): void;
+}
+
 export const AnimationEnginePlugin = {
   id: 'animation-engine',
 
-  init(deck: any): void {
+  init(deck: unknown): void {
+    const eventDeck = deck as RevealEventDeck;
     // =====================
     // 1. Auto-Stagger
     // =====================
@@ -200,7 +206,7 @@ export const AnimationEnginePlugin = {
     // =====================
     // Event Wiring
     // =====================
-    deck.on('slidechanged', (event: SlideChangedEvent) => {
+    eventDeck.on('slidechanged', (event: SlideChangedEvent) => {
       const { currentSlide, previousSlide } = event;
 
       // Leaving a slide
@@ -222,7 +228,7 @@ export const AnimationEnginePlugin = {
     });
 
     // Run once for the initial slide
-    deck.on('ready', (event: ReadyEvent) => {
+    eventDeck.on('ready', (event: ReadyEvent) => {
       const slide = event.currentSlide;
       if (slide) {
         applyAutoStagger(slide);

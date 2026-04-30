@@ -550,6 +550,40 @@ function buildArtifactStructurePlan(input: {
   };
 }
 
+const UNSUPPORTED_ARTIFACT_EDIT_SURFACE: ArtifactEditSurface = {
+  id: 'unsupported-pack-edit',
+  label: 'Unsupported pack edit',
+  kind: 'unsupported',
+  targetKinds: ['artifact'],
+  allowedOperations: [],
+  lockedFields: [
+    'compiled HTML',
+    'CSS',
+    'layout skeletons',
+    'source slots',
+    'media bindings',
+    'structure plan',
+  ],
+  guidance:
+    'This request changes structure or layout outside the pack edit surface. Ask for a supported text edit, add-slide operation, restyle, or full regeneration once the pack supports it.',
+};
+
+function isUnsupportedArtifactPackEditRequest(prompt: string): boolean {
+  const normalized = prompt.toLowerCase();
+  if (/\b(title|headline|heading|subtitle|subhead|body|copy|paragraph|quote|metric|caption|kicker|eyebrow|label|source|footer)\b/.test(normalized)) {
+    return false;
+  }
+  return (
+    /\b(reorder|resequence|restructure|reorganize|rearrange)\b/.test(normalized) ||
+    /\b(move|swap)\b[\s\S]{0,80}\b(slides?|sections?|modules?|sheets?|pages?)\b/.test(normalized) ||
+    /\b(delete|remove|drop)\b[\s\S]{0,80}\b(slides?|sections?|modules?|sheets?|pages?|layouts?|cards?)\b/.test(normalized) ||
+    /\b(replace|swap|change|update|remove|delete)\b[\s\S]{0,100}\b(media|image|screenshot|photo|asset|visual)\b/.test(normalized) ||
+    /\b(media|image|screenshot|photo|asset|visual)\b[\s\S]{0,100}\b(replace|swap|change|update|remove|delete)\b/.test(normalized) ||
+    /\b(change|replace|redesign|rework)\b[\s\S]{0,80}\b(layout|structure|template|skeleton|deck structure|presentation structure)\b/.test(normalized) ||
+    /\b(start over|from scratch|full regeneration|regenerate (?:the )?(?:whole )?(deck|presentation|artifact))\b/.test(normalized)
+  );
+}
+
 function resolveArtifactEditSurface(input: {
   editSurfaces: readonly ArtifactEditSurface[];
   workflow: ArtifactRunPlan['workflow'];
@@ -569,6 +603,12 @@ function resolveArtifactEditSurface(input: {
   }
   if (/\b(add|append|insert|include)\b[\s\S]*\bslides?\b/i.test(input.prompt)) {
     return input.editSurfaces.find((surface) => surface.kind === 'add-slide') ?? input.editSurfaces[0];
+  }
+  if (isUnsupportedArtifactPackEditRequest(input.prompt)) {
+    return input.editSurfaces.find((surface) =>
+      surface.kind === 'restructure' ||
+      surface.kind === 'full-regeneration' ||
+      surface.kind === 'unsupported') ?? UNSUPPORTED_ARTIFACT_EDIT_SURFACE;
   }
   return input.editSurfaces.find((surface) => surface.kind === 'text-edit') ?? input.editSurfaces[0];
 }

@@ -81,10 +81,10 @@ Rules:
 - Extract at most 6 memories.
 - Prefer durable facts, workflow preferences, reusable skills, project context, and important entities.
 - Do not restate the user's one-off request unless it reveals stable context.
-- Use scope \"global\" for reusable cross-project knowledge.
-- Use scope \"project:${projectId}\" for project-specific context, decisions, or collaborators.
-- Prefer sensitivity \"private\" for project-specific or personal information.
-- Use sensitivity \"public\" for generic reusable skills or tools.
+- Use scope "global" for reusable cross-project knowledge.
+- Use scope "project:${projectId}" for project-specific context, decisions, or collaborators.
+- Prefer sensitivity "private" for project-specific or personal information.
+- Use sensitivity "public" for generic reusable skills or tools.
 - Keep summaries concise and details factual.
 - If nothing is worth storing, return an empty memories array.`;
 }

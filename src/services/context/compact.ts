@@ -55,7 +55,7 @@ export function compactContextSources(
     olderConversationEntries.forEach((entry) => compactedSourceIds.add(entry.source.id));
   }
 
-  let workingEntries = recentEntries.map((entry) => ({ ...entry, source: { ...entry.source } }));
+  const workingEntries = recentEntries.map((entry) => ({ ...entry, source: { ...entry.source } }));
   let workingTokens = workingEntries.reduce((total, entry) => total + entry.source.tokenEstimate, 0);
 
   const degradableEntries = workingEntries.filter((entry) =>

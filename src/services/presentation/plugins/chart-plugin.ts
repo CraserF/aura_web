@@ -82,19 +82,20 @@ function hydrateCharts(deckRoot: HTMLElement, mounted: Map<HTMLElement, Hydrated
 
 export const ChartPlugin = {
   id: 'aura-chart-plugin',
-  init(reveal: InstanceType<typeof Reveal>) {
+  init(reveal: unknown) {
+    const deck = reveal as InstanceType<typeof Reveal>;
     const mounted = new Map<HTMLElement, HydratedChart>();
 
     const runHydration = () => {
-      const currentSlide = reveal.getCurrentSlide() as HTMLElement | null;
+      const currentSlide = deck.getCurrentSlide() as HTMLElement | null;
       const slidesRoot = (currentSlide?.closest('.reveal')?.querySelector('.slides')
         ?? document.querySelector('.reveal .slides')) as HTMLElement | null;
       if (!slidesRoot) return;
       hydrateCharts(slidesRoot, mounted);
     };
 
-    reveal.on('ready', runHydration);
-    reveal.on('slidechanged', runHydration);
+    deck.on('ready', runHydration);
+    deck.on('slidechanged', runHydration);
 
     return {
       destroy() {

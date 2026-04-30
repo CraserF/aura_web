@@ -43,7 +43,7 @@ function sanitizeColumnName(value: string): string {
 }
 
 function extractColumnList(prompt: string): string[] {
-  const match = prompt.match(/(?:columns|fields)\s*[:\-]?\s*([^.;\n]+)/i);
+  const match = prompt.match(/(?:columns|fields)\s*[:-]?\s*([^.;\n]+)/i);
   if (!match?.[1]) return [];
 
   return match[1]

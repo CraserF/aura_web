@@ -214,12 +214,11 @@ const collectMediaResolutionFindings = (
   source: EditorialStageSource,
   mediaResolver: ArtifactMediaResolver | undefined,
 ): readonly ArtifactValidationFinding[] => {
-  if (!mediaResolver) return [];
   const findings: ArtifactValidationFinding[] = [];
   source.slides.forEach((slide, slideIndex) => {
     const layout = EDITORIAL_STAGE_LAYOUT_BY_ID[slide.layoutId];
     for (const [mediaIndex, media] of slide.media.entries()) {
-      if (mediaResolver.resolveById(media.assetId)) continue;
+      if (mediaResolver?.resolveById(media.assetId)) continue;
       const mediaSlot = layout?.mediaSlots.find((slot) => slot.id === media.slotId);
       const required = mediaSlot?.required ?? false;
       findings.push({

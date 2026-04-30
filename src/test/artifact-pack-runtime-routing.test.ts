@@ -161,6 +161,106 @@ describe('artifact pack presentation runtime routing', () => {
     expect(output.runtime?.runMode).toBe('queued-create');
   });
 
+  it('blocks pack edit plans without source payloads instead of falling back to freeform HTML', async () => {
+    batchQueueMocks.runBatchQueue.mockReset();
+    designerMocks.design.mockReset();
+    designerMocks.designEdit.mockReset();
+    const editRunPlan = buildArtifactRunPlan({
+      runId: 'artifact-pack-missing-source-edit',
+      prompt: 'Change slide 1 title to "Sharper opening"',
+      artifactType: 'presentation',
+      operation: 'edit',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    const legacyHtml = '<style>.legacy-slide { color: black; }</style><section class="legacy-slide"><h1>Old title</h1></section>';
+
+    const output = await runPresentationRuntime({
+      model: {} as LanguageModel,
+      input: {
+        prompt: 'Change slide 1 title to "Sharper opening"',
+        existingSlidesHtml: legacyHtml,
+        chatHistory: [],
+        artifactRunPlan: editRunPlan,
+      },
+      onEvent: vi.fn(),
+      editCorrectionPolicy: editPolicy(),
+      skipSecondaryEvaluation: true,
+    });
+
+    expect(batchQueueMocks.runBatchQueue).not.toHaveBeenCalled();
+    expect(designerMocks.design).not.toHaveBeenCalled();
+    expect(designerMocks.designEdit).not.toHaveBeenCalled();
+    expect(output.reviewPassed).toBe(false);
+    expect(output.html).toContain('Old title');
+    expect(output.artifactManifest).toBeUndefined();
+    expect(output.artifactSourcePayload).toBeUndefined();
+    expect(output.runtime?.qualityDecision).toBe('blocked-by-safety');
+    expect(output.runtime?.validationByPart?.[0]?.partId).toBe('artifact-pack-edit-surface');
+  });
+
+  it('binds uploaded project media during normal pack creates when the rhythm asks for visual evidence', async () => {
+    batchQueueMocks.runBatchQueue.mockReset();
+    const prompt = 'Create 3 slides: opening thesis, proof screenshot, closing action';
+    const runPlan = buildArtifactRunPlan({
+      runId: 'artifact-pack-create-with-media',
+      prompt,
+      artifactType: 'presentation',
+      operation: 'create',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    const media: ProjectMediaAsset[] = [{
+      id: 'project-proof-shot',
+      filename: 'project-proof-shot.png',
+      mimeType: 'image/png',
+      relativePath: 'media/project-proof-shot.png',
+      dataUrl: 'data:image/png;base64,project-proof',
+    }];
+    const planResult = createPlanResult();
+    planResult.slideBriefs = [
+      {
+        index: 1,
+        title: 'Opening thesis',
+        contentGuidance: 'State the argument.',
+      },
+      {
+        index: 2,
+        title: 'Proof screenshot',
+        contentGuidance: 'Show the uploaded media as evidence for the recommendation.',
+      },
+      {
+        index: 3,
+        title: 'Closing action',
+        contentGuidance: 'Close with the decision and next move.',
+      },
+    ];
+
+    const output = await runQueuedPresentationRuntime({
+      runPlan,
+      planResult,
+      model: {} as LanguageModel,
+      input: {
+        prompt,
+        chatHistory: [],
+        projectMedia: media,
+      },
+      onEvent: vi.fn(),
+      isEdit: false,
+    });
+    const source = output.artifactSourcePayload as EditorialStageSource;
+
+    expect(batchQueueMocks.runBatchQueue).not.toHaveBeenCalled();
+    expect(output.reviewPassed).toBe(true);
+    expect(output.html).toContain('data-asset-id="project-proof-shot"');
+    expect(output.html).toContain('<img src="data:image/png;base64,project-proof"');
+    expect(source.slides.some((slide) => slide.media.some((binding) => binding.assetId === 'project-proof-shot'))).toBe(true);
+  });
+
   it('patches manifest-backed editorial-stage source slots without calling freeform design', async () => {
     const seed = await createPackedDeck();
     batchQueueMocks.runBatchQueue.mockReset();
@@ -292,6 +392,127 @@ describe('artifact pack presentation runtime routing', () => {
     expect(source.directionId).toBe('bold-editorial');
     expect(JSON.stringify(source.slides.map((slide) => slide.slots))).toBe(beforeSlots);
     expect(output.artifactManifest?.designDirectionId).toBe('bold-editorial');
+  });
+
+  it('blocks unsupported source-backed restructure edits instead of treating them as text edits', async () => {
+    const seed = await createPackedDeck();
+    batchQueueMocks.runBatchQueue.mockReset();
+    designerMocks.design.mockReset();
+    designerMocks.designEdit.mockReset();
+    const editRunPlan = buildArtifactRunPlan({
+      runId: 'artifact-pack-unsupported-edit',
+      prompt: 'Reorder the slides so slide 2 comes first',
+      artifactType: 'presentation',
+      operation: 'edit',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    expect(editRunPlan.artifactAllowedEditSurface?.kind).toBe('unsupported');
+    const output = await runPresentationRuntime({
+      model: {} as LanguageModel,
+      input: {
+        prompt: 'Reorder the slides so slide 2 comes first',
+        existingSlidesHtml: seed.html,
+        chatHistory: [],
+        artifactRunPlan: editRunPlan,
+        artifactManifest: seed.artifactManifest,
+        artifactSourcePayload: seed.artifactSourcePayload,
+      },
+      onEvent: vi.fn(),
+      editCorrectionPolicy: editPolicy(),
+      skipSecondaryEvaluation: true,
+    });
+
+    expect(batchQueueMocks.runBatchQueue).not.toHaveBeenCalled();
+    expect(designerMocks.design).not.toHaveBeenCalled();
+    expect(designerMocks.designEdit).not.toHaveBeenCalled();
+    expect(output.reviewPassed).toBe(false);
+    expect(output.runtime?.qualityDecision).toBe('blocked-by-safety');
+    expect(output.artifactManifest).toBeUndefined();
+    expect(output.artifactSourcePayload).toBeUndefined();
+  });
+
+  it('blocks media replacement requests until typed media-binding edits exist', async () => {
+    const seed = await createPackedDeck();
+    batchQueueMocks.runBatchQueue.mockReset();
+    designerMocks.design.mockReset();
+    designerMocks.designEdit.mockReset();
+    const editRunPlan = buildArtifactRunPlan({
+      runId: 'artifact-pack-media-edit-blocked',
+      prompt: 'Replace slide 2 screenshot with the new proof image',
+      artifactType: 'presentation',
+      operation: 'edit',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    expect(editRunPlan.artifactAllowedEditSurface?.kind).toBe('unsupported');
+    const output = await runPresentationRuntime({
+      model: {} as LanguageModel,
+      input: {
+        prompt: 'Replace slide 2 screenshot with the new proof image',
+        existingSlidesHtml: seed.html,
+        chatHistory: [],
+        artifactRunPlan: editRunPlan,
+        artifactManifest: seed.artifactManifest,
+        artifactSourcePayload: seed.artifactSourcePayload,
+      },
+      onEvent: vi.fn(),
+      editCorrectionPolicy: editPolicy(),
+      skipSecondaryEvaluation: true,
+    });
+
+    expect(batchQueueMocks.runBatchQueue).not.toHaveBeenCalled();
+    expect(designerMocks.designEdit).not.toHaveBeenCalled();
+    expect(output.reviewPassed).toBe(false);
+    expect(output.runtime?.qualityDecision).toBe('blocked-by-safety');
+    expect(output.artifactManifest).toBeUndefined();
+  });
+
+  it('blocks no-op source text edits so unchanged decks are not persisted as successful edits', async () => {
+    const seed = await createPackedDeck();
+    batchQueueMocks.runBatchQueue.mockReset();
+    designerMocks.design.mockReset();
+    designerMocks.designEdit.mockReset();
+    const editRunPlan = buildArtifactRunPlan({
+      runId: 'artifact-pack-no-op-text-edit',
+      prompt: 'Make slide 1 title punchier',
+      artifactType: 'presentation',
+      operation: 'edit',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    expect(editRunPlan.artifactAllowedEditSurface?.kind).toBe('text-edit');
+    const output = await runPresentationRuntime({
+      model: {} as LanguageModel,
+      input: {
+        prompt: 'Make slide 1 title punchier',
+        existingSlidesHtml: seed.html,
+        chatHistory: [],
+        artifactRunPlan: editRunPlan,
+        artifactManifest: seed.artifactManifest,
+        artifactSourcePayload: seed.artifactSourcePayload,
+      },
+      onEvent: vi.fn(),
+      editCorrectionPolicy: editPolicy(),
+      skipSecondaryEvaluation: true,
+    });
+
+    expect(batchQueueMocks.runBatchQueue).not.toHaveBeenCalled();
+    expect(designerMocks.designEdit).not.toHaveBeenCalled();
+    expect(output.reviewPassed).toBe(false);
+    expect(output.html).toBe(seed.html);
+    expect(output.artifactManifest).toBeUndefined();
+    expect(output.artifactSourcePayload).toBeUndefined();
+    expect(output.runtime?.validationByPart?.map((part) => part.partId)).toContain('artifact-pack-source-edit');
   });
 
   it('threads project media through source-backed edits so real images survive recompilation', async () => {

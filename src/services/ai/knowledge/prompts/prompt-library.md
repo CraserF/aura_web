@@ -121,7 +121,6 @@ Style:
 - Gradient text on key headings
 - Letterbox + vignette on dramatic slides
 - Staggered fragment reveals throughout
-- Include Three.js 3D background on title slide
 - Speaker notes on every slide
 
 Output: Single self-contained HTML file using the revealjs-slides framework.

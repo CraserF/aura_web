@@ -5,7 +5,8 @@
  * Each slide type has specific layout, content structure, and visual priorities.
  */
 
-export function buildNarrativeSection(_slideCount?: number): string {
+export function buildNarrativeSection(slideCount?: number): string {
+  void slideCount;
   return `## SLIDE COMPOSITION — SINGLE-SLIDE EXCELLENCE
 
 You are producing ONE slide. Make it breathtaking. Every element must serve the slide's purpose.

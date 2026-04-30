@@ -120,12 +120,17 @@ export function DocumentTextEditor({
   const editorRef = useRef<MDXEditorMethods>(null);
   const markdownTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [markdown, setMarkdown] = useState(normalizeEditorMarkdown(initialMarkdown));
+  const latestMarkdownRef = useRef(markdown);
   const [linkPickerOpen, setLinkPickerOpen] = useState(false);
   const [linkedTablePickerOpen, setLinkedTablePickerOpen] = useState(false);
   const [linkQuery, setLinkQuery] = useState('');
   const [tableQuery, setTableQuery] = useState('');
   const [editorViewMode, setEditorViewMode] = useState<EditorViewMode>('rich');
   const [editorResetKey, setEditorResetKey] = useState(0);
+
+  useEffect(() => {
+    latestMarkdownRef.current = markdown;
+  }, [markdown]);
 
   useEffect(() => {
     if (!open) {
@@ -135,6 +140,7 @@ export function DocumentTextEditor({
     }
 
     const normalized = normalizeEditorMarkdown(initialMarkdown);
+    latestMarkdownRef.current = normalized;
     setMarkdown(normalized);
     setEditorViewMode('rich');
     setLinkQuery('');
@@ -153,8 +159,9 @@ export function DocumentTextEditor({
     if (!open || editorViewMode !== 'rich') return;
 
     const handle = window.requestAnimationFrame(() => {
-      const nextMarkdown = markdown.trim().length > 0
-        ? markdown
+      const currentMarkdown = latestMarkdownRef.current;
+      const nextMarkdown = currentMarkdown.trim().length > 0
+        ? currentMarkdown
         : normalizeEditorMarkdown(initialMarkdown);
       editorRef.current?.setMarkdown(nextMarkdown);
       editorRef.current?.focus();

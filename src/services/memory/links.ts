@@ -24,7 +24,7 @@ import type {
  * Regex pattern for cross-reference links: [[text]]
  * Captures both the display text and allows for variant formats
  */
-const LINK_PATTERN = /\[\[([^\[\]]+)\]\]/g;
+const LINK_PATTERN = /\[\[([^[\]]+)\]\]/g;
 
 /**
  * Parse all cross-reference links from a text string
@@ -212,7 +212,7 @@ export function buildLinkGraph(memories: MemoryFile[]): LinkGraph {
 export function validateLinks(
   memory: MemoryFile,
   index: CrossReferenceIndex,
-  _memoryIds: Set<MemoryId>
+  memoryIds: Set<MemoryId>
 ): { broken: string[]; valid: string[] } {
   const references = findReferences(memory);
   const broken: string[] = [];
@@ -225,8 +225,9 @@ export function validateLinks(
     // Check if this reference exists as a key in the index (meaning other memories reference it)
     // or if it's mentioned in memory summaries (would be caught by extracting link sources)
     const hasReferences = ref in index;
+    const hasMemoryId = memoryIds.has(ref as MemoryId);
     
-    if (hasReferences) {
+    if (hasReferences || hasMemoryId) {
       valid.push(ref);
     } else {
       // This target has no referencing memories, so it's potentially broken

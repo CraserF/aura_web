@@ -257,13 +257,10 @@ export function applyColorThemeToStyleText(styleText: string, colorTheme?: Color
     `--aura-project-bg: ${background};`,
     `--aura-project-primary: ${primary};`,
     `--aura-project-accent: ${accent};`,
-    `--bg: ${background};`,
-    `--surface: ${surface};`,
-    `--text: ${text};`,
-    `--muted: ${muted};`,
-    `--primary: ${primary};`,
-    `--accent: ${accent};`,
-    `--line: ${line};`,
+    `--aura-project-surface: ${surface};`,
+    `--aura-project-text: ${text};`,
+    `--aura-project-muted: ${muted};`,
+    `--aura-project-line: ${line};`,
   ].join('\n    ');
 
   if (/:root\s*\{/i.test(next)) {

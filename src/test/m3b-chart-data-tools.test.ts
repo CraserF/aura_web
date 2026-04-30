@@ -9,6 +9,14 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+interface ChartToolLike {
+  description?: unknown;
+  inputSchema?: unknown;
+  execute: (input: unknown) => Promise<Record<string, unknown>>;
+}
+
+const asChartTool = (tool: unknown): ChartToolLike => tool as ChartToolLike;
+
 // ── Mock the extract API ──────────────────────────────────────────────────────
 
 vi.mock('@/services/data/extractApi', () => ({
@@ -29,10 +37,14 @@ vi.mock('@/services/data/extractApi', () => ({
       date: `2026-01-0${i + 1}`,
     })),
   ),
-  aggregateQuery: vi.fn(async (_tableName: string, _fragment: string) => [
-    { category: 'A', total: 500 },
-    { category: 'B', total: 300 },
-  ]),
+  aggregateQuery: vi.fn(async (tableName: string, fragment: string) => {
+    void tableName;
+    void fragment;
+    return [
+      { category: 'A', total: 500 },
+      { category: 'B', total: 300 },
+    ];
+  }),
 }));
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -52,8 +64,9 @@ describe('M3-B — chartDataTools: tool shape', () => {
   it('each tool has a description string', async () => {
     const { chartDataTools } = await import('@/services/ai/tools/chartDataTools');
     for (const [name, t] of Object.entries(chartDataTools)) {
-      expect(typeof (t as any).description).toBe('string');
-      expect((t as any).description.length).toBeGreaterThan(10);
+      const tool = asChartTool(t);
+      expect(typeof tool.description).toBe('string');
+      expect((tool.description as string).length).toBeGreaterThan(10);
       expect(name).toBeTruthy();
     }
   });
@@ -61,14 +74,14 @@ describe('M3-B — chartDataTools: tool shape', () => {
   it('each tool has an inputSchema (Zod object)', async () => {
     const { chartDataTools } = await import('@/services/ai/tools/chartDataTools');
     for (const t of Object.values(chartDataTools)) {
-      expect((t as any).inputSchema).toBeDefined();
+      expect(asChartTool(t).inputSchema).toBeDefined();
     }
   });
 
   it('each tool has an execute function', async () => {
     const { chartDataTools } = await import('@/services/ai/tools/chartDataTools');
     for (const t of Object.values(chartDataTools)) {
-      expect(typeof (t as any).execute).toBe('function');
+      expect(typeof asChartTool(t).execute).toBe('function');
     }
   });
 });
@@ -80,7 +93,7 @@ describe('M3-B — describeTableTool: execute', () => {
 
   it('returns success: true with table description', async () => {
     const { describeTableTool } = await import('@/services/ai/tools/chartDataTools');
-    const result = await (describeTableTool as any).execute({ tableName: 'sales' });
+    const result = await asChartTool(describeTableTool).execute({ tableName: 'sales' });
     expect(result.success).toBe(true);
     expect(result.tableName).toBe('sales');
     expect(result.rowCount).toBe(1000);
@@ -93,7 +106,7 @@ describe('M3-B — describeTableTool: execute', () => {
     vi.mocked(describeTable).mockRejectedValueOnce(new Error('Table not found'));
 
     const { describeTableTool } = await import('@/services/ai/tools/chartDataTools');
-    const result = await (describeTableTool as any).execute({ tableName: 'missing_table' });
+    const result = await asChartTool(describeTableTool).execute({ tableName: 'missing_table' });
     expect(result.success).toBe(false);
     expect(result.error).toContain('Table not found');
   });
@@ -106,7 +119,7 @@ describe('M3-B — sampleRowsTool: execute', () => {
 
   it('returns sampled rows with metadata', async () => {
     const { sampleRowsTool } = await import('@/services/ai/tools/chartDataTools');
-    const result = await (sampleRowsTool as any).execute({ tableName: 'metrics', n: 3 });
+    const result = await asChartTool(sampleRowsTool).execute({ tableName: 'metrics', n: 3 });
     expect(result.success).toBe(true);
     expect(result.tableName).toBe('metrics');
     expect(Array.isArray(result.rows)).toBe(true);
@@ -116,7 +129,7 @@ describe('M3-B — sampleRowsTool: execute', () => {
   it('enforces n defaults to 10 via schema', async () => {
     const { sampleRowsTool } = await import('@/services/ai/tools/chartDataTools');
     // Call without n to trigger default
-    const result = await (sampleRowsTool as any).execute({ tableName: 'metrics', n: 10 });
+    const result = await asChartTool(sampleRowsTool).execute({ tableName: 'metrics', n: 10 });
     expect(result.success).toBe(true);
   });
 
@@ -125,7 +138,7 @@ describe('M3-B — sampleRowsTool: execute', () => {
     vi.mocked(sampleRows).mockRejectedValueOnce(new Error('Query failed'));
 
     const { sampleRowsTool } = await import('@/services/ai/tools/chartDataTools');
-    const result = await (sampleRowsTool as any).execute({ tableName: 'broken', n: 5 });
+    const result = await asChartTool(sampleRowsTool).execute({ tableName: 'broken', n: 5 });
     expect(result.success).toBe(false);
     expect(result.error).toContain('Query failed');
   });
@@ -138,15 +151,17 @@ describe('M3-B — aggregateQueryTool: execute', () => {
 
   it('returns aggregation results', async () => {
     const { aggregateQueryTool } = await import('@/services/ai/tools/chartDataTools');
-    const result = await (aggregateQueryTool as any).execute({
+    const result = await asChartTool(aggregateQueryTool).execute({
       tableName: 'sales',
       sqlFragment: 'category, SUM(value) AS total GROUP BY category ORDER BY total DESC LIMIT 10',
     });
     expect(result.success).toBe(true);
     expect(result.tableName).toBe('sales');
-    expect(Array.isArray(result.rows)).toBe(true);
-    expect(result.rows).toHaveLength(2);
-    expect(result.rows[0]).toHaveProperty('total');
+    const rows = result.rows;
+    expect(Array.isArray(rows)).toBe(true);
+    if (!Array.isArray(rows)) throw new Error('Expected aggregate rows array.');
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveProperty('total');
   });
 
   it('returns success: false when query throws', async () => {
@@ -154,7 +169,7 @@ describe('M3-B — aggregateQueryTool: execute', () => {
     vi.mocked(aggregateQuery).mockRejectedValueOnce(new Error('Syntax error'));
 
     const { aggregateQueryTool } = await import('@/services/ai/tools/chartDataTools');
-    const result = await (aggregateQueryTool as any).execute({
+    const result = await asChartTool(aggregateQueryTool).execute({
       tableName: 'sales',
       sqlFragment: 'INVALID SQL !!',
     });

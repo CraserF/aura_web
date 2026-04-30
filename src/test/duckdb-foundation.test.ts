@@ -21,7 +21,7 @@ const mockQueryResult = {
 const mockConn = {
   query: vi.fn(async () => mockQueryResult),
   close: vi.fn(async () => {}),
-  _db: null as any,
+  _db: null as unknown,
 };
 
 const mockDB = {
@@ -123,7 +123,7 @@ describe('M2-B — Persistence (mocked)', () => {
       'aura_duckdb_table_sales',
       'aura_duckdb_table_revenue',
       'some_other_key',
-    ] as any);
+    ] as IDBValidKey[]);
 
     const { listPersistedTables } = await import('@/services/data/persistence');
     const tables = await listPersistedTables();

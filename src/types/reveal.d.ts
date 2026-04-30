@@ -1,7 +1,7 @@
 declare module 'reveal.js' {
   interface RevealPlugin {
     id: string;
-    init: (deck: any) => void;
+    init: (deck: unknown) => void;
   }
 
   interface RevealOptions {

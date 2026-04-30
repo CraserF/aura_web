@@ -6,6 +6,19 @@ export interface DocumentPdfJob {
   title: string;
 }
 
+interface Html2PdfWorker {
+  set(options: unknown): Html2PdfWorker;
+  from(source: Element): Html2PdfWorker;
+  toPdf(): Html2PdfWorker;
+  outputPdf(type: 'blob'): Promise<Blob>;
+  toCanvas(): Html2PdfWorker;
+  toImg(): Html2PdfWorker;
+  outputImg(type: 'datauristring'): Promise<string>;
+  save(): Promise<void>;
+}
+
+type Html2PdfFactory = () => Html2PdfWorker;
+
 export interface PreparedDocumentPdfMarkup {
   normalizedHtml: string;
   pageMarkup: string;
@@ -360,8 +373,8 @@ function createExportContainer(html: string): { element: HTMLDivElement; cleanup
   };
 }
 
-async function loadHtml2Pdf(): Promise<any> {
-  const mod = await import('html2pdf.js');
+async function loadHtml2Pdf(): Promise<Html2PdfFactory> {
+  const mod = await import('html2pdf.js') as unknown as { default?: Html2PdfFactory } & Html2PdfFactory;
   return mod.default ?? mod;
 }
 

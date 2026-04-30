@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { ProviderConfig } from '@/types';
 import { PROVIDER_OPTIONS as OPTIONS } from '@/types';
@@ -199,13 +199,13 @@ function ProviderConfigForm({
   const isGemini = config.id === 'gemini';
   const capabilityProfile = getProviderCapabilityProfile(config);
 
-  const mergeCurrentOllamaModel = (models: OllamaModelOption[]): OllamaModelOption[] => {
+  const mergeCurrentOllamaModel = useCallback((models: OllamaModelOption[]): OllamaModelOption[] => {
     if (!config.model || models.some((model) => model.id === config.model)) {
       return models;
     }
 
     return [{ id: config.model, name: config.model, meta: 'Saved selection' }, ...models];
-  };
+  }, [config.model]);
 
   // Auto-fetch Gemini models whenever the user has a key
   useEffect(() => {
@@ -229,7 +229,7 @@ function ProviderConfigForm({
         setModelFetchError(`Could not fetch models: ${err.message}. Showing defaults.`);
       })
       .finally(() => setIsFetchingModels(false));
-  }, [isGemini, config.apiKey, config.baseUrl]);
+  }, [isGemini, config.apiKey, config.baseUrl, config.model, onModelChange]);
 
   useEffect(() => {
     if (!isOllama) return;
@@ -261,7 +261,7 @@ function ProviderConfigForm({
         setModelFetchError(`Could not load local Ollama models: ${err.message}`);
       })
       .finally(() => setIsFetchingModels(false));
-  }, [isOllama, config.baseUrl, config.model]);
+  }, [isOllama, config.baseUrl, config.model, mergeCurrentOllamaModel, onModelChange]);
 
   const handleRefreshModels = () => {
     if (isOllama) {

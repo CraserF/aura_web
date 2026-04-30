@@ -53,7 +53,7 @@ export function sanitizeSlideHtml(html: string): string {
 /**
  * Scope CSS content so selectors only apply within the Reveal.js container.
  *
- * Strategy: extract global at-rules (@import, @keyframes, @font-face) that
+ * Strategy: strip @import and extract global at-rules (@keyframes, @font-face) that
  * must remain at the document level, then wrap everything else in
  * `@scope (.reveal .slides) { ... }`.
  *
@@ -64,11 +64,8 @@ function scopeStyleContent(css: string): string {
   const globals: string[] = [];
   let rest = css;
 
-  // 1. Extract @import rules — must be at top level
-  rest = rest.replace(/@import\s+[^;]+;/g, (m) => {
-    globals.push(m.trim());
-    return '';
-  });
+  // 1. Strip @import rules. Font links are handled separately by the app/export layer.
+  rest = rest.replace(/@import\s+[^;]+;/g, '');
 
   // 2. Extract @font-face blocks — must be global
   rest = rest.replace(/@font-face\s*\{[^}]*\}/g, (m) => {

@@ -308,12 +308,8 @@ Open that URL in Chrome, then **Print → Save as PDF** with:
 ### Tips for Clean PDFs
 1. Avoid pure CSS animations in print (they freeze at frame 0)
 2. Scene backgrounds won't render — use `data-background-color` as fallback
-3. Three.js canvases won't export — provide a static fallback image:
-   ```html
-   <section data-three-bg="particles" data-background-color="#0a0a1a">
-   ```
-4. Fragments are shown all-at-once in print mode
-5. Speaker notes are excluded from PDF (use `?print-pdf&showNotes=separate-page` to include them)
+3. Fragments are shown all-at-once in print mode
+4. Speaker notes are excluded from PDF (use `?print-pdf&showNotes=separate-page` to include them)
 
 ### Decktape (Headless Export)
 For automation:

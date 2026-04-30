@@ -109,6 +109,11 @@ describe('presentation deterministic style recovery', () => {
     expect(recovered.html.match(/<style\b/gi)).toHaveLength(1);
     expect(recovered.html).toContain('EY Consulting Launch Plan');
     expect(recovered.html).toContain('data-background-color="#d6d6d6"');
+    expect(recovered.html).toContain('--aura-project-primary: #0056d6;');
+    const rootBlock = recovered.html.match(/:root\s*\{[\s\S]*?\}/)?.[0] ?? '';
+    expect(rootBlock).not.toContain('--primary:');
+    expect(rootBlock).not.toContain('--accent:');
+    expect(rootBlock).not.toContain('--muted:');
     expect(validation.blockingIssues.map((issue) => issue.code)).not.toContain('style-block');
   });
 });

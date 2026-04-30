@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { sanitizeHtml, sanitizeInnerHtml } from '@/services/html/sanitizer';
+import { sanitizeSlideHtml } from '@/services/ai/utils/sanitizeHtml';
 
 describe('sanitizeHtml', () => {
   it('removes <script> tags entirely', () => {
@@ -133,5 +134,25 @@ describe('sanitizeInnerHtml', () => {
     const result = sanitizeInnerHtml(input);
     expect(result).not.toContain('onmouseover');
     expect(result).toContain('Hover me');
+  });
+});
+
+describe('sanitizeSlideHtml', () => {
+  it('scopes live presentation styles and strips imports so deck CSS cannot target app chrome', () => {
+    const input = `<style>
+      @import url("https://example.com/bad.css");
+      :root { --primary: red; }
+      button, body { color: red; }
+      @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+    </style><section><h1>Slide</h1></section>`;
+
+    const result = sanitizeSlideHtml(input);
+
+    expect(result).not.toContain('@import');
+    expect(result).not.toContain(':root');
+    expect(result).toContain('@scope (.reveal .slides)');
+    expect(result).toContain(':scope { --primary: red; }');
+    expect(result).toContain('button, body { color: red; }');
+    expect(result).toContain('@media (prefers-reduced-motion: reduce)');
   });
 });

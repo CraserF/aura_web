@@ -1,5 +1,6 @@
 import Reveal from 'reveal.js';
-import { AnimationEnginePlugin, ThreeBackgroundPlugin, ChartPlugin } from './plugins';
+import { AnimationEnginePlugin, ChartPlugin } from './plugins';
+import { sanitizeSlideHtml } from '@/services/ai/utils/sanitizeHtml';
 
 export interface DeckInstance {
   reveal: InstanceType<typeof Reveal>;
@@ -22,7 +23,7 @@ export async function initDeck(
   }
 
   if (initialHtml) {
-    slidesEl.innerHTML = initialHtml;
+    slidesEl.innerHTML = sanitizeSlideHtml(initialHtml);
   } else {
     // Default empty slide
     slidesEl.innerHTML = '<section></section>';
@@ -37,15 +38,15 @@ export async function initDeck(
     center: true,
     transition: 'slide',
     backgroundTransition: 'fade',
-    width: 1920,
-    height: 1080,
+    width: 1280,
+    height: 720,
     margin: 0.04,
     minScale: 0.2,
     maxScale: 2.0,
     keyboard: true,
     overview: false,
     touch: true,
-    plugins: [AnimationEnginePlugin, ThreeBackgroundPlugin, ChartPlugin],
+    plugins: [AnimationEnginePlugin, ChartPlugin],
   });
 
   await deck.initialize();
@@ -66,7 +67,7 @@ export function updateContent(
     ? deck.reveal.getIndices().h
     : 0;
 
-  slidesEl.innerHTML = slidesHtml;
+  slidesEl.innerHTML = sanitizeSlideHtml(slidesHtml);
   deck.reveal.sync();
 
   const totalSlides = deck.reveal.getTotalSlides();

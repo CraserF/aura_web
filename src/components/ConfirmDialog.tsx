@@ -51,7 +51,7 @@ export function ConfirmDialog({
 
   const open = isControlled ? controlledOpen : internalOpen;
   const setOpen = isControlled
-    ? (onControlledOpenChange ?? ((_v: boolean) => undefined))
+    ? (onControlledOpenChange ?? (() => undefined))
     : setInternalOpen;
 
   return (

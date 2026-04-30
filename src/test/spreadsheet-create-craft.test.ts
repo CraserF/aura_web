@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const replaceSheetData = vi.fn(async (_sheet: unknown, schema: unknown, _rows: unknown) => schema);
+const replaceSheetData = vi.fn(async (_sheet: unknown, schema: unknown, rows: unknown) => {
+  void rows;
+  return schema;
+});
 
 vi.mock('@/services/spreadsheet/workbook', () => ({
   createDefaultSheet: vi.fn((name = 'Sheet 1') => ({

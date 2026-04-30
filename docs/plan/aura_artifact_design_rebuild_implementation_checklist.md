@@ -32,6 +32,7 @@ Status key:
 
 - `Done`: implemented and verified.
 - `Active`: current phase; do this before starting broad new surfaces.
+- `Active/Next`: active hardening slice while an earlier gate remains open.
 - `Next`: next major phase after the active gate passes.
 - `Queued`: important, but intentionally deferred.
 - `Blocked`: cannot proceed until the blocker is removed.
@@ -43,9 +44,9 @@ Status key:
 | 2. Editorial Stage default presentation pack | Done | Replace prompt-authored decks with compiler-owned presentation source payloads. | Default presentation create uses `presentation/editorial-stage-v1`. | Pack runtime routing tests. | Keep legacy scaffold out of normal UI/runtime. |
 | 3. Source-backed presentation edits | Done | Text edit, add-slide, and restyle patch source payloads and recompile. | No `designEdit`/`runBatchQueue` for pack-backed source edits. | `artifact-pack-runtime-routing.test.ts`. | Add repair loops for rejected source edits later. |
 | 4. Simplified creation UI | Done | Users choose artifact shape and style direction, not scaffold/theme internals. | No scaffold/theme/export/color picker in default new-project flow. | UI and UX simplification tests. | Add guided edit chips after visual gate. |
-| 5. Editorial Stage visual quality gate | Active | Make the default deck visually credible across directions. | Manual screenshot gate plus deterministic example/render tests. | Compiler, validator, render smoke, regenerated example, 24 headless screenshots in `/private/tmp/editorial-stage-visual-gate`. | Review full screenshot set; only then mark Phase 5 done or log concrete fixes. |
-| 6. Real media asset rendering | Done | Render actual project media in declared pack slots instead of metadata-backed evidence frames. | Bound media has data URLs, safe crop classes, alt text, and export-safe markup. | Media resolver, compiler/runtime threading, example media fixture, and focused tests. | Carry export-specific media restrictions into Phase 10. |
-| 7. Presentation repair loop hardening | Next | Repair rejected slot/media/rhythm payloads without freeform HTML. | Rejected source payloads get targeted repair attempts. | Pending. | Add source-payload repair schemas after media path is real and screenshot gate failures are known. |
+| 5. Editorial Stage visual quality gate | Active | Make the default deck visually credible across directions. | Full screenshot review remains open. | Compiler, validator, render smoke, regenerated example, 24 headless screenshots in `/private/tmp/editorial-stage-visual-gate`. | Finish screenshot review; only then mark Phase 5 done or log concrete fixes. |
+| 6. Real media asset rendering | Done | Harden actual project media rendering in declared pack slots. | Safe media resolves before compile and missing/unsafe required media blocks. | Media resolver, compiler/runtime threading, example media fixture, focused tests, full test suite. | Carry export-specific media restrictions into Phase 10. |
+| 7. Source-payload repair and edit safety | Active | Repair rejected source payloads and fail closed on unsafe edits. | Fail-closed routing is in place; targeted source repair loops remain. | Pack edit fallback, unsupported edit, no-op edit, validation persistence, CSS isolation, slide dimension, and ESLint regressions covered. | Add structured repair attempts for rejected slot/media/rhythm payloads. |
 | 8. Guided edit chips | Queued | Offer simple user controls that map to typed source operations. | Chips map to supported edit surfaces only. | Pending. | Add after Phase 5/6 gates so chips improve a solid default instead of masking weak output. |
 | 9. Design-system mode | Queued | Parse project `DESIGN.md`/rules into validated tokens and examples. | Project design context previews compile without arbitrary CSS. | Pending. | Start after guided edit surfaces are stable. |
 | 10. Export and preview gates | Queued | Add export-intent constraints and generated preview artifacts. | HTML/PDF/PPTX-safe restrictions are validated; `artifact.preview.png` exists for packs. | Pending. | Add after media rendering because exports must handle real assets. |
@@ -73,6 +74,18 @@ Phase 6 is not complete until all are true:
 - Bound media renders as semantic `<img>` markup inside the locked media frame with crop class, `alt`, `role`, `aria-label`, and `data-asset-id`.
 - Example media fixtures compile into `examples/example.html` so the gallery/regression path tests real images, not placeholder labels.
 - Tests cover resolver normalization, real image compilation, unresolved required media, and runtime resolver threading.
+
+### Phase 7 Active Work
+
+Do not expand edit features until these stay true:
+
+- Pack-backed edits must not fall back to freeform HTML/CSS for supported source surfaces.
+- Unsupported edit surfaces fail closed with targeted feedback.
+- Blocking validation results do not persist artifact/edit outputs.
+- Pack CSS stays isolated from host/project CSS.
+- Slide dimensions remain locked through compile/render/export previews.
+- Changed source and test files pass targeted ESLint cleanup.
+- Rejected slot/media/rhythm payloads receive targeted repair attempts instead of falling back to full HTML/CSS generation.
 
 ### Anti-Drift Rules
 
@@ -164,6 +177,40 @@ Remaining current gate:
 
 - Review the full screenshot set in `/private/tmp/editorial-stage-visual-gate` for any remaining subtle layout issues before marking Phase 5 done.
 - Then begin Phase 7 source-payload repair loops, using the validator finding ids added in Phase 5/6 as repair targets.
+
+### 2026-05-01 - Review Pass And Safety Hardening
+
+Review update:
+
+- A review pass kept Phase 5 open while the screenshot set is still being checked.
+- Phase 6 moved back into hardening after media rendering review findings.
+- Phase 7 is now the active/next safety slice, blocked on pack edit fallback, unsupported edit surfaces, validation persistence, CSS isolation, slide dimensions, and ESLint cleanup.
+- Current focus is hardening source/edit safety before expanding feature surfaces.
+
+Completed in this slice:
+
+- Blocked pack-backed edit runs without a matching source payload so they no longer fall through to freeform HTML/CSS generation.
+- Stopped failed or safety-blocked presentation outputs from replacing the document/source of truth in the chat handler.
+- Added fail-closed routing for unsupported restructure/media replacement edits, while keeping explicit text-slot edits supported.
+- Blocked no-op source edits so unchanged decks are not reported or persisted as successful edits.
+- Hardened project media resolution to require safe image data URLs matching the declared MIME type.
+- Treated missing media resolvers as unresolved media for required slots.
+- Routed normal pack creates through available project media when the slide brief asks for visual evidence.
+- Scoped live presentation CSS in the Reveal engine and removed generic project color aliases that could leak into app controls.
+- Aligned the live Reveal stage to the pack's 1280x720 contract.
+- Cleared ESLint errors and warnings, including build-only plugin/test type issues.
+
+Verification completed:
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm test`
+- `npm run build`
+
+Remaining current gate:
+
+- Phase 5 still needs the screenshot review to be closed or turned into concrete fixes.
+- Phase 7 still needs structured repair attempts for rejected source payloads before guided edit chips expand the edit surface.
 
 ## Implementation Order
 

@@ -1,7 +1,7 @@
 import type { PlanResult, SlideBrief } from '@/services/ai/workflow/agents/planner';
 import type { EventListener } from '@/services/ai/workflow/types';
 import type { ArtifactRunPlan } from '@/services/artifactRuntime/types';
-import type { ArtifactMediaResolver } from '@/services/artifactPacks/types';
+import type { ArtifactMediaResolver, ResolvedArtifactMediaAsset } from '@/services/artifactPacks/types';
 import { compileEditorialStagePack } from './compiler';
 import {
   addEditorialStageSlideFromBrief,
@@ -244,6 +244,7 @@ function buildSlide(input: {
   index: number;
   total: number;
   layoutId: EditorialStageLayoutId;
+  mediaAsset?: ResolvedArtifactMediaAsset;
 }): EditorialStageSlide {
   const layout = EDITORIAL_STAGE_LAYOUT_BY_ID[input.layoutId];
   const text = `${input.brief.title} ${input.brief.contentGuidance ?? ''}`;
@@ -260,6 +261,17 @@ function buildSlide(input: {
     }),
   ]));
 
+  const media = input.layoutId === 'lead-media' && input.mediaAsset
+    ? [{
+        slotId: 'lead_media',
+        assetId: input.mediaAsset.id,
+        altText: cleanText(input.brief.title, 120) || input.mediaAsset.filename,
+        aspectRatio: '16:9' as const,
+        cropMode: 'contain' as const,
+        caption: input.mediaAsset.filename,
+      }]
+    : [];
+
   return {
     slideId: `slide-${input.index + 1}`,
     layoutId: input.layoutId,
@@ -273,21 +285,41 @@ function buildSlide(input: {
         : 'standard',
     motion: layout.motion,
     slots,
-    media: [],
-    sourceNotes: input.layoutId === 'big-number' && number ? ['User brief'] : [],
+    media,
+    sourceNotes: [
+      ...(input.layoutId === 'big-number' && number ? ['User brief'] : []),
+      ...(input.mediaAsset ? [input.mediaAsset.filename] : []),
+    ],
   };
 }
 
 function buildSource(input: EditorialStagePresentationQueueInput): EditorialStageSource {
   const briefs = resolveBriefs(input);
   const slides: EditorialStageSlide[] = [];
+  const mediaAssets = input.mediaResolver?.list() ?? [];
+  let mediaAssetIndex = 0;
   let previousLayoutId: EditorialStageLayoutId | undefined;
 
   briefs.forEach((brief, index) => {
     const role = roleForBrief({ brief, index, total: briefs.length, runPlan: input.runPlan });
-    const layoutId = layoutForRole({ role, brief, index, total: briefs.length, previousLayoutId });
+    let layoutId = layoutForRole({ role, brief, index, total: briefs.length, previousLayoutId });
+    const briefText = `${brief.title} ${brief.contentGuidance ?? ''} ${brief.visualGuidance ?? ''}`;
+    const shouldUseProjectMedia =
+      mediaAssetIndex < mediaAssets.length &&
+      index > 0 &&
+      index < briefs.length - 1 &&
+      previousLayoutId !== 'lead-media' &&
+      /\b(media|image|screenshot|photo|visual|evidence|proof|show|demo)\b/i.test(briefText);
+    const mediaAsset = shouldUseProjectMedia ? mediaAssets[mediaAssetIndex++] : undefined;
+    if (mediaAsset) layoutId = 'lead-media';
     previousLayoutId = layoutId;
-    slides.push(buildSlide({ brief, index, total: briefs.length, layoutId }));
+    slides.push(buildSlide({
+      brief,
+      index,
+      total: briefs.length,
+      layoutId,
+      ...(mediaAsset ? { mediaAsset } : {}),
+    }));
   });
 
   const rhythmPlan: EditorialStageRhythmEntry[] = slides.map((slide, index) => ({
@@ -300,7 +332,11 @@ function buildSource(input: EditorialStagePresentationQueueInput): EditorialStag
     visualWeight: slide.visualWeight,
     motion: slide.motion,
     transitionPurpose: cleanText(briefs[index]?.contentGuidance ?? briefs[index]?.title, 140) || 'Advance the argument.',
-    mediaNeeds: [],
+    mediaNeeds: slide.media.map((media) => ({
+      slotId: media.slotId,
+      purpose: media.altText,
+      required: true,
+    })),
   }));
 
   return {

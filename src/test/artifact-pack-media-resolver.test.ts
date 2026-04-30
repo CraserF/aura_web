@@ -25,6 +25,20 @@ const media: ProjectMediaAsset[] = [
     relativePath: '../unsafe.png',
     dataUrl: 'data:image/png;base64,unsafe',
   },
+  {
+    id: 'wrong-data-type',
+    filename: 'wrong-data-type.png',
+    mimeType: 'image/png',
+    relativePath: 'media/wrong-data-type.png',
+    dataUrl: 'data:text/html;base64,PGgxPk5vdCBpbWFnZTwvaDE+',
+  },
+  {
+    id: 'wrong-mime',
+    filename: 'wrong-mime.png',
+    mimeType: 'text/html',
+    relativePath: 'media/wrong-mime.png',
+    dataUrl: 'data:text/html;base64,PGgxPk5vdCBpbWFnZTwvaDE+',
+  },
 ];
 
 describe('artifact pack media resolver', () => {
@@ -43,5 +57,13 @@ describe('artifact pack media resolver', () => {
     expect(resolver.resolveById('unsafe')).toBeNull();
     expect(resolver.resolveByRelativePath('../unsafe.png')).toBeNull();
     expect(resolver.resolveByRelativePath('documents/brief.pdf')).toBeNull();
+  });
+
+  it('rejects non-image and mismatched data URLs before pack compilation', () => {
+    const resolver = createProjectMediaResolver(media);
+
+    expect(resolver.resolveById('wrong-data-type')).toBeNull();
+    expect(resolver.resolveById('wrong-mime')).toBeNull();
+    expect(resolver.list().map((asset) => asset.id)).toEqual(['hero-shot', 'proof-shot']);
   });
 });

@@ -230,6 +230,85 @@ describe('editorial-stage presentation compiler', () => {
     expect(findingIds).toContain('compiled.media_unresolved_placeholder');
   });
 
+  it('blocks required bound media when no media resolver is supplied', () => {
+    const source = createSource();
+    source.slides[1] = {
+      ...source.slides[1]!,
+      layoutId: 'lead-media',
+      role: 'explainer',
+      slots: {
+        kicker: 'Evidence',
+        title: 'Show the proof where the claim is made',
+        body: 'One annotated proof frame keeps the recommendation concrete.',
+        caption: 'Proof screenshot',
+      },
+      media: [
+        {
+          slotId: 'lead_media',
+          assetId: 'missing-without-resolver',
+          altText: 'Annotated proof screenshot',
+          aspectRatio: '16:9',
+          cropMode: 'contain',
+          caption: 'Proof screenshot',
+        },
+      ],
+      sourceNotes: ['Proof screenshot'],
+    };
+
+    const result = compileEditorialStagePack({
+      source,
+      outputMode: 'html',
+    });
+
+    const findingIds = result.validation.findings.map((finding) => finding.id);
+    expect(result.validation.passed).toBe(false);
+    expect(findingIds).toContain('media.required_unresolved');
+    expect(findingIds).toContain('compiled.media_unresolved_placeholder');
+  });
+
+  it('blocks required bound media when the resolved asset has an unsafe data URL', () => {
+    const source = createSource();
+    source.slides[1] = {
+      ...source.slides[1]!,
+      layoutId: 'lead-media',
+      role: 'explainer',
+      slots: {
+        kicker: 'Evidence',
+        title: 'Show the proof where the claim is made',
+        body: 'One annotated proof frame keeps the recommendation concrete.',
+        caption: 'Proof screenshot',
+      },
+      media: [
+        {
+          slotId: 'lead_media',
+          assetId: 'unsafe-proof-shot',
+          altText: 'Annotated proof screenshot',
+          aspectRatio: '16:9',
+          cropMode: 'contain',
+          caption: 'Proof screenshot',
+        },
+      ],
+      sourceNotes: ['Proof screenshot'],
+    };
+
+    const result = compileEditorialStagePack({
+      source,
+      outputMode: 'html',
+      mediaResolver: createProjectMediaResolver([{
+        id: 'unsafe-proof-shot',
+        filename: 'unsafe-proof-shot.png',
+        mimeType: 'image/png',
+        relativePath: 'media/unsafe-proof-shot.png',
+        dataUrl: 'data:text/html;base64,PGgxPk5vdCBpbWFnZTwvaDE+',
+      }]),
+    });
+
+    const findingIds = result.validation.findings.map((finding) => finding.id);
+    expect(result.validation.passed).toBe(false);
+    expect(findingIds).toContain('media.required_unresolved');
+    expect(result.output.content).not.toContain('data:text/html');
+  });
+
   it('keeps the checked-in example compiled from the source payload', () => {
     const source = JSON.parse(readFileSync(EXAMPLE_SOURCE_PATH, 'utf8')) as EditorialStageSource;
     const media = JSON.parse(readFileSync(EXAMPLE_MEDIA_PATH, 'utf8')) as ProjectMediaAsset[];

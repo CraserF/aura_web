@@ -376,7 +376,7 @@ function buildIframeDocument(bodyHtml: string, pagesEnabled: boolean): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>${styles}</style>
   ${inlineStyles}
-  <script>${NAVIGATION_SCRIPT}<\/script>
+  <script>${NAVIGATION_SCRIPT}</script>
 </head>
 <body>
   <div class="aura-document-frame">

@@ -28,8 +28,6 @@
 - [ ] RevealHighlight plugin loaded (if code blocks present)
 - [ ] RevealNotes plugin loaded (if speaker notes desired in separate window)
 - [ ] Animation engine plugin linked (if using counters, typed text, progress bars)
-- [ ] Three.js CDN loaded (if using 3D backgrounds)
-- [ ] Three.js backgrounds plugin linked (if using 3D backgrounds)
 - [ ] Plugins array in `Reveal.initialize()` includes all loaded plugins
 
 ---

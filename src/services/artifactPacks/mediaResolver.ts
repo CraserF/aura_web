@@ -8,9 +8,21 @@ function normalizeMediaPath(relativePath: string): string | null {
   return normalized;
 }
 
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function hasSafeImageDataUrl(asset: ProjectMediaAsset): boolean {
+  const mimeType = asset.mimeType.trim().toLowerCase();
+  if (!mimeType.startsWith('image/')) return false;
+  const dataUrl = asset.dataUrl.trim();
+  return new RegExp(`^data:${escapeRegex(mimeType)};base64,`, 'i').test(dataUrl);
+}
+
 function resolveAsset(asset: ProjectMediaAsset): ResolvedArtifactMediaAsset | null {
   const relativePath = normalizeMediaPath(asset.relativePath);
   if (!relativePath) return null;
+  if (!hasSafeImageDataUrl(asset)) return null;
   return {
     id: asset.id,
     filename: asset.filename,

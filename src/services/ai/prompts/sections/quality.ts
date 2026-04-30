@@ -5,7 +5,8 @@
  * and responsive sizing requirements for standalone HTML slides.
  */
 
-export function buildQualitySection(_slideCount?: number): string {
+export function buildQualitySection(slideCount?: number): string {
+  void slideCount;
   return `## FINAL SELF-CHECK
 
 Before you answer, verify all of the following:

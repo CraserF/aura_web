@@ -357,7 +357,7 @@ Both presentations and documents need to render Chart.js charts, but each surfac
 
 ### 6.2 Presentation: Reveal.js Chart Plugin
 
-Follow the established pattern used by `AnimationEnginePlugin` and `ThreeBackgroundPlugin`:
+Follow the established pattern used by `AnimationEnginePlugin`:
 
 1. The AI (or user) places a `<div data-aura-chart="chartId">` placeholder in the slide HTML.
 2. The sanitizer preserves this element (it's a `<div>`, not a blocked tag; `data-*` attributes are not event handlers).

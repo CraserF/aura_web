@@ -745,6 +745,52 @@ function resolveEditorialStageSourceBackedEdit(input: PresentationInput): Editor
   return source.packId === EDITORIAL_STAGE_PACK_ID && source.packVersion === '1.0.0' ? source : null;
 }
 
+function countPresentationSections(html: string | undefined): number {
+  return html?.match(/<section\b/gi)?.length ?? 0;
+}
+
+function buildBlockedPackEditOutput(input: PresentationInput, runPlan: ArtifactRunPlan | undefined): PresentationOutput {
+  const html = sanitizeInnerHtml(input.existingSlidesHtml ?? '');
+  const message = 'This presentation edit needs a pack source payload. Aura blocked the request instead of falling back to freeform HTML/CSS generation.';
+  const validationByPart: NonNullable<ArtifactRuntimeTelemetry['validationByPart']> = [{
+    partId: 'artifact-pack-edit-surface',
+    label: 'Unsupported artifact-pack edit',
+    validationPassed: false,
+    blockingCount: 1,
+    advisoryCount: 0,
+    rules: [message],
+  }];
+
+  return {
+    html,
+    title: 'Presentation',
+    slideCount: countPresentationSections(html),
+    reviewPassed: false,
+    runtime: {
+      totalRuntimeMs: 0,
+      validationPassed: false,
+      validationBlockingCount: 1,
+      validationAdvisoryCount: 0,
+      repairCount: 0,
+      runMode: 'deterministic-action',
+      queuedPartCount: 0,
+      completedPartCount: 0,
+      repairedPartCount: 0,
+      phaseTimings: [],
+      validationByPart,
+      qualityPassed: false,
+      qualityScore: 0,
+      qualityBlockingCount: 1,
+      qualityAdvisoryCount: 0,
+      qualityDecision: 'blocked-by-safety',
+      qualityPolishAction: 'safety-blocked',
+      qualityPolishingSkippedReason: runPlan?.artifactAllowedEditSurface?.kind === 'unsupported'
+        ? 'Unsupported artifact-pack edit surface.'
+        : 'Pack-backed edit cannot be safely applied without source payload metadata.',
+    },
+  };
+}
+
 async function runEditorialStageSourceEditPresentationRuntime(opts: {
   runPlan?: ArtifactRunPlan;
   planResult: PlanResult;
@@ -840,6 +886,25 @@ async function runEditorialStageSourceEditPresentationRuntime(opts: {
     validatePresentationRuntimeOutput(editResult.html, planResult, editResult.slideCount, { skipExpectedBackground: true }),
     editResult.compileResult.validation,
   );
+  const effectiveValidation: PresentationRuntimeValidationResult = editResult.changed
+    ? validation
+    : {
+        ...validation,
+        passed: false,
+        blockingCount: validation.blockingCount + 1,
+        validationByPart: [
+          ...validation.validationByPart,
+          {
+            partId: 'artifact-pack-source-edit',
+            label: 'No source change',
+            validationPassed: false,
+            blockingCount: 1,
+            advisoryCount: 0,
+            rules: [editResult.reason ?? 'No supported source-slot change was produced.'],
+          },
+        ],
+        summary: editResult.reason ?? 'No supported source-slot change was produced.',
+      };
   phaseTimings.push({
     phaseId: 'validation',
     label: 'Validation',
@@ -848,8 +913,8 @@ async function runEditorialStageSourceEditPresentationRuntime(opts: {
   });
   onEvent({
     type: 'progress',
-    message: validation.summary,
-    pct: validation.passed ? 84 : 78,
+    message: effectiveValidation.summary,
+    pct: effectiveValidation.passed ? 84 : 78,
     partId: 'evaluate',
     runId: runtimeRunId,
   });
@@ -865,7 +930,7 @@ async function runEditorialStageSourceEditPresentationRuntime(opts: {
   const finalizeStartedAt = performance.now();
   onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing presentation…' });
   const compiledOutputHtml = sanitizeInnerHtml(editResult.html);
-  const shouldPersistSourceEdit = validation.blockingCount === 0;
+  const shouldPersistSourceEdit = effectiveValidation.blockingCount === 0;
   const outputHtml = shouldPersistSourceEdit
     ? compiledOutputHtml
     : sanitizeInnerHtml(input.existingSlidesHtml ?? editResult.html);
@@ -883,9 +948,9 @@ async function runEditorialStageSourceEditPresentationRuntime(opts: {
   const runtimeTelemetry = applyQualityDecisionTelemetry({
     ...(firstPreviewAt ? { timeToFirstPreviewMs: Math.round(firstPreviewAt - runtimeStart) } : {}),
     totalRuntimeMs: Math.round(performance.now() - runtimeStart),
-    validationPassed: validation.passed,
-    validationBlockingCount: validation.blockingCount,
-    validationAdvisoryCount: validation.advisoryCount,
+    validationPassed: effectiveValidation.passed,
+    validationBlockingCount: effectiveValidation.blockingCount,
+    validationAdvisoryCount: effectiveValidation.advisoryCount,
     repairCount: 0,
     runMode: 'deterministic-action',
     queuedPartCount: editResult.slideCount,
@@ -901,28 +966,28 @@ async function runEditorialStageSourceEditPresentationRuntime(opts: {
       },
     ],
     ...qualityTelemetry,
-    validationByPart: validation.validationByPart,
+    validationByPart: effectiveValidation.validationByPart,
   }, undefined, undefined);
   const output: PresentationOutput = {
     html: outputHtml,
     title: outputSource.title,
     slideCount: outputSlideCount,
-    reviewPassed: validation.passed,
+    reviewPassed: effectiveValidation.passed,
     runtime: runtimeTelemetry,
-    artifactManifest: {
-      packId: EDITORIAL_STAGE_PACK_ID,
-      packVersion: outputSource.packVersion,
-      designDirectionId: outputSource.directionId,
-      sourcePayloadVersion: 1,
-      renderer: 'presentation',
-      exports: [outputSource.outputMode],
-      ...(editSurfaceIds.length > 0 ? { editSurfaces: editSurfaceIds } : {}),
-      validationStatus: validation.passed
-        ? (validation.advisoryCount > 0 ? 'warnings' : 'passed')
-        : 'failed',
-      updatedAt: Date.now(),
-    },
-    artifactSourcePayload: outputSource,
+    ...(shouldPersistSourceEdit ? {
+      artifactManifest: {
+        packId: EDITORIAL_STAGE_PACK_ID,
+        packVersion: outputSource.packVersion,
+        designDirectionId: outputSource.directionId,
+        sourcePayloadVersion: 1,
+        renderer: 'presentation',
+        exports: [outputSource.outputMode],
+        ...(editSurfaceIds.length > 0 ? { editSurfaces: editSurfaceIds } : {}),
+        validationStatus: effectiveValidation.advisoryCount > 0 ? 'warnings' : 'passed',
+        updatedAt: Date.now(),
+      },
+      artifactSourcePayload: outputSource,
+    } : {}),
   };
 
   onEvent({ type: 'draft-complete', html: outputHtml });
@@ -1645,6 +1710,17 @@ export async function runPresentationRuntime(
       planningDurationMs,
       ...(signal ? { signal } : {}),
     });
+  }
+
+  if (isEdit && isEditorialStagePresentationRun(input.artifactRunPlan)) {
+    const output = buildBlockedPackEditOutput(input, input.artifactRunPlan);
+    onEvent({
+      type: 'step-error',
+      stepId: 'targeted-design',
+      error: output.runtime?.validationByPart?.[0]?.rules[0] ?? 'Unsupported pack-backed presentation edit.',
+    });
+    onEvent({ type: 'complete', result: output });
+    return output;
   }
 
   if (canRunQueuedPresentationRuntimeWithPlan(planResult, input.artifactRunPlan)) {
