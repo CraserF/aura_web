@@ -84,6 +84,27 @@ function extractGuidedOutputMode(projectRulesBlock?: string): RuntimeOutputMode 
   return RUNTIME_OUTPUT_MODES.find((mode) => mode.toLowerCase() === rawMode);
 }
 
+function isExecutiveMemoPackPrompt(prompt: string): boolean {
+  const normalized = prompt.toLowerCase();
+  return (
+    /\b(executive|board|leadership|c-?suite)\b[\s\S]{0,80}\bmemo\b/.test(normalized) ||
+    /\b(decision|strategy|operating)\s+memo\b/.test(normalized) ||
+    /\bmemo\b[\s\S]{0,80}\b(board|executive|leadership|decision|recommendation)\b/.test(normalized)
+  );
+}
+
+function canSelectArtifactPackForRun(input: {
+  artifactType: ArtifactRunPlan['artifactType'];
+  operation: BuildArtifactRunPlanInput['operation'];
+  prompt: string;
+}): boolean {
+  if (input.artifactType === 'presentation') return true;
+  if (input.artifactType === 'document') {
+    return input.operation === 'create' && isExecutiveMemoPackPrompt(input.prompt);
+  }
+  return false;
+}
+
 function withGuidedOutputMode(input: BuildArtifactRunPlanInput): BuildArtifactRunPlanInput {
   const guidedOutputMode = input.guidedOutputMode ?? extractGuidedOutputMode(input.projectRulesBlock);
   return guidedOutputMode ? { ...input, guidedOutputMode } : input;
@@ -773,12 +794,18 @@ export function buildArtifactRunPlan(input: BuildArtifactRunPlanInput): Artifact
     project: projectRulesProxy,
     briefSummary: workflow.summary,
   });
-  const artifactPack = resolveArtifactPackForSelection({
+  const artifactPack = canSelectArtifactPackForRun({
     artifactType: workflow.artifactType,
-    directionId: initialArtifactDesignContext.directionId,
-    outputMode: artifactExportIntent,
+    operation: planInput.operation,
     prompt: planInput.prompt,
-  });
+  })
+    ? resolveArtifactPackForSelection({
+        artifactType: workflow.artifactType,
+        directionId: initialArtifactDesignContext.directionId,
+        outputMode: artifactExportIntent,
+        prompt: planInput.prompt,
+      })
+    : undefined;
   const presentationScaffoldSelection = workflow.artifactType === 'presentation' && !artifactPack
     ? resolveDefaultScaffoldSelection({
         projectRulesBlock: planInput.projectRulesBlock,

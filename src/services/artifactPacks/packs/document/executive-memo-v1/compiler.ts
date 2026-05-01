@@ -8,6 +8,7 @@ import type {
 } from '@/services/artifactPacks/types';
 import {
   EXECUTIVE_MEMO_PACK_ID,
+  executiveMemoSourceSchema,
   type ExecutiveMemoItem,
   type ExecutiveMemoModule,
   type ExecutiveMemoSource,
@@ -315,9 +316,11 @@ export const compileExecutiveMemoPack = (
   input: ExecutiveMemoCompileInput,
 ): ArtifactPackCompileResult => {
   const sourceValidation = validateExecutiveMemoSource(input.source);
+  const parsedSource = executiveMemoSourceSchema.safeParse(input.source);
+  const source = parsedSource.success ? parsedSource.data : input.source;
   const output: ArtifactCompiledOutput = {
-    mode: input.outputMode ?? input.source.outputMode,
-    content: compileExecutiveMemoDocument(input.source, input.designContext),
+    mode: input.outputMode ?? source.outputMode,
+    content: compileExecutiveMemoDocument(source, input.designContext),
     assets: collectAssets(),
     generatedAt: Date.now(),
   };

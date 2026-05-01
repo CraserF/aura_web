@@ -1,5 +1,16 @@
 import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
 import {
+  compileExecutiveMemoPack,
+  EXECUTIVE_MEMO_PACK_ID,
+  EXECUTIVE_MEMO_PACK_VERSION,
+  executiveMemoDirectionIds,
+  validateExecutiveMemoSource,
+  type ExecutiveMemoLayoutId,
+  type ExecutiveMemoModule,
+  type ExecutiveMemoModuleRole,
+  type ExecutiveMemoSource,
+} from '@/services/artifactPacks/packs/document/executive-memo-v1';
+import {
   buildCoreArtifactContractPack,
   buildDocumentDesignFamilyPack,
   buildDocumentIframeContractPack,
@@ -157,6 +168,16 @@ export interface DocumentRuntimeOrchestratorResult {
   runtime: ArtifactRuntimeTelemetry;
   generation: DocumentRuntimeGenerationResult;
   editing?: EditingTelemetry;
+  artifactManifest?: {
+    packId: string;
+    packVersion: string;
+    designDirectionId?: string;
+    sourcePayloadVersion: number;
+    renderer: 'document';
+    validationStatus: 'passed' | 'failed';
+    updatedAt: number;
+  };
+  artifactSourcePayload?: unknown;
 }
 
 export interface DocumentRuntimeEditModuleMatch {
@@ -243,6 +264,364 @@ export interface ApplyDocumentRuntimeModuleEditsInput {
   existingHtml: string;
   parts: ArtifactPart[];
   modules: DocumentRuntimeModuleDraft[];
+}
+
+export interface CanRunExecutiveMemoDocumentPackRuntimeInput {
+  runPlan?: ArtifactRunPlan;
+  promptText: string;
+  isEdit: boolean;
+  hasImages: boolean;
+}
+
+export interface RunExecutiveMemoDocumentPackRuntimeInput {
+  runPlan: ArtifactRunPlan;
+  promptText: string;
+  title: string;
+  runtimeStartMs: number;
+  nowMs: () => number;
+  onEvent: EventListener;
+}
+
+export type ExecutiveMemoDocumentPackRuntimeResult = Omit<DocumentRuntimeOrchestratorResult, 'generation'> & {
+  generation: DocumentRuntimeGenerationResult;
+  artifactSourcePayload: ExecutiveMemoSource;
+};
+
+const EXECUTIVE_MEMO_DEFAULT_DIRECTION: ExecutiveMemoDirectionId = 'modern-minimal';
+type ExecutiveMemoDirectionId = typeof executiveMemoDirectionIds[number];
+
+function cleanExecutiveMemoText(value: string, fallback: string, maxLength: number): string {
+  const cleaned = value
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/[<>]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const safe = cleaned || fallback;
+  return safe.length > maxLength ? `${safe.slice(0, Math.max(0, maxLength - 1)).trim()}.` : safe;
+}
+
+function resolveExecutiveMemoDirection(runPlan: ArtifactRunPlan): ExecutiveMemoDirectionId {
+  const directionId = runPlan.designDirectionId ?? runPlan.workflow.designDirectionId;
+  return executiveMemoDirectionIds.includes(directionId as ExecutiveMemoDirectionId)
+    ? directionId as ExecutiveMemoDirectionId
+    : EXECUTIVE_MEMO_DEFAULT_DIRECTION;
+}
+
+function inferExecutiveMemoAudience(prompt: string): string {
+  const normalized = prompt.toLowerCase();
+  if (/\b(board|directors?)\b/.test(normalized)) return 'Board and executive sponsors';
+  if (/\b(investors?|fund|portfolio)\b/.test(normalized)) return 'Investors and executive stakeholders';
+  if (/\b(c-?suite|leadership|executives?)\b/.test(normalized)) return 'Executive leadership team';
+  return 'Executive decision makers';
+}
+
+function buildExecutiveMemoModule(input: {
+  moduleId: string;
+  layoutId: ExecutiveMemoLayoutId;
+  role: ExecutiveMemoModuleRole;
+  slots: Record<string, string>;
+  items?: ExecutiveMemoModule['items'];
+  table?: ExecutiveMemoModule['table'];
+  sourceNotes?: string[];
+  density?: ExecutiveMemoModule['density'];
+}): ExecutiveMemoModule {
+  return {
+    moduleId: input.moduleId,
+    layoutId: input.layoutId,
+    role: input.role,
+    density: input.density ?? 'balanced',
+    slots: input.slots,
+    items: input.items ?? [],
+    ...(input.table ? { table: input.table } : {}),
+    sourceNotes: input.sourceNotes ?? [],
+  };
+}
+
+export function buildExecutiveMemoSourceFromPrompt(input: {
+  promptText: string;
+  title: string;
+  runPlan: ArtifactRunPlan;
+}): ExecutiveMemoSource {
+  const title = cleanExecutiveMemoText(input.title, 'Executive Decision Memo', 120);
+  const brief = cleanExecutiveMemoText(input.promptText, `Create an executive memo for ${title}.`, 1200);
+  const audience = cleanExecutiveMemoText(inferExecutiveMemoAudience(input.promptText), 'Executive decision makers', 120);
+
+  return {
+    schemaVersion: 1,
+    artifactType: 'document',
+    packId: EXECUTIVE_MEMO_PACK_ID,
+    packVersion: EXECUTIVE_MEMO_PACK_VERSION,
+    title,
+    audience,
+    directionId: resolveExecutiveMemoDirection(input.runPlan),
+    outputMode: 'html',
+    brief,
+    modules: [
+      buildExecutiveMemoModule({
+        moduleId: 'memo-cover',
+        layoutId: 'memo-cover',
+        role: 'opening',
+        slots: {
+          kicker: 'Executive memo',
+          title,
+          lead: cleanExecutiveMemoText(`This memo frames the decision path for: ${brief}`, brief, 300),
+          audience,
+          status: 'Draft for review',
+        },
+      }),
+      buildExecutiveMemoModule({
+        moduleId: 'decision-summary',
+        layoutId: 'decision-summary',
+        role: 'decision',
+        slots: {
+          heading: 'Decision summary',
+          recommendation: cleanExecutiveMemoText(`Use the memo to align leadership on the recommended path, key rationale, and next action for ${title}.`, 'Align leadership on the recommended path.', 360),
+          decision: 'Confirm the recommended direction and owner.',
+          confidence: 'Medium until source evidence is reviewed',
+          ask: 'Review the recommendation, risks, and immediate actions.',
+          rationale: cleanExecutiveMemoText(brief, 'Ground the recommendation in the supplied request.', 320),
+        },
+      }),
+      buildExecutiveMemoModule({
+        moduleId: 'context',
+        layoutId: 'context',
+        role: 'context',
+        slots: {
+          heading: 'Context',
+          body: cleanExecutiveMemoText(`The request asks for an executive-ready memo. The current context is: ${brief}`, brief, 560),
+          note: 'Replace placeholders with source-specific evidence when detailed material is available.',
+        },
+      }),
+      buildExecutiveMemoModule({
+        moduleId: 'recommendation',
+        layoutId: 'recommendation',
+        role: 'recommendation',
+        slots: {
+          heading: 'Recommended path',
+          intro: 'Proceed with a focused decision path that makes ownership, evidence, and timing explicit.',
+        },
+        items: [
+          {
+            label: 'Clarify the decision',
+            body: 'Name the decision owner, approval point, and expected outcome.',
+            status: 'Owner needed',
+          },
+          {
+            label: 'Ground the rationale',
+            body: 'Attach concrete evidence, tradeoffs, and constraints before circulation.',
+            status: 'Evidence pass',
+          },
+        ],
+      }),
+      buildExecutiveMemoModule({
+        moduleId: 'evidence-table',
+        layoutId: 'evidence-table',
+        role: 'evidence',
+        slots: {
+          heading: 'Evidence to confirm',
+          intro: 'Use these evidence checks to turn the memo from a draft into a decision artifact.',
+        },
+        table: {
+          columns: ['Signal', 'Implication', 'Action'],
+          rows: [
+            ['Strategic fit', 'Confirms whether the work supports the executive priority.', 'Map request to priority.'],
+            ['Operational risk', 'Shows where delivery could slow or miss expectations.', 'Assign mitigation owner.'],
+            ['Decision timing', 'Clarifies when alignment is needed.', 'Set review date.'],
+          ],
+        },
+        sourceNotes: [
+          'Generated from the user request; add source-specific notes before final approval.',
+        ],
+      }),
+      buildExecutiveMemoModule({
+        moduleId: 'risk-register',
+        layoutId: 'risk-register',
+        role: 'risk',
+        slots: {
+          heading: 'Risks and mitigations',
+          intro: 'Track the risks that could weaken the recommendation or slow execution.',
+        },
+        items: [
+          {
+            label: 'Evidence gap',
+            body: 'The memo needs source-backed facts before final circulation.',
+            status: 'Mitigate with source review',
+          },
+          {
+            label: 'Ownership gap',
+            body: 'Action can stall if the accountable owner is not named.',
+            status: 'Assign owner',
+          },
+        ],
+      }),
+      buildExecutiveMemoModule({
+        moduleId: 'action-plan',
+        layoutId: 'action-plan',
+        role: 'action',
+        slots: {
+          heading: 'Immediate action plan',
+          intro: 'Convert the decision into a short operating sequence.',
+        },
+        table: {
+          columns: ['Owner', 'Action', 'Timing'],
+          rows: [
+            ['Sponsor', 'Confirm decision scope', 'Next review'],
+            ['Working team', 'Add evidence and metrics', 'Before circulation'],
+            ['Decision owner', 'Approve or redirect', 'Approval meeting'],
+          ],
+        },
+      }),
+    ],
+  };
+}
+
+export function canRunExecutiveMemoDocumentPackRuntime(
+  input: CanRunExecutiveMemoDocumentPackRuntimeInput,
+): input is CanRunExecutiveMemoDocumentPackRuntimeInput & { runPlan: ArtifactRunPlan } {
+  const normalizedPrompt = input.promptText.toLowerCase();
+  const executiveMemoLike =
+    /\b(executive|board|leadership|c-?suite)\b[\s\S]{0,80}\bmemo\b/.test(normalizedPrompt) ||
+    /\b(decision|strategy|operating)\s+memo\b/.test(normalizedPrompt) ||
+    /\bmemo\b[\s\S]{0,80}\b(board|executive|leadership|decision|recommendation)\b/.test(normalizedPrompt);
+
+  return Boolean(
+    input.runPlan &&
+    input.runPlan.artifactType === 'document' &&
+    input.runPlan.operation === 'create' &&
+    input.runPlan.artifactPackId === EXECUTIVE_MEMO_PACK_ID &&
+    input.runPlan.workflow.artifactPackId === EXECUTIVE_MEMO_PACK_ID &&
+    executiveMemoLike &&
+    !input.isEdit &&
+    !input.hasImages,
+  );
+}
+
+function sourceMarkdownFromExecutiveMemoSource(source: ExecutiveMemoSource): string {
+  return [
+    `# ${source.title}`,
+    '',
+    source.brief,
+    '',
+    ...source.modules.map((module) => {
+      const heading = module.slots.heading || module.slots.title || module.moduleId;
+      const body = module.slots.lead || module.slots.recommendation || module.slots.body || module.slots.intro || '';
+      const itemLines = module.items.map((item) => `- ${item.label}${item.body ? `: ${item.body}` : ''}`);
+      return [`## ${heading}`, body, ...itemLines].filter(Boolean).join('\n');
+    }),
+  ].join('\n');
+}
+
+export async function runExecutiveMemoDocumentPackRuntime(
+  input: RunExecutiveMemoDocumentPackRuntimeInput,
+): Promise<ExecutiveMemoDocumentPackRuntimeResult> {
+  input.onEvent({ type: 'progress', message: 'Creating executive memo source payload…', pct: 30 });
+  const source = buildExecutiveMemoSourceFromPrompt({
+    promptText: input.promptText,
+    title: input.title,
+    runPlan: input.runPlan,
+  });
+  const sourceValidation = validateExecutiveMemoSource(source);
+  if (!sourceValidation.passed) {
+    throw new Error(`Executive memo source validation failed: ${sourceValidation.findings.map((finding) => finding.message).join('; ')}`);
+  }
+
+  const compiled = compileExecutiveMemoPack({
+    source,
+    designContext: input.runPlan.artifactDesignContextSpec ?? input.runPlan.workflow.artifactDesignContextSpec,
+    structure: input.runPlan.artifactStructurePlan ?? input.runPlan.workflow.artifactStructurePlan,
+    outputMode: 'html',
+  });
+  if (!compiled.validation.passed) {
+    throw new Error(`Executive memo compile validation failed: ${compiled.validation.findings.map((finding) => finding.message).join('; ')}`);
+  }
+
+  const qaResult = validateDocumentRuntimeOutput(compiled.output.content);
+  if (!qaResult.passed) {
+    throw new Error(qaResult.summary);
+  }
+
+  input.onEvent({ type: 'progress', message: 'Compiled executive memo pack output.', pct: 72 });
+  input.onEvent({ type: 'step-done', stepId: 'generate', label: 'Writing document…' });
+  emitArtifactRunEvent(input.onEvent, {
+    runId: input.runPlan.runId,
+    type: 'runtime.part-completed',
+    role: 'generator',
+    message: 'Wrote document part',
+    partId: 'generate',
+    pct: 80,
+  });
+
+  input.onEvent({ type: 'step-start', stepId: 'qa', label: 'Checking document quality…' });
+  emitArtifactRunEvent(input.onEvent, {
+    runId: input.runPlan.runId,
+    type: 'runtime.validation-started',
+    role: 'validator',
+    message: 'Checking document quality...',
+    partId: 'qa',
+    pct: 84,
+  });
+  input.onEvent({ type: 'progress', message: qaResult.summary, pct: 88 });
+  input.onEvent({ type: 'step-done', stepId: 'qa', label: 'Checking document quality…' });
+  emitArtifactRunEvent(input.onEvent, {
+    runId: input.runPlan.runId,
+    type: 'runtime.validation-completed',
+    role: 'validator',
+    message: 'Checking document quality...',
+    partId: 'qa',
+    pct: 90,
+  });
+
+  input.onEvent({ type: 'step-start', stepId: 'finalize', label: 'Finalizing document…' });
+  const runtime = buildDocumentRuntimeTelemetry({
+    runtimeStartMs: input.runtimeStartMs,
+    nowMs: input.nowMs(),
+    validation: qaResult,
+    repairCount: 0,
+    runMode: 'queued-create',
+    queuedPartCount: source.modules.length,
+    completedPartCount: source.modules.length,
+    html: compiled.output.content,
+    promptText: input.promptText,
+    qualityBar: input.runPlan.qualityBar,
+    firstPreviewAtMs: input.nowMs(),
+  });
+
+  input.onEvent({ type: 'step-done', stepId: 'finalize', label: 'Finalizing document…' });
+  emitArtifactRunEvent(input.onEvent, {
+    runId: input.runPlan.runId,
+    type: 'runtime.finalized',
+    role: 'finalizer',
+    message: 'Finalizing document...',
+    partId: 'finalize',
+    pct: 100,
+  });
+  input.onEvent({ type: 'progress', message: 'Done!', pct: 100 });
+
+  return {
+    html: compiled.output.content,
+    markdown: sourceMarkdownFromExecutiveMemoSource(source),
+    title: source.title,
+    runtime,
+    generation: {
+      rawContent: JSON.stringify(source),
+      renderedHtml: compiled.output.content,
+      firstPreviewAt: input.nowMs(),
+      usedQueuedDocumentEdit: false,
+      runMode: 'queued-create',
+      completedPartCount: source.modules.length,
+      selectedMode: 'queued-runtime',
+    },
+    artifactManifest: {
+      packId: EXECUTIVE_MEMO_PACK_ID,
+      packVersion: EXECUTIVE_MEMO_PACK_VERSION,
+      designDirectionId: source.directionId,
+      sourcePayloadVersion: source.schemaVersion,
+      renderer: 'document',
+      validationStatus: 'passed',
+      updatedAt: compiled.output.generatedAt ?? Date.now(),
+    },
+    artifactSourcePayload: source,
+  };
 }
 
 export async function runDocumentRuntimeGeneration(

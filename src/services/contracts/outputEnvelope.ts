@@ -1,4 +1,4 @@
-import type { DocumentType } from '@/types/project';
+import type { DocumentType, ProjectArtifactManifest } from '@/types/project';
 
 import type { EditingTelemetry } from '@/services/editing/types';
 import type {
@@ -19,6 +19,8 @@ export interface DocumentRunOutputs {
   markdown?: string;
   runtime?: ArtifactRuntimeTelemetry;
   editing?: EditingTelemetry;
+  artifactManifest?: ProjectArtifactManifest;
+  artifactSourcePayload?: unknown;
   publish?: PublishReadinessResult;
 }
 

@@ -120,6 +120,18 @@ function clickByLabel(container: HTMLElement, label: string) {
   });
 }
 
+function openDropdownByLabel(container: HTMLElement, label: string) {
+  const button = container.querySelector(`[aria-label="${label}"]`);
+  if (!(button instanceof HTMLButtonElement)) {
+    throw new Error(`Dropdown trigger not found: ${label}`);
+  }
+
+  act(() => {
+    button.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }));
+    button.click();
+  });
+}
+
 function clickButtonByText(label: string) {
   const buttons = Array.from(document.querySelectorAll('button'));
   const button = buttons.find((entry) => entry.textContent?.includes(label));
@@ -129,6 +141,18 @@ function clickButtonByText(label: string) {
 
   act(() => {
     button.click();
+  });
+}
+
+function clickMenuItemByText(label: string) {
+  const menuItems = Array.from(document.querySelectorAll('[role="menuitem"]'));
+  const menuItem = menuItems.find((entry) => entry.textContent?.includes(label));
+  if (!(menuItem instanceof HTMLElement)) {
+    throw new Error(`Menu item not found: ${label}`);
+  }
+
+  act(() => {
+    menuItem.click();
   });
 }
 
@@ -329,6 +353,22 @@ describe('Toolbar new project dialog', () => {
       colorTheme: DEFAULT_COLOR_THEME,
     }));
     expect(useProjectStore.getState().project.documents[0]?.type).toBe('spreadsheet');
+
+    view.unmount();
+  });
+
+  it('opens the real Artifact Library from the toolbar more menu', async () => {
+    const view = renderToolbar();
+
+    openDropdownByLabel(view.container, 'More options');
+    await flushEffects();
+    clickMenuItemByText('Artifact library');
+    await flushEffects();
+
+    expect(document.body.textContent).toContain('Artifact library');
+    expect(document.body.textContent).toContain('Editorial Stage');
+    expect(document.body.textContent).toContain('Operating Model');
+    expect(document.body.textContent).toContain('src/services/artifactPacks/packs/presentation/editorial-stage-v1/examples/preview.png');
 
     view.unmount();
   });

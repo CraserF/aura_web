@@ -44,15 +44,15 @@ Status key:
 | 2. Editorial Stage default presentation pack | Done | Replace prompt-authored decks with compiler-owned presentation source payloads. | Default presentation create uses `presentation/editorial-stage-v1`. | Pack runtime routing tests. | Keep legacy scaffold out of normal UI/runtime. |
 | 3. Source-backed presentation edits | Done | Text edit, add-slide, and restyle patch source payloads and recompile. | No `designEdit`/`runBatchQueue` for pack-backed source edits. | `artifact-pack-runtime-routing.test.ts`. | Add repair loops for rejected source edits later. |
 | 4. Simplified creation UI | Done | Users choose artifact shape and style direction, not scaffold/theme internals. | No scaffold/theme/export/color picker in default new-project flow. | UI and UX simplification tests. | Add guided edit chips after visual gate. |
-| 5. Editorial Stage visual quality gate | Active | Make the default deck visually credible across directions. | Screenshot review logged concrete fixes for stage/cropping failures. | Compiler, validator, render smoke, regenerated example, 24 baseline headless screenshots in `/private/tmp/editorial-stage-visual-gate`, one targeted rerender, and `docs/plan/editorial-stage-visual-gate-review.md`. | Fix the stage/capture white band, clipped footer content, and process/closing card-wall issues; rerun the screenshot gate before marking Phase 5 done. |
+| 5. Editorial Stage visual quality gate | Done | Make the default deck visually credible across directions. | Fresh CDP screenshot gate passes across `editorial-magazine`, `modern-minimal`, and `data-utility`. | Compiler, validator, render smoke, regenerated example, original failure screenshots, 24 closure screenshots in `/private/tmp/editorial-stage-visual-gate` with `-cdp.png` suffixes, and `docs/plan/editorial-stage-visual-gate-review.md`. | Use CDP viewport capture for future manual screenshot gates on this machine. |
 | 6. Real media asset rendering | Done | Harden actual project media rendering in declared pack slots. | Safe media resolves before compile and missing/unsafe required media blocks. | Media resolver, compiler/runtime threading, example media fixture, focused tests, full test suite. | Carry export-specific media restrictions into Phase 10. |
 | 7. Source-payload repair and edit safety | Done | Repair rejected source payloads and fail closed on unsafe edits. | Repairable source-slot/media defects are fixed before persistence; unsafe real-media gaps still block. | Pack edit fallback, unsupported edit, no-op edit, validation persistence, CSS isolation, slide dimension, source repair, version snapshot, and ESLint regressions covered. | Keep review loop active while starting guided edit chips. |
 | 8. Guided edit chips | Done | Offer simple user controls that map to typed source operations. | Chips map to supported edit surfaces only. | Pack-scoped composer chips, unsupported-surface messaging, chat/runtime tests. | Extend only when a typed edit surface exists. |
-| 9. Design-system mode | Active/Next | Parse project `DESIGN.md`/rules into validated tokens and examples. | Presentation and first document project-design tokens compile through pack-owned adapters; spreadsheet adapter proof remains open. | Safe token-role resolver, project design metadata, Project colours preview UI, runtime color-theme threading, shared adapter interface, Editorial Stage CSS adapter, Executive Memo document-token adapter, design-context/compiler/UI/run-request tests. | Keep as carry-forward until spreadsheet packs consume the shared adapter contract. |
+| 9. Design-system mode | Done | Parse project `DESIGN.md`/rules into validated tokens and examples. | Presentation, document, and spreadsheet project-design tokens compile through pack-owned adapters. | Safe token-role resolver, project design metadata, Project colours preview UI, runtime color-theme threading, shared adapter interface, Editorial Stage CSS adapter, Executive Memo document-token adapter, Operating Model spreadsheet-theme adapter, design-context/compiler/UI/run-request/pack tests. | Carry the same adapter discipline into later runtime routing; never add artifact-specific raw CSS bypasses. |
 | 10. Export and preview gates | Done | Add export-intent constraints and generated preview artifacts. | Browser-side preview smoke passes for a fresh pack-backed deck. | Compiled-output export validator blocks viewport units, missing export backgrounds, missing reduced-motion fallback, editable-PPTX unsafe CSS/text patterns, Editorial Stage exposes `examples/preview.png`, runtime preview metadata/media round-trips through `.aura` and snapshots, and `node scripts/run-presentation-preview-smoke.mjs` passes with a 1280x720 PNG. | Carry export/preview constraints into document and spreadsheet packs when Phases 11/12 start. |
-| 11. Document packs | Active/Next | Add source-payload document packs without presentation-shaped UI. | `document/executive-memo-v1` foundation compiles and validates; runtime routing is not started. | Registered document pack, source schema, scoped CSS, deterministic compiler, document validator, generated example, and `executive-memo-pack`/registry tests. | Keep UI/spreadsheet scope deferred; next document slice is routing create/edit through the pack compiler when prioritized. |
-| 12. Spreadsheet packs | Queued | Add deterministic workbook packs with formulas/charts/style validation. | `spreadsheet/operating-model-v1` compiles and validates. | Pending. | Start after document pack foundation or explicit priority shift. |
-| 13. Pack gallery and save-as-pack | Queued | Show compiled examples and later save current artifacts as pack candidates. | Gallery uses compiled Aura-owned examples. | Pending. | Do not begin before default packs look excellent. |
+| 11. Document packs | Done | Add source-payload document packs without presentation-shaped UI. | Executive-memo-like document creates route through `document/executive-memo-v1`; edits and image creates stay on existing safe paths. | Registered document pack, source schema, scoped CSS, deterministic compiler, document validator, generated example, pack runtime routing, persisted source payload/manifest, and `executive-memo-pack`/document-runtime/registry tests. | Next document slice can add source-backed edits or a second document pack when prioritized. |
+| 12. Spreadsheet packs | Done | Add deterministic workbook packs with formulas/charts/style validation. | `spreadsheet/operating-model-v1` compiles and validates. | Operating Model source schema, manifest, deterministic JSON compiler, spreadsheet-theme adapter, formula/cell-safety validator, examples, registry wiring, independent review, focused pack tests, and full verification. | Next spreadsheet slice can be runtime routing, deterministic XLSX export, or `spreadsheet/data-dashboard-v1` when prioritized against the open Phase 11 routing gate. |
+| 13. Pack gallery and save-as-pack | Active | Show compiled examples and later save current artifacts as pack candidates. | Browseable Artifact Library shows pack metadata and Aura-owned examples without complicating new-project defaults. | Gallery data model, toolbar entry point, Artifact Library dialog, disabled save-as-pack affordance, and focused gallery tests. | Add start-from-example and save-as-pack only after the browseable library passes review/full verification. |
 
 ### Active Phase Exit Criteria
 
@@ -90,30 +90,50 @@ Do not expand edit features unless these stay true:
 
 ### Phase 9 Active Work
 
-Phase 9's presentation path is implemented, but the phase remains `Active/Next` until the same safe token contract is proven for document and spreadsheet packs. Keep the phase open until all are true:
+Phase 9's presentation, document, and spreadsheet adapter proof is complete. Keep these invariants true as later runtime routing lands:
 
 - Project `DESIGN.md`/rules are parsed into a typed `projectDesignSystem` model with validated token roles and ignored-line diagnostics.
 - Pack compilers consume project design only through pack-owned adapters and CSS variables; raw CSS, gradients, functions, custom properties, and unknown roles remain rejected.
 - The UI exposes a preview of accepted project design tokens and ignored lines before users rely on the design system for generation. Completed for project rules through the Project colours preview.
 - Editorial Stage has regression coverage proving project design tokens affect compiled output without escaping the pack style boundary.
-- Document and spreadsheet packs define their adapter contracts before Phase 9 is marked done; if those packs are not implemented yet, keep this as an explicit carry-forward gate for Phases 11 and 12.
+- Document and spreadsheet packs define adapter contracts before runtime routing or export code consumes project design tokens.
 - Phase 10 preview/export work preserves the same token validation path instead of adding an export-only style bypass.
 
 Phase 9 carry-forward doc updates:
 
-- When document packs start, add the first document adapter evidence to Phase 11 and keep Phase 9 `Active/Next` until the shared adapter contract is proven.
-- When spreadsheet packs start, add the first workbook/table/chart adapter evidence to Phase 12 before claiming design-system parity.
+- The first document adapter evidence is in Phase 11 through `document/executive-memo-v1`.
+- The first workbook/table/chart adapter evidence is in Phase 12 through `spreadsheet/operating-model-v1`.
 - When preview artifacts land, record whether `artifact.preview.png` and export targets used the same validated project design tokens.
 
 ### Phase 11 Active Entry Guard
 
-The user has explicitly reprioritized starting Workstream/Phase 11 before the Phase 5 visual screenshot review is formally closed. Keep the Phase 11 entry narrow so the program does not drift:
+The user explicitly reprioritized starting Workstream/Phase 11 before the Phase 5 visual screenshot review was formally closed. Keep the Phase 11 entry narrow so the program does not drift:
 
 - Allowed now: define `document/executive-memo-v1` source payload types, manifest metadata, pack compiler, design-token adapter contract, validator, and focused tests.
 - Allowed now: record the first document-side evidence for Phase 9 once a document adapter maps validated project design tokens into document-owned style tokens.
 - Defer: document gallery UI, save-as-pack, many document pack variants, spreadsheet packs, and any presentation visual refinements not coming from the Phase 5 screenshot review.
-- Do not mark Phase 5 done because screenshots exist. It is done only after the screenshot set is reviewed or converted into concrete logged fixes.
-- Do not mark Phase 9 done from the document adapter alone. It still needs the spreadsheet adapter proof in Phase 12.
+- Phase 5 is now done because the screenshot set was converted into concrete logged fixes and rerun; do not reopen it without new visual evidence.
+- Phase 9 was not marked done from the document adapter alone; keep that historical guard as context for why the Phase 12 spreadsheet adapter proof was required.
+
+### Phase 12 Active Entry Guard
+
+The user explicitly reprioritized Workstream/Phase 12 before Phase 5's visual screenshot review was formally closed. Keep the spreadsheet entry narrow so the program does not drift:
+
+- Allowed now: define `spreadsheet/operating-model-v1` source payload types, manifest metadata, pack compiler, spreadsheet-theme adapter contract, validator, examples, and focused tests.
+- Allowed now: record the first spreadsheet-side evidence for Phase 9 once a spreadsheet adapter maps validated project design tokens into workbook/table/chart style roles.
+- Defer: spreadsheet runtime create/edit routing, deterministic XLSX export, spreadsheet gallery UI, save-as-pack, many spreadsheet variants, and any second pack until the first pack passes review and full verification.
+- Phase 5 was not marked done because spreadsheet work moved forward; it is done because the visual fixes were implemented and the CDP screenshot gate was rerun.
+- Do not let spreadsheet packs accept arbitrary formulas, external references, HTML fragments, raw CSS, or unvalidated theme colours.
+
+### Phase 13 Active Entry Guard
+
+Workstream/Phase 13 is now active as a browseable library foundation, not a new required choice in the creation flow:
+
+- Allowed now: gallery data derived from `ArtifactPackManifest.examples`, a toolbar library entry point, compiled example metadata, preview paths, pack type/status/direction/output information, and a clearly disabled save-as-pack affordance.
+- Allowed now: tests that prove the gallery reads Aura-owned compiled examples and remains outside the default new-project path.
+- Defer: start-from-example, generated thumbnail previews for document/spreadsheet packs, editable design-system gallery, save-current-as-pack, and pack authoring workflows.
+- Do not add extra choices to the default new-project flow to compensate for weak defaults. The library is for discovery, inspection, and future advanced starts.
+- Do not mark Phase 13 done until users can start from a compiled example or the acceptance criteria are explicitly narrowed in a follow-up plan.
 
 ### Phase 10 Preview Artifact Gate
 
@@ -222,6 +242,29 @@ Remaining current gate:
 - Review the full screenshot set in `/private/tmp/editorial-stage-visual-gate` for any remaining subtle layout issues before marking Phase 5 done.
 - Then begin Phase 7 source-payload repair loops, using the validator finding ids added in Phase 5/6 as repair targets.
 
+### 2026-05-01 - Editorial Stage Visual Gate Closure
+
+Completed on `codex/artifact-pack-design-rebuild`:
+
+- Fixed the bottom safe-area problems on slides 03 and 06 by moving proof/verdict content away from the final viewport pixels.
+- Reworked slide 07 from a flat equal-card row into staggered process cards with a timeline spine.
+- Reworked slide 08 from three equal closing cards into a dominant action plus two supporting actions.
+- Added render smoke coverage that asserts every example slide root remains a fixed 1280x720, full-background stage without transform/zoom scaling.
+- Regenerated `examples/example.html` from the compiler.
+- Diagnosed the screenshot harness issue: direct Chrome `--window-size=1280,720` produced a 1280x633 content viewport on this machine, so the closure set uses Chrome DevTools device metrics for a true 1280x720 viewport.
+- Rendered 24 closure screenshots in `/private/tmp/editorial-stage-visual-gate` with `-cdp.png` suffixes.
+- Updated `docs/plan/editorial-stage-visual-gate-review.md` to mark the gate passing.
+
+Verification completed:
+
+- `npm test -- src/test/editorial-stage-compiler.test.ts src/test/editorial-stage-render-smoke.test.ts src/test/editorial-stage-validator.test.ts`
+- CDP screenshot render: 24 `*-cdp.png` files generated.
+- PNG smoke: all 24 closure screenshots are 1280x720; the 21 non-slide-04 closure screenshots have no white bottom band, and slide 04's near-white bottom row is intentional hero background.
+
+Disposition:
+
+- Phase 5 is Done.
+
 ### 2026-05-01 - Editorial Stage Visual Gate Review
 
 Completed on `codex/artifact-pack-design-rebuild`:
@@ -230,9 +273,9 @@ Completed on `codex/artifact-pack-design-rebuild`:
 - Added the concrete screenshot findings to `docs/plan/editorial-stage-visual-gate-review.md`.
 - Converted the open review into named Phase 5 fixes: remove the persistent bottom white band, prevent clipped footer/verdict/card content, and revisit process/closing equal-panel card-wall layouts after the stage/capture fix.
 
-Remaining current gate:
+Closed by the follow-up visual gate closure slice:
 
-- Keep Phase 5 Active until the fixes are implemented and a fresh screenshot set confirms full 1280x720 slide coverage with no bottom clipping.
+- Stage/cropping, bottom clipping, footer/verdict collision, and process/closing card-wall blockers are resolved.
 
 ### 2026-05-01 - Review Pass And Safety Hardening
 
@@ -482,7 +525,59 @@ Verification completed:
 Remaining current gate:
 
 - Document runtime create/edit routing still uses the existing document runtime; routing through `document/executive-memo-v1` is the next document-pack implementation slice when prioritized.
-- Phase 9 remains `Active/Next` until the spreadsheet adapter proof lands in Phase 12.
+- Phase 9 remained `Active/Next` at the end of this slice until the spreadsheet adapter proof landed in Phase 12.
+
+### 2026-05-01 - Operating Model Spreadsheet Pack Foundation
+
+Completed in this slice:
+
+- Started Workstream/Phase 12 inside the narrow entry guard requested by the user.
+- Added `spreadsheet/operating-model-v1` with workbook source payloads for inputs, assumptions, model/calculation, summary, and dashboard sheets.
+- Registered the pack with spreadsheet-specific edit surfaces, including `add-sheet`, `formula-edit`, and `restyle`, without presentation or document terminology.
+- Added a deterministic compiler that emits structured workbook JSON with `workbook`, `data`, `formatting`, `charts`, and `theme` sections instead of model-authored spreadsheet markup.
+- Added a spreadsheet-theme adapter proof for Phase 9 via `target: spreadsheet-theme`, mapping validated project design tokens into workbook/table/chart roles only.
+- Added validator checks for duplicate sheets/tables/columns, unknown row keys, unsafe formulas, missing formula dependencies, invalid chart references, missing required workbook roles, HTML fragments, invalid compiled JSON, and missing compiled theme metadata.
+- Added checked-in `examples/source.json` and `examples/example.json`, with regression coverage to prevent source/example drift.
+- Fixed the independent review finding in the executive memo compiler by compiling from schema-defaulted source data instead of validating defaults and then rendering the raw input object.
+- Fixed independent spreadsheet review findings: the compiler now renders schema-defaulted source data, formula expressions are bounded to declared double-quoted columns plus arithmetic, and text cells reject spreadsheet formula-control prefixes.
+- Updated program status and this checklist so Phase 5/9/12 state is consistent across the docs.
+
+Verification completed:
+
+- `npm test -- src/test/operating-model-pack.test.ts src/test/artifact-pack-registry.test.ts src/test/executive-memo-pack.test.ts`
+- `npm run typecheck`
+- `npm run lint`
+- `npm test`
+- `npm run build`
+- `git diff --check`
+
+Remaining current gate:
+
+- Spreadsheet runtime create/edit routing and deterministic XLSX export remain deferred to the next spreadsheet slice.
+- Phase 9's cross-artifact adapter proof is now complete; later runtime work must keep using pack-owned adapters rather than raw CSS or arbitrary colour bypasses.
+
+### 2026-05-01 - Document Pack Runtime Routing And Artifact Library Foundation
+
+Completed in this slice:
+
+- Routed executive-memo-like document creates through `document/executive-memo-v1` source payload construction plus `compileExecutiveMemoPack`.
+- Kept the document pack route gated to normal creates only; edits, image creates, and generic document prompts continue through the existing document runtime paths.
+- Persisted pack-backed document outputs with `artifactManifest` and `artifactSourcePayload` in workflow outputs and `ProjectDocument` records.
+- Extended document run output envelopes so pack manifest/source metadata can flow through the same contracts as presentations.
+- Started Workstream/Phase 13 with `listArtifactPackGalleryItems()`, a toolbar Artifact Library entry point, and a dialog that shows pack type, status, best-for metadata, direction labels, output modes, compiled example paths, preview paths, and a disabled save-as-pack affordance.
+- Fixed post-review spreadsheet contract issues: formula columns are materialized by the compiler, formula outputs must use generated/calculation/output columns, compiled workbook JSON receives formula/cell/chart safety checks, and spreadsheet run plans are not stamped as pack-backed until runtime routing exists.
+- Fixed second-pass review findings: source and compiled workbook rows now validate declared column types and non-nullable cells, compiled workbook validation blocks missing sheet data, and the toolbar-to-library path is covered with the real gallery service.
+
+Verification completed:
+
+- `npm test -- src/test/operating-model-pack.test.ts src/test/artifact-pack-registry.test.ts src/test/structured-run-outputs.test.ts src/test/document-runtime-workflow.test.ts src/test/artifact-library-dialog.test.tsx`
+- `npm test -- src/test/operating-model-pack.test.ts src/test/new-project-dialog.test.tsx src/test/artifact-library-dialog.test.tsx src/test/artifact-pack-registry.test.ts`
+- `npm run typecheck`
+
+Remaining current gate:
+
+- Phase 13 remains active until start-from-example or a narrowed acceptance gate is implemented and verified.
+- Spreadsheet runtime create/edit routing and deterministic XLSX export remain deferred; the registry/gallery can expose the pack, but normal spreadsheet run plans must not claim pack-backed routing yet.
 
 ## Implementation Order
 

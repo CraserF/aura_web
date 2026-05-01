@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
+  listArtifactPackGalleryItems,
   listArtifactDesignDirections,
   listArtifactPackManifests,
   validateArtifactPackManifest,
@@ -76,6 +77,28 @@ describe('artifact pack registry foundation', () => {
     expect(validateArtifactPackManifest(pack)).toEqual([]);
   });
 
+  it('registers the first spreadsheet pack with formula and sheet surfaces', () => {
+    const manifests = listArtifactPackManifests();
+    expect(manifests.map((manifest) => manifest.id)).toContain('spreadsheet/operating-model-v1');
+    const pack = manifests.find((manifest) => manifest.id === 'spreadsheet/operating-model-v1')!;
+
+    expect(pack.artifactType).toBe('spreadsheet');
+    expect(pack.supportedOutputModes).toEqual(['xlsx', 'csv']);
+    expect(pack.layoutFamilies).toEqual([
+      'input-table',
+      'calculation-table',
+      'summary-table',
+      'dashboard-view',
+      'assumptions-register',
+    ]);
+    expect(pack.editSurfaces.map((surface) => surface.kind)).toEqual(expect.arrayContaining([
+      'add-sheet',
+      'formula-edit',
+      'restyle',
+    ]));
+    expect(validateArtifactPackManifest(pack)).toEqual([]);
+  });
+
   it('exposes generated Editorial Stage example preview artifacts through examples[].previewPath', () => {
     const pack = listArtifactPackManifests()
       .find((manifest) => manifest.id === 'presentation/editorial-stage-v1')!;
@@ -92,6 +115,36 @@ describe('artifact pack registry foundation', () => {
     expect(preview.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
     expect(preview.readUInt32BE(16)).toBe(1280);
     expect(preview.readUInt32BE(20)).toBe(720);
+  });
+
+  it('builds a browseable pack gallery from Aura-owned compiled examples', () => {
+    const items = listArtifactPackGalleryItems();
+
+    expect(items.map((item) => item.packId)).toEqual([
+      'presentation/editorial-stage-v1',
+      'document/executive-memo-v1',
+      'spreadsheet/operating-model-v1',
+    ]);
+
+    for (const item of items) {
+      expect(item.primaryExample).toBeDefined();
+      expect(item.primaryExample?.resolvedCompiledPath).toContain(item.packId);
+      expect(item.supportedDirectionLabels.length).toBeGreaterThan(0);
+      expect(item.saveAsPackAvailable).toBe(false);
+    }
+
+    const presentation = items.find((item) => item.packId === 'presentation/editorial-stage-v1')!;
+    expect(presentation.primaryExample).toMatchObject({
+      previewKind: 'image',
+      resolvedPreviewPath: 'src/services/artifactPacks/packs/presentation/editorial-stage-v1/examples/preview.png',
+    });
+
+    const document = items.find((item) => item.packId === 'document/executive-memo-v1')!;
+    expect(document.primaryExample?.previewKind).toBe('html');
+
+    const spreadsheet = listArtifactPackGalleryItems({ artifactType: 'spreadsheet' });
+    expect(spreadsheet).toHaveLength(1);
+    expect(spreadsheet[0]!.primaryExample?.previewKind).toBe('json');
   });
 
   it('validates pack manifest essentials', () => {

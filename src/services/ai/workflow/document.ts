@@ -31,8 +31,10 @@ import type { TemplateGuidanceProfile } from '@/services/artifactRuntime/types';
 import { emitArtifactRunEvent } from '@/services/artifactRuntime/events';
 import {
   attachDocumentRuntimeParts,
+  canRunExecutiveMemoDocumentPackRuntime,
   canRunQueuedDocumentRuntime,
   resolveDocumentRuntimeEditModules,
+  runExecutiveMemoDocumentPackRuntime,
   runDocumentRuntimeOrchestrator,
 } from '@/services/artifactRuntime/documentRuntime';
 import {
@@ -82,6 +84,8 @@ export interface DocumentOutput {
   title: string;
   runtime?: ArtifactRuntimeTelemetry;
   editing?: EditingTelemetry;
+  artifactManifest?: import('@/types/project').ProjectArtifactManifest;
+  artifactSourcePayload?: unknown;
 }
 
 type ResolvedDocumentType = 'report' | 'brief' | 'proposal' | 'notes' | 'wiki' | 'readme' | 'article';
@@ -730,11 +734,39 @@ export async function runDocumentWorkflow(
     onEvent({ type: 'progress', message: isEdit ? 'Applying changes…' : 'Crafting your document…', pct: 28 });
 
     const requestedTitle = extractRequestedDocumentTitle(input.prompt);
+    const hasImages = (input.imageParts?.length ?? 0) > 0;
+    const executiveMemoRunPlan = input.artifactRunPlan;
+    if (executiveMemoRunPlan && canRunExecutiveMemoDocumentPackRuntime({
+      runPlan: executiveMemoRunPlan,
+      promptText: input.prompt,
+      isEdit,
+      hasImages,
+    })) {
+      const packOutput = await runExecutiveMemoDocumentPackRuntime({
+        runPlan: executiveMemoRunPlan,
+        promptText: input.prompt,
+        title: requestedTitle || extractTitleFromPrompt(input.prompt),
+        runtimeStartMs: runtimeStart,
+        nowMs: () => performance.now(),
+        onEvent,
+      });
+      const output: DocumentOutput = {
+        html: sanitizeHtml(packOutput.html),
+        markdown: packOutput.markdown,
+        title: packOutput.title,
+        runtime: packOutput.runtime,
+        artifactManifest: packOutput.artifactManifest,
+        artifactSourcePayload: packOutput.artifactSourcePayload,
+      };
+
+      onEvent({ type: 'complete', result: output });
+      return output;
+    }
     const useQueuedDocumentRuntime = canRunQueuedDocumentRuntime({
       ...(input.artifactRunPlan ? { runPlan: input.artifactRunPlan } : {}),
       parts: runtimeParts,
       isEdit,
-      hasImages: (input.imageParts?.length ?? 0) > 0,
+      hasImages,
     });
     const queuedEditModules = isEdit && input.existingHtml && input.editing && (input.imageParts?.length ?? 0) === 0
       ? resolveDocumentRuntimeEditModules({

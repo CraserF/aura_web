@@ -13,6 +13,7 @@ import {
   Loader2,
   MoreHorizontal,
   CheckCircle2,
+  PackageOpen,
 } from 'lucide-react';
 import { usePresentationStore } from '@/stores/presentationStore';
 import { useProjectStore } from '@/stores/projectStore';
@@ -34,6 +35,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { NewProjectDialog, type NewProjectSelection } from '@/components/NewProjectDialog';
 import { ProjectInitReportDialog } from '@/components/ProjectInitReportDialog';
+import { ArtifactLibraryDialog } from '@/components/ArtifactLibraryDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -107,6 +109,7 @@ export function Toolbar({
   const [initReportOpen, setInitReportOpen] = useState(false);
   const [initReport, setInitReport] = useState<Awaited<ReturnType<typeof initProject>>['report'] | null>(null);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [artifactLibraryOpen, setArtifactLibraryOpen] = useState(false);
 
   const hasContent = project.documents.length > 0;
   const aiStatusLabel = hasApiKey() ? 'AI ready' : 'AI setup';
@@ -442,6 +445,11 @@ export function Toolbar({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => setArtifactLibraryOpen(true)}>
+                <PackageOpen className="mr-2 size-3.5" />
+                Artifact library
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={onToggleHistoryPanel}>
                 <History className="mr-2 size-3.5" />
                 {historyPanelOpen ? 'Hide version history' : 'Version history'}
@@ -468,15 +476,15 @@ export function Toolbar({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                variant="ghost"
-                size="icon"
-                className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
-                onClick={handleNew}
-                disabled={isCreatingProject}
-                aria-label="New project"
-              >
-                {isCreatingProject ? <Loader2 className="size-4 animate-spin" /> : <FolderPlus className="size-4" />}
-              </Button>
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+                  onClick={handleNew}
+                  disabled={isCreatingProject}
+                  aria-label="New project"
+                >
+                  {isCreatingProject ? <Loader2 className="size-4 animate-spin" /> : <FolderPlus className="size-4" />}
+                </Button>
               </TooltipTrigger>
               <TooltipContent>{isCreatingProject ? 'Creating project…' : 'New project'}</TooltipContent>
             </Tooltip>
@@ -590,6 +598,11 @@ export function Toolbar({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => setArtifactLibraryOpen(true)}>
+                  <PackageOpen className="mr-2 size-3.5" />
+                  Artifact library
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={onToggleHistoryPanel}>
                   <History className="mr-2 size-3.5" />
                   Version history
@@ -693,6 +706,11 @@ export function Toolbar({
         open={initReportOpen}
         onOpenChange={setInitReportOpen}
         report={initReport}
+      />
+
+      <ArtifactLibraryDialog
+        open={artifactLibraryOpen}
+        onOpenChange={setArtifactLibraryOpen}
       />
     </>
   );

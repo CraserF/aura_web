@@ -1,13 +1,14 @@
 import type { DocumentType } from '@/types/project';
 import { EXECUTIVE_MEMO_PACK } from '@/services/artifactPacks/packs/document/executive-memo-v1/manifest';
 import { EDITORIAL_STAGE_PACK } from '@/services/artifactPacks/packs/presentation/editorial-stage-v1/manifest';
+import { OPERATING_MODEL_PACK } from '@/services/artifactPacks/packs/spreadsheet/operating-model-v1/manifest';
 import type {
   ArtifactDesignDirectionId,
   ArtifactOutputMode,
   ArtifactPackManifest,
 } from '@/services/artifactPacks/types';
 
-type RegisteredArtifactPack = typeof EDITORIAL_STAGE_PACK | typeof EXECUTIVE_MEMO_PACK;
+type RegisteredArtifactPack = typeof EDITORIAL_STAGE_PACK | typeof EXECUTIVE_MEMO_PACK | typeof OPERATING_MODEL_PACK;
 
 export interface ArtifactPackSelectionInput {
   artifactType: DocumentType;
@@ -19,6 +20,7 @@ export interface ArtifactPackSelectionInput {
 const BUILTIN_PACKS: RegisteredArtifactPack[] = [
   EDITORIAL_STAGE_PACK,
   EXECUTIVE_MEMO_PACK,
+  OPERATING_MODEL_PACK,
 ];
 
 function cloneManifest(manifest: ArtifactPackManifest): ArtifactPackManifest {

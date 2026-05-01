@@ -15,10 +15,19 @@ export {
 } from './designContext';
 export { createProjectMediaResolver } from './mediaResolver';
 export {
+  buildArtifactPackGalleryItem,
+  listArtifactPackGalleryItems,
+} from './gallery';
+export {
   EXECUTIVE_MEMO_MANIFEST,
   EXECUTIVE_MEMO_PACK,
   EXECUTIVE_MEMO_PACK_ID,
 } from './packs/document/executive-memo-v1';
+export {
+  OPERATING_MODEL_MANIFEST,
+  OPERATING_MODEL_PACK,
+  OPERATING_MODEL_PACK_ID,
+} from './packs/spreadsheet/operating-model-v1';
 export {
   applyProjectDesignSystemTokens,
   resolveProjectDesignSystemSpec,
@@ -75,3 +84,9 @@ export type {
   ResolvedArtifactMediaAsset,
   TypographyTokens,
 } from './types';
+export type {
+  ArtifactGalleryExample,
+  ArtifactGalleryPreviewKind,
+  ArtifactPackGalleryFilter,
+  ArtifactPackGalleryItem,
+} from './gallery';

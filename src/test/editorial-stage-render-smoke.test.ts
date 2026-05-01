@@ -47,6 +47,15 @@ describe('editorial-stage presentation render smoke', () => {
     expect(firstSlideStyle.overflow).toBe('hidden');
     expect(firstSlideStyle.display).toBe('grid');
 
+    sections.forEach((section) => {
+      const style = getComputedStyle(section);
+      expect(style.width).toBe('1280px');
+      expect(style.height).toBe('720px');
+      expect(style.background).not.toBe('');
+      expect(style.transform).toBe('none');
+      expect(style.zoom).toBe('1');
+    });
+
     const mediaFrame = document.querySelector<HTMLElement>('[data-media-slot="lead_media"] .es-media-bound');
     const mediaImage = mediaFrame?.querySelector('img');
     expect(mediaFrame?.dataset.assetId).toBe('launch-proof-screenshot');
@@ -100,6 +109,8 @@ describe('editorial-stage presentation render smoke', () => {
 
     expect(css).toMatch(/@media\s*\(\s*prefers-reduced-motion\s*:\s*reduce\s*\)/i);
     expect(css).toMatch(/\.es-slide\s*\{[\s\S]*width:\s*1280px;[\s\S]*height:\s*720px;[\s\S]*overflow:\s*hidden;/);
+    expect(css).toMatch(/\.es-slide\s*\{[\s\S]*background:\s*var\(--es-canvas\);/);
+    expect(css).not.toMatch(/\b(?:zoom|transform)\s*:\s*(?:scale|0?\.\d|\d+%)/i);
     expect(css).not.toMatch(/\b(?:three|webgl|particle)\b/i);
     expect(css).not.toMatch(/@keyframes\s+(?!es-)/i);
     expect(activeAnimationDeclarations.every((declaration) => /\binfinite\b/i.test(declaration))).toBe(true);

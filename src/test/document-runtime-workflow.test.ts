@@ -5,6 +5,10 @@ import type { LanguageModel, ModelMessage } from 'ai';
 import type { ProviderEntry } from '@/services/ai/types';
 import type { LLMConfig, WorkflowEvent } from '@/services/ai/workflow/types';
 import { buildArtifactRunPlan } from '@/services/artifactRuntime';
+import {
+  buildExecutiveMemoSourceFromPrompt,
+  canRunExecutiveMemoDocumentPackRuntime,
+} from '@/services/artifactRuntime/documentRuntime';
 
 const aiMocks = vi.hoisted(() => ({
   streamText: vi.fn(),
@@ -111,6 +115,86 @@ describe('document runtime workflow orchestration', () => {
     expect(workflowSource).not.toMatch(/assembleDocumentRuntimeHtml|applyDocumentRuntimeModuleEdits|validateDocumentRuntimeModules/);
     expect(workflowSource).not.toMatch(/class\s+DocumentPromptComposer|DOCUMENT_SYSTEM_PROMPT|EDIT_DOCUMENT_SYSTEM_PROMPT/);
     expect(workflowSource).not.toMatch(/getReferenceStylePack|synthetic style example|ADDITIONAL REFERENCE MATERIAL/);
+  });
+
+  it('routes executive memo document creates through the pack source compiler', async () => {
+    const events: WorkflowEvent[] = [];
+    const runPlan = createDocumentRunPlan('Create an executive memo for the board titled Platform Investment Memo');
+
+    const result = await runDocumentWorkflow({
+      input: {
+        prompt: 'Create an executive memo for the board titled Platform Investment Memo',
+        chatHistory: [],
+        artifactRunPlan: runPlan,
+      },
+      llmConfig: createLlmConfig(),
+      onEvent: (event) => events.push(event),
+    });
+
+    expect(streamTextMock).not.toHaveBeenCalled();
+    expect(result.html).toContain('data-pack="document/executive-memo-v1"');
+    expect(result.html).toContain('data-aura-style-system="document/executive-memo-v1"');
+    expect(result.artifactManifest).toEqual(expect.objectContaining({
+      packId: 'document/executive-memo-v1',
+      packVersion: '1.0.0',
+      renderer: 'document',
+      validationStatus: 'passed',
+    }));
+    expect(result.artifactSourcePayload).toEqual(expect.objectContaining({
+      schemaVersion: 1,
+      artifactType: 'document',
+      packId: 'document/executive-memo-v1',
+      title: 'Platform Investment Memo',
+    }));
+    expect(result.runtime?.runMode).toBe('queued-create');
+    expect(result.runtime?.validationPassed).toBe(true);
+    expect(events.some((event) => event.type === 'progress' && event.message === 'Creating executive memo source payload…')).toBe(true);
+    expect(events.some((event) => event.type === 'progress' && event.message === 'Compiled executive memo pack output.')).toBe(true);
+  });
+
+  it('keeps executive memo pack routing closed to edits and image creates', () => {
+    const createRunPlan = createDocumentRunPlan('Create an executive memo for the board');
+    const editRunPlan = createDocumentRunPlan('Update the executive memo recommendation', 'edit');
+
+    expect(canRunExecutiveMemoDocumentPackRuntime({
+      runPlan: createRunPlan,
+      promptText: 'Create an executive memo for the board',
+      isEdit: false,
+      hasImages: false,
+    })).toBe(true);
+    expect(canRunExecutiveMemoDocumentPackRuntime({
+      runPlan: createRunPlan,
+      promptText: 'Create an executive memo for the board',
+      isEdit: false,
+      hasImages: true,
+    })).toBe(false);
+    expect(canRunExecutiveMemoDocumentPackRuntime({
+      runPlan: editRunPlan,
+      promptText: 'Update the executive memo recommendation',
+      isEdit: true,
+      hasImages: false,
+    })).toBe(false);
+    expect(canRunExecutiveMemoDocumentPackRuntime({
+      runPlan: createRunPlan,
+      promptText: 'Create a status report document',
+      isEdit: false,
+      hasImages: false,
+    })).toBe(false);
+  });
+
+  it('builds validation-safe executive memo source payloads from normal prompts', () => {
+    const runPlan = createDocumentRunPlan('Create an executive memo for the board titled Search Rollout Memo');
+    const source = buildExecutiveMemoSourceFromPrompt({
+      promptText: 'Create an executive memo for the board titled <Search Rollout Memo> with risks and actions',
+      title: 'Search Rollout Memo',
+      runPlan,
+    });
+
+    expect(source.packId).toBe('document/executive-memo-v1');
+    expect(source.modules.length).toBeGreaterThanOrEqual(3);
+    expect(JSON.stringify(source)).not.toContain('<');
+    expect(source.modules.some((module) => module.layoutId === 'evidence-table' && module.table)).toBe(true);
+    expect(source.modules.some((module) => module.layoutId === 'risk-register' && module.items.length >= 2)).toBe(true);
   });
 
   it('uses images only in the queued outline step for image-based creates', async () => {
@@ -242,13 +326,13 @@ describe('document runtime workflow orchestration', () => {
       };
     });
     const events: WorkflowEvent[] = [];
-    const runPlan = createDocumentRunPlan('Create an executive briefing document');
+    const runPlan = createDocumentRunPlan('Create a status report document');
     runPlan.providerPolicy.generationGranularity = 'artifact';
     runPlan.providerPolicy.maxRepairPasses = 4;
 
     const result = await runDocumentWorkflow({
       input: {
-        prompt: 'Create an executive briefing document',
+        prompt: 'Create a status report document',
         chatHistory: [],
         artifactRunPlan: runPlan,
       },

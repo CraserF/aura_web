@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildRunRequest } from '@/services/chat/buildRunRequest';
+import { buildArtifactRunPlan } from '@/services/artifactRuntime';
 import { createDefaultContextSelectionState } from '@/services/context/types';
 import type { ProjectData, ProjectDocument } from '@/types/project';
 
@@ -99,10 +100,23 @@ describe('structured artifact runtime parts', () => {
     const documentRun = await buildRequest(project, document, 'Tighten this document section');
     const presentationRun = await buildRequest(project, presentation, 'Add 2 slides: customer proof, implementation timeline');
     const spreadsheetRun = await buildRequest(project, spreadsheet, 'Add a margin column as Revenue minus Cost');
+    const memoRunPlan = buildArtifactRunPlan({
+      runId: 'memo-run',
+      prompt: 'Create an executive memo for the board',
+      artifactType: 'document',
+      operation: 'create',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
 
     expect(documentRun.artifactRunPlan.workQueue[0]?.kind).toBe('document-shell');
     expect(presentationRun.artifactRunPlan.workQueue.map((part) => part.kind)).toEqual(['slide', 'slide']);
     expect(spreadsheetRun.artifactRunPlan.workQueue[0]?.kind).toBe('workbook-action');
+    expect(documentRun.artifactRunPlan.artifactPackId).toBeUndefined();
+    expect(spreadsheetRun.artifactRunPlan.artifactPackId).toBeUndefined();
+    expect(memoRunPlan.artifactPackId).toBe('document/executive-memo-v1');
     expect([documentRun, presentationRun, spreadsheetRun].every((run) => !('serializableSpec' in run))).toBe(true);
   });
 });

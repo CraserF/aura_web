@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "spreadsheet",
+  "packId": "spreadsheet/operating-model-v1",
+  "packVersion": "1.0.0",
+  "title": "Regional Operating Model",
+  "audience": "Operations and finance leaders",
+  "directionId": "data-utility",
+  "outputMode": "xlsx",
+  "brief": "A compact model for tracking regional plan, actuals, variance, and next-quarter capacity needs.",
+  "sheets": [
+    {
+      "sheetId": "inputs",
+      "name": "Inputs",
+      "role": "inputs",
+      "layoutFamily": "input-table",
+      "tableName": "operating_inputs",
+      "frozenRows": 1,
+      "frozenCols": 1,
+      "columns": [
+        { "name": "Region", "type": "text", "nullable": false, "role": "source", "width": 150 },
+        { "name": "Quarter", "type": "text", "nullable": false, "role": "source", "width": 110 },
+        { "name": "PlanRevenue", "type": "number", "nullable": false, "role": "input", "width": 140 },
+        { "name": "ActualRevenue", "type": "number", "nullable": false, "role": "input", "width": 150 },
+        { "name": "Cost", "type": "number", "nullable": false, "role": "input", "width": 120 }
+      ],
+      "rows": [
+        { "Region": "North", "Quarter": "Q1", "PlanRevenue": 1250000, "ActualRevenue": 1320000, "Cost": 760000 },
+        { "Region": "South", "Quarter": "Q1", "PlanRevenue": 980000, "ActualRevenue": 910000, "Cost": 580000 },
+        { "Region": "West", "Quarter": "Q1", "PlanRevenue": 1110000, "ActualRevenue": 1165000, "Cost": 690000 }
+      ],
+      "formulas": [],
+      "charts": [],
+      "sourceNotes": ["Synthetic pack example; replace input rows with verified project data."]
+    },
+    {
+      "sheetId": "model",
+      "name": "Model",
+      "role": "model",
+      "layoutFamily": "calculation-table",
+      "tableName": "operating_model",
+      "frozenRows": 1,
+      "frozenCols": 1,
+      "columns": [
+        { "name": "Region", "type": "text", "nullable": false, "role": "source", "width": 150 },
+        { "name": "PlanRevenue", "type": "number", "nullable": false, "role": "input", "width": 140 },
+        { "name": "ActualRevenue", "type": "number", "nullable": false, "role": "input", "width": 150 },
+        { "name": "Cost", "type": "number", "nullable": false, "role": "input", "width": 120 },
+        { "name": "Variance", "type": "number", "nullable": true, "role": "calculation", "width": 130 },
+        { "name": "Margin", "type": "number", "nullable": true, "role": "calculation", "width": 120 }
+      ],
+      "rows": [
+        { "Region": "North", "PlanRevenue": 1250000, "ActualRevenue": 1320000, "Cost": 760000, "Variance": 70000, "Margin": 560000 },
+        { "Region": "South", "PlanRevenue": 980000, "ActualRevenue": 910000, "Cost": 580000, "Variance": -70000, "Margin": 330000 },
+        { "Region": "West", "PlanRevenue": 1110000, "ActualRevenue": 1165000, "Cost": 690000, "Variance": 55000, "Margin": 475000 }
+      ],
+      "formulas": [
+        { "id": "variance", "column": "Variance", "expression": "\"ActualRevenue\" - \"PlanRevenue\"", "dependsOn": ["ActualRevenue", "PlanRevenue"], "label": "Actual revenue less planned revenue" },
+        { "id": "margin", "column": "Margin", "expression": "\"ActualRevenue\" - \"Cost\"", "dependsOn": ["ActualRevenue", "Cost"], "label": "Actual revenue less cost" }
+      ],
+      "charts": [],
+      "sourceNotes": ["Formula expressions use declared columns only."]
+    },
+    {
+      "sheetId": "summary",
+      "name": "Summary",
+      "role": "summary",
+      "layoutFamily": "summary-table",
+      "tableName": "operating_summary",
+      "frozenRows": 1,
+      "frozenCols": 1,
+      "columns": [
+        { "name": "Metric", "type": "text", "nullable": false, "role": "output", "width": 180 },
+        { "name": "Value", "type": "number", "nullable": false, "role": "output", "width": 140 },
+        { "name": "Status", "type": "text", "nullable": false, "role": "output", "width": 140 }
+      ],
+      "rows": [
+        { "Metric": "Revenue variance", "Value": 55000, "Status": "Ahead" },
+        { "Metric": "Total margin", "Value": 1365000, "Status": "Monitor" }
+      ],
+      "formulas": [],
+      "charts": [
+        { "id": "variance-chart", "title": "Revenue variance by region", "type": "bar", "sourceSheetId": "model", "xColumn": "Region", "yColumns": ["Variance"] }
+      ],
+      "sourceNotes": ["Summary rows are derived from the model sheet in this pack example."]
+    }
+  ]
+}

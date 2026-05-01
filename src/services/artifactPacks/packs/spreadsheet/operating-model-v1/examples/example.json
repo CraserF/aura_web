@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "packId": "spreadsheet/operating-model-v1",
+  "packVersion": "1.0.0",
+  "title": "Regional Operating Model",
+  "directionId": "data-utility",
+  "workbook": {
+    "activeSheetIndex": 0,
+    "sheets": [
+      {
+        "id": "inputs",
+        "name": "Inputs",
+        "tableName": "operating_inputs",
+        "schema": [
+          { "name": "Region", "type": "text", "nullable": false },
+          { "name": "Quarter", "type": "text", "nullable": false },
+          { "name": "PlanRevenue", "type": "number", "nullable": false },
+          { "name": "ActualRevenue", "type": "number", "nullable": false },
+          { "name": "Cost", "type": "number", "nullable": false }
+        ],
+        "frozenRows": 1,
+        "frozenCols": 1,
+        "columnWidths": { "Region": 150, "Quarter": 110, "PlanRevenue": 140, "ActualRevenue": 150, "Cost": 120 },
+        "formulas": []
+      },
+      {
+        "id": "model",
+        "name": "Model",
+        "tableName": "operating_model",
+        "schema": [
+          { "name": "Region", "type": "text", "nullable": false },
+          { "name": "PlanRevenue", "type": "number", "nullable": false },
+          { "name": "ActualRevenue", "type": "number", "nullable": false },
+          { "name": "Cost", "type": "number", "nullable": false },
+          { "name": "Variance", "type": "number", "nullable": true },
+          { "name": "Margin", "type": "number", "nullable": true }
+        ],
+        "frozenRows": 1,
+        "frozenCols": 1,
+        "columnWidths": { "Region": 150, "PlanRevenue": 140, "ActualRevenue": 150, "Cost": 120, "Variance": 130, "Margin": 120 },
+        "formulas": [
+          { "id": "variance", "column": "Variance", "expression": "\"ActualRevenue\" - \"PlanRevenue\"", "dependsOn": ["ActualRevenue", "PlanRevenue"] },
+          { "id": "margin", "column": "Margin", "expression": "\"ActualRevenue\" - \"Cost\"", "dependsOn": ["ActualRevenue", "Cost"] }
+        ]
+      },
+      {
+        "id": "summary",
+        "name": "Summary",
+        "tableName": "operating_summary",
+        "schema": [
+          { "name": "Metric", "type": "text", "nullable": false },
+          { "name": "Value", "type": "number", "nullable": false },
+          { "name": "Status", "type": "text", "nullable": false }
+        ],
+        "frozenRows": 1,
+        "frozenCols": 1,
+        "columnWidths": { "Metric": 180, "Value": 140, "Status": 140 },
+        "formulas": []
+      }
+    ]
+  },
+  "data": {
+    "inputs": [
+      { "Region": "North", "Quarter": "Q1", "PlanRevenue": 1250000, "ActualRevenue": 1320000, "Cost": 760000 },
+      { "Region": "South", "Quarter": "Q1", "PlanRevenue": 980000, "ActualRevenue": 910000, "Cost": 580000 },
+      { "Region": "West", "Quarter": "Q1", "PlanRevenue": 1110000, "ActualRevenue": 1165000, "Cost": 690000 }
+    ],
+    "model": [
+      { "Region": "North", "PlanRevenue": 1250000, "ActualRevenue": 1320000, "Cost": 760000, "Variance": 70000, "Margin": 560000 },
+      { "Region": "South", "PlanRevenue": 980000, "ActualRevenue": 910000, "Cost": 580000, "Variance": -70000, "Margin": 330000 },
+      { "Region": "West", "PlanRevenue": 1110000, "ActualRevenue": 1165000, "Cost": 690000, "Variance": 55000, "Margin": 475000 }
+    ],
+    "summary": [
+      { "Metric": "Revenue variance", "Value": 55000, "Status": "Ahead" },
+      { "Metric": "Total margin", "Value": 1365000, "Status": "Monitor" }
+    ]
+  },
+  "formatting": {
+    "inputs": { "role": "inputs", "layoutFamily": "input-table", "sourceNotes": ["Synthetic pack example; replace input rows with verified project data."], "generatedColumns": [] },
+    "model": { "role": "model", "layoutFamily": "calculation-table", "sourceNotes": ["Formula expressions use declared columns only."], "generatedColumns": ["Variance", "Margin"] },
+    "summary": { "role": "summary", "layoutFamily": "summary-table", "sourceNotes": ["Summary rows are derived from the model sheet in this pack example."], "generatedColumns": ["Metric", "Value", "Status"] }
+  },
+  "charts": [
+    { "id": "variance-chart", "title": "Revenue variance by region", "type": "bar", "sourceSheetId": "model", "xColumn": "Region", "yColumns": ["Variance"] }
+  ],
+  "theme": {
+    "target": "spreadsheet-theme",
+    "roles": {
+      "workbookBackground": "#f7f9fb",
+      "sheetTab": "#0f766e",
+      "headerFill": "#e2eaf2",
+      "headerText": "#132033",
+      "gridLine": "#cbd7e3",
+      "inputFill": "#ffffff",
+      "generatedFill": "#eef4f7",
+      "outputFill": "#eef4f7",
+      "positive": "#15803d",
+      "warning": "#b45309",
+      "negative": "#b91c1c"
+    },
+    "chartPalette": ["#0f766e", "#1d4ed8", "#7c2d12", "#6d28d9", "#475569"]
+  }
+}

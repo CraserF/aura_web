@@ -279,6 +279,8 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
           title: result.title || activeDocument.title,
           chartSpecs,
           lastSuccessfulPresetId: runRequest.appliedPreset?.id,
+          ...(result.artifactManifest ? { artifactManifest: result.artifactManifest } : {}),
+          ...(result.artifactSourcePayload ? { artifactSourcePayload: result.artifactSourcePayload } : {}),
         });
         memorySourceRefs = [...memorySourceRefs, `document:${activeDocument.id}`];
       } else {
@@ -294,6 +296,8 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
           chartSpecs,
           lifecycleState: 'draft',
           lastSuccessfulPresetId: runRequest.appliedPreset?.id,
+          ...(result.artifactManifest ? { artifactManifest: result.artifactManifest } : {}),
+          ...(result.artifactSourcePayload ? { artifactSourcePayload: result.artifactSourcePayload } : {}),
           order: context.data.projectDocumentCount,
           createdAt: Date.now(),
           updatedAt: Date.now(),
@@ -377,6 +381,8 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
             markdown: result.markdown,
             ...(result.runtime ? { runtime: result.runtime } : {}),
             ...(result.editing ? { editing: result.editing } : {}),
+            ...(result.artifactManifest ? { artifactManifest: result.artifactManifest } : {}),
+            ...(result.artifactSourcePayload ? { artifactSourcePayload: result.artifactSourcePayload } : {}),
             ...(publish ? { publish } : {}),
           },
         },
@@ -385,6 +391,8 @@ export async function handleDocumentWorkflow(ctx: DocumentHandlerContext): Promi
         title: result.title,
         ...(result.runtime ? { runtime: result.runtime } : {}),
         ...(result.editing ? { editing: result.editing } : {}),
+        ...(result.artifactManifest ? { artifactManifest: result.artifactManifest } : {}),
+        ...(result.artifactSourcePayload ? { artifactSourcePayload: result.artifactSourcePayload } : {}),
         ...(publish ? { publish } : {}),
       },
       assistantMessage: {
