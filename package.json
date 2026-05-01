@@ -37,6 +37,7 @@
     "clsx": "^2.1.1",
     "docx": "^9.6.1",
     "file-saver": "^2.0.5",
+    "html2canvas": "^1.4.1",
     "html2pdf.js": "^0.14.0",
     "idb-keyval": "^6.2.2",
     "isomorphic-git": "^1.37.5",

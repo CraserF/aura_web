@@ -109,6 +109,10 @@ export function ChatBar() {
   // Project store
   const project = useProjectStore((s) => s.project);
   const activeDocument = useProjectStore((s) => s.activeDocument());
+  const isPackBackedPresentation = activeDocument?.type === 'presentation' && (
+    !!activeDocument.artifactManifest?.packId ||
+    !!activeDocument.artifactSourcePayload
+  );
   const addDocument = useProjectStore((s) => s.addDocument);
   const updateDocument = useProjectStore((s) => s.updateDocument);
   const setProject = useProjectStore((s) => s.setProject);
@@ -403,7 +407,7 @@ export function ChatBar() {
   }, [persistWorkflowPresets, presetState.defaultPreset, presetState.selectedPreset, project.workflowPresets, selectedPresetId, setSelectedPresetId]);
 
   const handleApplyProjectColours = useCallback(async () => {
-    if (!activeDocument || activeDocument.type !== 'presentation' || !project.colorTheme || isGenerating || isApplyingPalette) {
+    if (!activeDocument || activeDocument.type !== 'presentation' || isPackBackedPresentation || !project.colorTheme || isGenerating || isApplyingPalette) {
       return;
     }
 
@@ -439,7 +443,7 @@ export function ChatBar() {
     } finally {
       setIsApplyingPalette(false);
     }
-  }, [activeDocument, isApplyingPalette, isGenerating, project.colorTheme, project.visualVariantId, setSlides, updateDocument]);
+  }, [activeDocument, isApplyingPalette, isGenerating, isPackBackedPresentation, project.colorTheme, project.visualVariantId, setSlides, updateDocument]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -738,7 +742,7 @@ export function ChatBar() {
                 <span className="max-w-[100px] truncate font-medium text-foreground/70">{activeDocument.title}</span>
               </button>
             )}
-            {activeDocument?.type === 'presentation' && project.colorTheme && (
+            {activeDocument?.type === 'presentation' && project.colorTheme && !isPackBackedPresentation && (
               <button
                 type="button"
                 onClick={handleApplyProjectColours}

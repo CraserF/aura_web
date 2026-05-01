@@ -54,6 +54,27 @@ describe('presentation runtime policy', () => {
     expect(presentationRuntimeSource).toMatch(/buildSlideBriefsFromRunPlan/);
   });
 
+  it('marks successful presentation edits as changed targets for persistence', () => {
+    const handlerSource = readSource('components/chat/handlers/presentationHandler.ts');
+
+    expect(handlerSource).toMatch(
+      /updateDocument\(activeDocument\.id,[\s\S]*?memorySourceRefs = \[\.\.\.memorySourceRefs, `document:\$\{activeDocument\.id\}`\];\s*changedDocumentId = activeDocument\.id;/,
+    );
+  });
+
+  it('persists runtime preview snapshots after lifecycle validation and the primary commit', () => {
+    const handlerSource = readSource('components/chat/handlers/presentationHandler.ts');
+    const lifecycleIndex = handlerSource.indexOf('deriveLifecycleFromValidation(artifactValidation)');
+    const previewIndex = handlerSource.indexOf('void persistPresentationArtifactPreview({');
+
+    expect(lifecycleIndex).toBeGreaterThan(0);
+    expect(previewIndex).toBeGreaterThan(lifecycleIndex);
+    expect(handlerSource).toContain('preview.artifactPreview.sourceUpdatedAt = latestDocument.updatedAt;');
+    expect(handlerSource).toContain('preview.artifactPreview.validationProfileId = latestDocument.lastValidationProfileId;');
+    expect(handlerSource).toContain('await input.waitForCommit;');
+    expect(handlerSource).toContain('commitMessage: `Updated presentation preview: ${previewDocument.title}`');
+  });
+
   it('keeps external execution-spec adapters out of active generation paths', () => {
     const activeSources = [
       'services/chat/buildRunRequest.ts',
@@ -139,5 +160,37 @@ describe('presentation runtime policy', () => {
     expect(presentationRuntimeSource).toMatch(/metricsBudget\.maxOptionalPolishPasses/);
     expect(presentationRuntimeSource).toMatch(/metricsBudget\.maxRepairPasses/);
     expect(designerSource).toMatch(/metricsBudget\.maxToolLoopSteps/);
+  });
+
+  it('keeps image-caption removal inside the source-backed text edit surface', () => {
+    const runPlan = buildArtifactRunPlan({
+      runId: 'caption-removal',
+      prompt: 'Remove the image caption from slide 3',
+      artifactType: 'presentation',
+      operation: 'edit',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    expect(runPlan.artifactAllowedEditSurface?.kind).toBe('text-edit');
+    expect(runPlan.artifactAllowedEditSurface?.id).toBe('text-slot-edits');
+  });
+
+  it('still blocks mixed caption and media removal as an unsupported media edit', () => {
+    const runPlan = buildArtifactRunPlan({
+      runId: 'caption-and-image-removal',
+      prompt: 'Remove the image caption and the image from slide 3',
+      artifactType: 'presentation',
+      operation: 'edit',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    expect(runPlan.artifactAllowedEditSurface?.kind).toBe('unsupported');
+    expect(runPlan.artifactAllowedEditSurface?.id).toBe('unsupported-pack-edit');
   });
 });

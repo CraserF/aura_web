@@ -123,4 +123,34 @@ describe('non-technical UX simplification', () => {
 
     expect(plan.artifactAllowedEditSurface?.kind).toBe('unsupported');
   });
+
+  it('keeps text removals inside slide titles on the text-edit surface', () => {
+    const plan = buildArtifactRunPlan({
+      runId: 'title-word-removal',
+      prompt: 'Please remove the word beta from slide 2 title',
+      artifactType: 'presentation',
+      operation: 'edit',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    expect(plan.artifactAllowedEditSurface?.kind).toBe('text-edit');
+  });
+
+  it('keeps natural title text removals on the text-edit surface', () => {
+    const plan = buildArtifactRunPlan({
+      runId: 'title-natural-removal',
+      prompt: 'Please remove beta from slide 2 title',
+      artifactType: 'presentation',
+      operation: 'edit',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    expect(plan.artifactAllowedEditSurface?.kind).toBe('text-edit');
+  });
 });

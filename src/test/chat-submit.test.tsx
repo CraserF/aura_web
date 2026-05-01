@@ -323,6 +323,41 @@ describe('ChatBar submission paths', () => {
     plainPresentationView.unmount();
   });
 
+  it('hides the legacy project-colour action for pack-backed presentations', () => {
+    seedPackBackedPresentation();
+    useProjectStore.getState().setProject({
+      ...useProjectStore.getState().project,
+      colorTheme: {
+        background: '#ffffff',
+        primary: '#111827',
+        accent: '#2563eb',
+      },
+    });
+    const packView = renderChatBar();
+
+    expect(packView.container.querySelector('[aria-label="Apply project colours to active deck"]')).toBeNull();
+    packView.unmount();
+
+    resetStores();
+    seedActiveDocument({
+      type: 'presentation',
+      contentHtml: '<section><h1>Plain deck</h1></section>',
+      slideCount: 1,
+    });
+    useProjectStore.getState().setProject({
+      ...useProjectStore.getState().project,
+      colorTheme: {
+        background: '#ffffff',
+        primary: '#111827',
+        accent: '#2563eb',
+      },
+    });
+    const plainView = renderChatBar();
+
+    expect(plainView.container.querySelector('[aria-label="Apply project colours to active deck"]')).not.toBeNull();
+    plainView.unmount();
+  });
+
   it('populates and focuses the textarea when a guided edit chip is clicked', async () => {
     seedPackBackedPresentation();
     const view = renderChatBar();

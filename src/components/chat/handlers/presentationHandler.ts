@@ -38,6 +38,10 @@ import type { ValidationResult } from '@/services/validation/types';
 import { deriveLifecycleFromValidation } from '@/services/lifecycle/state';
 import { formatRuntimeQualityDiagnostics } from '@/services/artifactRuntime';
 import { qualityOutcomeLabel } from '@/services/chat/renderRunResult';
+import {
+  createPresentationArtifactPreview,
+  upsertProjectArtifactPreview,
+} from '@/services/artifactPreview/presentationPreview';
 
 export interface PresentationHandlerContext {
   runRequest: RunRequest;
@@ -83,6 +87,59 @@ function addQualitySafetyIssue(
     blockingIssues: [...validation.blockingIssues, issue],
     score: Math.min(validation.score, Math.max(0, validation.score - 20)),
   };
+}
+
+async function persistPresentationArtifactPreview(input: {
+  documentId: string;
+  html: string;
+  sourceContentHtml: string;
+  commitMessage?: string;
+  waitForCommit?: Promise<unknown>;
+}): Promise<void> {
+  try {
+    const preview = await createPresentationArtifactPreview({
+      documentId: input.documentId,
+      html: input.html,
+    });
+    if (!preview) return;
+
+    const latestProject = useProjectStore.getState().project;
+    const latestDocument = latestProject.documents.find((candidate) => candidate.id === input.documentId);
+    if (
+      !latestDocument ||
+      latestDocument.contentHtml !== input.sourceContentHtml
+    ) {
+      return;
+    }
+
+    preview.artifactPreview.sourceUpdatedAt = latestDocument.updatedAt;
+    preview.artifactPreview.validationProfileId = latestDocument.lastValidationProfileId;
+
+    useProjectStore.getState().setProject(
+      upsertProjectArtifactPreview(latestProject, input.documentId, preview),
+    );
+
+    if (input.commitMessage) {
+      await input.waitForCommit;
+      const projectAfterPrimaryCommit = useProjectStore.getState().project;
+      const documentAfterPrimaryCommit = projectAfterPrimaryCommit.documents.find(
+        (candidate) => candidate.id === input.documentId,
+      );
+      if (
+        !documentAfterPrimaryCommit ||
+        documentAfterPrimaryCommit.contentHtml !== input.sourceContentHtml ||
+        documentAfterPrimaryCommit.artifactPreview?.assetId !== preview.artifactPreview.assetId ||
+        documentAfterPrimaryCommit.artifactPreview?.sourceUpdatedAt !== preview.artifactPreview.sourceUpdatedAt ||
+        documentAfterPrimaryCommit.artifactPreview?.generatedAt !== preview.artifactPreview.generatedAt
+      ) {
+        return;
+      }
+
+      await commitVersion(projectAfterPrimaryCommit, input.commitMessage);
+    }
+  } catch (error) {
+    console.warn('[Presentation] failed to generate artifact preview:', error);
+  }
 }
 
 export async function handlePresentationWorkflow(ctx: PresentationHandlerContext): Promise<RunResult> {
@@ -359,10 +416,12 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
           ...(result.artifactSourcePayload ? { artifactSourcePayload: result.artifactSourcePayload } : {}),
         });
         memorySourceRefs = [...memorySourceRefs, `document:${activeDocument.id}`];
+        changedDocumentId = activeDocument.id;
       } else {
+        const newDocumentId = crypto.randomUUID();
         const chartSpecs = extractChartSpecsFromHtml(result.html);
         const newDoc: ProjectDocument = {
-          id: crypto.randomUUID(),
+          id: newDocumentId,
           title: result.title || 'Presentation',
           type: 'presentation',
           contentHtml: result.html,
@@ -380,6 +439,7 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         memorySourceRefs = [...memorySourceRefs, `document:${newDoc.id}`];
         changedDocumentId = newDoc.id;
       }
+
     }
 
     if (result.html) {
@@ -393,10 +453,6 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
     const action = isEditFlow ? 'Edited' : 'Created';
     const slideInfo = result.slideCount > 0 ? ` (${result.slideCount} slide${result.slideCount !== 1 ? 's' : ''})` : '';
     const commitMsg = `${action} presentation${slideInfo}: ${prompt.slice(0, 50)}`;
-    if (changedDocumentId) {
-      const updatedProject = useProjectStore.getState().project;
-      commitVersion(updatedProject, commitMsg).catch((e) => console.warn('[VersionHistory] commit failed:', e));
-    }
     void queueMemoryExtraction(llmConfig, memoryConversation, memoryArtifactSummary, memorySourceRefs);
     const persistedDocument = changedDocumentId
       ? useProjectStore.getState().project.documents.find((document) => document.id === changedDocumentId)
@@ -417,6 +473,23 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
       updateDocument(persistedDocument.id, {
         ...deriveLifecycleFromValidation(artifactValidation),
         ...(artifactValidation.passed && safetyPassed ? { lastSuccessfulPresetId: runRequest.appliedPreset?.id } : {}),
+      });
+    }
+    let primaryCommit: Promise<unknown> | undefined;
+    if (changedDocumentId) {
+      primaryCommit = commitVersion(useProjectStore.getState().project, commitMsg)
+        .catch((e) => console.warn('[VersionHistory] commit failed:', e));
+    }
+    const previewDocument = changedDocumentId
+      ? useProjectStore.getState().project.documents.find((document) => document.id === changedDocumentId)
+      : undefined;
+    if (previewDocument && result.html && shouldPersistResult) {
+      void persistPresentationArtifactPreview({
+        documentId: previewDocument.id,
+        html: result.html,
+        sourceContentHtml: previewDocument.contentHtml,
+        commitMessage: `Updated presentation preview: ${previewDocument.title}`,
+        waitForCommit: primaryCommit,
       });
     }
     const validationWarnings = artifactValidation

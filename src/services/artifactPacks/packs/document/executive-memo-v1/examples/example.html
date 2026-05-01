@@ -1,0 +1,479 @@
+<style data-aura-style-system="document/executive-memo-v1">
+.em-doc {
+  --em-canvas: #f8fafc;
+  --em-surface: #ffffff;
+  --em-raised: #ffffff;
+  --em-ink: #111827;
+  --em-muted: #64748b;
+  --em-accent: #2563eb;
+  --em-accent-text: #ffffff;
+  --em-line: #dbe3ee;
+  --em-subtle: #eef2f7;
+  --em-positive: #16803c;
+  --em-warning: #b7791f;
+  --em-negative: #c2413b;
+  --em-display: "Inter", "Aptos Display", system-ui, sans-serif;
+  --em-body: "Inter", "Aptos", system-ui, sans-serif;
+  --em-mono: "JetBrains Mono", "SFMono-Regular", ui-monospace, monospace;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 64px 56px 72px;
+  background: var(--em-canvas);
+  color: var(--em-ink);
+  font-family: var(--em-body);
+  line-height: 1.55;
+}
+
+.em-doc *,
+.em-doc *::before,
+.em-doc *::after {
+  box-sizing: border-box;
+}
+
+.em-doc.em-direction-editorial-magazine,
+.em-doc.em-direction-warm-narrative {
+  --em-display: "Iowan Old Style", "Charter", Georgia, serif;
+}
+
+.em-doc.em-direction-modern-minimal {
+  --em-display: "Inter", "Aptos Display", system-ui, sans-serif;
+}
+
+.em-doc.em-direction-data-utility {
+  --em-mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
+}
+
+.em-doc.em-direction-bold-editorial {
+  --em-display: "Arial Narrow", "Aptos Display", Impact, system-ui, sans-serif;
+}
+
+.em-module {
+  margin: 0 0 38px;
+  padding: 0;
+}
+
+.em-memo-cover,
+.em-decision-summary,
+.em-context,
+.em-recommendation,
+.em-evidence-table,
+.em-risk-register,
+.em-action-plan,
+.em-source-notes {
+  position: relative;
+}
+
+.em-module:last-child {
+  margin-bottom: 0;
+}
+
+.em-density-calm {
+  margin-bottom: 48px;
+}
+
+.em-density-balanced {
+  margin-bottom: 38px;
+}
+
+.em-density-dense {
+  margin-bottom: 30px;
+}
+
+.em-cover,
+.em-memo-cover {
+  padding-bottom: 34px;
+  border-bottom: 2px solid var(--em-ink);
+}
+
+.em-kicker,
+.em-section-kicker,
+.em-label,
+.em-source-title {
+  margin: 0 0 10px;
+  color: var(--em-accent);
+  font-family: var(--em-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.em-cover h1,
+.em-memo-cover h1 {
+  max-width: 780px;
+  margin: 0;
+  font-family: var(--em-display);
+  font-size: 54px;
+  font-weight: 760;
+  letter-spacing: 0;
+  line-height: 0.98;
+}
+
+.em-lead {
+  max-width: 720px;
+  margin: 22px 0 0;
+  color: var(--em-muted);
+  font-size: 21px;
+  line-height: 1.45;
+}
+
+.em-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 30px 0 0;
+}
+
+.em-meta div,
+.em-proof-item,
+.em-card,
+.em-source-block {
+  background: var(--em-surface);
+  border: 1px solid var(--em-line);
+}
+
+.em-meta div {
+  padding: 12px;
+}
+
+.em-meta dt,
+.em-meta dd {
+  margin: 0;
+}
+
+.em-meta dt {
+  color: var(--em-muted);
+  font-family: var(--em-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.em-meta dd {
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 640;
+}
+
+.em-section-heading {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+  margin-bottom: 16px;
+}
+
+.em-section-heading h2 {
+  margin: 0;
+  font-family: var(--em-display);
+  font-size: 31px;
+  font-weight: 760;
+  letter-spacing: 0;
+  line-height: 1.08;
+}
+
+.em-section-body,
+.em-recommendation,
+.em-intro {
+  max-width: 720px;
+  margin: 0;
+  font-size: 17px;
+}
+
+.em-recommendation {
+  padding: 22px 24px;
+  background: var(--em-ink);
+  color: var(--em-accent-text);
+  font-size: 20px;
+  font-weight: 640;
+  line-height: 1.42;
+}
+
+.em-proof-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.em-proof-item {
+  padding: 14px;
+}
+
+.em-proof-item strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 15px;
+}
+
+.em-proof-item span {
+  color: var(--em-muted);
+  font-size: 14px;
+}
+
+.em-note {
+  margin: 16px 0 0;
+  padding: 14px 16px;
+  background: var(--em-subtle);
+  border-left: 4px solid var(--em-accent);
+  color: var(--em-muted);
+  font-size: 15px;
+}
+
+.em-step-list {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.em-step {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 14px;
+  padding: 16px 0;
+  border-top: 1px solid var(--em-line);
+}
+
+.em-step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: var(--em-accent);
+  color: var(--em-accent-text);
+  font-family: var(--em-mono);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.em-step h3,
+.em-card h3 {
+  margin: 0 0 6px;
+  font-size: 17px;
+  line-height: 1.25;
+}
+
+.em-step p,
+.em-card p {
+  margin: 0;
+  color: var(--em-muted);
+  font-size: 15px;
+}
+
+.em-table-wrap {
+  margin-top: 18px;
+  overflow-x: auto;
+  border: 1px solid var(--em-line);
+  background: var(--em-raised);
+}
+
+.em-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.em-table th {
+  background: var(--em-subtle);
+  color: var(--em-ink);
+  font-family: var(--em-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.em-table th,
+.em-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--em-line);
+  vertical-align: top;
+}
+
+.em-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.em-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.em-card {
+  padding: 16px;
+}
+
+.em-status {
+  display: inline-block;
+  margin-top: 10px;
+  color: var(--em-warning);
+  font-family: var(--em-mono);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.em-source-block {
+  margin-top: 16px;
+  padding: 16px;
+}
+
+.em-source-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--em-muted);
+  font-size: 13px;
+}
+
+.em-source-list li + li {
+  margin-top: 6px;
+}
+
+@media print {
+  .em-doc {
+    max-width: none;
+    padding: 24px;
+  }
+}
+
+@media (max-width: 720px) {
+  .em-doc {
+    padding: 34px 22px 44px;
+  }
+
+  .em-cover h1 {
+    font-size: 38px;
+  }
+
+  .em-meta,
+  .em-proof-strip,
+  .em-section-heading,
+  .em-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+<article class="em-doc em-direction-modern-minimal" data-pack="document/executive-memo-v1" data-direction="modern-minimal" aria-label="Enterprise Search Decision Memo">
+<header class="em-module em-memo-cover em-density-calm" data-module-id="memo-cover" data-layout="memo-cover">
+  <p class="em-kicker">Decision memo</p>
+  <h1>Ship enterprise search as a focused workflow layer</h1>
+  <p class="em-lead">The strongest path is a narrow launch around source-backed answers, governed connectors, and measurable support deflection rather than a broad knowledge portal.</p>
+  <dl class="em-meta"><div><dt>Audience</dt><dd>Exec team</dd></div><div><dt>Date</dt><dd>May 2026</dd></div><div><dt>Owner</dt><dd>Product strategy</dd></div><div><dt>Status</dt><dd>For decision</dd></div></dl>
+</header>
+<section class="em-module em-decision-summary em-density-balanced" data-module-id="decision-summary" data-layout="decision-summary">
+  <div class="em-section-heading">
+  <p class="em-section-kicker">Decision</p>
+  <h2>Recommendation</h2>
+</div>
+  <p class="em-recommendation">Approve a 90-day launch focused on three governed workflows: account research, policy lookup, and support answer drafting.</p>
+  <div class="em-proof-strip">
+    <div class="em-proof-item"><strong>Decision</strong><span>Fund the focused workflow layer.</span></div>
+    <div class="em-proof-item"><strong>Confidence</strong><span>Medium-high</span></div>
+    <div class="em-proof-item"><strong>Ask</strong><span>Confirm launch scope and two accountable metrics.</span></div>
+  </div>
+  <p class="em-note">The narrow scope gives teams a visible quality bar while avoiding a long platform build before users see value.</p>
+</section>
+<section class="em-module em-context em-density-balanced" data-module-id="context" data-layout="context">
+  <div class="em-section-heading">
+  <p class="em-section-kicker">Context</p>
+  <h2>Why this matters now</h2>
+</div>
+  <p class="em-section-body">Teams already search across CRM notes, support history, and internal policy pages, but answers are inconsistent and hard to verify. The launch should solve the highest-frequency workflows first.</p>
+  <aside class="em-note">The product risk is not discovery; it is trusted synthesis with provenance.</aside>
+</section>
+<section class="em-module em-recommendation em-density-balanced" data-module-id="recommendation" data-layout="recommendation">
+  <div class="em-section-heading">
+  <p class="em-section-kicker">Recommendation</p>
+  <h2>Implementation posture</h2>
+</div>
+  <p class="em-intro">Keep the first release small enough that quality, ownership, and measurement stay legible.</p>
+  <ol class="em-step-list"><li class="em-step">
+    <span class="em-step-index">01</span>
+    <div>
+      <h3>Constrain the workflow set</h3>
+      <p>Launch three repeatable workflows with known source systems and user owners.</p>
+      
+    </div>
+  </li><li class="em-step">
+    <span class="em-step-index">02</span>
+    <div>
+      <h3>Make provenance visible</h3>
+      <p>Every answer must cite source records, policy pages, or support cases before it can be shared.</p>
+      
+    </div>
+  </li><li class="em-step">
+    <span class="em-step-index">03</span>
+    <div>
+      <h3>Measure resolution quality</h3>
+      <p>Track accepted answers, escalation avoidance, and correction reasons from the first pilot week.</p>
+      
+    </div>
+  </li></ol>
+</section>
+<section class="em-module em-evidence-table em-density-dense" data-module-id="evidence" data-layout="evidence-table">
+  <div class="em-section-heading">
+  <p class="em-section-kicker">Evidence</p>
+  <h2>Evidence to preserve</h2>
+</div>
+  <p class="em-intro">The first launch should be judged against observable workflow signals, not broad adoption claims.</p>
+  <div class="em-table-wrap">
+  <table class="em-table">
+    <thead><tr><th>Signal</th><th>Current reading</th><th>Implication</th></tr></thead>
+    <tbody><tr><td>Support lookup repeats</td><td>Top policy and entitlement questions recur weekly</td><td>Start with answer drafting and source citation</td></tr><tr><td>Account research latency</td><td>Teams copy context across CRM, notes, and tickets</td><td>Prioritize account-level synthesis</td></tr><tr><td>Governance concern</td><td>Leaders ask for source visibility before automation</td><td>Make provenance a launch requirement</td></tr></tbody>
+  </table>
+</div>
+  <aside class="em-source-block">
+  <p class="em-source-title">Sources</p>
+  <ul class="em-source-list"><li>Synthetic example based on anonymized product discovery patterns.</li><li>No customer-specific data is included in this pack example.</li></ul>
+</aside>
+</section>
+<section class="em-module em-risk-register em-density-balanced" data-module-id="risks" data-layout="risk-register">
+  <div class="em-section-heading">
+  <p class="em-section-kicker">Risks</p>
+  <h2>Risks and controls</h2>
+</div>
+  <p class="em-intro">The main risks are quality drift, unclear ownership, and scope expansion before the quality bar is proven.</p>
+  <div class="em-card-grid"><article class="em-card">
+    <h3>Answer trust</h3>
+    <p>Require citations, correction capture, and human review for low-confidence responses.</p>
+    <span class="em-status">Control required</span>
+  </article><article class="em-card">
+    <h3>Connector sprawl</h3>
+    <p>Start with approved systems only, then add connectors when a workflow owner is named.</p>
+    <span class="em-status">Limit scope</span>
+  </article><article class="em-card">
+    <h3>Metric ambiguity</h3>
+    <p>Define accepted answer and avoided escalation before the pilot begins.</p>
+    <span class="em-status">Resolve before launch</span>
+  </article></div>
+</section>
+<section class="em-module em-action-plan em-density-balanced" data-module-id="action-plan" data-layout="action-plan">
+  <div class="em-section-heading">
+  <p class="em-section-kicker">Action</p>
+  <h2>Next actions</h2>
+</div>
+  <p class="em-intro">A narrow launch plan keeps the team aligned while leaving room to expand once quality is proven.</p>
+  <div class="em-table-wrap">
+  <table class="em-table">
+    <thead><tr><th>Owner</th><th>Action</th><th>Timing</th></tr></thead>
+    <tbody><tr><td>Product</td><td>Confirm the three launch workflows and acceptance criteria</td><td>Week 1</td></tr><tr><td>Data</td><td>Approve source connectors and citation requirements</td><td>Week 1</td></tr><tr><td>Support</td><td>Run pilot review sessions and capture corrections</td><td>Weeks 2-6</td></tr></tbody>
+  </table>
+</div>
+</section>
+<section class="em-module em-source-notes em-density-calm" data-module-id="sources" data-layout="source-notes">
+  <div class="em-section-heading">
+  <p class="em-section-kicker">Sources</p>
+  <h2>Source handling</h2>
+</div>
+  <p class="em-intro">This example demonstrates the document pack contract. Real generated memos should use project-provided sources and explicit notes.</p>
+  <aside class="em-source-block">
+  <p class="em-source-title">Sources</p>
+  <ul class="em-source-list"><li>Pack examples are synthetic and must not be treated as customer evidence.</li><li>Runtime source notes should name the uploaded or project-local source used for each claim.</li></ul>
+</aside>
+</section>
+</article>

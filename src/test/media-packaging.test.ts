@@ -121,6 +121,16 @@ describe('media packaging', () => {
           packId: 'presentation/editorial-stage-v1',
           slides: [{ id: 'slide-1', layoutId: 'cover', slots: { title: 'Launch' } }],
         },
+        artifactPreview: {
+          assetId: 'preview-doc-1',
+          relativePath: 'media/artifacts/doc-1/artifact.preview.png',
+          mimeType: 'image/png',
+          width: 1280,
+          height: 720,
+          generatedAt: 456,
+          sourceUpdatedAt: 1,
+          validationProfileId: 'presentation:v1',
+        },
         sourceMarkdown: '# Doc',
         themeCss: '',
         slideCount: 0,
@@ -139,6 +149,12 @@ describe('media packaging', () => {
         mimeType: 'image/png',
         relativePath: 'media/hero.png',
         dataUrl: 'data:image/png;base64,abc',
+      }, {
+        id: 'preview-doc-1',
+        filename: 'artifact.preview.png',
+        mimeType: 'image/png',
+        relativePath: 'media/artifacts/doc-1/artifact.preview.png',
+        dataUrl: 'data:image/png;base64,preview',
       }],
       sections: { drafts: [], main: [], suggestions: [], issues: [] },
       createdAt: 1,
@@ -157,12 +173,22 @@ describe('media packaging', () => {
       schemaVersion: 1,
       packId: 'presentation/editorial-stage-v1',
     }));
+    expect(docMeta.artifactPreview).toEqual(expect.objectContaining({
+      assetId: 'preview-doc-1',
+      relativePath: 'media/artifacts/doc-1/artifact.preview.png',
+      mimeType: 'image/png',
+      width: 1280,
+      height: 720,
+      generatedAt: 456,
+      sourceUpdatedAt: 1,
+    }));
     expect(JSON.parse(String(writtenFiles['manifest.json']?.value))).toEqual(expect.objectContaining({
       visualVariantId: 'launch',
       colorTheme,
     }));
     expect(writtenFiles['media/manifest.json']).toBeDefined();
     expect(writtenFiles['media/hero.png']).toBeDefined();
+    expect(writtenFiles['media/artifacts/doc-1/artifact.preview.png']).toBeDefined();
   });
 
   it('restores media assets and inlines relative refs on project import', async () => {
@@ -171,6 +197,7 @@ describe('media packaging', () => {
         'documents/doc-1.meta.json': {},
         'media/manifest.json': {},
         'media/hero.png': {},
+        'media/artifacts/doc-1/artifact.preview.png': {},
       },
       file(path: string) {
         const files: Record<string, { async: (type: string) => Promise<unknown> }> = {
@@ -200,9 +227,16 @@ describe('media packaging', () => {
               mimeType: 'image/png',
               relativePath: 'media/hero.png',
               dataUrl: '',
+            }, {
+              id: 'preview-doc-1',
+              filename: 'artifact.preview.png',
+              mimeType: 'image/png',
+              relativePath: 'media/artifacts/doc-1/artifact.preview.png',
+              dataUrl: '',
             }]),
           },
           'media/hero.png': { async: async () => new Uint8Array([1, 2, 3]) },
+          'media/artifacts/doc-1/artifact.preview.png': { async: async () => new Uint8Array([4, 5, 6]) },
           'documents/doc-1.meta.json': {
             async: async () => JSON.stringify({
               id: 'doc-1',
@@ -230,6 +264,16 @@ describe('media packaging', () => {
                 packId: 'presentation/editorial-stage-v1',
                 slides: [{ id: 'slide-1', layoutId: 'cover', slots: { title: 'Launch' } }],
               },
+              artifactPreview: {
+                assetId: 'preview-doc-1',
+                relativePath: 'media/artifacts/doc-1/artifact.preview.png',
+                mimeType: 'image/png',
+                width: 1280,
+                height: 720,
+                generatedAt: 456,
+                sourceUpdatedAt: 2,
+                validationProfileId: 'presentation:v1',
+              },
               contentHtml: '',
               themeCss: '',
               slideCount: 0,
@@ -255,9 +299,11 @@ describe('media packaging', () => {
     const project = await openProjectFile(new File(['data'], 'project.aura'));
 
     expect(project.id).not.toBe('project-1');
-    expect(project.media).toHaveLength(1);
+    expect(project.media).toHaveLength(2);
     expect(project.media?.[0]?.relativePath).toBe('media/hero.png');
     expect(project.media?.[0]?.dataUrl).toContain('data:image/png;base64,');
+    expect(project.media?.[1]?.relativePath).toBe('media/artifacts/doc-1/artifact.preview.png');
+    expect(project.media?.[1]?.dataUrl).toContain('data:image/png;base64,');
     expect(project.documents[0]?.contentHtml).toContain('data:image/png;base64,');
     expect(project.documents[0]?.starterRef?.artifactKey).toBe('brief');
     expect(project.documents[0]?.artifactManifest).toEqual(expect.objectContaining({
@@ -267,6 +313,15 @@ describe('media packaging', () => {
     expect(project.documents[0]?.artifactSourcePayload).toEqual(expect.objectContaining({
       schemaVersion: 1,
       packId: 'presentation/editorial-stage-v1',
+    }));
+    expect(project.documents[0]?.artifactPreview).toEqual(expect.objectContaining({
+      assetId: 'preview-doc-1',
+      relativePath: 'media/artifacts/doc-1/artifact.preview.png',
+      mimeType: 'image/png',
+      width: 1280,
+      height: 720,
+      generatedAt: 456,
+      sourceUpdatedAt: 2,
     }));
     expect(project.visualVariantId).toBe('research');
     expect(project.colorTheme).toEqual({ background: '#f8fafc', primary: '#1e3a5f', accent: '#0891b2' });

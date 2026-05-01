@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Aura presentation preview smoke</title>
+  </head>
+  <body>
+    <button id="aura-control-sentinel" type="button">Aura control sentinel</button>
+    <pre id="smoke-result" data-status="running">{"status":"running"}</pre>
+    <script type="module">
+      import { createProjectMediaResolver } from '/src/services/artifactPacks/index.ts';
+      import { compileEditorialStagePack } from '/src/services/artifactPacks/packs/presentation/editorial-stage-v1/compiler.ts';
+      import { createPresentationArtifactPreview, upsertProjectArtifactPreview } from '/src/services/artifactPreview/presentationPreview.ts';
+      import sourceJson from '/src/services/artifactPacks/packs/presentation/editorial-stage-v1/examples/source.json?raw';
+      import mediaJson from '/src/services/artifactPacks/packs/presentation/editorial-stage-v1/examples/media.json?raw';
+
+      const resultNode = document.getElementById('smoke-result');
+
+      function writeResult(result) {
+        const text = JSON.stringify(result);
+        resultNode.textContent = text;
+        resultNode.dataset.status = result.status;
+        document.body.dataset.smokeStatus = result.status;
+        document.title = `Aura presentation preview smoke: ${result.status}`;
+      }
+
+      try {
+        const source = JSON.parse(sourceJson);
+        const media = JSON.parse(mediaJson);
+        const compileResult = compileEditorialStagePack({
+          source,
+          outputMode: 'html',
+          mediaResolver: createProjectMediaResolver(media),
+        });
+
+        if (!compileResult.validation.passed) {
+          throw new Error(`Editorial Stage example failed validation: ${compileResult.validation.findings.map((finding) => finding.id).join(', ')}`);
+        }
+
+        const documentId = 'browser-preview-smoke-deck';
+        const documentUpdatedAt = 1_775_174_400_000;
+        const preview = await createPresentationArtifactPreview({
+          documentId,
+          html: compileResult.output.content,
+          sourceUpdatedAt: documentUpdatedAt,
+          validationProfileId: 'presentation/editorial-stage-v1',
+        });
+
+        if (!preview) {
+          throw new Error('Preview helper returned null.');
+        }
+        if (!preview.asset.dataUrl.startsWith('data:image/png;base64,')) {
+          throw new Error('Preview asset is not a PNG data URL.');
+        }
+        if (preview.artifactPreview.width !== 1280 || preview.artifactPreview.height !== 720) {
+          throw new Error(`Preview dimensions were ${preview.artifactPreview.width}x${preview.artifactPreview.height}.`);
+        }
+
+        const project = {
+          id: 'preview-smoke-project',
+          title: 'Preview Smoke Project',
+          visibility: 'private',
+          documents: [{
+            id: documentId,
+            title: 'Fresh Editorial Stage Preview Smoke',
+            type: 'presentation',
+            contentHtml: compileResult.output.content,
+            themeCss: '',
+            slideCount: source.slides.length,
+            chartSpecs: {},
+            order: 0,
+            createdAt: documentUpdatedAt,
+            updatedAt: documentUpdatedAt,
+            artifactManifest: {
+              packId: 'presentation/editorial-stage-v1',
+              packVersion: '1.0.0',
+              sourceKind: 'json',
+              outputMode: 'html',
+              compiledAt: documentUpdatedAt,
+            },
+            artifactSourcePayload: source,
+          }],
+          activeDocumentId: documentId,
+          chatHistory: [],
+          media: [...media],
+          sections: { drafts: [], main: [], suggestions: [], issues: [] },
+          createdAt: documentUpdatedAt,
+          updatedAt: documentUpdatedAt,
+        };
+
+        const persisted = upsertProjectArtifactPreview(project, documentId, preview);
+        const persistedDocument = persisted.documents.find((document) => document.id === documentId);
+        const persistedAsset = persisted.media.find((asset) => asset.id === preview.asset.id);
+        const sentinel = document.getElementById('aura-control-sentinel');
+
+        if (!persistedDocument?.artifactPreview) {
+          throw new Error('Persisted project is missing ProjectDocument.artifactPreview.');
+        }
+        if (!persistedAsset?.dataUrl?.startsWith('data:image/png;base64,')) {
+          throw new Error('Persisted project is missing preview media data.');
+        }
+        if (persistedDocument.artifactPreview.relativePath !== 'media/artifacts/browser-preview-smoke-deck/artifact.preview.png') {
+          throw new Error(`Unexpected preview relativePath: ${persistedDocument.artifactPreview.relativePath}`);
+        }
+        if (sentinel && getComputedStyle(sentinel).position === 'fixed') {
+          throw new Error('Presentation styles leaked into the host smoke page.');
+        }
+
+        writeResult({
+          status: 'passed',
+          slideCount: source.slides.length,
+          previewPath: persistedDocument.artifactPreview.relativePath,
+          assetId: persistedAsset.id,
+          mimeType: persistedAsset.mimeType,
+          width: persistedDocument.artifactPreview.width,
+          height: persistedDocument.artifactPreview.height,
+          dataUrlPrefix: persistedAsset.dataUrl.slice(0, 22),
+          dataUrlLength: persistedAsset.dataUrl.length,
+          sourceUpdatedAt: persistedDocument.artifactPreview.sourceUpdatedAt,
+          validationProfileId: persistedDocument.artifactPreview.validationProfileId,
+        });
+      } catch (error) {
+        writeResult({
+          status: 'failed',
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+      }
+    </script>
+  </body>
+</html>

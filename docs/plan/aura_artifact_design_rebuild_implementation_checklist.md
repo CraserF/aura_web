@@ -44,13 +44,13 @@ Status key:
 | 2. Editorial Stage default presentation pack | Done | Replace prompt-authored decks with compiler-owned presentation source payloads. | Default presentation create uses `presentation/editorial-stage-v1`. | Pack runtime routing tests. | Keep legacy scaffold out of normal UI/runtime. |
 | 3. Source-backed presentation edits | Done | Text edit, add-slide, and restyle patch source payloads and recompile. | No `designEdit`/`runBatchQueue` for pack-backed source edits. | `artifact-pack-runtime-routing.test.ts`. | Add repair loops for rejected source edits later. |
 | 4. Simplified creation UI | Done | Users choose artifact shape and style direction, not scaffold/theme internals. | No scaffold/theme/export/color picker in default new-project flow. | UI and UX simplification tests. | Add guided edit chips after visual gate. |
-| 5. Editorial Stage visual quality gate | Active | Make the default deck visually credible across directions. | Full screenshot review remains open. | Compiler, validator, render smoke, regenerated example, 24 headless screenshots in `/private/tmp/editorial-stage-visual-gate`. | Finish screenshot review; only then mark Phase 5 done or log concrete fixes. |
+| 5. Editorial Stage visual quality gate | Active | Make the default deck visually credible across directions. | Screenshot review logged concrete fixes for stage/cropping failures. | Compiler, validator, render smoke, regenerated example, 24 baseline headless screenshots in `/private/tmp/editorial-stage-visual-gate`, one targeted rerender, and `docs/plan/editorial-stage-visual-gate-review.md`. | Fix the stage/capture white band, clipped footer content, and process/closing card-wall issues; rerun the screenshot gate before marking Phase 5 done. |
 | 6. Real media asset rendering | Done | Harden actual project media rendering in declared pack slots. | Safe media resolves before compile and missing/unsafe required media blocks. | Media resolver, compiler/runtime threading, example media fixture, focused tests, full test suite. | Carry export-specific media restrictions into Phase 10. |
 | 7. Source-payload repair and edit safety | Done | Repair rejected source payloads and fail closed on unsafe edits. | Repairable source-slot/media defects are fixed before persistence; unsafe real-media gaps still block. | Pack edit fallback, unsupported edit, no-op edit, validation persistence, CSS isolation, slide dimension, source repair, version snapshot, and ESLint regressions covered. | Keep review loop active while starting guided edit chips. |
 | 8. Guided edit chips | Done | Offer simple user controls that map to typed source operations. | Chips map to supported edit surfaces only. | Pack-scoped composer chips, unsupported-surface messaging, chat/runtime tests. | Extend only when a typed edit surface exists. |
-| 9. Design-system mode | Active/Next | Parse project `DESIGN.md`/rules into validated tokens and examples. | Presentation project-design tokens compile through pack-owned CSS variables only; cross-pack adapter proof remains open. | Safe token-role resolver, project design metadata, Project colours preview UI, runtime color-theme threading, shared adapter interface, Editorial Stage adapter, design-context/compiler/UI/run-request tests. | Keep as carry-forward until document/spreadsheet packs consume the shared adapter contract. |
-| 10. Export and preview gates | Active/Next | Add export-intent constraints and generated preview artifacts. | HTML/PDF/PPTX-safe restrictions are validated; `artifact.preview.png` exists for packs. | Compiled-output export validator blocks viewport units, missing export backgrounds, missing reduced-motion fallback, and editable-PPTX unsafe CSS/text patterns. | Add generated preview artifacts after the export validation contract is stable. |
-| 11. Document packs | Queued | Add source-payload document packs without presentation-shaped UI. | `document/executive-memo-v1` compiles and validates. | Pending. | Start only after presentation visual gate passes. |
+| 9. Design-system mode | Active/Next | Parse project `DESIGN.md`/rules into validated tokens and examples. | Presentation and first document project-design tokens compile through pack-owned adapters; spreadsheet adapter proof remains open. | Safe token-role resolver, project design metadata, Project colours preview UI, runtime color-theme threading, shared adapter interface, Editorial Stage CSS adapter, Executive Memo document-token adapter, design-context/compiler/UI/run-request tests. | Keep as carry-forward until spreadsheet packs consume the shared adapter contract. |
+| 10. Export and preview gates | Done | Add export-intent constraints and generated preview artifacts. | Browser-side preview smoke passes for a fresh pack-backed deck. | Compiled-output export validator blocks viewport units, missing export backgrounds, missing reduced-motion fallback, editable-PPTX unsafe CSS/text patterns, Editorial Stage exposes `examples/preview.png`, runtime preview metadata/media round-trips through `.aura` and snapshots, and `node scripts/run-presentation-preview-smoke.mjs` passes with a 1280x720 PNG. | Carry export/preview constraints into document and spreadsheet packs when Phases 11/12 start. |
+| 11. Document packs | Active/Next | Add source-payload document packs without presentation-shaped UI. | `document/executive-memo-v1` foundation compiles and validates; runtime routing is not started. | Registered document pack, source schema, scoped CSS, deterministic compiler, document validator, generated example, and `executive-memo-pack`/registry tests. | Keep UI/spreadsheet scope deferred; next document slice is routing create/edit through the pack compiler when prioritized. |
 | 12. Spreadsheet packs | Queued | Add deterministic workbook packs with formulas/charts/style validation. | `spreadsheet/operating-model-v1` compiles and validates. | Pending. | Start after document pack foundation or explicit priority shift. |
 | 13. Pack gallery and save-as-pack | Queued | Show compiled examples and later save current artifacts as pack candidates. | Gallery uses compiled Aura-owned examples. | Pending. | Do not begin before default packs look excellent. |
 
@@ -104,6 +104,32 @@ Phase 9 carry-forward doc updates:
 - When document packs start, add the first document adapter evidence to Phase 11 and keep Phase 9 `Active/Next` until the shared adapter contract is proven.
 - When spreadsheet packs start, add the first workbook/table/chart adapter evidence to Phase 12 before claiming design-system parity.
 - When preview artifacts land, record whether `artifact.preview.png` and export targets used the same validated project design tokens.
+
+### Phase 11 Active Entry Guard
+
+The user has explicitly reprioritized starting Workstream/Phase 11 before the Phase 5 visual screenshot review is formally closed. Keep the Phase 11 entry narrow so the program does not drift:
+
+- Allowed now: define `document/executive-memo-v1` source payload types, manifest metadata, pack compiler, design-token adapter contract, validator, and focused tests.
+- Allowed now: record the first document-side evidence for Phase 9 once a document adapter maps validated project design tokens into document-owned style tokens.
+- Defer: document gallery UI, save-as-pack, many document pack variants, spreadsheet packs, and any presentation visual refinements not coming from the Phase 5 screenshot review.
+- Do not mark Phase 5 done because screenshots exist. It is done only after the screenshot set is reviewed or converted into concrete logged fixes.
+- Do not mark Phase 9 done from the document adapter alone. It still needs the spreadsheet adapter proof in Phase 12.
+
+### Phase 10 Preview Artifact Gate
+
+Do not mark the preview artifact slice complete until all are true:
+
+- The Editorial Stage generated example preview is tracked at `examples/preview.png`.
+- The Editorial Stage manifest exposes that asset through `examples[].previewPath`.
+- Registry coverage asserts the exposed preview path, not only the compiled HTML example.
+- The manifest no longer carries the seed-era caveat that preview generation is omitted.
+- The preview artifact is regenerated from the same validated source/design-token path as the compiled example.
+- Runtime-created presentation artifacts generate a `media/artifacts/{documentId}/artifact.preview.png` `ProjectMediaAsset`.
+- `ProjectDocument.artifactPreview` stores the semantic pointer, dimensions, generated timestamp, and source timestamp.
+- `.aura` export/import and version-history snapshots preserve the preview media and pointer.
+- Pack-backed standalone exports preserve the pack-owned style block and never swap in the legacy palette CSS.
+- Browser smoke harness exists at `src/test/browser/presentation-preview-smoke.html` and imports the real Editorial Stage compiler plus `createPresentationArtifactPreview`.
+- Browser smoke runner passes with a `1280x720` PNG data URL at `media/artifacts/browser-preview-smoke-deck/artifact.preview.png`.
 
 ### Anti-Drift Rules
 
@@ -195,6 +221,18 @@ Remaining current gate:
 
 - Review the full screenshot set in `/private/tmp/editorial-stage-visual-gate` for any remaining subtle layout issues before marking Phase 5 done.
 - Then begin Phase 7 source-payload repair loops, using the validator finding ids added in Phase 5/6 as repair targets.
+
+### 2026-05-01 - Editorial Stage Visual Gate Review
+
+Completed on `codex/artifact-pack-design-rebuild`:
+
+- Reviewed the 24 baseline screenshots plus `editorial-magazine-slide-02-fresh.png` in `/private/tmp/editorial-stage-visual-gate`.
+- Added the concrete screenshot findings to `docs/plan/editorial-stage-visual-gate-review.md`.
+- Converted the open review into named Phase 5 fixes: remove the persistent bottom white band, prevent clipped footer/verdict/card content, and revisit process/closing equal-panel card-wall layouts after the stage/capture fix.
+
+Remaining current gate:
+
+- Keep Phase 5 Active until the fixes are implemented and a fresh screenshot set confirms full 1280x720 slide coverage with no bottom clipping.
 
 ### 2026-05-01 - Review Pass And Safety Hardening
 
@@ -348,9 +386,103 @@ Verification completed:
 - `npm run build`
 - `git diff --check`
 
+### 2026-05-01 - Editorial Stage Pack Preview Artifact Slice
+
+Completed in this slice:
+
+- Generated a real `1280x720` PNG preview from `examples/example.html` at `examples/preview.png`.
+- Wired the preview into the Editorial Stage manifest through `examples[].previewPath`.
+- Removed the seed-era manifest/checklist language that said preview generation was omitted.
+- Added registry coverage that verifies the exposed preview path exists and has the expected PNG signature and dimensions.
+- Fixed the independent review findings carried into this slice: successful presentation edits now set `changedDocumentId`, source-backed pack edits preserve project-design tokens, the legacy Apply project colours action is hidden for pack-backed presentations, and text-slot word removals no longer route to the unsupported structural-edit path.
+
+Verification completed:
+
+- `sips -g pixelWidth -g pixelHeight src/services/artifactPacks/packs/presentation/editorial-stage-v1/examples/preview.png`
+- `npm test -- src/test/artifact-pack-registry.test.ts`
+- `npm test -- src/test/editorial-stage-compiler.test.ts src/test/editorial-stage-render-smoke.test.ts src/test/artifact-pack-registry.test.ts`
+- `npm test -- src/test/artifact-pack-runtime-routing.test.ts src/test/chat-submit.test.tsx src/test/ux-simplification.test.ts src/test/presentation-runtime-policy.test.ts src/test/artifact-pack-registry.test.ts`
+- `npm test`
+- `npm run typecheck`
+- `npm run lint`
+- `npm run build`
+- `git diff --check`
+
 Next active gate:
 
-- Add generated preview artifacts after the export validation contract is stable, and ensure previews use the same validated project design tokens as HTML/PDF/PPTX output.
+- Add generated `artifact.preview.png` persistence for runtime-created artifacts, ensuring previews use the same validated project design tokens as HTML/PDF/PPTX output.
+
+### 2026-05-01 - Runtime Presentation Preview Persistence Slice
+
+Completed in this slice:
+
+- Added `ProjectArtifactPreview` metadata on `ProjectDocument`, with preview bytes stored as normal `ProjectMediaAsset` records at `media/artifacts/{documentId}/artifact.preview.png`.
+- Added a browser-side presentation preview helper that renders the first compiled slide from the same pack-owned HTML/CSS into a `1280x720` PNG data URL and upserts the preview media/pointer into the project.
+- Threaded successful presentation create/edit persistence through async preview generation after lifecycle validation, with a follow-up version snapshot once preview media lands.
+- Preserved preview metadata in `.aura` document metadata, project media packaging, imports, and version-history snapshots.
+- Fixed independent review findings: pack-backed standalone exports no longer replace Editorial Stage CSS with the legacy palette shell, and image-caption removal stays inside the text-slot edit surface.
+- Closed the follow-up review findings by rendering previews inside an isolated iframe, moving preview capture off the success critical path, bounding capture with a timeout, blocking stale preview writes when slide HTML changes, and keeping mixed caption-plus-image removal blocked as a media edit.
+- Closed the second review pass by committing preview snapshots after the primary content commit, refreshing preview staleness metadata from the latest persisted document, and clearing preview timeout handles after successful capture.
+
+Verification completed:
+
+- `npm test -- src/test/artifact-preview.test.ts src/test/media-packaging.test.ts src/test/version-history.test.ts src/test/standalone-export-presentation.test.ts src/test/presentation-runtime-policy.test.ts`
+- `npm test -- src/test/chat-submit.test.tsx src/test/artifact-pack-runtime-routing.test.ts src/test/ux-simplification.test.ts src/test/artifact-pack-registry.test.ts`
+- `npm run typecheck`
+- `npm run lint`
+- `npm test`
+- `npm run build`
+- `git diff --check`
+
+Next active gate:
+
+- Phase 10 is complete for presentations. Keep Phase 5's visual screenshot review as the active presentation-quality gate and carry Phase 9/10 adapter, export, and preview contracts into document/spreadsheet packs when Phases 11/12 begin.
+
+### 2026-05-01 - Browser Preview Smoke Harness Slice
+
+Completed in this slice:
+
+- Added `src/test/browser/presentation-preview-smoke.html`, a Vite-served browser fixture that compiles the Editorial Stage example deck, calls the real browser preview helper, persists the result through `upsertProjectArtifactPreview`, and reports compact pass/fail JSON in the DOM.
+- Added `scripts/run-presentation-preview-smoke.mjs`, a bounded smoke runner that starts the Vite dev server, runs Chrome headless with `--dump-dom`, parses the fixture result, and checks PNG metadata/path/data length.
+- Added harness coverage in `src/test/presentation-preview-smoke-harness.test.ts` so the smoke remains wired to the real pack compiler, preview helper, and persistence path.
+- Ran the actual Chrome smoke. Passing output included `previewPath: "media/artifacts/browser-preview-smoke-deck/artifact.preview.png"`, `mimeType: "image/png"`, `width: 1280`, `height: 720`, and a PNG data URL length of `103406`.
+
+Verification completed:
+
+- `npm test -- src/test/presentation-preview-smoke-harness.test.ts`
+- `node --check scripts/run-presentation-preview-smoke.mjs`
+- `node scripts/run-presentation-preview-smoke.mjs`
+- `git diff --check -- src/test/browser/presentation-preview-smoke.html scripts/run-presentation-preview-smoke.mjs src/test/presentation-preview-smoke-harness.test.ts docs/plan/aura_artifact_design_rebuild_implementation_checklist.md docs/program-status.md`
+
+### 2026-05-01 - Executive Memo Document Pack Foundation
+
+Completed in this slice:
+
+- Started Workstream/Phase 11 inside the narrow entry guard requested by the user.
+- Added `document/executive-memo-v1` with module source payloads for memo cover, decision summary, context, recommendation, evidence table, risk register, action plan, and source notes.
+- Registered the pack with document-specific edit surfaces, including `add-module`, and kept slide/presentation language out of the document pack surface.
+- Added scoped `style.css` loaded through the artifact-pack raw CSS loader, with the compiler owning assembly and no fallback CSS copy inside TypeScript.
+- Added a deterministic compiler that emits one `data-aura-style-system="document/executive-memo-v1"` style block plus semantic `article`/module markup.
+- Added validator checks for required slots, heading structure, table row width, source notes, HTML in slots, unsupported hype tone, inline styles, viewport units, missing print rules, scripts, emoji-as-icons, and undefined classes.
+- Added the first document-side design-token adapter proof for Phase 9 via `target: document-tokens`.
+- Added a checked-in `examples/source.json` and compiler-generated `examples/example.html`, with regression coverage to prevent source/example drift.
+- Fixed review findings carried from the previous preview slice: `html2canvas` is a direct dependency, preview follow-up snapshots re-check the latest document after the primary commit, and the Chrome smoke runner tracks actual process close before escalating from `SIGTERM` to `SIGKILL`.
+- Fixed the independent Phase 11 review findings: validator checks now use schema-defaulted module arrays, the cover CSS matches the compiled `em-memo-cover` class, and compiled memos must contain exactly one `h1`.
+
+Verification completed:
+
+- `npm test -- src/test/executive-memo-pack.test.ts src/test/artifact-pack-registry.test.ts`
+- `npm run typecheck`
+- `npm run lint`
+- `npm test`
+- `npm run build`
+- `git diff --check`
+- `node scripts/run-presentation-preview-smoke.mjs` passed outside the sandbox after the sandboxed local-server smoke could not reach Vite.
+
+Remaining current gate:
+
+- Document runtime create/edit routing still uses the existing document runtime; routing through `document/executive-memo-v1` is the next document-pack implementation slice when prioritized.
+- Phase 9 remains `Active/Next` until the spreadsheet adapter proof lands in Phase 12.
 
 ## Implementation Order
 

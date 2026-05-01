@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import {
   listArtifactDesignDirections,
@@ -50,6 +52,46 @@ describe('artifact pack registry foundation', () => {
     ]);
     expect(pack.layoutFamilies).toHaveLength(12);
     expect(validateArtifactPackManifest(pack)).toEqual([]);
+  });
+
+  it('registers the first document pack without presentation-shaped surfaces', () => {
+    const manifests = listArtifactPackManifests();
+    expect(manifests.map((manifest) => manifest.id)).toContain('document/executive-memo-v1');
+    const pack = manifests.find((manifest) => manifest.id === 'document/executive-memo-v1')!;
+
+    expect(pack.artifactType).toBe('document');
+    expect(pack.supportedOutputModes).toEqual(['html', 'pdf', 'docx']);
+    expect(pack.layoutFamilies).toEqual([
+      'memo-cover',
+      'decision-summary',
+      'context',
+      'recommendation',
+      'evidence-table',
+      'risk-register',
+      'action-plan',
+      'source-notes',
+    ]);
+    expect(pack.editSurfaces.map((surface) => surface.kind)).toContain('add-module');
+    expect(pack.editSurfaces.some((surface) => surface.label.toLowerCase().includes('slide'))).toBe(false);
+    expect(validateArtifactPackManifest(pack)).toEqual([]);
+  });
+
+  it('exposes generated Editorial Stage example preview artifacts through examples[].previewPath', () => {
+    const pack = listArtifactPackManifests()
+      .find((manifest) => manifest.id === 'presentation/editorial-stage-v1')!;
+    const example = pack.examples.find((example) => example.id === 'decision-brief-example')!;
+    const previewPath = example.previewPath;
+
+    expect(previewPath).toBe('examples/preview.png');
+    const preview = readFileSync(join(
+      process.cwd(),
+      'src/services/artifactPacks/packs/presentation/editorial-stage-v1',
+      previewPath!,
+    ));
+
+    expect(preview.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    expect(preview.readUInt32BE(16)).toBe(1280);
+    expect(preview.readUInt32BE(20)).toBe(720);
   });
 
   it('validates pack manifest essentials', () => {

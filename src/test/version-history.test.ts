@@ -442,6 +442,49 @@ describe('serializeProjectSnapshot', () => {
       packId: 'presentation/editorial-stage-v1',
     }));
   });
+
+  it('preserves runtime artifact preview pointers and preview media in snapshots', () => {
+    const doc = {
+      ...makeDocument('deck-preview', 'Preview Deck'),
+      type: 'presentation' as const,
+      artifactPreview: {
+        assetId: 'preview-deck-preview',
+        relativePath: 'media/artifacts/deck-preview/artifact.preview.png',
+        mimeType: 'image/png',
+        width: 1280,
+        height: 720,
+        generatedAt: 3000,
+        sourceUpdatedAt: 2000,
+        validationProfileId: 'presentation:v1',
+      },
+    };
+    const snapshot = serializeProjectSnapshot(makeProject({
+      documents: [doc],
+      media: [{
+        id: 'preview-deck-preview',
+        filename: 'artifact.preview.png',
+        mimeType: 'image/png',
+        relativePath: 'media/artifacts/deck-preview/artifact.preview.png',
+        dataUrl: 'data:image/png;base64,preview',
+      }],
+    }));
+    const result = deserializeProjectSnapshot(snapshot);
+
+    expect(result.documents[0]?.artifactPreview).toEqual(expect.objectContaining({
+      assetId: 'preview-deck-preview',
+      relativePath: 'media/artifacts/deck-preview/artifact.preview.png',
+      mimeType: 'image/png',
+      width: 1280,
+      height: 720,
+      generatedAt: 3000,
+      sourceUpdatedAt: 2000,
+    }));
+    expect(result.media?.[0]).toEqual(expect.objectContaining({
+      id: 'preview-deck-preview',
+      relativePath: 'media/artifacts/deck-preview/artifact.preview.png',
+      dataUrl: 'data:image/png;base64,preview',
+    }));
+  });
 });
 
 // ── deserializeProjectSnapshot tests ─────────────────────────────────────

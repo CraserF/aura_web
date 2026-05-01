@@ -67,4 +67,36 @@ describe('presentation standalone export', () => {
     expect(artifact.html).toContain('.inline-theme');
     expect(artifact.html).not.toContain('.legacy-theme');
   });
+
+  it('preserves pack-owned style systems instead of applying legacy project colours', async () => {
+    const document = makePresentation({
+      contentHtml: [
+        '<style data-aura-style-system="presentation/editorial-stage-v1">',
+        '.es-slide { width: 1280px; height: 720px; background: var(--es-canvas); }',
+        '</style>',
+        '<section class="es-slide"><h1>Roadmap</h1></section>',
+      ].join(''),
+      themeCss: '',
+      artifactManifest: {
+        packId: 'presentation/editorial-stage-v1',
+        packVersion: '1.0.0',
+        renderer: 'presentation',
+        validationStatus: 'passed',
+        updatedAt: 10,
+      },
+    });
+    const project = {
+      ...makeProject(document),
+      colorTheme: { background: '#101010', primary: '#f8fafc', accent: '#38bdf8' },
+    };
+
+    const artifact = await (await import('@/services/export/presentationHtml')).exportPresentationStandaloneHtml({
+      project,
+      document,
+    });
+
+    expect(artifact.html).toContain('data-aura-style-system="presentation/editorial-stage-v1"');
+    expect(artifact.html).toContain('.es-slide { width: 1280px; height: 720px; background: var(--es-canvas); }');
+    expect(artifact.html).not.toContain('.aura-slide');
+  });
 });

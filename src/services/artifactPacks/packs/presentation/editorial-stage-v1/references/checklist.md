@@ -18,4 +18,4 @@
 - Titles fit the layout-specific character budget.
 - Accent color is used for signposting, not broad decoration.
 - Editable PPTX export can degrade motion to static or minimal fade.
-- `preview.png` may be absent in this seed; `examples/example.html` is the visual reference.
+- `examples/preview.png` is generated from `examples/example.html` and must be refreshed when the compiled example changes.

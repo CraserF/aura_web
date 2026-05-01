@@ -570,6 +570,22 @@ const UNSUPPORTED_ARTIFACT_EDIT_SURFACE: ArtifactEditSurface = {
 
 function isUnsupportedArtifactPackEditRequest(prompt: string): boolean {
   const normalized = prompt.toLowerCase();
+  const explicitMediaRemoval =
+    /\b(remove|delete|drop)\b[\s\S]{0,100}\b(media|image|screenshot|photo|asset|visual)\b/.test(normalized) ||
+    /\b(media|image|screenshot|photo|asset|visual)\b[\s\S]{0,100}\b(remove|delete|drop)\b/.test(normalized);
+  const captionOnlyMediaRemoval =
+    /\b(remove|delete|drop)\b[\s\S]{0,100}\b(?:image|media|screenshot|photo|visual)\s+(caption|label|source)\b/.test(normalized);
+  const mixedCaptionAndMediaRemoval =
+    /\b(remove|delete|drop)\b[\s\S]{0,100}\b(?:image|media|screenshot|photo|visual)\s+(caption|label|source)\b[\s\S]{0,80}\b(?:and|plus|,)\s+(?:the\s+)?(?:media|image|screenshot|photo|asset|visual)\b/.test(normalized) ||
+    /\b(remove|delete|drop)\b[\s\S]{0,100}\b(?:media|image|screenshot|photo|asset|visual)\b[\s\S]{0,80}\b(?:and|plus|,)\s+(?:the\s+)?(?:image|media|screenshot|photo|visual)\s+(caption|label|source)\b/.test(normalized);
+  if (explicitMediaRemoval && (!captionOnlyMediaRemoval || mixedCaptionAndMediaRemoval)) return true;
+
+  const textSlotRemoval =
+    /\b(remove|delete|drop)\b[\s\S]{0,80}\b(word|phrase|text|copy)\b[\s\S]{0,100}\bfrom\b[\s\S]{0,80}\b(title|headline|heading|subtitle|subhead|body|copy|paragraph|quote|metric|caption|kicker|eyebrow|label|source|footer)\b/.test(normalized) ||
+    /\b(remove|delete|drop)\b[\s\S]{0,100}\bfrom\b[\s\S]{0,80}\b(title|headline|heading|subtitle|subhead|body|copy|paragraph|quote|metric|caption|kicker|eyebrow|label|source|footer)\b/.test(normalized) ||
+    captionOnlyMediaRemoval;
+  if (textSlotRemoval) return false;
+
   const structuralDeckRequest =
     /\b(reorder|resequence|restructure|reorganize|rearrange)\b/.test(normalized) ||
     /\b(move|swap)\b[\s\S]{0,80}\b(slides?|sections?|modules?|sheets?|pages?)\b/.test(normalized) ||

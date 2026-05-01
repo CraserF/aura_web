@@ -466,6 +466,7 @@ export async function runEditorialStagePresentationEditRuntime(
   const compiled = compileEditorialStageSourceUpdate(edit, {
     outputMode: input.source.outputMode,
     ...(input.mediaResolver ? { mediaResolver: input.mediaResolver } : {}),
+    ...(input.runPlan?.artifactDesignContextSpec ? { designContext: input.runPlan.artifactDesignContextSpec } : {}),
   });
   const sections = compiled.html.match(/<section\b[\s\S]*?<\/section>/gi) ?? [];
 

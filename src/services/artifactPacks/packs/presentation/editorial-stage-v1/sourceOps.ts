@@ -4,6 +4,7 @@ import type {
   ArtifactMediaResolver,
   ArtifactOutputMode,
   ArtifactValidationFinding,
+  DesignContextSpec,
 } from '@/services/artifactPacks';
 import { compileEditorialStagePack } from './compiler';
 import {
@@ -696,7 +697,11 @@ export function repairEditorialStageSourcePayload(
 
 export function compileEditorialStageSourceUpdate(
   edit: EditorialStageSourceEditResult,
-  options: { outputMode?: ArtifactOutputMode; mediaResolver?: ArtifactMediaResolver } = {},
+  options: {
+    outputMode?: ArtifactOutputMode;
+    mediaResolver?: ArtifactMediaResolver;
+    designContext?: DesignContextSpec;
+  } = {},
 ): EditorialStageCompiledSourceUpdate {
   const repair = edit.changed
     ? repairEditorialStageSourcePayload(edit.source, options)
@@ -711,6 +716,7 @@ export function compileEditorialStageSourceUpdate(
     source,
     outputMode: options.outputMode ?? source.outputMode,
     ...(options.mediaResolver ? { mediaResolver: options.mediaResolver } : {}),
+    ...(options.designContext ? { designContext: options.designContext } : {}),
   });
   const html = compileResult.output.content;
   const sections = html.match(/<section\b[\s\S]*?<\/section>/gi) ?? [];

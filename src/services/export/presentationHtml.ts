@@ -17,7 +17,9 @@ export interface PresentationStandaloneHtmlInput {
 }
 
 export async function exportPresentationStandaloneHtml(input: PresentationStandaloneHtmlInput): Promise<StandaloneArtifactExport> {
-  const sourceHtml = input.project.colorTheme && !hasUsablePresentationStyleSystem(input.document.contentHtml)
+  const hasPackStyleSystem = Boolean(input.document.artifactManifest?.packId)
+    || /<style\b[^>]*\bdata-aura-style-system=/i.test(input.document.contentHtml);
+  const sourceHtml = input.project.colorTheme && !hasPackStyleSystem && !hasUsablePresentationStyleSystem(input.document.contentHtml)
     ? (await applyProjectColorsToPresentationHtml({
         html: input.document.contentHtml,
         colorTheme: input.project.colorTheme,

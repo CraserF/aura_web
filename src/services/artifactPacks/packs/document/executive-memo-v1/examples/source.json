@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "document",
+  "packId": "document/executive-memo-v1",
+  "packVersion": "1.0.0",
+  "title": "Enterprise Search Decision Memo",
+  "audience": "Product, revenue, and operations leaders",
+  "directionId": "modern-minimal",
+  "outputMode": "html",
+  "brief": "A concise executive memo recommending a focused rollout path for enterprise search improvements.",
+  "modules": [
+    {
+      "moduleId": "memo-cover",
+      "layoutId": "memo-cover",
+      "role": "opening",
+      "density": "calm",
+      "slots": {
+        "kicker": "Decision memo",
+        "title": "Ship enterprise search as a focused workflow layer",
+        "lead": "The strongest path is a narrow launch around source-backed answers, governed connectors, and measurable support deflection rather than a broad knowledge portal.",
+        "audience": "Exec team",
+        "date": "May 2026",
+        "owner": "Product strategy",
+        "status": "For decision"
+      },
+      "items": [],
+      "sourceNotes": []
+    },
+    {
+      "moduleId": "decision-summary",
+      "layoutId": "decision-summary",
+      "role": "decision",
+      "density": "balanced",
+      "slots": {
+        "heading": "Recommendation",
+        "recommendation": "Approve a 90-day launch focused on three governed workflows: account research, policy lookup, and support answer drafting.",
+        "decision": "Fund the focused workflow layer.",
+        "confidence": "Medium-high",
+        "ask": "Confirm launch scope and two accountable metrics.",
+        "rationale": "The narrow scope gives teams a visible quality bar while avoiding a long platform build before users see value."
+      },
+      "items": [],
+      "sourceNotes": []
+    },
+    {
+      "moduleId": "context",
+      "layoutId": "context",
+      "role": "context",
+      "density": "balanced",
+      "slots": {
+        "heading": "Why this matters now",
+        "body": "Teams already search across CRM notes, support history, and internal policy pages, but answers are inconsistent and hard to verify. The launch should solve the highest-frequency workflows first.",
+        "note": "The product risk is not discovery; it is trusted synthesis with provenance."
+      },
+      "items": [],
+      "sourceNotes": []
+    },
+    {
+      "moduleId": "recommendation",
+      "layoutId": "recommendation",
+      "role": "recommendation",
+      "density": "balanced",
+      "slots": {
+        "heading": "Implementation posture",
+        "intro": "Keep the first release small enough that quality, ownership, and measurement stay legible."
+      },
+      "items": [
+        {
+          "label": "Constrain the workflow set",
+          "body": "Launch three repeatable workflows with known source systems and user owners."
+        },
+        {
+          "label": "Make provenance visible",
+          "body": "Every answer must cite source records, policy pages, or support cases before it can be shared."
+        },
+        {
+          "label": "Measure resolution quality",
+          "body": "Track accepted answers, escalation avoidance, and correction reasons from the first pilot week."
+        }
+      ],
+      "sourceNotes": []
+    },
+    {
+      "moduleId": "evidence",
+      "layoutId": "evidence-table",
+      "role": "evidence",
+      "density": "dense",
+      "slots": {
+        "heading": "Evidence to preserve",
+        "intro": "The first launch should be judged against observable workflow signals, not broad adoption claims."
+      },
+      "items": [],
+      "table": {
+        "columns": ["Signal", "Current reading", "Implication"],
+        "rows": [
+          ["Support lookup repeats", "Top policy and entitlement questions recur weekly", "Start with answer drafting and source citation"],
+          ["Account research latency", "Teams copy context across CRM, notes, and tickets", "Prioritize account-level synthesis"],
+          ["Governance concern", "Leaders ask for source visibility before automation", "Make provenance a launch requirement"]
+        ]
+      },
+      "sourceNotes": [
+        "Synthetic example based on anonymized product discovery patterns.",
+        "No customer-specific data is included in this pack example."
+      ]
+    },
+    {
+      "moduleId": "risks",
+      "layoutId": "risk-register",
+      "role": "risk",
+      "density": "balanced",
+      "slots": {
+        "heading": "Risks and controls",
+        "intro": "The main risks are quality drift, unclear ownership, and scope expansion before the quality bar is proven."
+      },
+      "items": [
+        {
+          "label": "Answer trust",
+          "body": "Require citations, correction capture, and human review for low-confidence responses.",
+          "status": "Control required"
+        },
+        {
+          "label": "Connector sprawl",
+          "body": "Start with approved systems only, then add connectors when a workflow owner is named.",
+          "status": "Limit scope"
+        },
+        {
+          "label": "Metric ambiguity",
+          "body": "Define accepted answer and avoided escalation before the pilot begins.",
+          "status": "Resolve before launch"
+        }
+      ],
+      "sourceNotes": []
+    },
+    {
+      "moduleId": "action-plan",
+      "layoutId": "action-plan",
+      "role": "action",
+      "density": "balanced",
+      "slots": {
+        "heading": "Next actions",
+        "intro": "A narrow launch plan keeps the team aligned while leaving room to expand once quality is proven."
+      },
+      "items": [],
+      "table": {
+        "columns": ["Owner", "Action", "Timing"],
+        "rows": [
+          ["Product", "Confirm the three launch workflows and acceptance criteria", "Week 1"],
+          ["Data", "Approve source connectors and citation requirements", "Week 1"],
+          ["Support", "Run pilot review sessions and capture corrections", "Weeks 2-6"]
+        ]
+      },
+      "sourceNotes": []
+    },
+    {
+      "moduleId": "sources",
+      "layoutId": "source-notes",
+      "role": "sources",
+      "density": "calm",
+      "slots": {
+        "heading": "Source handling",
+        "body": "This example demonstrates the document pack contract. Real generated memos should use project-provided sources and explicit notes."
+      },
+      "items": [],
+      "sourceNotes": [
+        "Pack examples are synthetic and must not be treated as customer evidence.",
+        "Runtime source notes should name the uploaded or project-local source used for each claim."
+      ]
+    }
+  ]
+}

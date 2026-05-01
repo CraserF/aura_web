@@ -112,6 +112,7 @@ async function writeProjectArchive(zip: JSZip, project: ProjectData, hasHistory 
       starterRef: doc.starterRef,
       artifactManifest: doc.artifactManifest,
       artifactSourcePayload: doc.artifactSourcePayload,
+      artifactPreview: doc.artifactPreview,
       parentId: doc.parentId,
       sourceMarkdown: doc.sourceMarkdown,
       pagesEnabled: doc.pagesEnabled,

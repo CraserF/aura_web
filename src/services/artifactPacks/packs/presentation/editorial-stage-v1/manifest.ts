@@ -97,7 +97,7 @@ export const EDITORIAL_STAGE_MANIFEST: ArtifactPackManifest = {
     'HTML is the reference output for this seed pack.',
     'PDF export should preserve the fixed 16:9 stage and single compiler-owned style block.',
     'Editable PPTX export may flatten motion and advanced CSS treatments.',
-    'preview.png is intentionally omitted in this first seed; examples/example.html is the visual reference until binary preview generation is wired in.',
+    'examples/preview.png is generated from examples/example.html and should be refreshed when the compiled example changes.',
   ],
   examples: [
     {
@@ -105,6 +105,7 @@ export const EDITORIAL_STAGE_MANIFEST: ArtifactPackManifest = {
       label: 'Decision Brief Example',
       sourcePath: 'examples/source.json',
       compiledPath: 'examples/example.html',
+      previewPath: 'examples/preview.png',
     },
   ],
 };

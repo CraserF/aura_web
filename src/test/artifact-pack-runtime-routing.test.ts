@@ -324,6 +324,50 @@ describe('artifact pack presentation runtime routing', () => {
     }));
   });
 
+  it('preserves project design tokens during source-backed presentation edits', async () => {
+    const seed = await createPackedDeck();
+    batchQueueMocks.runBatchQueue.mockReset();
+    designerMocks.design.mockReset();
+    designerMocks.designEdit.mockReset();
+    const editRunPlan = buildArtifactRunPlan({
+      runId: 'artifact-pack-source-edit-project-design',
+      prompt: 'Change slide 1 title to "Sharper branded opening"',
+      artifactType: 'presentation',
+      operation: 'edit',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+      colorTheme: {
+        background: '#ffffff',
+        primary: '#111827',
+        accent: '#22c55e',
+      },
+    });
+
+    const output = await runPresentationRuntime({
+      model: {} as LanguageModel,
+      input: {
+        prompt: 'Change slide 1 title to "Sharper branded opening"',
+        existingSlidesHtml: seed.html,
+        chatHistory: [],
+        artifactRunPlan: editRunPlan,
+        artifactManifest: seed.artifactManifest,
+        artifactSourcePayload: seed.artifactSourcePayload,
+      },
+      onEvent: vi.fn(),
+      editCorrectionPolicy: editPolicy(),
+      skipSecondaryEvaluation: true,
+    });
+
+    expect(batchQueueMocks.runBatchQueue).not.toHaveBeenCalled();
+    expect(designerMocks.designEdit).not.toHaveBeenCalled();
+    expect(output.reviewPassed).toBe(true);
+    expect(output.html).toContain('Sharper branded opening');
+    expect(output.html).toContain('data-project-design-system="project-color-theme"');
+    expect(output.html).toContain('--es-accent: #22c55e;');
+  });
+
   it('routes metric label edits to the label slot rather than the metric value', async () => {
     const source = JSON.parse(readFileSync(EXAMPLE_SOURCE_PATH, 'utf8')) as EditorialStageSource;
     const media = JSON.parse(readFileSync(EXAMPLE_MEDIA_PATH, 'utf8')) as ProjectMediaAsset[];

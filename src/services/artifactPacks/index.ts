@@ -15,6 +15,11 @@ export {
 } from './designContext';
 export { createProjectMediaResolver } from './mediaResolver';
 export {
+  EXECUTIVE_MEMO_MANIFEST,
+  EXECUTIVE_MEMO_PACK,
+  EXECUTIVE_MEMO_PACK_ID,
+} from './packs/document/executive-memo-v1';
+export {
   applyProjectDesignSystemTokens,
   resolveProjectDesignSystemSpec,
 } from './projectDesignSystem';

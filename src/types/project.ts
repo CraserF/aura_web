@@ -162,6 +162,20 @@ export interface ProjectArtifactManifest {
   updatedAt: number;
 }
 
+export interface ProjectArtifactPreview {
+  /** ProjectMediaAsset id for the generated preview image. */
+  assetId: ProjectMediaAsset['id'];
+  /** Archive-safe media path, e.g. media/artifacts/{documentId}/artifact.preview.png. */
+  relativePath: ProjectMediaAsset['relativePath'];
+  mimeType: ProjectMediaAsset['mimeType'];
+  width?: number;
+  height?: number;
+  generatedAt: number;
+  /** Document updatedAt/source timestamp used to decide whether the preview is stale. */
+  sourceUpdatedAt?: number;
+  validationProfileId?: string;
+}
+
 /** A single document in a project */
 export interface ProjectDocument {
   id: string;
@@ -183,6 +197,8 @@ export interface ProjectDocument {
   artifactManifest?: ProjectArtifactManifest;
   /** Typed source payload for pack-backed artifacts. Shape is pack-specific and versioned by artifactManifest. */
   artifactSourcePayload?: unknown;
+  /** Runtime-generated preview metadata. The image bytes live in project.media. */
+  artifactPreview?: ProjectArtifactPreview;
   /** Parent document ID for nesting */
   parentId?: string;
   /** Whether paginated A4-style view is enabled (documents only) */
