@@ -174,13 +174,16 @@ function buildCssDesignContractCheck(html: string): PresentationQualityCheck {
   const isScaffolded = /\bdata-scaffold=["'][^"']+["']/i.test(html);
 
   const nonEmptyStyleTexts = styleTexts.filter((style) => style.trim().length > 0);
-  const hasRootTokens = /:(?:root|scope)\s*\{/i.test(styleText) && /--[a-z0-9-]+\s*:/i.test(styleText);
+  const hasCssVariables = /--[a-z0-9-]+\s*:/i.test(styleText);
+  const hasScopedTokenRule =
+    /:(?:root|scope)\s*\{/i.test(styleText) ||
+    /\.[a-z0-9_-]+(?:\[[^\]]+\])?\s*\{[\s\S]*?--[a-z0-9-]+\s*:/i.test(styleText);
   const hasClassRules = /\.[a-z0-9_-]+\s*[{,]/i.test(styleText);
 
-  if (styleBlocks.length === 0 || nonEmptyStyleTexts.length === 0 || styleText.trim().length < 120 || !hasRootTokens || !hasClassRules) {
+  if (styleBlocks.length === 0 || nonEmptyStyleTexts.length === 0 || styleText.trim().length < 120 || !hasCssVariables || !hasScopedTokenRule || !hasClassRules) {
     namedIssues.push({
       id: 'missing-style-system',
-      message: 'Missing usable deck style system. Presentation output needs one non-empty <style> block with :root tokens and reusable class rules.',
+      message: 'Missing usable deck style system. Presentation output needs one non-empty <style> block with scoped CSS tokens and reusable class rules.',
     });
   }
 

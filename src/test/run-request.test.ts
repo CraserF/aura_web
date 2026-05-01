@@ -22,7 +22,7 @@ function makeDocument(overrides: Partial<ProjectDocument> = {}): ProjectDocument
   };
 }
 
-function makeProject(documents: ProjectDocument[]): ProjectData {
+function makeProject(documents: ProjectDocument[], overrides: Partial<ProjectData> = {}): ProjectData {
   return {
     id: 'project-1',
     title: 'Project',
@@ -33,6 +33,7 @@ function makeProject(documents: ProjectDocument[]): ProjectData {
     sections: { drafts: [], main: [], suggestions: [], issues: [] },
     createdAt: 1,
     updatedAt: 1,
+    ...overrides,
   };
 }
 
@@ -135,5 +136,109 @@ describe('buildRunRequest', () => {
     expect(result.runRequest.artifactRunPlan.requestKind).toBe('create');
     expect(result.runRequest.intent.targetDocumentId).toBeUndefined();
     expect(result.runRequest.intent.targetSelectors).toEqual([]);
+  });
+
+  it('threads project color theme into artifact design context when no DESIGN.md colors exist', async () => {
+    const result = await buildRunRequest({
+      prompt: 'Create a concise launch presentation',
+      attachments: [],
+      messages: [],
+      project: makeProject([], {
+        colorTheme: {
+          background: '#ffffff',
+          primary: '#111827',
+          accent: '#2563eb',
+        },
+      }),
+      activeDocument: null,
+      showAllMessages: false,
+      applyToAllDocuments: false,
+      providerConfig: {
+        id: 'openai',
+        name: 'OpenAI',
+        apiKey: 'test-key',
+        baseUrl: 'https://api.openai.com/v1',
+        model: 'gpt-4o',
+      },
+      selectionState: createDefaultContextSelectionState(),
+      buildMemoryContext: async () => ({
+        text: '',
+        tokenCount: 0,
+        budgetExceeded: false,
+        trimmedMemories: [],
+        items: [],
+      }),
+    });
+
+    const designContext = result.runRequest.artifactRunPlan.artifactDesignContextSpec;
+    expect(result.runRequest.intent.artifactType).toBe('presentation');
+    expect(designContext?.source).toBe('user-selection');
+    expect(designContext?.projectDesignSystem?.source).toBe('project-color-theme');
+    expect(designContext?.tokens.colors.canvas).toBe('#ffffff');
+    expect(designContext?.tokens.colors.text).toBe('#111827');
+    expect(designContext?.tokens.colors.accent).toBe('#2563eb');
+  });
+
+  it('applies workflow preset memory budgets before building memory context', async () => {
+    let requestedMaxTokens: number | undefined;
+    const result = await buildRunRequest({
+      prompt: 'Create a concise launch presentation',
+      attachments: [],
+      messages: [],
+      project: makeProject([], {
+        contextPolicy: {
+          version: 1,
+          includeProjectChat: true,
+          includeMemory: true,
+          includeAttachments: true,
+          includeRelatedDocuments: true,
+          maxChatMessages: 12,
+          maxMemoryTokens: 1200,
+          maxRelatedDocuments: 6,
+          maxAttachmentChars: 12000,
+          artifactOverrides: {},
+        },
+        workflowPresets: {
+          version: 1,
+          presets: [{
+            id: 'lean-memory',
+            name: 'Lean memory',
+            artifactType: 'presentation',
+            enabled: true,
+            contextPolicyOverrides: {
+              maxMemoryTokens: 64,
+            },
+          }],
+          defaultPresetByArtifact: {
+            presentation: 'lean-memory',
+          },
+        },
+      }),
+      activeDocument: null,
+      showAllMessages: false,
+      applyToAllDocuments: false,
+      providerConfig: {
+        id: 'openai',
+        name: 'OpenAI',
+        apiKey: 'test-key',
+        baseUrl: 'https://api.openai.com/v1',
+        model: 'gpt-4o',
+      },
+      selectionState: createDefaultContextSelectionState(),
+      buildMemoryContext: async (_prompt, options) => {
+        requestedMaxTokens = options?.maxTokens;
+        return {
+          text: '',
+          tokenCount: 0,
+          budgetExceeded: false,
+          trimmedMemories: [],
+          items: [],
+        };
+      },
+    });
+
+    expect(result.runRequest.projectRulesSnapshot.activePresetId).toBe('lean-memory');
+    expect(result.runRequest.projectRulesSnapshot.contextPolicy.maxMemoryTokens).toBe(64);
+    expect(requestedMaxTokens).toBe(64);
   });
 });

@@ -91,4 +91,20 @@ describe('editorial-stage presentation render smoke', () => {
 
     expect(css).not.toMatch(/radial-gradient/i);
   });
+
+  it('keeps pack motion CSS simple, loop-safe, and reduced-motion aware', () => {
+    const css = readFileSync(STYLE_CSS_PATH, 'utf8');
+    const activeAnimationDeclarations = [...css.matchAll(/\banimation\s*:\s*([^;]+);/gi)]
+      .map((match) => match[1]?.trim() ?? '')
+      .filter((declaration) => declaration && declaration !== 'none !important');
+
+    expect(css).toMatch(/@media\s*\(\s*prefers-reduced-motion\s*:\s*reduce\s*\)/i);
+    expect(css).toMatch(/\.es-slide\s*\{[\s\S]*width:\s*1280px;[\s\S]*height:\s*720px;[\s\S]*overflow:\s*hidden;/);
+    expect(css).not.toMatch(/\b(?:three|webgl|particle)\b/i);
+    expect(css).not.toMatch(/@keyframes\s+(?!es-)/i);
+    expect(activeAnimationDeclarations.every((declaration) => /\binfinite\b/i.test(declaration))).toBe(true);
+    expect(activeAnimationDeclarations).not.toEqual(expect.arrayContaining([
+      expect.stringMatching(/\b(width|height|margin|padding|grid-template|top|left|right|bottom)\b/i),
+    ]));
+  });
 });

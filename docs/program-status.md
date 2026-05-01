@@ -21,7 +21,7 @@ This document records shipped workflow-upgrade progress across the phased implem
 
 ## Known Blockers
 
-- `npm run lint` is still blocked by the repo-level ESLint 9 migration gap because `eslint.config.*` is missing.
+- `npm run lint` now passes on the active artifact-pack rebuild branch; keep it in the standard verification gate.
 - Manual workflow validation should now use the protocol in `docs/validation/major-change-protocol.md` and the registry in `src/test/fixtures/major-change-cases.ts`; older ad hoc notes should be treated as partial evidence until backfilled through that protocol.
 - Latest Ollama baseline note (2026-04-30): focused benchmark run (`AURA_OLLAMA_CASES=presentation-title-opening,spreadsheet-create`) now records a valid presentation quality failure profile (`qualityScore: 57`, failed signals: `visual-richness`, `continuity`, `reference-style-match`, `viewport-safety`) in `logs/ollama-benchmark/2026-04-30T15-47-06-278Z/`; spreadsheet case is intentionally marked `SKIP` in Node runner because browser `Worker` is unavailable and should be validated in-app.
 - Presentation quality recovery (2026-04-30): Steps 1-10 of the Combined Presentation Quality Recovery Plan remain complete; W9 release process is now codified in `src/services/validation/releaseGates.ts` with automated and manual evidence gates. Step 11 product visual validation is still open pending frontier single-slide + queued deck captures, one Ollama queued deck capture, and viewport screenshots. See `docs/validation/workflow-quality-benchmark.md` and `docs/validation/agent-in-app-qa-prototype.md`.
@@ -84,6 +84,8 @@ This document records shipped workflow-upgrade progress across the phased implem
 ## Current Focus
 
 Active direction: Value-Focused Product Realignment. See `docs/plan/value-focused-product-realignment-plan.md` for the full plan.
+
+Active artifact-pack design rebuild: Phase 9 design-system mode is `Active/Next` on `codex/artifact-pack-design-rebuild`. The presentation path now maps safe project `DESIGN.md`/rules or project color-theme roles into typed project-design metadata, shows a Project colours preview with ignored-line diagnostics, and applies those colours through the Editorial Stage pack adapter and compiler-owned CSS variables. Phase 10 has started with export-intent validation for fixed-stage HTML/PDF/PPTX safety; preview artifact generation is still queued. Keep Phase 9 open until document/spreadsheet pack adapters prove the same shared-token contract, and keep Phase 5's screenshot review open until the visual gate is either closed or converted into concrete fixes. See `docs/plan/aura_artifact_design_rebuild_implementation_checklist.md`.
 
 Completed realignment workstreams:
 

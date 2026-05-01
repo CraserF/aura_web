@@ -50,6 +50,8 @@ export interface EditorialStagePresentationEditInput {
 
 export interface EditorialStagePresentationEditResult extends EditorialStagePresentationQueueResult {
   changed: boolean;
+  repairCount: number;
+  repairedFindingIds: string[];
   reason?: string;
 }
 
@@ -73,7 +75,7 @@ function cleanText(value: string | undefined, maxLength: number): string {
   return (value ?? '')
     .replace(/<[^>]+>/g, '')
     .replace(/\s+/g, ' ')
-    .replace(/^[-*\d.\s]+/, '')
+    .replace(/^(?:[-*]\s+|\d+[.)]\s+)/, '')
     .trim()
     .slice(0, maxLength)
     .trim();
@@ -448,7 +450,14 @@ export async function runEditorialStagePresentationEditRuntime(
     }
     if (isAddSlideEdit(input)) {
       return resolveEditBriefs(input).reduce(
-        (nextEdit, brief) => addEditorialStageSlideFromBrief(nextEdit.source, brief),
+        (nextEdit, brief) => {
+          const slideEdit = addEditorialStageSlideFromBrief(nextEdit.source, brief);
+          return {
+            source: slideEdit.source,
+            changed: nextEdit.changed || slideEdit.changed,
+            reason: slideEdit.changed ? nextEdit.reason : slideEdit.reason ?? nextEdit.reason,
+          };
+        },
         { source: input.source, changed: false } as ReturnType<typeof addEditorialStageSlideFromBrief>,
       );
     }
@@ -486,6 +495,8 @@ export async function runEditorialStagePresentationEditRuntime(
     compileResult: compiled.compileResult,
     styleBlock: compiled.styleBlock,
     changed: compiled.changed,
+    repairCount: compiled.repairCount,
+    repairedFindingIds: compiled.repairedFindingIds,
     ...(compiled.reason ? { reason: compiled.reason } : {}),
   };
 }

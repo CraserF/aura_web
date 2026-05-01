@@ -15,12 +15,15 @@ describe('non-technical UX simplification', () => {
       expect(panelSource).toContain(mode);
     }
     expect(panelSource).toContain('Output mode');
+    expect(panelSource).toContain('Project colours');
+    expect(panelSource).toContain('Ignored colour rules');
     expect(panelSource).toContain('Advanced');
     expect(panelSource).toContain('Rules Markdown');
     expect(panelSource).toContain('Context Policy');
     expect(panelSource).toContain('Advanced Workflow Modes');
     expect(panelSource).not.toContain('Workflow Presets');
     expect(panelSource).not.toContain('No workflow presets yet.');
+    expect(panelSource).not.toContain('Design Tokens');
 
     const advancedStart = panelSource.indexOf('>Advanced</summary>');
     expect(advancedStart).toBeGreaterThan(0);
@@ -104,5 +107,20 @@ describe('non-technical UX simplification', () => {
     expect(launchPlan.designManifest.family).toBe('launch-narrative-light');
     expect(researchPlan.documentThemeFamily).toBe('research-light');
     expect(researchPlan.designManifest.family).toBe('research-light');
+  });
+
+  it('keeps structural title-slide deletion out of the text-edit surface', () => {
+    const plan = buildArtifactRunPlan({
+      runId: 'title-slide-delete',
+      prompt: 'Please remove the title slide from this presentation',
+      artifactType: 'presentation',
+      operation: 'edit',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    expect(plan.artifactAllowedEditSurface?.kind).toBe('unsupported');
   });
 });

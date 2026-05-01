@@ -9,6 +9,8 @@ import { detectAnimationLevel, getTemplateBlueprint, resolveTemplatePlan } from 
 import { buildArtifactRunPlan } from '@/services/artifactRuntime/build';
 import { buildSlideBriefsFromRunPlan } from '@/services/artifactRuntime/presentation';
 import { compileEditorialStagePack } from '@/services/artifactPacks/packs/presentation/editorial-stage-v1/compiler';
+import { runEditorialStagePresentationEditRuntime } from '@/services/artifactPacks/packs/presentation/editorial-stage-v1/runtime';
+import { validateEditorialStageSource } from '@/services/artifactPacks/packs/presentation/editorial-stage-v1/validator';
 import type { EditorialStageSource } from '@/services/artifactPacks/packs/presentation/editorial-stage-v1/schemas';
 import type { ProjectMediaAsset } from '@/types/project';
 
@@ -99,6 +101,22 @@ function editPolicy() {
     mode: 'best-effort',
     maxCorrectionSteps: 0,
   } as const;
+}
+
+function cloneSource<T>(source: T): T {
+  return JSON.parse(JSON.stringify(source)) as T;
+}
+
+function sourceEditManifest(source: EditorialStageSource): NonNullable<PresentationOutput['artifactManifest']> {
+  return {
+    packId: 'presentation/editorial-stage-v1',
+    packVersion: source.packVersion,
+    designDirectionId: source.directionId,
+    sourcePayloadVersion: 1,
+    renderer: 'presentation',
+    validationStatus: 'passed',
+    updatedAt: Date.now(),
+  };
 }
 
 describe('artifact pack presentation runtime routing', () => {
@@ -306,6 +324,196 @@ describe('artifact pack presentation runtime routing', () => {
     }));
   });
 
+  it('routes metric label edits to the label slot rather than the metric value', async () => {
+    const source = JSON.parse(readFileSync(EXAMPLE_SOURCE_PATH, 'utf8')) as EditorialStageSource;
+    const media = JSON.parse(readFileSync(EXAMPLE_MEDIA_PATH, 'utf8')) as ProjectMediaAsset[];
+    const seed = compileEditorialStagePack({
+      source,
+      outputMode: 'html',
+      mediaResolver: createProjectMediaResolver(media),
+    });
+    batchQueueMocks.runBatchQueue.mockReset();
+    designerMocks.designEdit.mockReset();
+    const editRunPlan = buildArtifactRunPlan({
+      runId: 'artifact-pack-source-metric-label-edit',
+      prompt: 'Change slide 3 metric label to "of demand comes from the focused buyer"',
+      artifactType: 'presentation',
+      operation: 'edit',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    const output = await runPresentationRuntime({
+      model: {} as LanguageModel,
+      input: {
+        prompt: 'Change slide 3 metric label to "of demand comes from the focused buyer"',
+        existingSlidesHtml: seed.output.content,
+        chatHistory: [],
+        artifactRunPlan: editRunPlan,
+        artifactManifest: sourceEditManifest(source),
+        artifactSourcePayload: source,
+        projectMedia: media,
+      },
+      onEvent: vi.fn(),
+      editCorrectionPolicy: editPolicy(),
+      skipSecondaryEvaluation: true,
+    });
+    const editedSource = output.artifactSourcePayload as EditorialStageSource;
+
+    expect(output.reviewPassed).toBe(true);
+    expect(editedSource.slides[2]?.slots.metric_value).toBe('42%');
+    expect(editedSource.slides[2]?.slots.metric_label).toBe('of demand comes from the focused buyer');
+  });
+
+  it('preserves numeric-leading slot replacements', async () => {
+    const seed = await createPackedDeck();
+    batchQueueMocks.runBatchQueue.mockReset();
+    designerMocks.designEdit.mockReset();
+    const editRunPlan = buildArtifactRunPlan({
+      runId: 'artifact-pack-source-numeric-title-edit',
+      prompt: 'Change slide 1 title to "2026 launch plan"',
+      artifactType: 'presentation',
+      operation: 'edit',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    const output = await runPresentationRuntime({
+      model: {} as LanguageModel,
+      input: {
+        prompt: 'Change slide 1 title to "2026 launch plan"',
+        existingSlidesHtml: seed.html,
+        chatHistory: [],
+        artifactRunPlan: editRunPlan,
+        artifactManifest: seed.artifactManifest,
+        artifactSourcePayload: seed.artifactSourcePayload,
+      },
+      onEvent: vi.fn(),
+      editCorrectionPolicy: editPolicy(),
+      skipSecondaryEvaluation: true,
+    });
+    const editedSource = output.artifactSourcePayload as EditorialStageSource;
+
+    expect(output.reviewPassed).toBe(true);
+    expect(editedSource.slides[0]?.slots.title).toBe('2026 launch plan');
+    expect(output.html).toContain('2026 launch plan');
+  });
+
+  it('repairs invalid source slot HTML and persists the cleaned source after a valid text edit', async () => {
+    const seed = await createPackedDeck();
+    batchQueueMocks.runBatchQueue.mockReset();
+    designerMocks.design.mockReset();
+    designerMocks.designEdit.mockReset();
+    const dirtySource = cloneSource(seed.artifactSourcePayload as EditorialStageSource);
+    dirtySource.slides[0]!.slots.subtitle = 'A <strong>clean</strong> proof line for the room.';
+    const editRunPlan = buildArtifactRunPlan({
+      runId: 'artifact-pack-source-slot-html-repair',
+      prompt: 'Change slide 1 title to "Sharper repaired opening"',
+      artifactType: 'presentation',
+      operation: 'edit',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    expect(validateEditorialStageSource(dirtySource).findings.map((finding) => finding.id))
+      .toContain('slot.html_detected');
+    const output = await runPresentationRuntime({
+      model: {} as LanguageModel,
+      input: {
+        prompt: 'Change slide 1 title to "Sharper repaired opening"',
+        existingSlidesHtml: seed.html,
+        chatHistory: [],
+        artifactRunPlan: editRunPlan,
+        artifactManifest: seed.artifactManifest,
+        artifactSourcePayload: dirtySource,
+      },
+      onEvent: vi.fn(),
+      editCorrectionPolicy: editPolicy(),
+      skipSecondaryEvaluation: true,
+    });
+    const repairedSource = output.artifactSourcePayload as EditorialStageSource;
+
+    expect(batchQueueMocks.runBatchQueue).not.toHaveBeenCalled();
+    expect(designerMocks.designEdit).not.toHaveBeenCalled();
+    expect(output.reviewPassed).toBe(true);
+    expect(output.runtime?.runMode).toBe('deterministic-action');
+    expect(output.html).toContain('Sharper repaired opening');
+    expect(output.html).toContain('A clean proof line for the room.');
+    expect(output.html).not.toContain('<strong>');
+    expect(repairedSource.slides[0]?.slots.title).toBe('Sharper repaired opening');
+    expect(repairedSource.slides[0]?.slots.subtitle).toBe('A clean proof line for the room.');
+    expect(validateEditorialStageSource(repairedSource).findings.map((finding) => finding.id))
+      .not.toContain('slot.html_detected');
+  });
+
+  it('fills missing required source slots and truncates overlong slots deterministically', async () => {
+    const seed = await createPackedDeck();
+    batchQueueMocks.runBatchQueue.mockReset();
+    designerMocks.design.mockReset();
+    designerMocks.designEdit.mockReset();
+    const dirtySource = cloneSource(seed.artifactSourcePayload as EditorialStageSource);
+    delete dirtySource.slides[0]!.slots.kicker;
+    dirtySource.slides[0]!.slots.subtitle = Array.from({ length: 28 }, () => 'Detailed launch proof').join(' ');
+    const editRunPlan = buildArtifactRunPlan({
+      runId: 'artifact-pack-source-required-slot-repair',
+      prompt: 'Change slide 1 title to "Filled repaired opening"',
+      artifactType: 'presentation',
+      operation: 'edit',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+    const runEdit = () => runPresentationRuntime({
+      model: {} as LanguageModel,
+      input: {
+        prompt: 'Change slide 1 title to "Filled repaired opening"',
+        existingSlidesHtml: seed.html,
+        chatHistory: [],
+        artifactRunPlan: editRunPlan,
+        artifactManifest: seed.artifactManifest,
+        artifactSourcePayload: cloneSource(dirtySource),
+      },
+      onEvent: vi.fn(),
+      editCorrectionPolicy: editPolicy(),
+      skipSecondaryEvaluation: true,
+    });
+
+    expect(validateEditorialStageSource(dirtySource).findings.map((finding) => finding.id))
+      .toEqual(expect.arrayContaining(['slot.required_missing', 'slot.too_long_for_layout']));
+    const firstOutput = await runEdit();
+    const secondOutput = await runEdit();
+    const firstSource = firstOutput.artifactSourcePayload as EditorialStageSource;
+    const secondSource = secondOutput.artifactSourcePayload as EditorialStageSource;
+
+    expect(batchQueueMocks.runBatchQueue).not.toHaveBeenCalled();
+    expect(designerMocks.designEdit).not.toHaveBeenCalled();
+    expect(firstOutput.reviewPassed).toBe(true);
+    expect(secondOutput.reviewPassed).toBe(true);
+    const firstSlide = firstSource.slides[0];
+    const secondSlide = secondSource.slides[0];
+    if (!firstSlide || !secondSlide) throw new Error('Expected repaired source to keep the opening slide.');
+    const repairedKicker = firstSlide.slots.kicker;
+    const repairedSubtitle = firstSlide.slots.subtitle;
+    if (typeof repairedKicker !== 'string' || typeof repairedSubtitle !== 'string') {
+      throw new Error('Expected required opening slots to be repaired.');
+    }
+    expect(firstSlide.slots.title).toBe('Filled repaired opening');
+    expect(repairedKicker).toEqual(expect.any(String));
+    expect(repairedKicker.trim().length).toBeGreaterThan(0);
+    expect(repairedKicker.length).toBeLessThanOrEqual(48);
+    expect(repairedSubtitle.length).toBeLessThanOrEqual(180);
+    expect(firstSlide.slots).toEqual(secondSlide.slots);
+    expect(validateEditorialStageSource(firstSource).findings.map((finding) => finding.id))
+      .not.toEqual(expect.arrayContaining(['slot.required_missing', 'slot.too_long_for_layout']));
+  });
+
   it('appends slides to existing editorial-stage source without rebuilding existing slots', async () => {
     const seed = await createPackedDeck();
     batchQueueMocks.runBatchQueue.mockReset();
@@ -349,6 +557,48 @@ describe('artifact pack presentation runtime routing', () => {
     expect(source.rhythmPlan).toHaveLength(source.slides.length);
     expect(source.slides[0]?.slots.title).toBe(firstTitle);
     expect(new Set(source.slides.map((slide) => slide.slideId)).size).toBe(source.slides.length);
+  });
+
+  it('persists successful partial multi-slide adds at the slide cap', async () => {
+    const seed = await createPackedDeck();
+    const source = cloneSource(seed.artifactSourcePayload as EditorialStageSource);
+    while (source.slides.length < 17) {
+      const previous = source.slides[source.slides.length - 1]!;
+      source.slides.push({
+        ...cloneSource(previous),
+        slideId: `slide-${source.slides.length + 1}`,
+      });
+    }
+    source.rhythmPlan = source.slides.map((slide, index) => ({
+      slideIndex: index + 1,
+      slideId: slide.slideId,
+      narrativeRole: 'Focus',
+      layoutId: slide.layoutId,
+      mood: slide.mood,
+      density: slide.density,
+      visualWeight: slide.visualWeight,
+      motion: slide.motion,
+      transitionPurpose: `Slide ${index + 1}`,
+      mediaNeeds: [],
+    }));
+    const planResult = createPlanResult();
+    planResult.intent = 'add_slides';
+    planResult.slideBriefs = [
+      { index: 18, title: 'Allowed final slide', contentGuidance: 'Add the last available slide.' },
+      { index: 19, title: 'Blocked overflow slide', contentGuidance: 'This should exceed the cap.' },
+    ];
+
+    const result = await runEditorialStagePresentationEditRuntime({
+      source,
+      prompt: 'Add two slides',
+      planResult,
+      onEvent: vi.fn(),
+      onSlideComplete: vi.fn(),
+    });
+
+    expect(result.changed).toBe(true);
+    expect(result.source.slides).toHaveLength(18);
+    expect(result.source.slides[17]?.slots.title).toBe('Allowed final slide');
   });
 
   it('restyles editorial-stage source by swapping direction tokens only', async () => {
@@ -431,6 +681,8 @@ describe('artifact pack presentation runtime routing', () => {
     expect(designerMocks.designEdit).not.toHaveBeenCalled();
     expect(output.reviewPassed).toBe(false);
     expect(output.runtime?.qualityDecision).toBe('blocked-by-safety');
+    expect(output.runtime?.qualityPolishingSkippedReason).toContain('Supported edits are text changes, add slide, and restyle');
+    expect(JSON.stringify(output.runtime?.validationByPart ?? [])).toContain('Reordering, deleting, and media replacement are blocked');
     expect(output.artifactManifest).toBeUndefined();
     expect(output.artifactSourcePayload).toBeUndefined();
   });
@@ -471,6 +723,8 @@ describe('artifact pack presentation runtime routing', () => {
     expect(designerMocks.designEdit).not.toHaveBeenCalled();
     expect(output.reviewPassed).toBe(false);
     expect(output.runtime?.qualityDecision).toBe('blocked-by-safety');
+    expect(output.runtime?.qualityPolishingSkippedReason).toContain('Supported edits are text changes, add slide, and restyle');
+    expect(JSON.stringify(output.runtime?.validationByPart ?? [])).toContain('media replacement are blocked');
     expect(output.artifactManifest).toBeUndefined();
   });
 
@@ -565,5 +819,55 @@ describe('artifact pack presentation runtime routing', () => {
     expect(output.html).toContain('Proof with the real screenshot');
     expect(output.html).toContain('<img src="data:image/svg+xml;base64,');
     expect(output.html).not.toContain('<span>Launch proof screenshot</span>');
+  });
+
+  it('keeps unresolved required real media blocked instead of repairing it away', async () => {
+    const source = JSON.parse(readFileSync(EXAMPLE_SOURCE_PATH, 'utf8')) as EditorialStageSource;
+    const seed = compileEditorialStagePack({
+      source,
+      outputMode: 'html',
+      mediaResolver: createProjectMediaResolver([]),
+    });
+    batchQueueMocks.runBatchQueue.mockReset();
+    designerMocks.design.mockReset();
+    designerMocks.designEdit.mockReset();
+    const editRunPlan = buildArtifactRunPlan({
+      runId: 'artifact-pack-source-required-media-blocked',
+      prompt: 'Change slide 5 title to "Proof still needs real media"',
+      artifactType: 'presentation',
+      operation: 'edit',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    const output = await runPresentationRuntime({
+      model: {} as LanguageModel,
+      input: {
+        prompt: 'Change slide 5 title to "Proof still needs real media"',
+        existingSlidesHtml: seed.output.content,
+        chatHistory: [],
+        artifactRunPlan: editRunPlan,
+        artifactManifest: sourceEditManifest(source),
+        artifactSourcePayload: source,
+        projectMedia: [],
+      },
+      onEvent: vi.fn(),
+      editCorrectionPolicy: editPolicy(),
+      skipSecondaryEvaluation: true,
+    });
+
+    expect(batchQueueMocks.runBatchQueue).not.toHaveBeenCalled();
+    expect(designerMocks.design).not.toHaveBeenCalled();
+    expect(designerMocks.designEdit).not.toHaveBeenCalled();
+    expect(output.reviewPassed).toBe(false);
+    expect(output.html).toBe(seed.output.content);
+    expect(output.artifactManifest).toBeUndefined();
+    expect(output.artifactSourcePayload).toBeUndefined();
+    expect(output.runtime?.validationPassed).toBe(false);
+    expect(output.runtime?.validationBlockingCount).toBeGreaterThan(0);
+    expect(output.runtime?.validationByPart?.flatMap((part) => part.rules).join('\n'))
+      .toContain('unresolved asset "launch-proof-screenshot"');
   });
 });

@@ -171,6 +171,26 @@ describe('presentation quality checklist', () => {
     expect(collectPresentationNamedFailures(checklist.checks).some((f) => f.includes('duplicate-root-style-system'))).toBe(true);
   });
 
+  it('accepts scoped class tokens without requiring global root variables', () => {
+    const scoped = `<style>
+      .deck-slide {
+        --bg: #ffffff;
+        --ink: #111827;
+        display: grid;
+        width: 1280px;
+        height: 720px;
+        background: var(--bg);
+        color: var(--ink);
+      }
+      .deck-title { font-size: 72px; }
+    </style>
+    <section class="deck-slide" data-background-color="#ffffff"><h1 class="deck-title">Scoped style system</h1></section>`;
+    const checklist = buildPresentationQualityChecklist({ html: scoped });
+    const cssCheck = checklist.checks.find((c) => c.id === 'css-design-contract');
+
+    expect(cssCheck?.namedIssues?.map((i) => i.id) ?? []).not.toContain('missing-style-system');
+  });
+
   it('detects missing style, inline styles, and external assets as named CSS failures', () => {
     const unsafe = `<section data-background-color="#ffffff" style="color:#111">
       <img src="https://example.com/chart.png" alt="remote chart">

@@ -7,6 +7,7 @@ import type {
   ArtifactValidationFinding,
   ArtifactValidationReport,
   DesignContextSpec,
+  ProjectDesignTokenAdapter,
 } from '@/services/artifactPacks/types';
 import {
   EDITORIAL_STAGE_LAYOUT_BY_ID,
@@ -21,6 +22,47 @@ import styleCss from 'virtual:artifact-pack-css/presentation-editorial-stage-v1'
 
 const PACK_ID = 'presentation/editorial-stage-v1';
 const STYLE_SYSTEM_ATTRIBUTE = `data-aura-style-system="${PACK_ID}"`;
+export const EDITORIAL_STAGE_PROJECT_DESIGN_ADAPTER: ProjectDesignTokenAdapter<Record<string, string>> = {
+  id: `${PACK_ID}/css-token-adapter`,
+  artifactType: 'presentation',
+  target: 'css-variables',
+  supportedColorRoles: [
+    'canvas',
+    'surface',
+    'raisedSurface',
+    'text',
+    'mutedText',
+    'border',
+    'accent',
+    'accentText',
+    'subtleFill',
+    'positive',
+    'warning',
+    'negative',
+  ],
+  mapColorOverrides: (overrides) => {
+    const variableByRole: Record<string, string> = {
+      canvas: '--es-canvas',
+      surface: '--es-surface',
+      raisedSurface: '--es-surface',
+      text: '--es-ink',
+      mutedText: '--es-muted',
+      border: '--es-line',
+      accent: '--es-accent',
+      accentText: '--es-reverse',
+      subtleFill: '--es-surface',
+      positive: '--es-accent-alt',
+      warning: '--es-data',
+      negative: '--es-accent',
+    };
+    return Object.fromEntries(
+      overrides
+        .filter((override) => EDITORIAL_STAGE_PROJECT_DESIGN_ADAPTER.supportedColorRoles.includes(override.role))
+        .filter((override) => /^#[0-9a-f]{6}$/i.test(override.value))
+        .map((override) => [variableByRole[override.role], override.value.toLowerCase()]),
+    );
+  },
+};
 
 export interface EditorialStageCompileInput {
   source: EditorialStageSource;
@@ -38,8 +80,22 @@ const escapeHtml = (value: string): string =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
-const styleBlock = (): string => `<style ${STYLE_SYSTEM_ATTRIBUTE}>
-${styleCss.trim()}
+const projectDesignCss = (designContext: DesignContextSpec | undefined): string => {
+  const overrides = designContext?.projectDesignSystem?.colorOverrides ?? [];
+  const cssVariables = EDITORIAL_STAGE_PROJECT_DESIGN_ADAPTER.mapColorOverrides(overrides);
+  const declarations = Object.entries(cssVariables)
+    .map(([cssVariable, value]) => `  ${cssVariable}: ${value};`);
+
+  if (declarations.length === 0 || !designContext?.projectDesignSystem) return '';
+
+  return `
+.es-slide[data-project-design-system="${escapeHtml(designContext.projectDesignSystem.source)}"] {
+${declarations.join('\n')}
+}`;
+};
+
+const styleBlock = (designContext: DesignContextSpec | undefined): string => `<style ${STYLE_SYSTEM_ATTRIBUTE}>
+${styleCss.trim()}${projectDesignCss(designContext)}
 </style>`;
 
 const mergeReports = (...reports: ArtifactValidationReport[]): ArtifactValidationReport => {
@@ -141,12 +197,18 @@ const optionalMediaClass = (slide: EditorialStageSlide): string | undefined => {
   return slide.media.length > 0 ? undefined : 'es-no-media';
 };
 
-const addSectionMarkers = (html: string, slide: EditorialStageSlide, source: EditorialStageSource): string =>
+const addSectionMarkers = (
+  html: string,
+  slide: EditorialStageSlide,
+  source: EditorialStageSource,
+  designContext: DesignContextSpec | undefined,
+): string =>
   html.replace(/<section\b([^>]*)>/i, (section, attrs: string) => {
     const hasPackMarker = /\sdata-pack\s*=/.test(attrs);
     const hasSlideId = /\sdata-slide-id\s*=/.test(attrs);
     const hasBackground = /\sdata-background-color\s*=/.test(attrs);
     const hasDirection = /\sdata-direction\s*=/.test(attrs);
+    const hasProjectDesignSystem = /\sdata-project-design-system\s*=/.test(attrs);
     const background = slide.mood === 'hero-dark' || slide.mood === 'dark'
       ? '#111318'
       : slide.mood === 'hero-light'
@@ -165,6 +227,9 @@ const addSectionMarkers = (html: string, slide: EditorialStageSlide, source: Edi
       hasSlideId ? '' : ` data-slide-id="${escapeHtml(slide.slideId)}"`,
       hasDirection ? '' : ` data-direction="${escapeHtml(source.directionId)}"`,
       hasBackground ? '' : ` data-background-color="${background}"`,
+      hasProjectDesignSystem || !designContext?.projectDesignSystem
+        ? ''
+        : ` data-project-design-system="${escapeHtml(designContext.projectDesignSystem.source)}"`,
     ].join('');
 
     return enrichedSection.replace('>', `${additions}>`);
@@ -175,6 +240,7 @@ const compileSlide = (
   index: number,
   source: EditorialStageSource,
   mediaResolver: ArtifactMediaResolver | undefined,
+  designContext: DesignContextSpec | undefined,
 ) => {
   const layout = EDITORIAL_STAGE_LAYOUT_BY_ID[slide.layoutId];
 
@@ -193,7 +259,7 @@ const compileSlide = (
   const withoutEmptySlots = stripEmptyOptionalSlotWrappers(withSlots, layout);
   const withoutUnboundMedia = stripUnboundOptionalMediaWrappers(withoutEmptySlots, slide, layout);
   const withBoundMedia = enrichBoundMediaWrappers(withoutUnboundMedia, slide, mediaResolver);
-  const marked = addSectionMarkers(withBoundMedia, slide, source);
+  const marked = addSectionMarkers(withBoundMedia, slide, source, designContext);
 
   return { html: marked };
 };
@@ -237,12 +303,13 @@ const collectMediaResolutionFindings = (
 export const compileEditorialStageSlides = (
   source: EditorialStageSource,
   mediaResolver?: ArtifactMediaResolver,
+  designContext?: DesignContextSpec,
 ): { html: string; findings: readonly ArtifactValidationFinding[] } => {
   const findings: ArtifactValidationFinding[] = [
     ...collectMediaResolutionFindings(source, mediaResolver),
   ];
   const slides = source.slides.map((slide, index) => {
-    const compiled = compileSlide(slide, index, source, mediaResolver);
+    const compiled = compileSlide(slide, index, source, mediaResolver, designContext);
     if (compiled.finding) {
       findings.push(compiled.finding);
     }
@@ -250,7 +317,7 @@ export const compileEditorialStageSlides = (
   });
 
   return {
-    html: [styleBlock(), ...slides.filter(Boolean)].join('\n'),
+    html: [styleBlock(designContext), ...slides.filter(Boolean)].join('\n'),
     findings,
   };
 };
@@ -259,7 +326,7 @@ export const compileEditorialStagePack = (
   input: EditorialStageCompileInput,
 ): ArtifactPackCompileResult => {
   const sourceValidation = validateEditorialStageSource(input.source);
-  const compiledSlides = compileEditorialStageSlides(input.source, input.mediaResolver);
+  const compiledSlides = compileEditorialStageSlides(input.source, input.mediaResolver, input.designContext);
   const output: ArtifactCompiledOutput = {
     mode: input.outputMode ?? input.source.outputMode,
     content: compiledSlides.html,

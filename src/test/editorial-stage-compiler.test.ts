@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 
-import { createProjectMediaResolver } from '@/services/artifactPacks';
-import { compileEditorialStagePack } from '@/services/artifactPacks/packs/presentation/editorial-stage-v1/compiler';
+import { buildDesignContextSpec, createProjectMediaResolver } from '@/services/artifactPacks';
+import {
+  compileEditorialStagePack,
+  EDITORIAL_STAGE_PROJECT_DESIGN_ADAPTER,
+} from '@/services/artifactPacks/packs/presentation/editorial-stage-v1/compiler';
 import type { EditorialStageSource } from '@/services/artifactPacks/packs/presentation/editorial-stage-v1/schemas';
 import type { ProjectMediaAsset } from '@/types/project';
 
@@ -104,6 +107,7 @@ describe('editorial-stage presentation compiler', () => {
     expect(result.output.content).toContain('data-pack="presentation/editorial-stage-v1"');
     expect(result.output.content).not.toContain('data-scaffold=');
     expect(result.output.content).not.toContain('style=');
+    expect(result.output.content).not.toContain(':root');
     expect(result.output.content).not.toContain('{{');
     expect(result.output.content).toContain('.es-cover');
   });
@@ -191,6 +195,70 @@ describe('editorial-stage presentation compiler', () => {
     expect(result.output.content).toContain('<img src="data:image/png;base64,proof" alt="Annotated proof screenshot" />');
     expect(result.output.content).toContain('role="img"');
     expect(result.output.content).toContain('aria-label="Annotated proof screenshot"');
+  });
+
+  it('applies project design token overrides through compiler-owned CSS variables', () => {
+    const designContext = buildDesignContextSpec({
+      artifactType: 'presentation',
+      project: {
+        projectRules: {
+          markdown: [
+            '# DESIGN.md',
+            'Canvas: #08111f',
+            'Text: #f8fafc',
+            'Accent: #22c55e',
+            '.deck { background: #000000; }',
+          ].join('\n'),
+          updatedAt: 1,
+        },
+      },
+    });
+
+    const result = compileEditorialStagePack({
+      source: createSource(),
+      outputMode: 'html',
+      designContext,
+    });
+
+    expect(result.validation.passed).toBe(true);
+    expect(result.output.content.match(/<style\b/g)).toHaveLength(1);
+    expect(result.output.content).not.toContain('style=');
+    expect(result.output.content).toContain('data-project-design-system="project-design-md"');
+    expect(result.output.content).toContain('.es-slide[data-project-design-system="project-design-md"]');
+    expect(result.output.content).toContain('--es-canvas: #08111f;');
+    expect(result.output.content).toContain('--es-ink: #f8fafc;');
+    expect(result.output.content).toContain('--es-accent: #22c55e;');
+    expect(result.output.content).not.toContain('--es-canvas: #000000;');
+  });
+
+  it('declares the Editorial Stage project-design adapter contract', () => {
+    expect(EDITORIAL_STAGE_PROJECT_DESIGN_ADAPTER).toMatchObject({
+      artifactType: 'presentation',
+      target: 'css-variables',
+    });
+    expect(EDITORIAL_STAGE_PROJECT_DESIGN_ADAPTER.supportedColorRoles).toContain('accent');
+    expect(EDITORIAL_STAGE_PROJECT_DESIGN_ADAPTER.mapColorOverrides([
+      { role: 'accent', value: '#f97316', source: 'project-design-md', label: 'Accent' },
+    ])).toEqual({ '--es-accent': '#f97316' });
+  });
+
+  it('keeps the default compiled deck inside editable-pptx export restrictions', () => {
+    const source = createSource();
+    source.outputMode = 'editable-pptx';
+    const result = compileEditorialStagePack({
+      source,
+      outputMode: 'editable-pptx',
+    });
+
+    expect(result.validation.passed).toBe(true);
+    expect(result.output.mode).toBe('editable-pptx');
+    expect(result.validation.findings.map((finding) => finding.id)).not.toEqual(expect.arrayContaining([
+      'export.pptx_unsupported_css',
+      'export.pptx_nested_span_risk',
+      'export.pptx_text_as_image_detected',
+      'export.viewport_units_detected',
+      'export.background_color_missing',
+    ]));
   });
 
   it('blocks required bound media when the project asset cannot be resolved', () => {

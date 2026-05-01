@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ContextPolicy, ProjectData, WorkflowPreset, WorkflowPresetCollection } from '@/types/project';
 import { normalizeProjectData } from '@/services/projectRules/load';
+import { resolveProjectDesignSystemSpec } from '@/services/artifactPacks';
+import type { ProjectDesignSystemSpec } from '@/services/artifactPacks';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -97,6 +99,22 @@ export function ProjectRulesPanel({
   const [markdown, setMarkdown] = useState(stripGuidedStyleBlock(initialMarkdown));
   const [contextPolicy, setContextPolicy] = useState<ContextPolicy>(normalizedProject.contextPolicy!);
   const [workflowPresets, setWorkflowPresets] = useState<WorkflowPresetCollection>(normalizedProject.workflowPresets!);
+  const guidedStyleMarkdown = useMemo(() => buildGuidedStyleBlock({
+    audience,
+    outputMode,
+    tone,
+    visualStyle,
+    qualitySpeed,
+    sourceUsage,
+    note: styleNote,
+  }), [audience, outputMode, qualitySpeed, sourceUsage, styleNote, tone, visualStyle]);
+  const projectDesignSystem = useMemo(
+    () => resolveProjectDesignSystemSpec(
+      [guidedStyleMarkdown, markdown.trim()].filter(Boolean).join('\n\n'),
+      project.colorTheme,
+    ),
+    [guidedStyleMarkdown, markdown, project.colorTheme],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -115,18 +133,9 @@ export function ProjectRulesPanel({
   }, [open, project]);
 
   const handleSave = () => {
-    const guidedMarkdown = buildGuidedStyleBlock({
-      audience,
-      outputMode,
-      tone,
-      visualStyle,
-      qualitySpeed,
-      sourceUsage,
-      note: styleNote,
-    });
     onSave({
       projectRules: {
-        markdown: [guidedMarkdown, markdown.trim()].filter(Boolean).join('\n\n'),
+        markdown: [guidedStyleMarkdown, markdown.trim()].filter(Boolean).join('\n\n'),
         updatedAt: Date.now(),
       },
       contextPolicy,
@@ -204,6 +213,8 @@ export function ProjectRulesPanel({
             placeholder="Optional extra preference, such as preferred terminology, brand voice, or design constraints."
           />
         </section>
+
+        <ProjectDesignSystemPreview designSystem={projectDesignSystem} />
 
         <details className="space-y-3 rounded-md border border-border px-4 py-3">
           <summary className="cursor-pointer text-sm font-semibold">Advanced</summary>
@@ -306,13 +317,18 @@ export function ProjectRulesPanel({
                 <span className="font-medium capitalize">{artifactType} default</span>
                 <select
                   value={workflowPresets.defaultPresetByArtifact[artifactType] ?? ''}
-                  onChange={(event) => setWorkflowPresets((current) => ({
-                    ...current,
-                    defaultPresetByArtifact: {
-                      ...current.defaultPresetByArtifact,
-                      ...(event.target.value ? { [artifactType]: event.target.value } : {}),
-                    },
-                  }))}
+                  onChange={(event) => setWorkflowPresets((current) => {
+                    const nextDefaults = { ...current.defaultPresetByArtifact };
+                    if (event.target.value) {
+                      nextDefaults[artifactType] = event.target.value;
+                    } else {
+                      delete nextDefaults[artifactType];
+                    }
+                    return {
+                      ...current,
+                      defaultPresetByArtifact: nextDefaults,
+                    };
+                  })}
                   className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                 >
                   <option value="">None</option>
@@ -470,6 +486,51 @@ function SelectField({
         ))}
       </select>
     </label>
+  );
+}
+
+function ProjectDesignSystemPreview({
+  designSystem,
+}: {
+  designSystem?: ProjectDesignSystemSpec;
+}) {
+  if (!designSystem) return null;
+
+  const palette = designSystem.preview.palette.slice(0, 8);
+  const ignoredCount = designSystem.preview.ignoredColorLines.length;
+
+  return (
+    <section className="space-y-2 rounded-md border border-border/70 bg-muted/30 px-4 py-3" aria-label="Project colour preview">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold">Project colours</h3>
+        <span className="text-[11px] text-muted-foreground">{palette.length} active</span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {palette.map((token) => (
+          <div
+            key={`${token.role}-${token.value}`}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-background/70 px-2 py-1 text-[11px] text-muted-foreground"
+          >
+            <span
+              className="size-3 rounded-sm border border-border"
+              style={{ backgroundColor: token.value }}
+              aria-hidden="true"
+            />
+            <span className="capitalize">{token.role.replace(/([A-Z])/g, ' $1').toLowerCase()}</span>
+          </div>
+        ))}
+      </div>
+      {ignoredCount > 0 && (
+        <details className="text-[11px] text-muted-foreground">
+          <summary className="cursor-pointer">Ignored colour rules ({ignoredCount})</summary>
+          <ul className="mt-1 space-y-1">
+            {designSystem.preview.ignoredColorLines.map((line) => (
+              <li key={line} className="truncate font-mono">{line}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </section>
   );
 }
 

@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { submitPrompt } from '@/services/chat/submitPrompt';
 import { ContextChips } from '@/components/ContextChips';
 import { ContextPanel } from '@/components/ContextPanel';
+import { GuidedEditChips } from '@/components/GuidedEditChips';
 import { RunHistoryPanel } from '@/components/RunHistoryPanel';
 import { resolveWorkflowPresetState, diffContextPolicyOverride } from '@/services/presets/apply';
 import { loadPresetCollection } from '@/services/presets/storage';
@@ -312,6 +313,11 @@ export function ChatBar() {
     selectedPresetId,
   ]);
 
+  const handleGuidedEditPrompt = useCallback((prompt: string) => {
+    setInput(prompt);
+    inputRef.current?.focus();
+  }, []);
+
   const persistWorkflowPresets = useCallback((workflowPresets: typeof project.workflowPresets) => {
     setProject({
       ...project,
@@ -585,6 +591,11 @@ export function ChatBar() {
             selectionState={contextSelection}
             lastContext={lastContext}
             onOpen={() => setContextPanelOpen(true)}
+          />
+          <GuidedEditChips
+            activeDocument={activeDocument}
+            disabled={isGenerating}
+            onSelectPrompt={handleGuidedEditPrompt}
           />
         </div>
 

@@ -751,7 +751,10 @@ function countPresentationSections(html: string | undefined): number {
 
 function buildBlockedPackEditOutput(input: PresentationInput, runPlan: ArtifactRunPlan | undefined): PresentationOutput {
   const html = sanitizeInnerHtml(input.existingSlidesHtml ?? '');
-  const message = 'This presentation edit needs a pack source payload. Aura blocked the request instead of falling back to freeform HTML/CSS generation.';
+  const isUnsupportedSurface = runPlan?.artifactAllowedEditSurface?.kind === 'unsupported';
+  const message = isUnsupportedSurface
+    ? 'This deck supports text edits, adding a slide, and restyling only. Reordering, deleting, and media replacement are blocked until those typed edit surfaces are available.'
+    : 'This presentation edit needs a pack source payload. Aura blocked the request instead of falling back to freeform HTML/CSS generation.';
   const validationByPart: NonNullable<ArtifactRuntimeTelemetry['validationByPart']> = [{
     partId: 'artifact-pack-edit-surface',
     label: 'Unsupported artifact-pack edit',
@@ -784,8 +787,8 @@ function buildBlockedPackEditOutput(input: PresentationInput, runPlan: ArtifactR
       qualityAdvisoryCount: 0,
       qualityDecision: 'blocked-by-safety',
       qualityPolishAction: 'safety-blocked',
-      qualityPolishingSkippedReason: runPlan?.artifactAllowedEditSurface?.kind === 'unsupported'
-        ? 'Unsupported artifact-pack edit surface.'
+      qualityPolishingSkippedReason: isUnsupportedSurface
+        ? 'Unsupported artifact-pack edit surface. Supported edits are text changes, add slide, and restyle.'
         : 'Pack-backed edit cannot be safely applied without source payload metadata.',
     },
   };
@@ -864,7 +867,9 @@ async function runEditorialStageSourceEditPresentationRuntime(opts: {
     runId: runtimeRunId,
     type: 'runtime.part-completed',
     role: 'generator',
-    message: editResult.changed
+    message: editResult.repairCount > 0
+      ? `Presentation source payload updated after ${editResult.repairCount} source repair${editResult.repairCount === 1 ? '' : 's'}.`
+      : editResult.changed
       ? 'Presentation source payload updated.'
       : editResult.reason ?? 'Presentation source payload recompiled.',
     partId: 'targeted-design',
@@ -951,11 +956,11 @@ async function runEditorialStageSourceEditPresentationRuntime(opts: {
     validationPassed: effectiveValidation.passed,
     validationBlockingCount: effectiveValidation.blockingCount,
     validationAdvisoryCount: effectiveValidation.advisoryCount,
-    repairCount: 0,
+    repairCount: editResult.repairCount,
     runMode: 'deterministic-action',
     queuedPartCount: editResult.slideCount,
     completedPartCount: editResult.slideCount,
-    repairedPartCount: 0,
+    repairedPartCount: editResult.repairCount > 0 ? 1 : 0,
     phaseTimings: [
       ...phaseTimings,
       {

@@ -54,6 +54,8 @@ export function serializeProjectSnapshot(project: ProjectData): ProjectSnapshotF
       slideCount: doc.slideCount,
       description: doc.description,
       starterRef: doc.starterRef,
+      artifactManifest: doc.artifactManifest,
+      artifactSourcePayload: doc.artifactSourcePayload,
       parentId: doc.parentId,
       pagesEnabled: doc.pagesEnabled,
       chartSpecs: doc.chartSpecs,

@@ -20,6 +20,14 @@ Prefer editorial rails, thin rules, caption systems, media frames, comparison la
 
 Every slide needs a dominant object: a headline, number, quote, image, question, or recommendation. Do not distribute attention evenly across six objects. Break the rhythm every 3 to 4 slides with a hero, divider, question, or quote.
 
+## Motion Policy
+
+Motion is compiler-owned and intentionally sparse. The pack may use only the declared motion roles in the source schema: `hero`, `cascade`, `quote`, `directional`, `pipeline`, and `static`. Motion should support hierarchy and screen recording; it must not become a separate visual system.
+
+Allowed animation should be CSS-only and limited to opacity, transform, filter, or shadow changes. Do not animate layout properties such as width, height, margin, padding, grid tracks, or absolute positions. Infinite loops are allowed only for screen-recordable ambient motion or progress-like cues, and should be subtle enough to record for 10 to 15 seconds without distracting from the slide.
+
+Every animated treatment must have a reduced-motion fallback through `prefers-reduced-motion: reduce`. Do not add JavaScript animation runtimes, Three.js/WebGL scenes, canvas backgrounds, particle systems, decorative radial backgrounds, or complex generated environments to this pack. The reference stage remains fixed at 1280x720 with overflow hidden.
+
 ## Depth & Elevation
 
 Depth comes from scale, contrast, and alignment. Avoid floating cards, stacked glass, large gradients, and decorative blobs. Media frames should be flat, cropped safely, and captioned.

@@ -63,6 +63,14 @@ function clickButton(container: HTMLElement, label: string): void {
   });
 }
 
+function getButton(container: HTMLElement, label: string): HTMLButtonElement {
+  const button = container.querySelector(`[aria-label="${label}"]`);
+  if (!(button instanceof HTMLButtonElement)) {
+    throw new Error(`Button not found: ${label}`);
+  }
+  return button;
+}
+
 function setTextareaValue(container: HTMLElement, value: string): void {
   const textarea = getTextarea(container);
   const descriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
@@ -121,6 +129,24 @@ function seedActiveDocument(overrides: Partial<ProjectDocument> = {}): ProjectDo
 
   useProjectStore.getState().addDocument(document);
   return document;
+}
+
+function seedPackBackedPresentation(overrides: Partial<ProjectDocument> = {}): ProjectDocument {
+  return seedActiveDocument({
+    type: 'presentation',
+    contentHtml: '<section><h1>Slide</h1></section>',
+    slideCount: 1,
+    artifactManifest: {
+      packId: 'presentation/editorial-stage-v1',
+      packVersion: '1.0.0',
+      updatedAt: 1,
+    },
+    artifactSourcePayload: {
+      packVersion: '1.0.0',
+      slides: [],
+    },
+    ...overrides,
+  });
 }
 
 describe('ChatBar submission paths', () => {
@@ -262,6 +288,64 @@ describe('ChatBar submission paths', () => {
     expect(view.container.querySelector('[aria-label="Choose output mode"]')).not.toBeNull();
     expect(view.container.querySelector('[aria-label="Choose document style"]')).not.toBeNull();
     expect(view.container.querySelector('[aria-label="Open recent runs"]')).not.toBeNull();
+
+    view.unmount();
+  });
+
+  it('shows guided edit chips for pack-backed editorial stage presentations', () => {
+    seedPackBackedPresentation();
+    const view = renderChatBar();
+
+    expect(view.container.querySelector('[aria-label="Guided deck edits"]')).not.toBeNull();
+    expect(getButton(view.container, 'Use guided edit: change slide title').textContent).toContain('Title');
+    expect(getButton(view.container, 'Use guided edit: add slide').textContent).toContain('Add slide');
+    expect(getButton(view.container, 'Use guided edit: restyle deck').textContent).toContain('Restyle');
+
+    view.unmount();
+  });
+
+  it('does not show guided edit chips for non-pack docs or plain presentations', () => {
+    seedActiveDocument();
+    const documentView = renderChatBar();
+
+    expect(documentView.container.querySelector('[aria-label="Guided deck edits"]')).toBeNull();
+    documentView.unmount();
+
+    resetStores();
+    seedActiveDocument({
+      type: 'presentation',
+      contentHtml: '<section><h1>Plain deck</h1></section>',
+      slideCount: 1,
+    });
+    const plainPresentationView = renderChatBar();
+
+    expect(plainPresentationView.container.querySelector('[aria-label="Guided deck edits"]')).toBeNull();
+    plainPresentationView.unmount();
+  });
+
+  it('populates and focuses the textarea when a guided edit chip is clicked', async () => {
+    seedPackBackedPresentation();
+    const view = renderChatBar();
+
+    clickButton(view.container, 'Use guided edit: change slide title');
+    await flushEffects();
+
+    expect(getTextarea(view.container).value).toBe('Change slide 1 title to "..."');
+    expect(document.activeElement).toBe(getTextarea(view.container));
+    expect(submitPromptMock).not.toHaveBeenCalled();
+
+    view.unmount();
+  });
+
+  it('shows unsupported guided edit info without populating an impossible command', () => {
+    seedPackBackedPresentation();
+    const view = renderChatBar();
+
+    clickButton(view.container, 'Show unsupported guided edit info');
+
+    expect(view.container.textContent).toContain('Reorder, delete, and media swap edits are not supported yet.');
+    expect(getTextarea(view.container).value).toBe('');
+    expect(submitPromptMock).not.toHaveBeenCalled();
 
     view.unmount();
   });

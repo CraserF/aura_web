@@ -180,7 +180,7 @@ describe('editorial-stage presentation validator', () => {
 
   it('catches compiled output contract violations', () => {
     const report = validateEditorialStageCompiledOutput(`
-      <style data-aura-style-system="presentation/editorial-stage-v1"></style>
+      <style data-aura-style-system="presentation/editorial-stage-v1">:root { --es-canvas: #fff; }</style>
       <style></style>
       <section style="color:red"><h1>{{title}}</h1></section>
     `);
@@ -190,6 +190,46 @@ describe('editorial-stage presentation validator', () => {
       'compiled.inline_style_detected',
       'compiled.placeholder_unresolved',
       'compiled.section_marker_missing',
+      'compiled.global_root_selector_detected',
+      'export.background_color_missing',
+    ]));
+  });
+
+  it('blocks export-unsafe viewport units and missing reduced-motion fallbacks', () => {
+    const report = validateEditorialStageCompiledOutput(`
+      <style data-aura-style-system="presentation/editorial-stage-v1">
+        .es-slide { width: 100vw; transition: opacity 180ms ease; }
+      </style>
+      <section class="es-slide" data-pack="presentation/editorial-stage-v1" data-background-color="#f7f3e8"></section>
+    `);
+
+    expect(report.findings.map((finding) => finding.id)).toEqual(expect.arrayContaining([
+      'export.viewport_units_detected',
+      'export.reduced_motion_missing',
+    ]));
+  });
+
+  it('enforces editable-pptx export restrictions', () => {
+    const report = validateEditorialStageCompiledOutput({
+      mode: 'editable-pptx',
+      assets: [],
+      generatedAt: 1,
+      content: `
+        <style data-aura-style-system="presentation/editorial-stage-v1">
+          .es-slide { width: 1280px; height: 720px; filter: blur(2px); }
+          @media (prefers-reduced-motion: reduce) { .es-slide { animation: none; } }
+        </style>
+        <section class="es-slide" data-pack="presentation/editorial-stage-v1" data-background-color="#f7f3e8">
+          <p><span>Outer <span>Inner</span></span></p>
+          <svg><text>Rendered heading</text></svg>
+        </section>
+      `,
+    });
+
+    expect(report.findings.map((finding) => finding.id)).toEqual(expect.arrayContaining([
+      'export.pptx_unsupported_css',
+      'export.pptx_nested_span_risk',
+      'export.pptx_text_as_image_detected',
     ]));
   });
 });

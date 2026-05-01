@@ -272,6 +272,76 @@ describe('media packaging', () => {
     expect(project.colorTheme).toEqual({ background: '#f8fafc', primary: '#1e3a5f', accent: '#0891b2' });
   });
 
+  it('restores larger media assets without spreading the full byte array into one call', async () => {
+    const largeImage = Uint8Array.from({ length: 70_000 }, (_value, index) => index % 251);
+    zipLoadResult = {
+      files: {
+        'documents/doc-1.meta.json': {},
+        'media/manifest.json': {},
+        'media/large.png': {},
+      },
+      file(path: string) {
+        const files: Record<string, { async: (type: string) => Promise<unknown> }> = {
+          'manifest.json': {
+            async: async () => JSON.stringify({
+              version: '2.4',
+              schemaType: 'project',
+              id: 'project-large-media',
+              title: 'Large Media Project',
+              documentCount: 1,
+              activeDocumentId: 'doc-1',
+              visibility: 'private',
+              createdAt: 1,
+              updatedAt: 2,
+            }),
+          },
+          'chat-history.json': { async: async () => '[]' },
+          'project-rules.md': { async: async () => '' },
+          'context-policy.json': { async: async () => 'null' },
+          'workflow-presets.json': { async: async () => 'null' },
+          'media/manifest.json': {
+            async: async () => JSON.stringify([{
+              id: 'large-media',
+              filename: 'large.png',
+              mimeType: 'image/png',
+              relativePath: 'media/large.png',
+              dataUrl: '',
+            }]),
+          },
+          'media/large.png': { async: async () => largeImage },
+          'documents/doc-1.meta.json': {
+            async: async () => JSON.stringify({
+              id: 'doc-1',
+              title: 'Doc',
+              type: 'document',
+              contentHtml: '',
+              themeCss: '',
+              slideCount: 0,
+              order: 0,
+              createdAt: 1,
+              updatedAt: 2,
+            }),
+          },
+          'documents/doc-1.html': {
+            async: async () => '<p><img src="media/large.png" alt="Large"></p>',
+          },
+        };
+
+        return files[path];
+      },
+      folder(name: string) {
+        if (name === 'documents') return {};
+        return null;
+      },
+    };
+
+    const { openProjectFile } = await import('@/services/storage/projectFormat');
+    const project = await openProjectFile(new File(['data'], 'project.aura'));
+
+    expect(project.media?.[0]?.dataUrl).toContain('data:image/png;base64,');
+    expect(project.documents[0]?.contentHtml).toContain(project.media?.[0]?.dataUrl);
+  });
+
   it('writes optional git history only when history entries are available', async () => {
     const { downloadProjectFileWithHistory } = await import('@/services/storage/projectFormat');
     versionHistoryMock.gitEntries = [{

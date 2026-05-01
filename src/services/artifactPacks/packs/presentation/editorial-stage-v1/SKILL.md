@@ -26,6 +26,16 @@ Use this pack for Aura-owned presentation decks that need a magazine-like editor
 7. Validate rhythm, hierarchy, source support, and copy length before rendering.
 8. Repair the source payload, not the compiled HTML.
 
+## Animation Policy
+
+- Keep motion inside the pack's declared roles: `hero`, `cascade`, `quote`, `directional`, `pipeline`, and `static`.
+- Prefer no animation unless it clarifies hierarchy, sequence, or a proof moment.
+- If animation is added, keep it CSS-only and limited to transform, opacity, filter, or shadow changes.
+- Use infinite loops only for screen-recordable ambient/progress motion; do not loop every element by default.
+- Always preserve the `prefers-reduced-motion: reduce` fallback.
+- Do not add Three.js, WebGL, canvas, particle systems, decorative radial backgrounds, or complex generated scene backgrounds.
+- Keep the compiled stage fixed at 1280x720 with overflow hidden.
+
 ## Repair Strategy
 
 - If the deck feels repetitive, replace a middle slide with `section-divider`, `question-hero`, or `big-quote`.

@@ -134,22 +134,25 @@ export function validateSlides(html: string, options: QAOptions = {}): QAResult 
   }
 
   if (hasStyleBlock && styleText.length > 0) {
-    const hasRootTokens = /:(?:root|scope)\s*\{/i.test(styleText) && /--[a-z0-9-]+\s*:/i.test(styleText);
+    const hasCssVariables = /--[a-z0-9-]+\s*:/i.test(styleText);
+    const hasScopedTokenRule =
+      /:(?:root|scope)\s*\{/i.test(styleText) ||
+      /\.[a-z0-9_-]+(?:\[[^\]]+\])?\s*\{[\s\S]*?--[a-z0-9-]+\s*:/i.test(styleText);
     const hasClassRules = /\.[a-z0-9_-]+\s*[{,]/i.test(styleText);
-    if (styleText.length < 120 || !hasRootTokens || !hasClassRules) {
+    if (styleText.length < 120 || !hasCssVariables || !hasScopedTokenRule || !hasClassRules) {
       violations.push({
         slide: 0,
         rule: 'style-system',
         severity: 'error',
-        detail: 'The deck style block is too thin to be a reusable style system. Define :root tokens and class-based rules that the slides reuse.',
+        detail: 'The deck style block is too thin to be a reusable style system. Define scoped CSS tokens and class-based rules that the slides reuse.',
       });
     }
-    if (!hasRootTokens) {
+    if (!hasCssVariables || !hasScopedTokenRule) {
       violations.push({
         slide: 0,
         rule: 'css-vars',
         severity: 'error',
-        detail: 'No theme CSS variables detected. Define reusable :root tokens for palette, type, surfaces, and accents.',
+        detail: 'No theme CSS variables detected. Define reusable scoped tokens for palette, type, surfaces, and accents.',
       });
     }
     if (!hasClassRules) {

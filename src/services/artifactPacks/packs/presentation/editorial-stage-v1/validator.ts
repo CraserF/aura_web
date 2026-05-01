@@ -23,7 +23,17 @@ const INLINE_STYLE_PATTERN = /\sstyle\s*=/i;
 const STYLE_SYSTEM_PATTERN =
   /<style\b[^>]*data-aura-style-system=["']presentation\/editorial-stage-v1["'][^>]*>/gi;
 const ANY_STYLE_PATTERN = /<style\b/gi;
+const STYLE_BLOCK_CONTENT_PATTERN = /<style\b[^>]*>([\s\S]*?)<\/style>/gi;
 const SLOT_TOKEN_PATTERN = /\{\{\s*[\w.-]+\s*\}\}/;
+const ROOT_SELECTOR_PATTERN = /(?:^|[{}])\s*:root\b/i;
+const VIEWPORT_UNIT_PATTERN = /(?:^|[^\w-])-?\d*\.?\d+(?:vw|vh|vmin|vmax)\b/i;
+const MOTION_DECLARATION_PATTERN = /\b(?:animation|transition)\s*:/i;
+const REDUCED_MOTION_PATTERN = /@media\s*\(\s*prefers-reduced-motion\s*:\s*reduce\s*\)/i;
+const PPTX_UNSUPPORTED_CSS_PATTERN =
+  /\b(?:backdrop-filter|filter|mix-blend-mode|clip-path|mask(?:-image|-mode|-repeat|-size)?|shape-outside)\s*:/i;
+const PPTX_NESTED_SPAN_PATTERN = /<span\b[^>]*>[\s\S]*?<span\b/i;
+const TEXT_AS_IMAGE_PATTERN =
+  /<svg\b[\s\S]*?<text\b|data-text-as-image|data-rendered-text-image/i;
 const FALLBACK_COPY_PATTERNS: Array<[RegExp, string]> = [
   [/\bA clearer path forward\b/i, 'A clearer path forward'],
   [/\bFrame the point\b/i, 'Frame the point'],
@@ -343,11 +353,16 @@ export const validateEditorialStageCompiledOutput = (
   output: ArtifactCompiledOutput | string,
 ): ArtifactValidationReport => {
   const content = typeof output === 'string' ? output : output.content;
+  const outputMode = typeof output === 'string' ? 'html' : output.mode;
   const findings: ArtifactValidationFinding[] = [];
   const styleSystemCount = [...content.matchAll(STYLE_SYSTEM_PATTERN)].length;
   const anyStyleCount = [...content.matchAll(ANY_STYLE_PATTERN)].length;
+  const styleText = [...content.matchAll(STYLE_BLOCK_CONTENT_PATTERN)]
+    .map((match) => match[1] ?? '')
+    .join('\n');
   const sectionCount = [...content.matchAll(/<section\b/gi)].length;
   const markerCount = [...content.matchAll(/<section\b(?=[^>]*(?:data-pack|data-scaffold)=)/gi)].length;
+  const backgroundMarkerCount = [...content.matchAll(/<section\b(?=[^>]*\sdata-background-color=)/gi)].length;
 
   if (styleSystemCount !== 1 || anyStyleCount !== 1) {
     findings.push(
@@ -393,12 +408,89 @@ export const validateEditorialStageCompiledOutput = (
     );
   }
 
+  if (sectionCount > 0 && backgroundMarkerCount !== sectionCount) {
+    findings.push(
+      finding(
+        'export.background_color_missing',
+        'blocking',
+        'Every compiled section must declare a concrete data-background-color for export surfaces.',
+        ['content'],
+      ),
+    );
+  }
+
+  if (ROOT_SELECTOR_PATTERN.test(styleText)) {
+    findings.push(
+      finding(
+        'compiled.global_root_selector_detected',
+        'blocking',
+        'Compiled pack CSS must not declare :root variables because artifact styles must stay scoped to compiled sections.',
+        ['content'],
+      ),
+    );
+  }
+
+  if (VIEWPORT_UNIT_PATTERN.test(styleText)) {
+    findings.push(
+      finding(
+        'export.viewport_units_detected',
+        'blocking',
+        'Compiled presentation output must not use viewport units inside the fixed 1280x720 export stage.',
+        ['content'],
+      ),
+    );
+  }
+
+  if (MOTION_DECLARATION_PATTERN.test(styleText) && !REDUCED_MOTION_PATTERN.test(styleText)) {
+    findings.push(
+      finding(
+        'export.reduced_motion_missing',
+        'blocking',
+        'Compiled presentation output with CSS motion must include a prefers-reduced-motion fallback.',
+        ['content'],
+      ),
+    );
+  }
+
   if (/<script\b/i.test(content)) {
     findings.push(
       finding(
         'compiled.script_detected',
         'blocking',
         'Compiled presentation output must not include script tags.',
+        ['content'],
+      ),
+    );
+  }
+
+  if (outputMode === 'editable-pptx' && PPTX_UNSUPPORTED_CSS_PATTERN.test(styleText)) {
+    findings.push(
+      finding(
+        'export.pptx_unsupported_css',
+        'blocking',
+        'Editable PPTX output forbids filter, mask, blend, clip-path, and shape CSS that cannot round-trip safely.',
+        ['content'],
+      ),
+    );
+  }
+
+  if (outputMode === 'editable-pptx' && PPTX_NESTED_SPAN_PATTERN.test(content)) {
+    findings.push(
+      finding(
+        'export.pptx_nested_span_risk',
+        'blocking',
+        'Editable PPTX output forbids nested span text structures because they do not produce reliable editable text boxes.',
+        ['content'],
+      ),
+    );
+  }
+
+  if (outputMode === 'editable-pptx' && TEXT_AS_IMAGE_PATTERN.test(content)) {
+    findings.push(
+      finding(
+        'export.pptx_text_as_image_detected',
+        'blocking',
+        'Editable PPTX output must keep text semantic instead of rendering text as SVG/image content.',
         ['content'],
       ),
     );

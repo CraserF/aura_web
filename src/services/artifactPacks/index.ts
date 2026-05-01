@@ -15,6 +15,10 @@ export {
 } from './designContext';
 export { createProjectMediaResolver } from './mediaResolver';
 export {
+  applyProjectDesignSystemTokens,
+  resolveProjectDesignSystemSpec,
+} from './projectDesignSystem';
+export {
   getArtifactPack,
   listArtifactPackManifests,
   listArtifactPacks,
@@ -26,6 +30,7 @@ export type {
   ArtifactAssetRequirement,
   ArtifactAssetRequirementKind,
   ArtifactColorTokens,
+  ArtifactColorTokenRole,
   ArtifactCompiledOutput,
   ArtifactContentLimits,
   ArtifactDesignDirection,
@@ -58,6 +63,10 @@ export type {
   DesignContextSpec,
   MediaBinding,
   MediaBindingPlan,
+  ProjectDesignSystemPreview,
+  ProjectDesignSystemSpec,
+  ProjectDesignTokenAdapter,
+  ProjectDesignTokenOverride,
   ResolvedArtifactMediaAsset,
   TypographyTokens,
 } from './types';

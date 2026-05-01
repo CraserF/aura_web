@@ -111,6 +111,37 @@ export interface ArtifactDesignDirection {
   examplePackIds: readonly string[];
 }
 
+export type ArtifactColorTokenRole = keyof ArtifactColorTokens;
+
+export interface ProjectDesignTokenOverride {
+  role: ArtifactColorTokenRole;
+  value: string;
+  source: 'project-design-md' | 'project-color-theme';
+  label: string;
+}
+
+export interface ProjectDesignSystemPreview {
+  summary: string;
+  palette: readonly ProjectDesignTokenOverride[];
+  ignoredColorLines: readonly string[];
+}
+
+export interface ProjectDesignSystemSpec {
+  version: 1;
+  source: 'project-design-md' | 'project-color-theme';
+  colorOverrides: readonly ProjectDesignTokenOverride[];
+  notes: readonly string[];
+  preview: ProjectDesignSystemPreview;
+}
+
+export interface ProjectDesignTokenAdapter<TOutput = Record<string, string>> {
+  id: string;
+  artifactType: ArtifactType;
+  target: 'css-variables' | 'document-tokens' | 'spreadsheet-theme';
+  supportedColorRoles: readonly ArtifactColorTokenRole[];
+  mapColorOverrides: (overrides: readonly ProjectDesignTokenOverride[]) => TOutput;
+}
+
 export type ArtifactAssetRequirementKind =
   | 'brand'
   | 'image'
@@ -280,6 +311,7 @@ export interface DataBindingPlan {
 export type DesignContextSource =
   | 'runtime-defaults'
   | 'project-rules'
+  | 'project-design-md'
   | 'user-selection'
   | 'pack-defaults'
   | 'repair';
@@ -303,6 +335,7 @@ export interface DesignContextSpec {
   do: readonly string[];
   dont: readonly string[];
   constraints: readonly string[];
+  projectDesignSystem?: ProjectDesignSystemSpec;
   mediaBindingPlan?: MediaBindingPlan;
   dataBindingPlan?: DataBindingPlan;
 }

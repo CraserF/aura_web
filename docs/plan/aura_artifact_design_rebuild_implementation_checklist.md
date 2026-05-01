@@ -46,10 +46,10 @@ Status key:
 | 4. Simplified creation UI | Done | Users choose artifact shape and style direction, not scaffold/theme internals. | No scaffold/theme/export/color picker in default new-project flow. | UI and UX simplification tests. | Add guided edit chips after visual gate. |
 | 5. Editorial Stage visual quality gate | Active | Make the default deck visually credible across directions. | Full screenshot review remains open. | Compiler, validator, render smoke, regenerated example, 24 headless screenshots in `/private/tmp/editorial-stage-visual-gate`. | Finish screenshot review; only then mark Phase 5 done or log concrete fixes. |
 | 6. Real media asset rendering | Done | Harden actual project media rendering in declared pack slots. | Safe media resolves before compile and missing/unsafe required media blocks. | Media resolver, compiler/runtime threading, example media fixture, focused tests, full test suite. | Carry export-specific media restrictions into Phase 10. |
-| 7. Source-payload repair and edit safety | Active | Repair rejected source payloads and fail closed on unsafe edits. | Fail-closed routing is in place; targeted source repair loops remain. | Pack edit fallback, unsupported edit, no-op edit, validation persistence, CSS isolation, slide dimension, and ESLint regressions covered. | Add structured repair attempts for rejected slot/media/rhythm payloads. |
-| 8. Guided edit chips | Queued | Offer simple user controls that map to typed source operations. | Chips map to supported edit surfaces only. | Pending. | Add after Phase 5/6 gates so chips improve a solid default instead of masking weak output. |
-| 9. Design-system mode | Queued | Parse project `DESIGN.md`/rules into validated tokens and examples. | Project design context previews compile without arbitrary CSS. | Pending. | Start after guided edit surfaces are stable. |
-| 10. Export and preview gates | Queued | Add export-intent constraints and generated preview artifacts. | HTML/PDF/PPTX-safe restrictions are validated; `artifact.preview.png` exists for packs. | Pending. | Add after media rendering because exports must handle real assets. |
+| 7. Source-payload repair and edit safety | Done | Repair rejected source payloads and fail closed on unsafe edits. | Repairable source-slot/media defects are fixed before persistence; unsafe real-media gaps still block. | Pack edit fallback, unsupported edit, no-op edit, validation persistence, CSS isolation, slide dimension, source repair, version snapshot, and ESLint regressions covered. | Keep review loop active while starting guided edit chips. |
+| 8. Guided edit chips | Done | Offer simple user controls that map to typed source operations. | Chips map to supported edit surfaces only. | Pack-scoped composer chips, unsupported-surface messaging, chat/runtime tests. | Extend only when a typed edit surface exists. |
+| 9. Design-system mode | Active/Next | Parse project `DESIGN.md`/rules into validated tokens and examples. | Presentation project-design tokens compile through pack-owned CSS variables only; cross-pack adapter proof remains open. | Safe token-role resolver, project design metadata, Project colours preview UI, runtime color-theme threading, shared adapter interface, Editorial Stage adapter, design-context/compiler/UI/run-request tests. | Keep as carry-forward until document/spreadsheet packs consume the shared adapter contract. |
+| 10. Export and preview gates | Active/Next | Add export-intent constraints and generated preview artifacts. | HTML/PDF/PPTX-safe restrictions are validated; `artifact.preview.png` exists for packs. | Compiled-output export validator blocks viewport units, missing export backgrounds, missing reduced-motion fallback, and editable-PPTX unsafe CSS/text patterns. | Add generated preview artifacts after the export validation contract is stable. |
 | 11. Document packs | Queued | Add source-payload document packs without presentation-shaped UI. | `document/executive-memo-v1` compiles and validates. | Pending. | Start only after presentation visual gate passes. |
 | 12. Spreadsheet packs | Queued | Add deterministic workbook packs with formulas/charts/style validation. | `spreadsheet/operating-model-v1` compiles and validates. | Pending. | Start after document pack foundation or explicit priority shift. |
 | 13. Pack gallery and save-as-pack | Queued | Show compiled examples and later save current artifacts as pack candidates. | Gallery uses compiled Aura-owned examples. | Pending. | Do not begin before default packs look excellent. |
@@ -77,7 +77,7 @@ Phase 6 is not complete until all are true:
 
 ### Phase 7 Active Work
 
-Do not expand edit features until these stay true:
+Do not expand edit features unless these stay true:
 
 - Pack-backed edits must not fall back to freeform HTML/CSS for supported source surfaces.
 - Unsupported edit surfaces fail closed with targeted feedback.
@@ -85,7 +85,25 @@ Do not expand edit features until these stay true:
 - Pack CSS stays isolated from host/project CSS.
 - Slide dimensions remain locked through compile/render/export previews.
 - Changed source and test files pass targeted ESLint cleanup.
-- Rejected slot/media/rhythm payloads receive targeted repair attempts instead of falling back to full HTML/CSS generation.
+- Rejected source-slot and repairable media payloads receive targeted repair attempts instead of falling back to full HTML/CSS generation.
+- Real required-media gaps remain blocking unless the requested asset is actually available.
+
+### Phase 9 Active Work
+
+Phase 9's presentation path is implemented, but the phase remains `Active/Next` until the same safe token contract is proven for document and spreadsheet packs. Keep the phase open until all are true:
+
+- Project `DESIGN.md`/rules are parsed into a typed `projectDesignSystem` model with validated token roles and ignored-line diagnostics.
+- Pack compilers consume project design only through pack-owned adapters and CSS variables; raw CSS, gradients, functions, custom properties, and unknown roles remain rejected.
+- The UI exposes a preview of accepted project design tokens and ignored lines before users rely on the design system for generation. Completed for project rules through the Project colours preview.
+- Editorial Stage has regression coverage proving project design tokens affect compiled output without escaping the pack style boundary.
+- Document and spreadsheet packs define their adapter contracts before Phase 9 is marked done; if those packs are not implemented yet, keep this as an explicit carry-forward gate for Phases 11 and 12.
+- Phase 10 preview/export work preserves the same token validation path instead of adding an export-only style bypass.
+
+Phase 9 carry-forward doc updates:
+
+- When document packs start, add the first document adapter evidence to Phase 11 and keep Phase 9 `Active/Next` until the shared adapter contract is proven.
+- When spreadsheet packs start, add the first workbook/table/chart adapter evidence to Phase 12 before claiming design-system parity.
+- When preview artifacts land, record whether `artifact.preview.png` and export targets used the same validated project design tokens.
 
 ### Anti-Drift Rules
 
@@ -211,6 +229,128 @@ Remaining current gate:
 
 - Phase 5 still needs the screenshot review to be closed or turned into concrete fixes.
 - Phase 7 still needs structured repair attempts for rejected source payloads before guided edit chips expand the edit surface.
+
+### 2026-05-01 - Source Payload Repair Loop And Review Fixes
+
+Completed in this slice:
+
+- Added deterministic source-payload repair before source-backed edit persistence.
+- Repair now cleans HTML-like slot text, fills missing required slots, truncates overlong slot text, removes undeclared slot keys, repairs media aspect/crop metadata, and converts missing required media-slot layouts to a non-media layout when the source binding itself is absent.
+- Kept unresolved required real media blocked so Aura does not silently drop a user-requested proof image.
+- Preserved pack manifest/source payloads in version-history snapshots so restored decks remain source-editable.
+- Fixed source edit routing for metric-label edits and numeric-leading replacements.
+- Fixed partial multi-slide add behavior near the 18-slide cap so successful additions are not discarded when a later requested slide exceeds the cap.
+- Added a chunked media byte-to-base64 conversion path for `.aura` imports.
+- Added pack-level motion guidance from the original Aura animated-slide design inspiration while keeping motion compiler-owned, CSS-only, reduced-motion-aware, and fixed to the 1280x720 stage.
+- Updated stale program-status lint blocker text after `npm run lint` passed.
+
+Verification completed:
+
+- `npm test -- src/test/artifact-pack-runtime-routing.test.ts src/test/version-history.test.ts src/test/media-packaging.test.ts src/test/editorial-stage-render-smoke.test.ts`
+- `npm run lint`
+- `npm run typecheck`
+- `npm test`
+- `npm run build`
+- `git diff --check`
+
+Next active gate:
+
+- Start Phase 8 with guided edit chips after verification, while Phase 5 screenshot review remains open.
+
+### 2026-05-01 - Guided Edit Chips Slice
+
+Completed in this slice:
+
+- Added pack-scoped guided edit chips for source-backed Editorial Stage presentations only.
+- Chips fill the composer for supported typed operations: text edit, add slide, and restyle; they do not auto-submit.
+- Added a visible limits control that explains reorder/delete/media-swap edits are not supported yet instead of writing an impossible prompt.
+- Tightened unsupported pack-edit runtime feedback so blocked requests tell users which edit surfaces are currently supported.
+- Kept the chip gate based on `artifactManifest.packId` plus `artifactSourcePayload`, not historical manifest `editSurfaces`.
+- Ran an independent read-only code review of the Phase 7/8 changes; no findings were reported.
+
+Verification completed:
+
+- `npm test -- src/test/chat-submit.test.tsx src/test/artifact-pack-runtime-routing.test.ts`
+- `npm test`
+- `npm run lint`
+- `npm run build`
+- `git diff --check`
+
+Next active gate:
+
+- Begin Phase 9 design-system mode with a safe project `DESIGN.md` resolver that maps user brand/style guidance into validated token roles, never arbitrary compiler CSS.
+
+### 2026-05-01 - Project Design System Resolver Foundation
+
+Completed in this slice:
+
+- Added a project design-system resolver that maps safe `DESIGN.md`/project-rules color roles into Aura token roles.
+- Accepted only validated hex colors attached to known roles, with support for user-friendly design-list items and existing project color-theme defaults.
+- Rejected CSS blocks, one-line CSS snippets, fenced CSS snippets, functions, gradients, custom properties, unknown roles, and raw CSS declarations.
+- Added typed `projectDesignSystem` metadata to `DesignContextSpec`, including preview palette and ignored-line notes.
+- Threaded validated project design colors into Editorial Stage through compiler-owned CSS variables inside the single pack style block.
+- Marked compiled sections with `data-project-design-system` when a validated project design system is present.
+- Ran an independent review of the resolver; two parser leaks were found and fixed before the slice was closed.
+
+Verification completed:
+
+- `npm test -- src/test/artifact-pack-design-context.test.ts src/test/editorial-stage-compiler.test.ts`
+- `npm run typecheck`
+- `npm run lint`
+
+Remaining current gate:
+
+- Keep Phase 9 as `Active/Next` until document and spreadsheet packs consume the same validated token roles through explicit adapters.
+
+### 2026-05-01 - Project Design Preview UI And Runtime Color Theme Threading
+
+Completed in this slice:
+
+- Added a Project colours preview to the project rules panel so users can see accepted design-token roles before generation.
+- Exposed ignored colour-rule diagnostics in the same preview without showing raw token internals as a required user choice.
+- Threaded the project `ColorTheme` into artifact run-plan design context even when no `DESIGN.md`/project-rules markdown exists.
+- Added a shared `ProjectDesignTokenAdapter` interface and moved Editorial Stage's project-colour CSS-variable mapping behind that adapter contract.
+- Kept project design colours inside the compiler-owned style block and pack-owned CSS variables, preserving the style isolation boundary.
+- Fixed independent-review findings before closing the slice: scoped pack CSS variables to `.es-slide` instead of `:root`, taught runtime QA/checklist validators to accept scoped class tokens, applied workflow-preset memory budgets before memory retrieval, allowed artifact default modes to be cleared, and blocked structural title-slide deletion from the text-edit surface.
+
+Verification completed:
+
+- `npm test -- src/test/run-request.test.ts src/test/project-rules-panel.test.tsx src/test/ux-simplification.test.ts src/test/artifact-pack-design-context.test.ts src/test/editorial-stage-compiler.test.ts`
+- `npm test -- src/test/run-request.test.ts src/test/project-rules-panel.test.tsx src/test/ux-simplification.test.ts src/test/editorial-stage-compiler.test.ts src/test/editorial-stage-validator.test.ts`
+- `npm test -- src/test/presentation-quality-checklist.test.ts src/test/artifact-pack-runtime-routing.test.ts src/test/presentation-runtime-workflow.test.ts src/test/release-smoke.test.ts`
+- `npm test`
+- `npm run typecheck`
+- `npm run lint`
+- `npm run build`
+- `git diff --check`
+
+Remaining current gate:
+
+- Keep Phase 9 as `Active/Next` until document and spreadsheet packs prove the same adapter contract.
+
+### 2026-05-01 - Export Intent Validation Gate Slice
+
+Completed in this slice:
+
+- Started Phase 10 with deterministic compiled-output export validation instead of user-facing export choices.
+- Required every compiled section to declare `data-background-color` for export surfaces.
+- Blocked viewport units inside the fixed presentation stage.
+- Required `prefers-reduced-motion: reduce` when compiled CSS includes motion declarations.
+- Added editable-PPTX restrictions for unsafe filter/mask/blend/clip CSS, nested text spans, and text rendered as SVG/image content.
+- Proved the default Editorial Stage compiled output remains valid when requested as `editable-pptx`.
+
+Verification completed:
+
+- `npm test -- src/test/editorial-stage-validator.test.ts src/test/editorial-stage-compiler.test.ts`
+- `npm test`
+- `npm run typecheck`
+- `npm run lint`
+- `npm run build`
+- `git diff --check`
+
+Next active gate:
+
+- Add generated preview artifacts after the export validation contract is stable, and ensure previews use the same validated project design tokens as HTML/PDF/PPTX output.
 
 ## Implementation Order
 

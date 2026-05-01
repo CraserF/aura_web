@@ -91,32 +91,20 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
     selectionState,
   });
 
+  const initialIntent = resolveIntent({
+    prompt,
+    activeDocument,
+    project,
+    scope: initialAssembly.messageScope,
+    allowClarification,
+  });
+  const projectRulesSnapshot = resolveProjectRulesSnapshot(project, initialIntent.artifactType, selectedPresetId);
+
   const initialMemoryContext = await buildMemoryContext(initialAssembly.context.conversation.promptWithContext, {
     detailMode: selectionState.pinnedMemoryPaths.length > 0 ? 'full' : 'overview',
     pinnedPaths: selectionState.pinnedMemoryPaths,
-    maxTokens: loadContextPolicy(project.contextPolicy).maxMemoryTokens ?? 1200,
+    maxTokens: projectRulesSnapshot.contextPolicy.maxMemoryTokens ?? 1200,
   });
-  const assembled = assembleContext({
-    prompt,
-    attachments,
-    messages,
-    activeDocument,
-    project,
-    showAllMessages,
-    applyToAllDocuments,
-    memoryContext: initialMemoryContext.text,
-    memoryContextResult: initialMemoryContext,
-    contextPolicy: loadContextPolicy(project.contextPolicy),
-    selectionState,
-  });
-  const intent = resolveIntent({
-    prompt,
-    activeDocument,
-    project,
-    scope: assembled.messageScope,
-    allowClarification,
-  });
-  const projectRulesSnapshot = resolveProjectRulesSnapshot(project, intent.artifactType, selectedPresetId);
   const assembledWithPolicy = assembleContext({
     prompt,
     attachments,
@@ -130,6 +118,13 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
     contextPolicy: projectRulesSnapshot.contextPolicy,
     selectionState,
   });
+  const intent = resolveIntent({
+    prompt,
+    activeDocument,
+    project,
+    scope: assembledWithPolicy.messageScope,
+    allowClarification,
+  });
 
   const runId = crypto.randomUUID();
   const artifactRunPlan = buildArtifactRunPlan({
@@ -141,6 +136,7 @@ export async function buildRunRequest(input: BuildRunRequestInput): Promise<Buil
     providerId: providerConfig.id,
     providerModel: providerConfig.model,
     projectRulesBlock: projectRulesSnapshot.promptBlock,
+    colorTheme: project.colorTheme,
     editStrategyHint: intent.editStrategyHint,
     allowFullRegeneration: intent.allowFullRegeneration,
   });

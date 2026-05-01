@@ -1,4 +1,4 @@
-import type { DocumentType, ProjectDocument } from '@/types/project';
+import type { ColorTheme, DocumentType, ProjectDocument } from '@/types/project';
 import type { ProviderId } from '@/types';
 import type { ExemplarPackId, ReferenceStylePackId, TemplateId } from '@/services/ai/templates';
 import type {
@@ -289,6 +289,7 @@ export interface BuildArtifactWorkflowPlanInput {
   allowFullRegeneration: boolean;
   guidedOutputMode?: RuntimeOutputMode;
   projectRulesBlock?: string;
+  colorTheme?: ColorTheme;
 }
 
 export type ArtifactRunPlanVersion = 1;

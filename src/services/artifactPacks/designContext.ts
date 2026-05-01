@@ -11,6 +11,10 @@ import type {
   DesignContextSpec,
   MediaBindingPlan,
 } from '@/services/artifactPacks/types';
+import {
+  applyProjectDesignSystemTokens,
+  resolveProjectDesignSystemSpec,
+} from './projectDesignSystem';
 
 export interface BuildDesignContextSpecInput {
   artifactType: DocumentType;
@@ -134,16 +138,34 @@ export function resolveDesignDirectionForArtifact(input: BuildDesignContextSpecI
 
 export function buildDesignContextSpec(input: BuildDesignContextSpecInput): DesignContextSpec {
   const direction = resolveDesignDirectionForArtifact(input);
+  const projectDesignSystem = resolveProjectDesignSystemSpec(
+    input.project?.projectRules?.markdown,
+    input.project?.colorTheme,
+  );
   const artifactPosture = direction.artifactPosture[input.artifactType];
   const constraints = [
     ...(input.constraints ?? []),
     ...direction.dont.map((rule) => `Avoid: ${rule}`),
+    ...(projectDesignSystem?.preview.ignoredColorLines.length
+      ? ['Use only validated project design token roles; ignore raw CSS color syntax from project rules.']
+      : []),
   ];
+  const tokens = projectDesignSystem
+    ? applyProjectDesignSystemTokens(direction.palette, projectDesignSystem.colorOverrides)
+    : direction.palette;
 
   return {
     id: `${input.artifactType}:${input.packId ?? 'unpacked'}:${direction.id}`,
     version: 1,
-    source: input.source ?? (input.project?.projectRules?.markdown ? 'project-rules' : 'runtime-defaults'),
+    source: input.source ?? (
+      projectDesignSystem?.colorOverrides.some((override) => override.source === 'project-design-md')
+        ? 'project-design-md'
+        : input.project?.projectRules?.markdown
+          ? 'project-rules'
+          : projectDesignSystem?.source === 'project-color-theme'
+            ? 'user-selection'
+            : 'runtime-defaults'
+    ),
     artifactType: input.artifactType,
     ...(input.packId ? { packId: input.packId } : {}),
     ...(input.packVersion ? { packVersion: input.packVersion } : {}),
@@ -152,13 +174,14 @@ export function buildDesignContextSpec(input: BuildDesignContextSpecInput): Desi
     mood: direction.mood,
     audience: input.audience ?? defaultAudienceForArtifactType(input.artifactType),
     ...(input.briefSummary ? { briefSummary: input.briefSummary } : {}),
-    tokens: direction.palette,
+    tokens,
     typography: direction.typography,
     layoutPosture: direction.layoutPosture,
     artifactPosture,
     do: direction.do,
     dont: direction.dont,
     constraints,
+    ...(projectDesignSystem ? { projectDesignSystem } : {}),
     mediaBindingPlan: input.mediaBindingPlan ?? buildDefaultMediaBindingPlan(input.project),
     dataBindingPlan: input.dataBindingPlan ?? buildDefaultDataBindingPlan(),
   };

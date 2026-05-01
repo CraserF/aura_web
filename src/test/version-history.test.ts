@@ -408,6 +408,40 @@ describe('serializeProjectSnapshot', () => {
     expect(() => JSON.parse(snapshot['memory.json'])).not.toThrow();
     expect(() => JSON.parse(snapshot.documents['d1.json']!)).not.toThrow();
   });
+
+  it('preserves artifact pack metadata and source payload in document snapshots', () => {
+    const doc = {
+      ...makeDocument('deck-1', 'Pack Deck'),
+      type: 'presentation' as const,
+      artifactManifest: {
+        packId: 'presentation/editorial-stage-v1',
+        packVersion: '1.0.0',
+        designDirectionId: 'editorial-magazine',
+        sourcePayloadVersion: 1,
+        renderer: 'presentation' as const,
+        validationStatus: 'passed' as const,
+        updatedAt: 123,
+      },
+      artifactSourcePayload: {
+        schemaVersion: 1,
+        packId: 'presentation/editorial-stage-v1',
+        packVersion: '1.0.0',
+        slides: [{ slideId: 'slide-1', slots: { title: 'Keep source' } }],
+      },
+    };
+    const snapshot = serializeProjectSnapshot(makeProject({ documents: [doc] }));
+    const result = deserializeProjectSnapshot(snapshot);
+
+    expect(result.documents[0]?.artifactManifest).toEqual(expect.objectContaining({
+      packId: 'presentation/editorial-stage-v1',
+      packVersion: '1.0.0',
+      renderer: 'presentation',
+    }));
+    expect(result.documents[0]?.artifactSourcePayload).toEqual(expect.objectContaining({
+      schemaVersion: 1,
+      packId: 'presentation/editorial-stage-v1',
+    }));
+  });
 });
 
 // ── deserializeProjectSnapshot tests ─────────────────────────────────────

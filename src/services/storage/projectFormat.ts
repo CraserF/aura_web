@@ -32,6 +32,15 @@ function parseOptionalJson<T>(value: string | null | undefined): T | null {
   }
 }
 
+function bytesToBase64(bytes: Uint8Array): string {
+  const chunkSize = 0x8000;
+  let binary = '';
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+  return btoa(binary);
+}
+
 function archiveDocumentStem(id: string): string {
   const trimmedId = id.trim();
   if (!trimmedId) {
@@ -217,7 +226,7 @@ export async function openProjectFile(file: File): Promise<ProjectData> {
         return asset;
       }
 
-      const base64 = btoa(String.fromCharCode(...bytes));
+      const base64 = bytesToBase64(bytes);
       return {
         ...asset,
         dataUrl: `data:${asset.mimeType};base64,${base64}`,

@@ -3,6 +3,7 @@ import type {
   ArtifactDesignDirectionId,
   ArtifactMediaResolver,
   ArtifactOutputMode,
+  ArtifactValidationFinding,
 } from '@/services/artifactPacks';
 import { compileEditorialStagePack } from './compiler';
 import {
@@ -33,6 +34,15 @@ export interface EditorialStageCompiledSourceUpdate extends EditorialStageSource
   styleBlock: string;
   slideCount: number;
   title: string;
+  repairCount: number;
+  repairedFindingIds: string[];
+}
+
+export interface EditorialStageSourceRepairResult {
+  source: EditorialStageSource;
+  changed: boolean;
+  repairCount: number;
+  repairedFindingIds: string[];
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -49,6 +59,18 @@ const ROLE_LABELS: Record<string, string> = {
   decision: 'Recommendation',
   'closing-action': 'Next',
 };
+
+const REPAIRABLE_FINDING_IDS = new Set([
+  'slot.required_missing',
+  'slot.too_long_for_layout',
+  'title.too_long_for_layout',
+  'slot.html_detected',
+  'slot.unknown_key',
+  'presentation.asset_missing_when_required',
+  'media.slot_unknown',
+  'media.aspect_invalid',
+  'media.crop_invalid',
+]);
 
 function cloneSource(source: EditorialStageSource): EditorialStageSource {
   return {
@@ -70,10 +92,28 @@ function cleanText(value: string | undefined, maxLength: number): string {
   return (value ?? '')
     .replace(/<[^>]+>/g, '')
     .replace(/\s+/g, ' ')
-    .replace(/^[-*\d.\s]+/, '')
+    .replace(/^(?:[-*]\s+|\d+[.)]\s+)/, '')
     .trim()
     .slice(0, maxLength)
     .trim();
+}
+
+function sanitizeUnknownText(value: unknown): unknown {
+  if (typeof value === 'string') {
+    return value
+      .replace(/<[^>]+>/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 520)
+      .trim();
+  }
+  if (Array.isArray(value)) return value.map(sanitizeUnknownText);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nested]) => [key, sanitizeUnknownText(nested)]),
+    );
+  }
+  return value;
 }
 
 function extractNumber(text: string): string | undefined {
@@ -97,6 +137,12 @@ function resolveDirectionId(directionId: ArtifactDesignDirectionId | string | un
 
 function schemaRoleForLayout(layout: EditorialStageLayout): EditorialStageSlide['role'] {
   return layout.role as EditorialStageSlide['role'];
+}
+
+function visualWeightForLayout(layoutId: EditorialStageLayoutId, layout: EditorialStageLayout): EditorialStageSlide['visualWeight'] {
+  if (layout.defaultMood.startsWith('hero') || layoutId === 'cover' || layoutId === 'question-hero') return 'hero';
+  if (layoutId === 'big-number') return 'proof';
+  return 'standard';
 }
 
 function resolveLayoutForBrief(input: {
@@ -294,9 +340,9 @@ function resolveSlotId(prompt: string, slide: EditorialStageSlide): string | und
   const candidates: Array<[RegExp, string[]]> = [
     [/\b(title|headline|heading)\b/i, ['title', 'question']],
     [/\b(subtitle|subhead|dek)\b/i, ['subtitle', 'context', 'bridge']],
+    [/\b(metric label|number label)\b/i, ['metric_label']],
     [/\b(kicker|eyebrow|label)\b/i, ['kicker', 'section_number', 'left_label', 'right_label']],
     [/\b(metric|number|value)\b/i, ['metric_value']],
-    [/\b(metric label|number label)\b/i, ['metric_label']],
     [/\b(quote|pull quote)\b/i, ['quote']],
     [/\b(body|paragraph|copy|description)\b/i, ['body', 'interpretation', 'recommendation', 'left_body', 'right_body']],
     [/\b(footer|source|caption)\b/i, ['footer', 'source', 'caption', 'meta']],
@@ -324,7 +370,13 @@ export function isEditorialStageSource(value: unknown): value is EditorialStageS
 
 export function normalizeEditorialStageSource(value: unknown): EditorialStageSource | null {
   const parsed = editorialStageSourceSchema.safeParse(value);
-  return parsed.success ? cloneSource(parsed.data) : null;
+  if (parsed.success) return cloneSource(parsed.data);
+
+  const sanitized = editorialStageSourceSchema.safeParse(sanitizeUnknownText(value));
+  if (!sanitized.success) return null;
+
+  const repaired = repairEditorialStageSourcePayload(sanitized.data);
+  return cloneSource(repaired.source);
 }
 
 export function restyleEditorialStageSource(
@@ -425,13 +477,239 @@ export function patchEditorialStageTextSlots(
   };
 }
 
+function pathSlideIndex(finding: ArtifactValidationFinding): number | null {
+  const slideIndex = finding.path?.[1];
+  return typeof slideIndex === 'number' ? slideIndex : null;
+}
+
+function pathSlotId(finding: ArtifactValidationFinding): string | null {
+  const slotId = finding.path?.[3];
+  return typeof slotId === 'string' ? slotId : null;
+}
+
+function pathMediaIndex(finding: ArtifactValidationFinding): number | null {
+  const mediaIndex = finding.path?.[3];
+  return typeof mediaIndex === 'number' ? mediaIndex : null;
+}
+
+function firstTextFromSlide(slide: EditorialStageSlide, source: EditorialStageSource): string {
+  return cleanText(
+    slide.slots.title ||
+    slide.slots.question ||
+    slide.slots.quote ||
+    slide.slots.body ||
+    slide.slots.recommendation ||
+    source.title,
+    120,
+  ) || 'Decision point';
+}
+
+function guidanceFromSlide(slide: EditorialStageSlide, source: EditorialStageSource): string {
+  const text = [
+    slide.slots.body,
+    slide.slots.context,
+    slide.slots.interpretation,
+    slide.slots.recommendation,
+    slide.slots.quote,
+    source.brief,
+  ].filter(Boolean).join(' ');
+  return cleanText(text, 260) || 'Use the strongest available evidence to make the next decision explicit.';
+}
+
+function rebuildSlotsForLayout(input: {
+  source: EditorialStageSource;
+  slide: EditorialStageSlide;
+  layoutId: EditorialStageLayoutId;
+  index: number;
+  total: number;
+}): Record<string, string> {
+  const layout = EDITORIAL_STAGE_LAYOUT_BY_ID[input.layoutId];
+  const brief: SlideBrief = {
+    index: input.index + 1,
+    title: firstTextFromSlide(input.slide, input.source),
+    contentGuidance: guidanceFromSlide(input.slide, input.source),
+  };
+
+  return Object.fromEntries(layout.slots.map((slot) => {
+    const existing = cleanText(input.slide.slots[slot.id], slot.maxLength);
+    return [
+      slot.id,
+      existing ||
+        slotValue({
+          slot,
+          layoutId: input.layoutId,
+          brief,
+          index: input.index,
+          total: input.total,
+          number: extractNumber(`${brief.title} ${brief.contentGuidance ?? ''}`),
+        }),
+    ];
+  }));
+}
+
+function convertSlideToLayout(
+  source: EditorialStageSource,
+  slideIndex: number,
+  layoutId: EditorialStageLayoutId,
+): boolean {
+  const slide = source.slides[slideIndex];
+  if (!slide || slide.layoutId === layoutId) return false;
+  const layout = EDITORIAL_STAGE_LAYOUT_BY_ID[layoutId];
+  const slots = rebuildSlotsForLayout({
+    source,
+    slide,
+    layoutId,
+    index: slideIndex,
+    total: source.slides.length,
+  });
+  slide.layoutId = layoutId;
+  slide.role = schemaRoleForLayout(layout);
+  slide.mood = layout.defaultMood;
+  slide.density = layout.defaultDensity;
+  slide.visualWeight = visualWeightForLayout(layoutId, layout);
+  slide.motion = layout.motion;
+  slide.slots = slots;
+  slide.media = slide.media.filter((media) =>
+    layout.mediaSlots.some((slot) => slot.id === media.slotId && !slot.required),
+  );
+  return true;
+}
+
+function repairFinding(source: EditorialStageSource, finding: ArtifactValidationFinding): boolean {
+  const slideIndex = pathSlideIndex(finding);
+  if (slideIndex === null) return false;
+  const slide = source.slides[slideIndex];
+
+  if (!slide) return false;
+  const layout = EDITORIAL_STAGE_LAYOUT_BY_ID[slide.layoutId];
+  if (!layout) return false;
+
+  if (finding.id === 'slot.unknown_key') {
+    const slotId = pathSlotId(finding);
+    if (!slotId || !(slotId in slide.slots)) return false;
+    delete slide.slots[slotId];
+    return true;
+  }
+
+  if (
+    finding.id === 'slot.html_detected' ||
+    finding.id === 'slot.required_missing' ||
+    finding.id === 'slot.too_long_for_layout' ||
+    finding.id === 'title.too_long_for_layout'
+  ) {
+    const slotId = pathSlotId(finding);
+    const slot = layout.slots.find((candidate) => candidate.id === slotId);
+    if (!slot || !slotId) return false;
+    const cleaned = cleanText(slide.slots[slotId], slot.maxLength);
+    const fallback = slotValue({
+      slot,
+      layoutId: slide.layoutId,
+      brief: {
+        index: slideIndex + 1,
+        title: firstTextFromSlide(slide, source),
+        contentGuidance: guidanceFromSlide(slide, source),
+      },
+      index: slideIndex,
+      total: source.slides.length,
+      number: extractNumber(`${slide.slots.title ?? ''} ${slide.slots.body ?? ''}`),
+    });
+    const nextValue = cleaned || fallback;
+    if (slide.slots[slotId] === nextValue) return false;
+    slide.slots[slotId] = nextValue;
+    return true;
+  }
+
+  if (finding.id === 'presentation.asset_missing_when_required') {
+    return convertSlideToLayout(source, slideIndex, 'story-split');
+  }
+
+  const mediaIndex = pathMediaIndex(finding);
+  if (mediaIndex === null) return false;
+  const media = slide.media[mediaIndex];
+  if (!media) return false;
+  const mediaSlot = layout.mediaSlots.find((slot) => slot.id === media.slotId);
+
+  if (finding.id === 'media.slot_unknown') {
+    slide.media.splice(mediaIndex, 1);
+    return true;
+  }
+
+  if (finding.id === 'media.aspect_invalid' && mediaSlot) {
+    const nextAspect = mediaSlot.aspectRatios[0];
+    if (media.aspectRatio === nextAspect) return false;
+    media.aspectRatio = nextAspect;
+    return true;
+  }
+
+  if (finding.id === 'media.crop_invalid' && mediaSlot) {
+    const nextCrop = mediaSlot.cropModes[0];
+    if (media.cropMode === nextCrop) return false;
+    media.cropMode = nextCrop;
+    return true;
+  }
+
+  return false;
+}
+
+export function repairEditorialStageSourcePayload(
+  source: EditorialStageSource,
+  options: {
+    outputMode?: ArtifactOutputMode;
+    mediaResolver?: ArtifactMediaResolver;
+    maxPasses?: number;
+  } = {},
+): EditorialStageSourceRepairResult {
+  const next = cloneSource(source);
+  const repairedFindingIds: string[] = [];
+  const maxPasses = Math.max(1, options.maxPasses ?? 2);
+
+  for (let pass = 0; pass < maxPasses; pass += 1) {
+    const compileResult = compileEditorialStagePack({
+      source: next,
+      outputMode: options.outputMode ?? next.outputMode,
+      ...(options.mediaResolver ? { mediaResolver: options.mediaResolver } : {}),
+    });
+    const repairableFindings = compileResult.validation.findings.filter((finding) =>
+      REPAIRABLE_FINDING_IDS.has(finding.id),
+    );
+    let changedThisPass = false;
+
+    for (const validationFinding of repairableFindings) {
+      const repaired = repairFinding(next, validationFinding);
+      if (repaired) {
+        changedThisPass = true;
+        repairedFindingIds.push(validationFinding.id);
+      }
+    }
+
+    if (!changedThisPass) break;
+    next.rhythmPlan = rebuildRhythmPlan(next);
+  }
+
+  return {
+    source: next,
+    changed: repairedFindingIds.length > 0,
+    repairCount: repairedFindingIds.length,
+    repairedFindingIds,
+  };
+}
+
 export function compileEditorialStageSourceUpdate(
   edit: EditorialStageSourceEditResult,
   options: { outputMode?: ArtifactOutputMode; mediaResolver?: ArtifactMediaResolver } = {},
 ): EditorialStageCompiledSourceUpdate {
+  const repair = edit.changed
+    ? repairEditorialStageSourcePayload(edit.source, options)
+    : {
+        source: edit.source,
+        changed: false,
+        repairCount: 0,
+        repairedFindingIds: [],
+      };
+  const source = repair.source;
   const compileResult = compileEditorialStagePack({
-    source: edit.source,
-    outputMode: options.outputMode ?? edit.source.outputMode,
+    source,
+    outputMode: options.outputMode ?? source.outputMode,
     ...(options.mediaResolver ? { mediaResolver: options.mediaResolver } : {}),
   });
   const html = compileResult.output.content;
@@ -439,10 +717,14 @@ export function compileEditorialStageSourceUpdate(
 
   return {
     ...edit,
+    source,
+    changed: edit.changed || repair.changed,
     compileResult,
     html,
     styleBlock: html.match(/<style\b[\s\S]*?<\/style>/i)?.[0] ?? '',
     slideCount: sections.length,
-    title: edit.source.title,
+    title: source.title,
+    repairCount: repair.repairCount,
+    repairedFindingIds: repair.repairedFindingIds,
   };
 }
