@@ -117,6 +117,24 @@ describe('document/executive-memo-v1 pack', () => {
     expect(normalizeHtml(result.output.content)).toBe(normalizeHtml(exampleHtml));
   });
 
+  it('renders recommendation item value and status metadata', () => {
+    const source = cloneSource();
+    source.modules = source.modules.map((module) => module.layoutId === 'recommendation'
+      ? {
+        ...module,
+        items: module.items.map((item, index) => index === 0
+          ? { ...item, value: 'Owner: Product', status: 'Ready for decision' }
+          : item),
+      }
+      : module);
+
+    const result = compileExecutiveMemoPack({ source, outputMode: 'html' });
+
+    expect(result.validation.passed).toBe(true);
+    expect(result.output.content).toContain('<span class="em-status">Owner: Product</span>');
+    expect(result.output.content).toContain('<span class="em-status">Ready for decision</span>');
+  });
+
   it('validates source heading, table, source-note, slot, and tone constraints', () => {
     const invalid = cloneSource();
     invalid.modules[0] = {

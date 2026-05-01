@@ -29,11 +29,9 @@ export function buildSlideBriefsFromRunPlan(runPlan: ArtifactRunPlan): SlideBrie
       return {
         index: index + 1,
         title: part.title,
-        contentGuidance: [
-          part.brief,
-          blueprint ? `Narrative beat: ${blueprint.narrativeBeat}` : undefined,
-        ].filter(Boolean).join(' '),
+        contentGuidance: part.brief,
         visualGuidance: [
+          blueprint ? `Narrative beat: ${blueprint.narrativeBeat}` : undefined,
           part.recipeId ? `Use the ${part.recipeId} slide recipe.` : undefined,
           blueprint ? `Slide role: ${blueprint.role}. Layout: ${blueprint.layoutPattern}.` : undefined,
           blueprint?.motifInstruction,

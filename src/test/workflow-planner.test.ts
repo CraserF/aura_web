@@ -153,12 +153,14 @@ describe('buildArtifactWorkflowPlan', () => {
     expect(plan.requestKind).toBe('batch');
     expect(plan.queueMode).toBe('sequential');
     expect(plan.queuedWorkItems.map((item) => item.targetLabel)).toEqual([
-      'Opening',
-      'Context & Problem',
-      'Proof & Mechanism',
-      'Recommendation & Action',
-      'Closing',
+      'Product Relaunch Strategy',
+      'Why Product Relaunch Strategy Matters Now',
+      'How It Works',
+      'Decision Path',
+      'Next Steps',
     ]);
+    expect(plan.queuedWorkItems[0]?.promptSummary).toContain('Product Relaunch Strategy');
+    expect(plan.queuedWorkItems[0]?.promptSummary).toContain('Brief: Create a narrative keynote deck about our product relaunch strategy.');
   });
 
   it('keeps a single-slide title slide prompt as create, not batch', () => {
@@ -215,9 +217,9 @@ describe('buildArtifactWorkflowPlan', () => {
     expect(plan.requestKind).toBe('batch');
     expect(plan.templateGuidance.providerTier).toBe('local-best-effort');
     expect(plan.queuedWorkItems.map((item) => item.targetLabel)).toEqual([
-      'Opening',
-      'Context & Problem',
-      'Recommendation & Action',
+      'Product Relaunch Strategy',
+      'Why Product Relaunch Strategy Matters Now',
+      'Decision Path',
     ]);
   });
 
@@ -236,12 +238,14 @@ describe('buildArtifactWorkflowPlan', () => {
     expect(runPlan.requestKind).toBe('batch');
     expect(runPlan.queueMode).toBe('sequential');
     expect(runPlan.workQueue.map((part) => part.title)).toEqual([
-      'Opening',
-      'Context & Problem',
-      'Proof & Mechanism',
-      'Recommendation & Action',
-      'Closing',
+      'Product Relaunch Strategy',
+      'Why Product Relaunch Strategy Matters Now',
+      'How It Works',
+      'Decision Path',
+      'Next Steps',
     ]);
+    expect(runPlan.workQueue[0]?.brief).toContain('Product Relaunch Strategy');
+    expect(runPlan.workQueue[1]?.brief).toContain('Product Relaunch Strategy');
     expect(runPlan.presentationNarrativePlan?.slideRoles.map((slide) => slide.role)).toEqual([
       'title-scene',
       'problem',

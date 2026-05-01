@@ -4,7 +4,10 @@ const replaceSheetDataMock = vi.hoisted(() => vi.fn(async (
   _sheet: unknown,
   schema: unknown,
   _rows: unknown,
-) => schema));
+) => {
+  void _rows;
+  return schema;
+}));
 
 vi.mock('@/services/spreadsheet/workbook', () => ({
   replaceSheetData: replaceSheetDataMock,
@@ -150,6 +153,7 @@ describe('artifact pack example project starters', () => {
     replaceSheetDataMock.mockClear();
     const project = await createArtifactPackExampleProject({
       exampleId: 'spreadsheet/operating-model-v1:operating-model-example',
+      documentId: 'doc-1',
       now: NOW,
     });
 
@@ -160,14 +164,34 @@ describe('artifact pack example project starters', () => {
       'Model',
       'Summary',
     ]);
+    expect(replaceSheetDataMock.mock.calls.map((call) => (call[0] as { tableName: string }).tableName)).toEqual([
+      'aura_doc_1_inputs',
+      'aura_doc_1_model',
+      'aura_doc_1_summary',
+    ]);
     expect(replaceSheetDataMock.mock.calls[0]?.[2]).toEqual([
       { Region: 'North', Quarter: 'Q1', PlanRevenue: 1250000, ActualRevenue: 1320000, Cost: 760000 },
       { Region: 'South', Quarter: 'Q1', PlanRevenue: 980000, ActualRevenue: 910000, Cost: 580000 },
       { Region: 'West', Quarter: 'Q1', PlanRevenue: 1110000, ActualRevenue: 1165000, Cost: 690000 },
     ]);
+    expect(project.documents[0]?.workbook?.sheets.map((sheet) => sheet.tableName)).toEqual([
+      'aura_doc_1_inputs',
+      'aura_doc_1_model',
+      'aura_doc_1_summary',
+    ]);
+    expect((project.documents[0]?.artifactSourcePayload as { sheets: Array<{ tableName: string }> }).sheets.map((sheet) => sheet.tableName)).toEqual([
+      'aura_doc_1_inputs',
+      'aura_doc_1_model',
+      'aura_doc_1_summary',
+    ]);
+    expect((JSON.parse(project.documents[0]?.contentHtml ?? '{}') as { workbook: { sheets: Array<{ tableName: string }> } }).workbook.sheets.map((sheet) => sheet.tableName)).toEqual([
+      'aura_doc_1_inputs',
+      'aura_doc_1_model',
+      'aura_doc_1_summary',
+    ]);
   });
 
-  it('accepts title and project title overrides without changing the source payload', async () => {
+  it('accepts title and project title overrides without changing the source title', async () => {
     const exampleId: ShippedArtifactPackExampleId = 'spreadsheet/operating-model-v1:operating-model-example';
     const project = await createArtifactPackExampleProject({
       exampleId,

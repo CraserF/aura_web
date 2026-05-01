@@ -11,6 +11,7 @@ import type {
   ProjectData,
   ProjectDocument,
   ProjectMediaAsset,
+  SheetMeta,
   WorkbookMeta,
 } from '@/types/project';
 import {
@@ -127,6 +128,17 @@ const assertCompiledExampleIsUsable = (
 
 const parseMediaAssets = (raw: string | undefined): ProjectMediaAsset[] =>
   raw ? parseJson<ProjectMediaAsset[]>(raw) : [];
+
+const safeTableNamePart = (value: string): string =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .replace(/^[0-9]/, 'n$&')
+    .slice(0, 42) || 'sheet';
+
+const tableNameForExampleSheet = (documentId: string, sheetId: string): string =>
+  `aura_${safeTableNamePart(documentId)}_${safeTableNamePart(sheetId)}`.slice(0, 80);
 
 const chartSpecsFromOperatingModel = (
   compiled: CompiledOperatingModelExample,
@@ -249,6 +261,74 @@ interface BuiltExampleDocument {
   spreadsheetRows?: Record<string, Array<Record<string, unknown>>>;
 }
 
+function remapSourceSheetTableNames(
+  sourcePayload: unknown,
+  tableNameBySheetId: Map<string, string>,
+): unknown {
+  if (!sourcePayload || typeof sourcePayload !== 'object' || !Array.isArray((sourcePayload as { sheets?: unknown }).sheets)) {
+    return sourcePayload;
+  }
+
+  return {
+    ...(sourcePayload as Record<string, unknown>),
+    sheets: (sourcePayload as { sheets: Array<Record<string, unknown>> }).sheets.map((sheet) => {
+      const sheetId = typeof sheet.sheetId === 'string' ? sheet.sheetId : '';
+      const tableName = tableNameBySheetId.get(sheetId);
+      return tableName ? { ...sheet, tableName } : sheet;
+    }),
+  };
+}
+
+function remapCompiledWorkbookTableNames(
+  contentHtml: string,
+  tableNameBySheetId: Map<string, string>,
+): string {
+  if (tableNameBySheetId.size === 0 || !contentHtml.trim().startsWith('{')) {
+    return contentHtml;
+  }
+
+  try {
+    const compiled = JSON.parse(contentHtml) as { workbook?: { sheets?: Array<Record<string, unknown>> } };
+    if (!compiled.workbook?.sheets) return contentHtml;
+    return JSON.stringify({
+      ...compiled,
+      workbook: {
+        ...compiled.workbook,
+        sheets: compiled.workbook.sheets.map((sheet) => {
+          const id = typeof sheet.id === 'string' ? sheet.id : '';
+          const tableName = tableNameBySheetId.get(id);
+          return tableName ? { ...sheet, tableName } : sheet;
+        }),
+      },
+    }, null, 2);
+  } catch {
+    return contentHtml;
+  }
+}
+
+function scopeSpreadsheetDocumentTables(document: ProjectDocument): ProjectDocument {
+  if (document.type !== 'spreadsheet' || !document.workbook) {
+    return document;
+  }
+
+  const tableNameBySheetId = new Map<string, string>();
+  const sheets: SheetMeta[] = document.workbook.sheets.map((sheet) => {
+    const tableName = tableNameForExampleSheet(document.id, sheet.id);
+    tableNameBySheetId.set(sheet.id, tableName);
+    return { ...sheet, tableName };
+  });
+
+  return {
+    ...document,
+    contentHtml: remapCompiledWorkbookTableNames(document.contentHtml, tableNameBySheetId),
+    artifactSourcePayload: remapSourceSheetTableNames(document.artifactSourcePayload, tableNameBySheetId),
+    workbook: {
+      ...document.workbook,
+      sheets,
+    },
+  };
+}
+
 async function materializeSpreadsheetRows(
   document: ProjectDocument,
   rowsBySheetId: Record<string, Array<Record<string, unknown>>> | undefined,
@@ -332,7 +412,8 @@ export async function createArtifactPackExampleProject(
     now,
     createId,
   });
-  const document = await materializeSpreadsheetRows(built.document, built.spreadsheetRows);
+  const scopedDocument = scopeSpreadsheetDocumentTables(built.document);
+  const document = await materializeSpreadsheetRows(scopedDocument, built.spreadsheetRows);
   const { media } = built;
 
   return {

@@ -158,10 +158,10 @@ describe('artifact prompt contracts', () => {
     expect(followUpPrompt).toContain('SLIDE BLUEPRINT');
     expect(followUpPrompt).toContain('Role:');
     expect(followUpPrompt).toContain('Continuity:');
-    // Caps allow the compact design vocabulary plus W7 slot/motion/SVG scaffold contract.
+    // Caps allow the compact design vocabulary plus W7 slot/motion/SVG scaffold contract and topic-aware default briefs.
     expect(createPrompt.length).toBeLessThanOrEqual(8500);
     expect(editPrompt.length).toBeLessThanOrEqual(8500);
-    expect(slide1Prompt.length).toBeLessThanOrEqual(6000);
+    expect(slide1Prompt.length).toBeLessThanOrEqual(6100);
     expect(appendedPrompt.length).toBeLessThanOrEqual(5000);
     expect(followUpPrompt.length).toBeLessThanOrEqual(5000);
     expect(revisionPrompt.length).toBeLessThanOrEqual(3500);

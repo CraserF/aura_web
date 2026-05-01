@@ -275,6 +275,60 @@ describe('ChatBar submission paths', () => {
     view.unmount();
   });
 
+  it('shows immediate preparing state while a run request is being built', async () => {
+    seedActiveDocument();
+    let resolveSubmit: (() => void) | undefined;
+    submitPromptMock.mockImplementation(async () => new Promise<void>((resolve) => {
+      resolveSubmit = resolve;
+    }));
+
+    const view = renderChatBar();
+    setTextareaValue(view.container, 'Revise this document');
+
+    clickButton(view.container, 'Send message');
+    await flushEffects();
+
+    expect(useChatStore.getState().status).toMatchObject({
+      state: 'generating',
+      step: 'Preparing request...',
+    });
+    expect(view.container.textContent).toContain('Step 1 of 1: Preparing request');
+    expect(view.container.querySelector('[aria-label="Cancel generation"]')).not.toBeNull();
+
+    act(() => {
+      resolveSubmit?.();
+    });
+    await flushEffects();
+    view.unmount();
+  });
+
+  it('restores the prompt and shows an error when generation fails before a run starts', async () => {
+    seedActiveDocument();
+    submitPromptMock.mockRejectedValueOnce(new Error('Context assembly failed'));
+
+    const view = renderChatBar();
+    setTextareaValue(view.container, 'Revise this document');
+
+    clickButton(view.container, 'Send message');
+    await flushEffects();
+
+    expect(useChatStore.getState().status).toMatchObject({
+      state: 'error',
+      message: 'Generation could not start: Context assembly failed',
+    });
+    expect(getTextarea(view.container).value).toBe('Revise this document');
+    expect(view.container.textContent).toContain('Generation could not start: Context assembly failed');
+    const messages = useChatStore.getState().messages;
+    expect(messages[messages.length - 1]).toMatchObject({
+      role: 'assistant',
+      content: 'Generation could not start: Context assembly failed',
+      documentId: 'doc-1',
+      scope: 'document',
+    });
+
+    view.unmount();
+  });
+
   it('keeps output mode, document style, and run history behind advanced options', () => {
     seedActiveDocument();
     const view = renderChatBar();

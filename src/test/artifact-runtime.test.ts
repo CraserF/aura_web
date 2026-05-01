@@ -102,7 +102,8 @@ describe('ArtifactRuntime plan', () => {
       'Next steps',
     ]);
     expect(slideBriefs[0]?.visualGuidance).toContain('Slide role: title-scene');
-    expect(slideBriefs[1]?.contentGuidance).toContain('Narrative beat:');
+    expect(slideBriefs[1]?.contentGuidance).toBe('market gap');
+    expect(slideBriefs[1]?.visualGuidance).toContain('Narrative beat:');
   });
 
   it('uses constrained provider policy for local presentation generation', () => {

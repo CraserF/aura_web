@@ -31,6 +31,7 @@ Use this section as the live source of truth before starting each work session. 
 Status key:
 
 - `Done`: implemented and verified.
+- `Done/Foundation`: core implementation proof is verified, but product/release gates remain explicit in a later phase.
 - `Active`: current phase; do this before starting broad new surfaces.
 - `Active/Next`: active hardening slice while an earlier gate remains open.
 - `Next`: next major phase after the active gate passes.
@@ -50,9 +51,10 @@ Status key:
 | 8. Guided edit chips | Done | Offer simple user controls that map to typed source operations. | Chips map to supported edit surfaces only. | Pack-scoped composer chips, unsupported-surface messaging, chat/runtime tests. | Extend only when a typed edit surface exists. |
 | 9. Design-system mode | Done | Parse project `DESIGN.md`/rules into validated tokens and examples. | Presentation, document, and spreadsheet project-design tokens compile through pack-owned adapters. | Safe token-role resolver, project design metadata, Project colours preview UI, runtime color-theme threading, shared adapter interface, Editorial Stage CSS adapter, Executive Memo document-token adapter, Operating Model spreadsheet-theme adapter, design-context/compiler/UI/run-request/pack tests. | Carry the same adapter discipline into later runtime routing; never add artifact-specific raw CSS bypasses. |
 | 10. Export and preview gates | Done | Add export-intent constraints and generated preview artifacts. | Browser-side preview smoke passes for a fresh pack-backed deck. | Compiled-output export validator blocks viewport units, missing export backgrounds, missing reduced-motion fallback, editable-PPTX unsafe CSS/text patterns, Editorial Stage exposes `examples/preview.png`, runtime preview metadata/media round-trips through `.aura` and snapshots, and `node scripts/run-presentation-preview-smoke.mjs` passes with a 1280x720 PNG. | Carry export/preview constraints into document and spreadsheet packs when Phases 11/12 start. |
-| 11. Document packs | Done | Add source-payload document packs without presentation-shaped UI. | Executive-memo-like document creates route through `document/executive-memo-v1`; edits and image creates stay on existing safe paths. | Registered document pack, source schema, scoped CSS, deterministic compiler, document validator, generated example, pack runtime routing, persisted source payload/manifest, and `executive-memo-pack`/document-runtime/registry tests. | Next document slice can add source-backed edits or a second document pack when prioritized. |
-| 12. Spreadsheet packs | Done | Add deterministic workbook packs with formulas/charts/style validation. | `spreadsheet/operating-model-v1` compiles and validates. | Operating Model source schema, manifest, deterministic JSON compiler, spreadsheet-theme adapter, formula/cell-safety validator, examples, registry wiring, independent review, focused pack tests, and full verification. | Next spreadsheet slice can be runtime routing, deterministic XLSX export, or `spreadsheet/data-dashboard-v1` when prioritized against the open Phase 11 routing gate. |
-| 13. Pack gallery and example starts | Done | Show compiled examples and let users start from supported examples without exposing pack internals. | Artifact Library starts projects from Aura-owned examples while save-as-pack stays deferred. | Gallery data model, toolbar entry point, Artifact Library dialog, deterministic example project service, shipped media carry-forward, disabled save-as-pack affordance, review fixes, and focused gallery/start tests. | Keep save-as-pack queued until candidate-authoring contracts and quality review are defined. |
+| 11. Document pack foundation and create routing | Done/Foundation | Add source-payload document packs without presentation-shaped UI. | Executive-memo-like document creates route through `document/executive-memo-v1`; edits and image creates stay on existing safe paths. | Registered document pack, source schema, scoped CSS, deterministic compiler, document validator, generated example, pack runtime routing, persisted source payload/manifest, and `executive-memo-pack`/document-runtime/registry tests. | Phase 14 must add source-backed edits, preview/export evidence, and in-app validation before calling documents product-complete. |
+| 12. Spreadsheet pack foundation | Done/Foundation | Add deterministic workbook packs with formulas/charts/style validation. | `spreadsheet/operating-model-v1` compiles and validates as an Aura-owned pack source. | Operating Model source schema, manifest, deterministic JSON compiler, spreadsheet-theme adapter, formula/cell-safety validator, examples, registry wiring, independent review, focused pack tests, and full verification. | Phase 14 must add runtime routing, deterministic XLSX/CSV export, preview evidence, and in-app validation before calling spreadsheets product-complete. |
+| 13. Pack gallery and example starts | Done/Foundation | Show compiled examples and let users start from supported examples without exposing pack internals. | Artifact Library starts projects from Aura-owned examples while save-as-pack stays deferred. | Gallery data model, toolbar entry point, Artifact Library dialog, deterministic example project service, shipped media carry-forward, disabled save-as-pack affordance, review fixes, and focused gallery/start tests. | Keep save-as-pack queued until candidate-authoring contracts and quality review are defined. |
+| 14. Pack runtime, export, and QA closure | Active | Close the gap between pack foundations and reliable user-facing generation. | Current generation must visibly start/complete; document/spreadsheet pack routing and export gates must be explicit. | Review findings opened 2026-05-01: lint blocker, table-name isolation, memo status metadata, readiness tracker accuracy, and generation stall. | Fix current generation stall first, then implement document source-backed edits, spreadsheet runtime/export routing, preview backfill, and manual workflow evidence. |
 
 ### Active Phase Exit Criteria
 
@@ -136,6 +138,37 @@ Workstream/Phase 13 shipped as a browseable library plus start-from-example foun
 - Do not add extra choices to the default new-project flow to compensate for weak defaults. The library is for discovery, inspection, and future advanced starts.
 - Do not implement save-as-pack until candidate manifests, source sanitization, preview regeneration, and quality review gates are specified.
 
+### Phase 14 Active Work
+
+Phase 14 exists because the pack foundations are not enough if normal generation is stalled or if release gates are implicit. Treat this as a closure phase, not a new surface-expansion phase.
+
+Do first:
+
+- Fix any current generation stall where a user submits a create/edit prompt and no visible run begins.
+- Keep the submit path observable through run registry events, progress steps, and user-facing failure messages.
+- Keep the pack path deterministic: no raw CSS/full HTML fallback for supported presentation pack generation or source-backed edits.
+
+Document closure gates:
+
+- Add source-backed executive memo edits for supported module/slot changes.
+- Recompile from `artifactSourcePayload` and keep unsupported edits on the existing safe path or fail closed with clear messaging.
+- Preserve memo item metadata such as `value` and `status` in rendered output.
+- Add preview/export evidence for document packs before product-complete language is used.
+
+Spreadsheet closure gates:
+
+- Route normal operating-model-like spreadsheet creates through `spreadsheet/operating-model-v1` when the run plan claims pack support.
+- Materialize pack workbook sheets into project-unique table names before any shared DuckDB write.
+- Add deterministic XLSX/CSV export constraints and workbook preview evidence.
+- Keep formula, table reference, and chart validation blocking before persistence/export.
+
+Library and QA closure gates:
+
+- Keep shipped example starts deterministic and isolated per project/document.
+- Backfill previews for document/spreadsheet examples or keep the missing preview state explicit.
+- Keep save-as-pack disabled until candidate schema, sanitization, preview regeneration, and manual quality review exist.
+- Record fresh in-app validation for one presentation create/edit, one executive memo create/edit, one operating model create/export, and one start-from-example flow.
+
 ### Phase 10 Preview Artifact Gate
 
 Do not mark the preview artifact slice complete until all are true:
@@ -162,6 +195,33 @@ Do not mark the preview artifact slice complete until all are true:
 - If a change does not improve source payloads, compiler output, validation, or the user-facing default flow, treat it as refinement and defer it.
 
 ## Progress Log
+
+### 2026-05-01 - Phase 14 Review Fixes And Generation Start Guard
+
+Completed on `codex/artifact-pack-design-rebuild`:
+
+- Added Phase 14 as the active closure phase so foundation work is separated from product/release readiness.
+- Split document and spreadsheet pack status into `Done/Foundation`, with explicit follow-up gates for source-backed edits, runtime routing, deterministic export, previews, and in-app validation.
+- Fixed the lint blocker in `artifact-pack-example-project.test.ts`.
+- Scoped shipped spreadsheet example table names by project document id before row materialization, and remapped workbook metadata, source payload sheet table names, and compiled workbook JSON to the same isolated names.
+- Preserved executive memo recommendation item `status` metadata alongside `value` metadata in rendered item badges.
+- Added a chat submit start guard: generation now enters a visible `Preparing request...` state immediately, and a failed start restores the prompt with a visible error instead of silently clearing the composer.
+- Fixed default presentation pack personalization: normal deck prompts without explicit slide-by-slide lists now derive topic-aware slide titles and source copy from the user brief instead of rendering generic `Opening`/`Context`/`Recommendation` slides.
+- Moved internal presentation `Narrative beat` guidance out of compiler-visible content slots so instructions do not leak into generated slide copy.
+
+Verification completed:
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm test -- --run src/test/artifact-pack-example-project.test.ts src/test/executive-memo-pack.test.ts src/test/chat-submit.test.tsx src/test/run-events.test.ts src/test/document-runtime-workflow.test.ts src/test/presentation-runtime-workflow.test.ts src/test/spreadsheet-runtime.test.ts`
+- `npm test`
+- `npm run build`
+
+Remaining Phase 14 work:
+
+- Confirm a fresh in-app create/edit flow starts and completes with the new progress guard.
+- Implement document source-backed edits and spreadsheet runtime/export routing.
+- Backfill document/spreadsheet preview evidence and manual workflow validation.
 
 ### 2026-04-30 - Presentation Source-Edit Runtime And Simplified Creation UI
 

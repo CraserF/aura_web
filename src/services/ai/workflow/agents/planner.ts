@@ -417,6 +417,7 @@ export function parseSlideBriefs(
   const requestedCount = getExplicitPresentationSlideCount(prompt);
   return buildDefaultDeckSlideBriefs(
     requestedCount ?? options.defaultSlideCount ?? resolveDefaultDeckSlideCount(prompt),
+    prompt,
   );
 }
 
@@ -455,14 +456,107 @@ function parseExplicitSlideBriefs(prompt: string): SlideBrief[] {
   return [];
 }
 
-function buildDefaultDeckSlideBriefs(count: number): SlideBrief[] {
+function cleanPromptSummary(prompt: string, maxLength: number): string {
+  return prompt
+    .replace(/\s+/g, ' ')
+    .replace(/[<>]/g, '')
+    .trim()
+    .slice(0, maxLength)
+    .trim();
+}
+
+function normalizeDeckSubject(value: string): string | undefined {
+  const normalized = value
+    .replace(/[“”"']/g, '')
+    .replace(/\b(?:slide\s+deck|pitch\s+deck|investor\s+deck|board\s+deck|executive\s+briefing\s+deck|deck|presentation|keynote|slideshow|power[-\s]?point|pptx?|ppt|slides?)\b/gi, ' ')
+    .replace(/\b(?:about|on|covering|regarding|around)\b/gi, ' ')
+    .replace(/\b(?:with|using|in the style of|styled as)\b[\s\S]*$/i, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s:.,;!?-]+|[\s:.,;!?-]+$/g, '')
+    .replace(/^(?:our|the|a|an)\s+/i, '')
+    .trim();
+
+  if (normalized.length < 3) return undefined;
+
+  return normalized
+    .split(' ')
+    .map((word) => (/^[A-Z0-9-]{2,}$/.test(word) ? word : word.charAt(0).toUpperCase() + word.slice(1)))
+    .join(' ')
+    .slice(0, 90)
+    .trim();
+}
+
+function extractDefaultDeckSubject(prompt: string): string | undefined {
+  const cleaned = cleanPromptSummary(prompt, 500);
+  const titled = cleaned.match(/\b(?:titled|called|named)\s+["“']?([^"”'.!?]+)["”']?/i)?.[1];
+  if (titled) return normalizeDeckSubject(titled);
+
+  const topic = cleaned.match(/\b(?:about|on|covering|regarding|around)\s+(.+?)(?:[.!?]|\n|$)/i)?.[1];
+  if (topic) return normalizeDeckSubject(topic);
+
+  const fallback = cleaned
+    .replace(/^(?:please\s+)?(?:create|make|build|generate|design|draft)\s+(?:a|an|the)?\s*/i, '')
+    .replace(/\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)[-\s]+slides?\b/gi, ' ');
+  return normalizeDeckSubject(fallback);
+}
+
+function titleForDefaultBrief(baseTitle: string, subject: string | undefined): string {
+  if (!subject) return baseTitle;
+
+  switch (baseTitle) {
+    case 'Opening':
+      return subject;
+    case 'Context & Problem':
+      return `Why ${subject} Matters Now`;
+    case 'Proof & Mechanism':
+      return 'How It Works';
+    case 'Recommendation & Action':
+      return 'Decision Path';
+    case 'Closing':
+      return 'Next Steps';
+    default:
+      if (/^Deep Dive \d+$/i.test(baseTitle)) return `${subject}: ${baseTitle}`;
+      return `${subject}: ${baseTitle}`;
+  }
+}
+
+function guidanceForDefaultBrief(baseTitle: string, baseGuidance: string, subject: string | undefined, prompt: string): string {
+  if (!subject) return baseGuidance;
+
+  const promptSummary = cleanPromptSummary(prompt, 220);
+  const base = (() => {
+    switch (baseTitle) {
+      case 'Opening':
+        return `${subject}: clear promise, audience tension, and reason to act.`;
+      case 'Context & Problem':
+        return `Show why ${subject} matters now, what changed, and the risk of unfocused action.`;
+      case 'Proof & Mechanism':
+        return `Explain ${subject} through one signal, the mechanism behind it, and the implication to trust.`;
+      case 'Recommendation & Action':
+        return `Make ${subject} a focused recommendation with owner, constraint, and next decision.`;
+      case 'Closing':
+        return `Close ${subject} with the decision, first action, and progress checkpoint.`;
+      default:
+        return `Expand one concrete proof point for ${subject} without repeating the previous slide.`;
+    }
+  })();
+
+  return `${base} Brief: ${promptSummary}`;
+}
+
+function buildDefaultDeckSlideBriefs(count: number, prompt = ''): SlideBrief[] {
   const safeCount = Math.max(1, Math.min(count, 10));
   const selected = selectDefaultDeckBriefSequence(safeCount);
+  const subject = extractDefaultDeckSubject(prompt);
 
-  return selected.map((brief, index) => ({
-    index: index + 1,
-    ...brief,
-  }));
+  return selected.map((brief, index) => {
+    const title = titleForDefaultBrief(brief.title, subject);
+    return {
+      index: index + 1,
+      title,
+      contentGuidance: guidanceForDefaultBrief(brief.title, brief.contentGuidance, subject, prompt),
+    };
+  });
 }
 
 function selectDefaultDeckBriefSequence(count: number): Array<Omit<SlideBrief, 'index'>> {

@@ -8,6 +8,7 @@ import { detectAnimationLevel, getTemplateBlueprint, resolveTemplatePlan } from 
 import { summarizeRuntimeDiagnostics } from '@/services/artifactRuntime/diagnostics';
 import { buildArtifactRunPlan } from '@/services/artifactRuntime/build';
 import { useSettingsStore } from '@/stores/settingsStore';
+import type { EditorialStageSource } from '@/services/artifactPacks/packs/presentation/editorial-stage-v1/schemas';
 
 const batchQueueMocks = vi.hoisted(() => ({
   runBatchQueue: vi.fn(),
@@ -181,6 +182,44 @@ describe('presentation runtime workflow orchestration', () => {
     expect(diagnostics.viewportContractSampleCount).toBe(1);
     expect(diagnostics.viewportContractPassRate).toBe(1);
     expect(diagnostics.viewportBlockingIssueCount).toBe(0);
+  });
+
+  it('customizes default artifact-pack decks from normal user prompts', async () => {
+    const prompt = 'Create a presentation about zero-waste hospitality onboarding for regional hotel managers.';
+    const runPlan = buildArtifactRunPlan({
+      runId: 'presentation-runtime-prompt-customization',
+      prompt,
+      artifactType: 'presentation',
+      operation: 'create',
+      activeDocument: null,
+      providerId: 'openai',
+      providerModel: 'gpt-4o',
+      allowFullRegeneration: false,
+    });
+
+    const output = await runPresentationRuntime({
+      model: {} as LanguageModel,
+      input: {
+        prompt,
+        chatHistory: [],
+        artifactRunPlan: runPlan,
+      },
+      onEvent: vi.fn(),
+      editCorrectionPolicy: { maxCorrectionSteps: 0, mode: 'best-effort' },
+      skipSecondaryEvaluation: true,
+    });
+    const source = output.artifactSourcePayload as EditorialStageSource;
+
+    expect(runBatchQueueMock).not.toHaveBeenCalled();
+    expect(output.html).toContain('Zero-waste Hospitality Onboarding');
+    expect(output.html).toContain('Regional Hotel Managers');
+    expect(output.html).not.toContain('Title/opening slide');
+    expect(output.html).not.toContain('Narrative beat:');
+    expect(source.brief).toBe(prompt);
+    expect(source.slides[0]?.slots.title).toContain('Zero-waste Hospitality Onboarding');
+    expect(source.slides.some((slide) =>
+      Object.values(slide.slots).some((value) => /zero-waste hospitality onboarding/i.test(value)),
+    )).toBe(true);
   });
 
   it('prefers ArtifactRunPlan workQueue slide parts over legacy slide briefs', async () => {

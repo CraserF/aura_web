@@ -308,13 +308,23 @@
   padding: 16px;
 }
 
+.em-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 .em-status {
   display: inline-block;
-  margin-top: 10px;
   color: var(--em-warning);
   font-family: var(--em-mono);
   font-size: 12px;
   font-weight: 700;
+}
+
+.em-card > .em-status {
+  margin-top: 10px;
 }
 
 .em-source-block {

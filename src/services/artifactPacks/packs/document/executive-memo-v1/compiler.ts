@@ -160,15 +160,20 @@ const renderSectionHeading = (kicker: string, heading: string): string => `
 
 const renderItems = (items: readonly ExecutiveMemoItem[]): string =>
   `<ol class="em-step-list">${items
-    .map((item, index) => `
+    .map((item, index) => {
+      const badges = [item.value, item.status].filter((badge): badge is string => Boolean(badge));
+      return `
   <li class="em-step">
     <span class="em-step-index">${String(index + 1).padStart(2, '0')}</span>
     <div>
       <h3>${escapeHtml(item.label)}</h3>
       ${item.body ? `<p>${escapeHtml(item.body)}</p>` : ''}
-      ${item.value ? `<span class="em-status">${escapeHtml(item.value)}</span>` : ''}
+      ${badges.length > 0
+        ? `<div class="em-status-row">${badges.map((badge) => `<span class="em-status">${escapeHtml(badge)}</span>`).join('')}</div>`
+        : ''}
     </div>
-  </li>`.trim())
+  </li>`.trim();
+    })
     .join('')}</ol>`;
 
 const renderTable = (table: ExecutiveMemoTable | undefined): string => {

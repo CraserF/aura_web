@@ -274,40 +274,72 @@ export function ChatBar() {
     setAttachments([]);
     setAttachmentError(null);
     setInput('');
-    const { project: nextProject } = materializeRenderAttachments(project, currentAttachments);
-    if (nextProject !== project) {
-      setProject(nextProject);
-    }
-
-    await submitPrompt({
-      prompt,
-      attachments: currentAttachments,
-      messages,
-      project: nextProject,
-      activeDocument,
-      showAllMessages,
-      applyToAllDocuments,
-      selectionState: contextSelection,
-      providerConfig: getActiveProvider(),
-      documentStylePreset,
-      selectedPresetId: selectedPresetId ?? undefined,
-      allowClarification: !autoPrompt,
-    }, {
-      workflowStepsRef,
-      abortControllerRef,
-      addMessage,
-      addDocument,
-      updateDocument,
-      setStatus,
-      setStreamingContent,
-      appendStreamingContent,
-      setSlides,
-      setTitle,
-      updateStepStatus,
-      queueMemoryExtraction,
-      buildWorkflowMemoryContext,
-      onRunRequestBuilt: (runRequest) => setLastContext(runRequest.context),
+    workflowStepsRef.current = [
+      { id: 'prepare', label: 'Preparing request', status: 'active' },
+    ];
+    setStatus({
+      state: 'generating',
+      startedAt: Date.now(),
+      step: 'Preparing request...',
+      pct: 5,
+      steps: [...workflowStepsRef.current],
+      currentStep: 1,
+      totalSteps: 1,
     });
+    setStreamingContent('');
+    try {
+      const { project: nextProject } = materializeRenderAttachments(project, currentAttachments);
+      if (nextProject !== project) {
+        setProject(nextProject);
+      }
+
+      await submitPrompt({
+        prompt,
+        attachments: currentAttachments,
+        messages,
+        project: nextProject,
+        activeDocument,
+        showAllMessages,
+        applyToAllDocuments,
+        selectionState: contextSelection,
+        providerConfig: getActiveProvider(),
+        documentStylePreset,
+        selectedPresetId: selectedPresetId ?? undefined,
+        allowClarification: !autoPrompt,
+      }, {
+        workflowStepsRef,
+        abortControllerRef,
+        addMessage,
+        addDocument,
+        updateDocument,
+        setStatus,
+        setStreamingContent,
+        appendStreamingContent,
+        setSlides,
+        setTitle,
+        updateStepStatus,
+        queueMemoryExtraction,
+        buildWorkflowMemoryContext,
+        onRunRequestBuilt: (runRequest) => setLastContext(runRequest.context),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Generation could not start.';
+      console.error('[ChatBar] generation submit failed:', error);
+      workflowStepsRef.current = [];
+      abortControllerRef.current = null;
+      setInput(rawPrompt);
+      setAttachments(currentAttachments);
+      setStreamingContent('');
+      setStatus({ state: 'error', message: `Generation could not start: ${message}` });
+      addMessage({
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: `Generation could not start: ${message}`,
+        timestamp: Date.now(),
+        documentId: activeDocument?.id,
+        scope: activeDocument ? 'document' : 'project',
+      });
+    }
   }, [
     input, attachments, isGenerating, hasApiKey, setShowSettings, addMessage, messages,
     setStatus, setStreamingContent, appendStreamingContent,
