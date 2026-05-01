@@ -35,7 +35,15 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { NewProjectDialog, type NewProjectSelection } from '@/components/NewProjectDialog';
 import { ProjectInitReportDialog } from '@/components/ProjectInitReportDialog';
-import { ArtifactLibraryDialog } from '@/components/ArtifactLibraryDialog';
+import {
+  ArtifactLibraryDialog,
+  type ArtifactLibraryStartExampleRequest,
+  type ArtifactLibraryStartExampleHandler,
+} from '@/components/ArtifactLibraryDialog';
+import {
+  createArtifactPackExampleProject,
+  toShippedArtifactPackExampleId,
+} from '@/services/artifactPacks';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -63,6 +71,7 @@ interface ToolbarProps {
     disabled?: boolean;
   } | null;
   artifactExportBusy?: boolean;
+  onStartArtifactExample?: ArtifactLibraryStartExampleHandler;
 }
 
 export function Toolbar({
@@ -75,6 +84,7 @@ export function Toolbar({
   artifactExportActions = [],
   artifactValidationAction = null,
   artifactExportBusy = false,
+  onStartArtifactExample,
 }: ToolbarProps) {
   const project = useProjectStore((s) => s.project);
   const activeDocument = useProjectStore((s) => s.activeDocument());
@@ -106,6 +116,7 @@ export function Toolbar({
   const [toolbarError, setToolbarError] = useState<string | null>(null);
   const [toolbarNotice, setToolbarNotice] = useState<{ message: string; onDetails?: () => void } | null>(null);
   const [pendingNewSelection, setPendingNewSelection] = useState<NewProjectSelection | null>(null);
+  const [pendingArtifactExample, setPendingArtifactExample] = useState<ArtifactLibraryStartExampleRequest | null>(null);
   const [initReportOpen, setInitReportOpen] = useState(false);
   const [initReport, setInitReport] = useState<Awaited<ReturnType<typeof initProject>>['report'] | null>(null);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
@@ -179,6 +190,56 @@ export function Toolbar({
       return;
     }
     void runNewSelection(selection);
+  };
+
+  const runArtifactExampleSelection = async (request: ArtifactLibraryStartExampleRequest) => {
+    setToolbarError(null);
+    setToolbarNotice(null);
+
+    if (onStartArtifactExample) {
+      onStartArtifactExample(request);
+      return;
+    }
+
+    const exampleId = toShippedArtifactPackExampleId(request.pack.packId, request.example.id);
+    if (!exampleId) {
+      setToolbarError(`"${request.example.label}" is browse-only until a starter contract is registered for this example.`);
+      return;
+    }
+
+    setIsCreatingProject(true);
+    try {
+      const nextProject = await createArtifactPackExampleProject({
+        exampleId,
+        projectTitle: request.example.label,
+      });
+
+      resetProject();
+      setProject(nextProject);
+      clearMessages();
+      setArtifactLibraryOpen(false);
+      commitVersion(nextProject, `Create project from example: ${request.example.label}`)
+        .catch((e) => console.warn('[VersionHistory] example project commit failed:', e));
+      setToolbarNotice({
+        message: `Started from ${request.example.label}.`,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error starting from example';
+      setToolbarError(`Failed to start from example: ${message}`);
+    } finally {
+      setIsCreatingProject(false);
+    }
+  };
+
+  const handleStartArtifactExample: ArtifactLibraryStartExampleHandler = (request) => {
+    if (!onStartArtifactExample && hasContent) {
+      setPendingArtifactExample(request);
+      setArtifactLibraryOpen(false);
+      setConfirmNew(true);
+      return;
+    }
+
+    void runArtifactExampleSelection(request);
   };
 
   const handleSave = async () => {
@@ -671,12 +732,21 @@ export function Toolbar({
 
       <ConfirmDialog
         open={confirmNew}
-        onOpenChange={setConfirmNew}
-        title="Start a new project?"
+        onOpenChange={(open) => {
+          setConfirmNew(open);
+          if (!open) {
+            setPendingNewSelection(null);
+            setPendingArtifactExample(null);
+          }
+        }}
+        title={pendingArtifactExample ? 'Start from this example?' : 'Start a new project?'}
         description="Your current project and chat history will be lost. Make sure you've saved your work first."
-        confirmLabel="Discard & start new"
+        confirmLabel={pendingArtifactExample ? 'Discard & start from example' : 'Discard & start new'}
         onConfirm={() => {
-          if (pendingNewSelection) {
+          if (pendingArtifactExample) {
+            void runArtifactExampleSelection(pendingArtifactExample);
+            setPendingArtifactExample(null);
+          } else if (pendingNewSelection) {
             void runNewSelection(pendingNewSelection);
             setPendingNewSelection(null);
           }
@@ -711,6 +781,7 @@ export function Toolbar({
       <ArtifactLibraryDialog
         open={artifactLibraryOpen}
         onOpenChange={setArtifactLibraryOpen}
+        onStartExample={handleStartArtifactExample}
       />
     </>
   );

@@ -566,6 +566,8 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
             reviewPassed: result.reviewPassed,
             ...(result.runtime ? { runtime: result.runtime } : {}),
             ...(result.editing ? { editing: result.editing } : {}),
+            ...(result.artifactManifest ? { artifactManifest: result.artifactManifest } : {}),
+            ...(result.artifactSourcePayload ? { artifactSourcePayload: result.artifactSourcePayload } : {}),
             ...(publish ? { publish } : {}),
           },
         },
@@ -575,6 +577,8 @@ export async function handlePresentationWorkflow(ctx: PresentationHandlerContext
         reviewPassed: result.reviewPassed,
         ...(result.runtime ? { runtime: result.runtime } : {}),
         ...(result.editing ? { editing: result.editing } : {}),
+        ...(result.artifactManifest ? { artifactManifest: result.artifactManifest } : {}),
+        ...(result.artifactSourcePayload ? { artifactSourcePayload: result.artifactSourcePayload } : {}),
         ...(publish ? { publish } : {}),
       },
       assistantMessage: {

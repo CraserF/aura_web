@@ -1,5 +1,6 @@
 import type { DocumentType } from '@/types/project';
 import { getArtifactDesignDirection } from './directions/auraDirections';
+import { isShippedArtifactPackExampleId } from './exampleProject';
 import { listArtifactPackManifests } from './registry';
 import type {
   ArtifactOutputMode,
@@ -19,6 +20,7 @@ export interface ArtifactGalleryExample {
   resolvedCompiledPath: string;
   resolvedPreviewPath?: string;
   previewKind: ArtifactGalleryPreviewKind;
+  canStartFromExample: boolean;
 }
 
 export interface ArtifactPackGalleryItem {
@@ -77,6 +79,7 @@ export const buildArtifactPackGalleryItem = (
       previewKind: example.previewPath
         ? previewKindForPath(example.previewPath)
         : compiledKindForPath(example.compiledPath),
+      canStartFromExample: isShippedArtifactPackExampleId(manifest.id, example.id),
     };
   });
 

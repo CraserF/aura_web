@@ -129,6 +129,7 @@ describe('artifact pack registry foundation', () => {
     for (const item of items) {
       expect(item.primaryExample).toBeDefined();
       expect(item.primaryExample?.resolvedCompiledPath).toContain(item.packId);
+      expect(item.primaryExample?.canStartFromExample).toBe(true);
       expect(item.supportedDirectionLabels.length).toBeGreaterThan(0);
       expect(item.saveAsPackAvailable).toBe(false);
     }

@@ -372,4 +372,30 @@ describe('Toolbar new project dialog', () => {
 
     view.unmount();
   });
+
+  it('starts a project from a shipped Artifact Library example', async () => {
+    const view = renderToolbar();
+
+    openDropdownByLabel(view.container, 'More options');
+    await flushEffects();
+    clickMenuItemByText('Artifact library');
+    await flushEffects();
+    clickButtonByText('Start from example');
+    await flushEffects();
+
+    const project = useProjectStore.getState().project;
+    expect(initProjectMock).not.toHaveBeenCalled();
+    expect(project.title).toBe('Decision Brief Example');
+    expect(project.documents).toHaveLength(1);
+    expect(project.activeDocumentId).toBe(project.documents[0]?.id);
+    expect(project.documents[0]?.artifactManifest?.packId).toBe('presentation/editorial-stage-v1');
+    expect(project.documents[0]?.artifactSourcePayload).toEqual(expect.objectContaining({
+      packId: 'presentation/editorial-stage-v1',
+      schemaVersion: 1,
+    }));
+    expect(project.media?.map((asset) => asset.id)).toContain('launch-proof-screenshot');
+    expect(view.container.textContent).toContain('Started from Decision Brief Example.');
+
+    view.unmount();
+  });
 });

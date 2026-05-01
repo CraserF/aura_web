@@ -26,6 +26,7 @@ vi.mock('@/services/artifactPacks', () => ({
           resolvedCompiledPath: 'src/services/artifactPacks/packs/presentation/editorial-stage-v1/examples/example.html',
           resolvedPreviewPath: 'src/services/artifactPacks/packs/presentation/editorial-stage-v1/examples/preview.png',
           previewKind: 'image',
+          canStartFromExample: true,
         },
       ],
       primaryExample: {
@@ -38,6 +39,7 @@ vi.mock('@/services/artifactPacks', () => ({
         resolvedCompiledPath: 'src/services/artifactPacks/packs/presentation/editorial-stage-v1/examples/example.html',
         resolvedPreviewPath: 'src/services/artifactPacks/packs/presentation/editorial-stage-v1/examples/preview.png',
         previewKind: 'image',
+        canStartFromExample: true,
       },
       saveAsPackAvailable: false,
     },
@@ -58,17 +60,20 @@ vi.mock('@/services/artifactPacks', () => ({
   ],
 }));
 
-import { ArtifactLibraryDialog } from '@/components/ArtifactLibraryDialog';
+import {
+  ArtifactLibraryDialog,
+  type ArtifactLibraryStartExampleHandler,
+} from '@/components/ArtifactLibraryDialog';
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-function renderDialog(): { unmount: () => void } {
+function renderDialog(onStartExample?: ArtifactLibraryStartExampleHandler): { unmount: () => void } {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root: Root = createRoot(container);
 
   act(() => {
-    root.render(<ArtifactLibraryDialog open onOpenChange={() => {}} />);
+    root.render(<ArtifactLibraryDialog open onOpenChange={() => {}} onStartExample={onStartExample} />);
   });
 
   return {
@@ -104,10 +109,45 @@ describe('ArtifactLibraryDialog', () => {
     expect(document.body.textContent).toContain('No compiled examples registered yet.');
     expect(document.body.textContent).toContain('Save as pack deferred');
 
+    const startButton = Array.from(document.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Start from example'));
+    expect(startButton).toBeInstanceOf(HTMLButtonElement);
+    expect(startButton).toBeDisabled();
+
     const deferredButton = Array.from(document.querySelectorAll('button')).find((button) =>
       button.textContent?.includes('Save as pack deferred'));
     expect(deferredButton).toBeInstanceOf(HTMLButtonElement);
     expect(deferredButton).toBeDisabled();
+
+    view.unmount();
+  });
+
+  it('calls the start-from-example callback with the selected pack example', () => {
+    const onStartExample = vi.fn();
+    const view = renderDialog(onStartExample);
+
+    const startButton = Array.from(document.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Start from example'));
+    if (!(startButton instanceof HTMLButtonElement)) {
+      throw new Error('Start from example button not found');
+    }
+    expect(startButton).toBeEnabled();
+
+    act(() => {
+      startButton.click();
+    });
+
+    expect(onStartExample).toHaveBeenCalledWith({
+      pack: expect.objectContaining({
+        packId: 'presentation/editorial-stage-v1',
+        artifactType: 'presentation',
+      }),
+      example: expect.objectContaining({
+        id: 'decision-brief-example',
+        resolvedSourcePath: 'src/services/artifactPacks/packs/presentation/editorial-stage-v1/examples/source.json',
+        resolvedCompiledPath: 'src/services/artifactPacks/packs/presentation/editorial-stage-v1/examples/example.html',
+      }),
+    });
 
     view.unmount();
   });

@@ -1,4 +1,4 @@
-import { Eye, FileCode2, Layers3, PackageOpen } from 'lucide-react';
+import { Eye, FileCode2, Layers3, PackageOpen, PlayCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,12 +11,21 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   listArtifactPackGalleryItems,
+  type ArtifactGalleryExample,
   type ArtifactPackGalleryItem,
 } from '@/services/artifactPacks';
+
+export interface ArtifactLibraryStartExampleRequest {
+  pack: ArtifactPackGalleryItem;
+  example: ArtifactGalleryExample;
+}
+
+export type ArtifactLibraryStartExampleHandler = (request: ArtifactLibraryStartExampleRequest) => void;
 
 interface ArtifactLibraryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onStartExample?: ArtifactLibraryStartExampleHandler;
 }
 
 function formatList(values: readonly string[]): string {
@@ -37,7 +46,7 @@ function statusVariant(status: ArtifactPackGalleryItem['status']): 'default' | '
   }
 }
 
-export function ArtifactLibraryDialog({ open, onOpenChange }: ArtifactLibraryDialogProps) {
+export function ArtifactLibraryDialog({ open, onOpenChange, onStartExample }: ArtifactLibraryDialogProps) {
   const galleryItems = listArtifactPackGalleryItems();
 
   return (
@@ -129,6 +138,19 @@ export function ArtifactLibraryDialog({ open, onOpenChange }: ArtifactLibraryDia
                                 </div>
                               )}
                             </dl>
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="default"
+                                size="sm"
+                                className="h-8 gap-1.5"
+                                disabled={!example.canStartFromExample || !onStartExample || pack.status === 'deprecated'}
+                                onClick={() => onStartExample?.({ pack, example })}
+                              >
+                                <PlayCircle className="size-3.5" />
+                                Start from example
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>

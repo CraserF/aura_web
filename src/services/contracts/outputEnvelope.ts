@@ -32,6 +32,8 @@ export interface PresentationRunOutputs {
   reviewPassed?: boolean;
   runtime?: PresentationRuntimeTelemetry;
   editing?: EditingTelemetry;
+  artifactManifest?: ProjectArtifactManifest;
+  artifactSourcePayload?: unknown;
   publish?: PublishReadinessResult;
 }
 

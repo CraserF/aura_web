@@ -52,7 +52,7 @@ Status key:
 | 10. Export and preview gates | Done | Add export-intent constraints and generated preview artifacts. | Browser-side preview smoke passes for a fresh pack-backed deck. | Compiled-output export validator blocks viewport units, missing export backgrounds, missing reduced-motion fallback, editable-PPTX unsafe CSS/text patterns, Editorial Stage exposes `examples/preview.png`, runtime preview metadata/media round-trips through `.aura` and snapshots, and `node scripts/run-presentation-preview-smoke.mjs` passes with a 1280x720 PNG. | Carry export/preview constraints into document and spreadsheet packs when Phases 11/12 start. |
 | 11. Document packs | Done | Add source-payload document packs without presentation-shaped UI. | Executive-memo-like document creates route through `document/executive-memo-v1`; edits and image creates stay on existing safe paths. | Registered document pack, source schema, scoped CSS, deterministic compiler, document validator, generated example, pack runtime routing, persisted source payload/manifest, and `executive-memo-pack`/document-runtime/registry tests. | Next document slice can add source-backed edits or a second document pack when prioritized. |
 | 12. Spreadsheet packs | Done | Add deterministic workbook packs with formulas/charts/style validation. | `spreadsheet/operating-model-v1` compiles and validates. | Operating Model source schema, manifest, deterministic JSON compiler, spreadsheet-theme adapter, formula/cell-safety validator, examples, registry wiring, independent review, focused pack tests, and full verification. | Next spreadsheet slice can be runtime routing, deterministic XLSX export, or `spreadsheet/data-dashboard-v1` when prioritized against the open Phase 11 routing gate. |
-| 13. Pack gallery and save-as-pack | Active | Show compiled examples and later save current artifacts as pack candidates. | Browseable Artifact Library shows pack metadata and Aura-owned examples without complicating new-project defaults. | Gallery data model, toolbar entry point, Artifact Library dialog, disabled save-as-pack affordance, and focused gallery tests. | Add start-from-example and save-as-pack only after the browseable library passes review/full verification. |
+| 13. Pack gallery and example starts | Done | Show compiled examples and let users start from supported examples without exposing pack internals. | Artifact Library starts projects from Aura-owned examples while save-as-pack stays deferred. | Gallery data model, toolbar entry point, Artifact Library dialog, deterministic example project service, shipped media carry-forward, disabled save-as-pack affordance, review fixes, and focused gallery/start tests. | Keep save-as-pack queued until candidate-authoring contracts and quality review are defined. |
 
 ### Active Phase Exit Criteria
 
@@ -125,15 +125,16 @@ The user explicitly reprioritized Workstream/Phase 12 before Phase 5's visual sc
 - Phase 5 was not marked done because spreadsheet work moved forward; it is done because the visual fixes were implemented and the CDP screenshot gate was rerun.
 - Do not let spreadsheet packs accept arbitrary formulas, external references, HTML fragments, raw CSS, or unvalidated theme colours.
 
-### Phase 13 Active Entry Guard
+### Phase 13 Completion Notes
 
-Workstream/Phase 13 is now active as a browseable library foundation, not a new required choice in the creation flow:
+Workstream/Phase 13 shipped as a browseable library plus start-from-example foundation, not a new required choice in the creation flow:
 
-- Allowed now: gallery data derived from `ArtifactPackManifest.examples`, a toolbar library entry point, compiled example metadata, preview paths, pack type/status/direction/output information, and a clearly disabled save-as-pack affordance.
-- Allowed now: tests that prove the gallery reads Aura-owned compiled examples and remains outside the default new-project path.
-- Defer: start-from-example, generated thumbnail previews for document/spreadsheet packs, editable design-system gallery, save-current-as-pack, and pack authoring workflows.
+- Completed: gallery data derived from `ArtifactPackManifest.examples`, a toolbar library entry point, compiled example metadata, preview paths, pack type/status/direction/output information, and a clearly disabled save-as-pack affordance.
+- Completed: users can start from supported shipped examples through deterministic host code that compiles/validates Aura-owned source payloads and persists `artifactManifest`/`artifactSourcePayload`.
+- Completed: the Editorial Stage example carries its shipped media asset into the project shell so future source-backed edits can resolve the same media id.
+- Keep deferred: generated thumbnail previews for document/spreadsheet packs, editable design-system gallery, save-current-as-pack, and pack authoring workflows.
 - Do not add extra choices to the default new-project flow to compensate for weak defaults. The library is for discovery, inspection, and future advanced starts.
-- Do not mark Phase 13 done until users can start from a compiled example or the acceptance criteria are explicitly narrowed in a follow-up plan.
+- Do not implement save-as-pack until candidate manifests, source sanitization, preview regeneration, and quality review gates are specified.
 
 ### Phase 10 Preview Artifact Gate
 
@@ -578,6 +579,29 @@ Remaining current gate:
 
 - Phase 13 remains active until start-from-example or a narrowed acceptance gate is implemented and verified.
 - Spreadsheet runtime create/edit routing and deterministic XLSX export remain deferred; the registry/gallery can expose the pack, but normal spreadsheet run plans must not claim pack-backed routing yet.
+
+### 2026-05-01 - Artifact Library Start From Example Slice
+
+Completed in this slice:
+
+- Added a deterministic artifact-pack example project service that starts from shipped pack examples for Editorial Stage, Executive Memo, and Operating Model.
+- Compiled examples from Aura-owned source payloads at start time instead of letting the model write artifact markup, and blocked startup if shipped examples produce blocking validation findings.
+- Persisted `artifactManifest` and `artifactSourcePayload` on example-started documents, including supported exports, edit surfaces, source payload version, design direction, and validation status.
+- Carried the Editorial Stage example media fixture into the project media store so source-backed presentation edits can resolve the same `launch-proof-screenshot` asset.
+- Derived workbook metadata and chart specs for the Operating Model example while preserving the compiled workbook JSON for inspection.
+- Materialized Operating Model example rows into the spreadsheet table layer before project handoff so the grid/export path is not empty.
+- Wired Artifact Library's "Start from example" action into the production toolbar flow with the existing discard-current-project confirmation guard.
+- Kept "Save as pack" visibly deferred and disabled until pack-candidate authoring contracts are designed.
+- Fixed independent review findings: production start-from-example is now wired, presentation run envelopes expose `artifactManifest`/`artifactSourcePayload`, and spreadsheet examples no longer hand off metadata without table rows.
+
+Verification completed:
+
+- `npm test -- --run src/test/artifact-pack-example-project.test.ts src/test/artifact-library-dialog.test.tsx src/test/artifact-pack-registry.test.ts src/test/new-project-dialog.test.tsx`
+- `npm run typecheck`
+
+Remaining queued work:
+
+- Save-current-as-pack, document/spreadsheet thumbnails, spreadsheet runtime routing, and deterministic XLSX export remain queued. They need their own source sanitization, preview regeneration, and export gates before implementation.
 
 ## Implementation Order
 

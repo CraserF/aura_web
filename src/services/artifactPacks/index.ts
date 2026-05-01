@@ -19,6 +19,13 @@ export {
   listArtifactPackGalleryItems,
 } from './gallery';
 export {
+  createArtifactPackExampleDocument,
+  createArtifactPackExampleProject,
+  isShippedArtifactPackExampleId,
+  listShippedArtifactPackExamples,
+  toShippedArtifactPackExampleId,
+} from './exampleProject';
+export {
   EXECUTIVE_MEMO_MANIFEST,
   EXECUTIVE_MEMO_PACK,
   EXECUTIVE_MEMO_PACK_ID,
@@ -84,6 +91,11 @@ export type {
   ResolvedArtifactMediaAsset,
   TypographyTokens,
 } from './types';
+export type {
+  CreateArtifactPackExampleDocumentOptions,
+  CreateArtifactPackExampleProjectOptions,
+  ShippedArtifactPackExampleId,
+} from './exampleProject';
 export type {
   ArtifactGalleryExample,
   ArtifactGalleryPreviewKind,
